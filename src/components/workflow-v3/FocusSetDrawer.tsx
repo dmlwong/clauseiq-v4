@@ -1,0 +1,194 @@
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Trash2, ArrowUp, ArrowDown, Minus, Plus, Ban, Target } from "lucide-react";
+import type { FocusSetApi } from "@/hooks/use-focus-set";
+import { FRAMEWORK_BY_ID } from "@/lib/clauses-framework";
+import type { ClausePriority, ClauseLifecycleStatus, ContractVersion } from "@/lib/workflow-types";
+
+const PRIORITY_TONE: Record<ClausePriority, string> = {
+  Critical: "bg-destructive/10 text-destructive border-destructive/20",
+  Important: "bg-warning/15 text-warning-foreground border-warning/30",
+  Watchlist: "bg-muted text-muted-foreground border-border",
+};
+
+const LIFECYCLE_TONE: Record<ClauseLifecycleStatus, string> = {
+  Open: "bg-muted text-muted-foreground border-border",
+  "In negotiation": "bg-primary/10 text-primary border-primary/20",
+  Resolved: "bg-success/10 text-success border-success/20",
+};
+
+const CHANGE_ICON = {
+  improved: ArrowUp,
+  worsened: ArrowDown,
+  unchanged: Minus,
+  new: Plus,
+  missing: Ban,
+} as const;
+
+const CHANGE_TONE: Record<keyof typeof CHANGE_ICON, string> = {
+  improved: "text-success",
+  worsened: "text-destructive",
+  unchanged: "text-muted-foreground",
+  new: "text-primary",
+  missing: "text-muted-foreground",
+};
+
+interface FocusSetDrawerProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  supplierId: string;
+  contractId: string;
+  focus: FocusSetApi;
+  latestVersion: ContractVersion | null;
+}
+
+export function FocusSetDrawer({
+  open,
+  onOpenChange,
+  supplierId,
+  contractId,
+  focus,
+  latestVersion,
+}: FocusSetDrawerProps) {
+  const entries = focus.getEntries(supplierId, contractId);
+
+  const resolvedCount = entries.filter((e) => e.lifecycle === "Resolved").length;
+  const openCount = entries.length - resolvedCount;
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
+            <Target className="w-4 h-4 text-primary" />
+            Negotiation Focus Set
+          </SheetTitle>
+          <SheetDescription>
+            User-selected clauses tracked across negotiation rounds.
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+          <Stat label="Tracked" value={entries.length} />
+          <Stat label="Resolved" value={resolvedCount} tone="text-success" />
+          <Stat label="Remaining" value={openCount} tone="text-warning" />
+        </div>
+
+        <div className="mt-6 space-y-2">
+          {entries.length === 0 && (
+            <div className="border border-dashed border-border rounded-lg p-6 text-center text-sm text-muted-foreground">
+              No clauses tracked yet. Use the "Track" checkbox on any clause row to add it here.
+            </div>
+          )}
+
+          {entries.map((e) => {
+            const def = FRAMEWORK_BY_ID.get(e.clauseId);
+            const live = latestVersion?.clauses.find((c) => c.id === e.clauseId);
+            const change = (live?.change ?? "unchanged") as keyof typeof CHANGE_ICON;
+            const Icon = CHANGE_ICON[change];
+            return (
+              <div key={e.clauseId} className="border border-border rounded-lg p-3 bg-card space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-mono text-muted-foreground">
+                      §{def?.number ?? e.clauseId.replace("c", "")} · {def?.category}
+                    </p>
+                    <p className="text-sm font-semibold text-foreground truncate">{def?.title}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() => focus.remove(supplierId, contractId, e.clauseId)}
+                    aria-label="Remove from focus set"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {live && (
+                    <Badge variant="outline" className={severityTone(live.severity)}>
+                      {live.severity}
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="gap-1">
+                    <Icon className={`w-3 h-3 ${CHANGE_TONE[change]}`} />
+                    {change}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Priority</label>
+                    <Select
+                      value={e.priority}
+                      onValueChange={(v) => focus.setPriority(supplierId, contractId, e.clauseId, v as ClausePriority)}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(["Critical", "Important", "Watchlist"] as ClausePriority[]).map((p) => (
+                          <SelectItem key={p} value={p}>
+                            <span className={`inline-flex items-center gap-1.5`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${dotTone(p)}`} />
+                              {p}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Status</label>
+                    <Select
+                      value={e.lifecycle}
+                      onValueChange={(v) => focus.setLifecycle(supplierId, contractId, e.clauseId, v as ClauseLifecycleStatus)}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(["Open", "In negotiation", "Resolved"] as ClauseLifecycleStatus[]).map((s) => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <Badge variant="outline" className={`${LIFECYCLE_TONE[e.lifecycle]} text-[10px]`}>
+                  {e.lifecycle}
+                </Badge>
+              </div>
+            );
+          })}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function Stat({ label, value, tone = "text-foreground" }: { label: string; value: number; tone?: string }) {
+  return (
+    <div className="border border-border rounded-md p-2 bg-card">
+      <p className="text-[10px] uppercase text-muted-foreground tracking-wider">{label}</p>
+      <p className={`text-lg font-bold font-mono ${tone}`}>{value}</p>
+    </div>
+  );
+}
+
+function severityTone(s: "high" | "medium" | "low") {
+  return s === "high"
+    ? "bg-destructive/10 text-destructive border-destructive/20"
+    : s === "medium"
+    ? "bg-warning/15 text-warning-foreground border-warning/30"
+    : "bg-muted text-muted-foreground border-border";
+}
+
+function dotTone(p: ClausePriority) {
+  return p === "Critical" ? "bg-destructive" : p === "Important" ? "bg-warning" : "bg-muted-foreground";
+}

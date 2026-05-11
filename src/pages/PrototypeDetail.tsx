@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   usePrototypeStore,
+  prototypePreviewUrl,
   summarize,
   type FeedbackItem,
   type FeedbackPriority,
@@ -85,6 +86,7 @@ export default function PrototypeDetail() {
   }
 
   const s = summarize(version);
+  const previewUrl = prototypePreviewUrl(version);
 
   const startEdit = () => {
     setDraft({ title: version.title, goal: version.goal, notes: version.notes, previewUrl: version.previewUrl ?? "" });
@@ -235,14 +237,14 @@ export default function PrototypeDetail() {
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
               <Link2 className="w-3.5 h-3.5" /> Prototype URL
             </p>
-            {version.previewUrl ? (
+            {previewUrl ? (
               <a
-                href={version.previewUrl}
+                href={previewUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="text-primary text-sm underline break-all"
               >
-                {version.previewUrl}
+                {previewUrl}
               </a>
             ) : (
               <p className="text-sm text-muted-foreground italic">
@@ -251,8 +253,8 @@ export default function PrototypeDetail() {
             )}
           </div>
           <Button
-            onClick={() => version.previewUrl && window.open(version.previewUrl, "_blank", "noopener,noreferrer")}
-            disabled={!version.previewUrl}
+            onClick={() => previewUrl && window.open(previewUrl, "_blank", "noopener,noreferrer")}
+            disabled={!previewUrl}
             className="gap-2 shrink-0"
           >
             <ExternalLink className="w-4 h-4" /> Open Prototype

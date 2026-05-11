@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, Fragment, type MouseEvent, type ReactNode } from "react";
+import { useState, useMemo, useEffect, Fragment, forwardRef, type MouseEvent, type ReactNode } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, Search, MapPin, Lightbulb,
   GitCompare, History, X, ArrowRight, Sparkles, Upload, Trash2, FileText, Loader2,
@@ -24,9 +25,13 @@ import { ChevronDown } from "lucide-react";
 import {
   IconCircleCheck,
   IconCircleX,
+  IconArrowsDiff,
   IconFlame,
   IconHelp,
+  IconInfoCircle,
+  IconList,
   IconPlus,
+  IconTimeline,
   IconTrendingDown,
   IconTrendingUp,
 } from "@tabler/icons-react";
@@ -56,6 +61,7 @@ import {
   sortChangePillStatus,
   type ChangePillResult,
   type ChangePillStatus,
+  type VersionComparisonPair,
 } from "@/lib/change-tracking";
 import { VersionVerdictBanner } from "./VersionVerdictBanner";
 import { TextDiff } from "./TextDiff";
@@ -63,7 +69,21 @@ import { NegotiationTrendStrip } from "./NegotiationTrendStrip";
 import { getClauseAudit, confidenceLabel } from "@/lib/audit-trail";
 import { getSupplierGrouping } from "@/lib/supplier-grouping";
 import { exportContractCsv, downloadCsv } from "@/lib/csv-export";
-import { useVersionPairMemory } from "@/hooks/use-version-pair-memory";
+import {
+  deriveComparisonModel,
+  deriveHistoryModel,
+  normalizeVersionComparisonPair,
+  versionOrder,
+  type DeviationDistribution,
+  type ClauseIqMode,
+  type ComparisonTab,
+  type HistoryFilter,
+  type HistoryRow,
+  type HistorySort,
+  type RoundStatus,
+  type VersionPanelData,
+  buildHistoryRow,
+} from "@/lib/clauseiq-v3-comparison";
 
 interface Props {
   initiativeId: string;
@@ -77,7 +97,7 @@ interface Props {
   onScoringOptionChange?: (value: ScoringOptionKey) => void;
 }
 
-type TabKey = "review" | "compare" | "tracker";
+type TabKey = "review" | ComparisonTab;
 type FilterKey = "all" | "open" | "new-issues" | "closed" | "unmarked";
 type QuickFilterKey = "high" | "medium" | "low" | "need-action" | "changes";
 type CategorySortKey = "risk" | "az" | "count";
@@ -153,6 +173,41 @@ const bandColor: Record<ScoreBand, string> = {
   D: "#854F0B",
   F: "#A32D2D",
 };
+
+const historyFilterLabels: Record<HistoryFilter, string> = {
+  all: "All",
+  still_open: "Still open",
+  regressed_last_round: "Regressed last round",
+  met: "Met",
+  new_clauses: "New clauses",
+};
+
+function normalizeMode(value: string | null): ClauseIqMode {
+  return value === "history" ? "history" : "comparison";
+}
+
+function normalizeComparisonTab(value: string | null): ComparisonTab {
+  if (value === "all") return "all";
+  if (value === "history" || value === "tracker" || value === "compare") return "changes";
+  return "changes";
+}
+
+function normalizeHistoryFilter(value: string | null): HistoryFilter {
+  return value === "still_open" ||
+    value === "regressed_last_round" ||
+    value === "met" ||
+    value === "new_clauses"
+    ? value
+    : "all";
+}
+
+function normalizeHistorySort(value: string | null): HistorySort {
+  return value === "clause_id" ||
+    value === "current_status" ||
+    value === "rounds_to_resolve"
+    ? value
+    : "contentious";
+}
 
 // ---- helpers ----------------------------------------------------------------
 
@@ -362,13 +417,13 @@ export function ContractResults({
   backLabel,
   compactHeader = false,
   onRunAnalysisAgain,
-  scoringOption: controlledScoringOption,
-  onScoringOptionChange,
 }: Props) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const initiative = getInitiative(initiativeId);
   const supplier = getSupplier(initiativeId, supplierId);
   const contract = getContract(initiativeId, supplierId, contractId);
-  const decisions = useClauseDecisions();
+  const decisions = useClauseDecisions({}, { storageKey: "ciq-v3-clause-decisions" });
+  const mode = normalizeMode(searchParams.get("mode"));
 
   // Local mutable copy of versions so the user can simulate uploading a new
   // round or deleting an existing one without touching shared seed data.
@@ -382,32 +437,131 @@ export function ContractResults({
     decisions.seedDefaults(supplierId, contractId, ACME_DEFAULT_FOCUS_IDS, ACME_DEFAULT_REQUEST_TEXTS);
   }, [supplierId, contractId, contract, versions.length, decisions]);
 
-  // Default "compared pair" = previous → latest if multiple rounds, else v1 only.
-  // Persisted per-contract in sessionStorage so users keep context when navigating around (TASK-10).
-  const defaultPair = useMemo(() => {
-    if (versions.length >= 2) return { left: versions.at(-2)!.version, right: versions.at(-1)!.version };
-    return { left: versions[0]?.version ?? "", right: versions[0]?.version ?? "" };
-  }, [versions]);
-  const { pair, setPair, reset: resetPair } = useVersionPairMemory(contractId, defaultPair);
-  const leftVersion = versions.find((v) => v.version === pair.left) ?? v1;
-  const rightVersion = versions.find((v) => v.version === pair.right) ?? latest;
+  const comparisonPair = useMemo(
+    () =>
+      normalizeVersionComparisonPair(versions, {
+        from: searchParams.get("from") ?? undefined,
+        to: searchParams.get("to") ?? undefined,
+      }),
+    [versions, searchParams],
+  );
+
+  useEffect(() => {
+    if (searchParams.get("mode") === mode) return;
+    const next = new URLSearchParams(searchParams);
+    next.set("mode", mode);
+    setSearchParams(next, { replace: true });
+  }, [mode, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (versions.length < 2) return;
+    if (searchParams.get("from") === comparisonPair.from && searchParams.get("to") === comparisonPair.to) return;
+    const next = new URLSearchParams(searchParams);
+    next.set("mode", mode);
+    next.set("from", comparisonPair.from);
+    next.set("to", comparisonPair.to);
+    setSearchParams(next, { replace: true });
+  }, [comparisonPair.from, comparisonPair.to, mode, searchParams, setSearchParams, versions.length]);
+
+  const setComparisonPair = (nextPair: VersionComparisonPair) => {
+    const normalized = normalizeVersionComparisonPair(versions, nextPair);
+    const next = new URLSearchParams(searchParams);
+    next.set("from", normalized.from);
+    next.set("to", normalized.to);
+    setSearchParams(next, { replace: false });
+  };
+
+  const setPair = (nextPair: { left: string; right: string }) => {
+    setComparisonPair({ from: nextPair.left, to: nextPair.right });
+  };
+
+  const resetPair = () => {
+    const normalized = normalizeVersionComparisonPair(versions, null);
+    setComparisonPair(normalized);
+  };
+
+  const pair = { left: comparisonPair.from, right: comparisonPair.to };
+  const leftVersion = versions.find((v) => v.version === comparisonPair.from) ?? v1;
+  const rightVersion = versions.find((v) => v.version === comparisonPair.to) ?? latest;
 
   // Which version the Review tab is focused on (defaults to latest so the user
   // can review v1 first, then re-review v2 once it's uploaded).
   const [reviewVersionLabel, setReviewVersionLabel] = useState<string>(() => versions[0]?.version ?? "v1");
   const reviewVersion = versions.find((v) => v.version === reviewVersionLabel) ?? v1;
 
-  // Default to Review tab — most users start here.
-  const [tab, setTab] = useState<TabKey>("review");
-  useEffect(() => {
-    if (versions.length < 2 && tab !== "review") {
-      setTab("review");
+  const tabStorageKey = `ciq-v3-tab:${supplierId}:${contractId}`;
+  const storedComparisonTab = (() => {
+    try {
+      return sessionStorage.getItem(tabStorageKey);
+    } catch {
+      return null;
     }
-  }, [versions.length, tab]);
+  })();
+  const tab: TabKey = versions.length < 2 ? "review" : normalizeComparisonTab(searchParams.get("tab") ?? storedComparisonTab);
+  const setTab = (next: TabKey) => {
+    if (next === "review") return;
+    const normalized = normalizeComparisonTab(next);
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", normalized);
+    params.set("mode", "comparison");
+    setSearchParams(params, { replace: false });
+    try {
+      sessionStorage.setItem(tabStorageKey, normalized);
+    } catch {
+      // Session storage is optional in the prototype.
+    }
+  };
+  useEffect(() => {
+    if (mode !== "comparison" || versions.length < 2) return;
+    const normalized = normalizeComparisonTab(searchParams.get("tab") ?? storedComparisonTab);
+    if (searchParams.get("tab") === normalized) return;
+    const params = new URLSearchParams(searchParams);
+    params.set("mode", "comparison");
+    params.set("tab", normalized);
+    setSearchParams(params, { replace: true });
+  }, [mode, searchParams, setSearchParams, storedComparisonTab, versions.length]);
+
+  const historyStorageKey = `ciq-v3-history:${supplierId}:${contractId}`;
+  const storedHistoryState = (() => {
+    try {
+      return JSON.parse(localStorage.getItem(historyStorageKey) ?? "{}") as { filter?: string; sort?: string };
+    } catch {
+      return {};
+    }
+  })();
+  const historyFilter = normalizeHistoryFilter(searchParams.get("filter") ?? storedHistoryState.filter ?? null);
+  const historySort = normalizeHistorySort(searchParams.get("sort") ?? storedHistoryState.sort ?? null);
+  const historyCategory = searchParams.get("cat") || null;
+  const updateHistoryState = (patch: { filter?: HistoryFilter; sort?: HistorySort; cat?: string | null }) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("mode", "history");
+    if (patch.filter) params.set("filter", patch.filter);
+    if (patch.sort) params.set("sort", patch.sort);
+    if ("cat" in patch) {
+      if (patch.cat) params.set("cat", patch.cat);
+      else params.delete("cat");
+    }
+    setSearchParams(params, { replace: false });
+    try {
+      localStorage.setItem(historyStorageKey, JSON.stringify({
+        filter: patch.filter ?? historyFilter,
+        sort: patch.sort ?? historySort,
+      }));
+    } catch {
+      // Ignore storage failures.
+    }
+  };
+
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [detailClauseId, setDetailClauseId] = useState<string | null>(null);
+  const detailClauseId = searchParams.get("clause");
+  const setDetailClauseId = (id: string | null) => {
+    const params = new URLSearchParams(searchParams);
+    if (id) params.set("clause", id);
+    else params.delete("clause");
+    setSearchParams(params, { replace: false });
+  };
   const [highlightClauseId, setHighlightClauseId] = useState<string | null>(null);
   // R3 DI-16: pinned clause IDs survive across version-pair switches and tab changes.
   const [pinnedClauseIds, setPinnedClauseIds] = useState<Set<string>>(() => new Set());
@@ -422,17 +576,6 @@ export function ContractResults({
       return next;
     });
   };
-  // R3 DI-14: one-time coachmark for the "New Changes" filter.
-  const [coachDismissed, setCoachDismissed] = useState<boolean>(() => {
-    try { return localStorage.getItem("ciq-coach-unexpected-v1") === "1"; } catch { return false; }
-  });
-  const dismissCoach = () => {
-    setCoachDismissed(true);
-    try { localStorage.setItem("ciq-coach-unexpected-v1", "1"); } catch { /* noop */ }
-  };
-  // Focus mode = hide comparison rows already closed by the user.
-  
-
   // Upload / delete modals
   const [uploadOpen, setUploadOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -440,29 +583,6 @@ export function ContractResults({
   const [decisions_, setDecisions_] = useState<Record<string, "accepted" | "changes-requested" | null>>({});
   const [acceptConfirmOpen, setAcceptConfirmOpen] = useState(false);
   const [quickFilter, setQuickFilter] = useState<QuickFilterKey | null>(null);
-  const [localScoringOption, setLocalScoringOption] = useState<ScoringOptionKey>("hybrid");
-  const scoringOption = controlledScoringOption ?? localScoringOption;
-  const setScoringOption = onScoringOptionChange ?? setLocalScoringOption;
-  const scoringOptionControlled = controlledScoringOption !== undefined;
-  const [overviewOpen, setOverviewOpen] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem("ciq-v2-contract-overview-open") === "1";
-    } catch {
-      return false;
-    }
-  });
-
-  const toggleOverviewOpen = () => {
-    setOverviewOpen((current) => {
-      const next = !current;
-      try {
-        localStorage.setItem("ciq-v2-contract-overview-open", next ? "1" : "0");
-      } catch {
-        // Ignore storage failures in private or restricted browser contexts.
-      }
-      return next;
-    });
-  };
 
   const allDecisions = decisions.getAll(supplierId, contractId);
   const stateOf = (id: string): ClauseDecisionState =>
@@ -499,130 +619,45 @@ export function ContractResults({
     });
   };
 
-  // --- Comparison sections (must run before any early return) ---------------
-  // Open Items = previously requested clauses (whether updated or not).
-  // New Changes = material change to a clause that was NOT previously requested.
-  // Closed = previously requested clauses the user has marked closed for this round.
-  const comparisonSections = useMemo(() => {
-    if (!leftVersion || !rightVersion || leftVersion.version === rightVersion.version) {
-      return { open: [], newIssues: [], closed: [], unmarked: [] };
-    }
-    const open: { id: string; prev?: ClauseResult; curr?: ClauseResult }[] = [];
-    const newIssues: { id: string; prev?: ClauseResult; curr?: ClauseResult }[] = [];
-    const closed: { id: string; prev?: ClauseResult; curr?: ClauseResult }[] = [];
-    const unmarked: { id: string; prev?: ClauseResult; curr?: ClauseResult }[] = [];
+  const comparisonModel = useMemo(
+    () => deriveComparisonModel(versions, comparisonPair, allDecisions),
+    [allDecisions, comparisonPair, versions],
+  );
+  const historyModel = useMemo(
+    () => deriveHistoryModel(versions, allDecisions, historyFilter, historyCategory, historySort),
+    [allDecisions, historyCategory, historyFilter, historySort, versions],
+  );
 
-    for (const def of CLAUSE_FRAMEWORK) {
-      const prev = leftVersion.clauses.find((c) => c.id === def.id);
-      const curr = rightVersion.clauses.find((c) => c.id === def.id);
-      const s = allDecisions[def.id] ?? { roundDecisions: {}, closures: {}, requests: {}, updatedAt: "" };
-      const wasRequested = wasRequestedByVersion(s, versions, leftVersion.version);
-      const changePill = determineChangePill({
-        clause: curr,
-        previousClause: prev,
-        wasRequestedInPreviousRound: wasRequested,
-      });
-      const isClosedHere = s.closures[rightVersion.version] === "closed";
+  // Open Items = previously requested clauses; New Changes = supplier-initiated
+  // movement; Closed = explicitly closed for the target version; Unmarked = no
+  // change/no prior request.
+  const comparisonSections = useMemo(
+    () => ({
+      open: comparisonModel.buckets.open_items,
+      newIssues: comparisonModel.buckets.new_changes,
+      closed: comparisonModel.buckets.closed,
+      unmarked: comparisonModel.buckets.unmarked,
+    }),
+    [comparisonModel],
+  );
 
-      if (isClosedHere) {
-        closed.push({ id: def.id, prev, curr });
-      } else if (wasRequested) {
-        open.push({ id: def.id, prev, curr });
-      } else if (
-        changePill.status === "improved" ||
-        changePill.status === "regressed" ||
-        changePill.status === "new"
-      ) {
-        newIssues.push({ id: def.id, prev, curr });
-      } else {
-        unmarked.push({ id: def.id, prev, curr });
-      }
-    }
-    return { open, newIssues, closed, unmarked };
-  }, [leftVersion, rightVersion, versions, allDecisions]);
+  const changeTracking = comparisonModel.changeTracking;
 
-  const changeTracking = useMemo(() => {
-    if (!leftVersion || !rightVersion || leftVersion.version === rightVersion.version) {
-      return { met: 0, notMet: 0, improved: 0, regressed: 0, new: 0, requestedTotal: 0, supplierChanges: 0 };
-    }
-
-    let met = 0;
-    let notMet = 0;
-    let improved = 0;
-    let regressed = 0;
-    let newCount = 0;
-
-    for (const curr of rightVersion.clauses) {
-      const prev = leftVersion.clauses.find((c) => c.id === curr.id);
-      const state = allDecisions[curr.id];
-      const wasRequested = wasRequestedByVersion(state, versions, leftVersion.version);
-      const changePill = determineChangePill({
-        clause: curr,
-        previousClause: prev,
-        wasRequestedInPreviousRound: wasRequested,
-      });
-
-      if (changePill.status === "met") met += 1;
-      if (changePill.status === "not_met") notMet += 1;
-      if (changePill.status === "improved") improved += 1;
-      if (changePill.status === "regressed") regressed += 1;
-      if (changePill.status === "new") {
-        newCount += 1;
-      }
-    }
-
-    return {
-      met,
-      notMet,
-      improved,
-      regressed,
-      new: newCount,
-      requestedTotal: met + notMet,
-      supplierChanges: improved + regressed + newCount,
-    };
-  }, [leftVersion, rightVersion, versions, allDecisions]);
-
-  const panelChangeItems = useMemo<PanelChangeItem[]>(() => {
-    if (!leftVersion || !rightVersion || leftVersion.version === rightVersion.version) return [];
-
-    const items: PanelChangeItem[] = [];
-
-    for (const def of CLAUSE_FRAMEWORK) {
-      const prev = leftVersion.clauses.find((c) => c.id === def.id);
-      const curr = rightVersion.clauses.find((c) => c.id === def.id);
-      const state = allDecisions[def.id];
-      const wasRequested = wasRequestedByVersion(state, versions, leftVersion.version);
-      const changePill = determineChangePill({
-        clause: curr,
-        previousClause: prev,
-        wasRequestedInPreviousRound: wasRequested,
-      });
-
-      if (changePill.status) {
-        items.push({
-          id: def.id,
-          title: curr?.title ?? prev?.title ?? def.title,
-          status: changePill.status,
-        });
-      }
-    }
-
-    return items.sort((a, b) => sortChangePillStatus(a.status) - sortChangePillStatus(b.status) || a.title.localeCompare(b.title));
-  }, [leftVersion, rightVersion, versions, allDecisions]);
+  const panelChangeItems = useMemo<PanelChangeItem[]>(
+    () =>
+      Object.values(comparisonModel.buckets)
+        .flat()
+        .filter((row) => Boolean(row.pill.status))
+        .map((row) => ({
+          id: row.id,
+          title: row.curr?.title ?? row.prev?.title ?? row.id.toUpperCase(),
+          status: row.pill.status!,
+        }))
+        .sort((a, b) => sortChangePillStatus(a.status) - sortChangePillStatus(b.status) || a.title.localeCompare(b.title)),
+    [comparisonModel],
+  );
 
   const scoringModel = useMemo(() => computeContractScoring(versions), [versions]);
-
-  // R3 DI-14: auto-toggle "New Changes" the first time the user lands on
-  // Compare with supplier-initiated changes present.
-  const [autoToggled, setAutoToggled] = useState(false);
-  useEffect(() => {
-    if (autoToggled) return;
-    if (tab !== "compare") return;
-    if (comparisonSections.newIssues.length === 0) return;
-    if (filter !== "all") return;
-    setFilter("new-issues");
-    setAutoToggled(true);
-  }, [tab, comparisonSections.newIssues.length, filter, autoToggled]);
 
   // R3 DI-18: undo helpers — 8s sonner toast + per-row 30s undo affordance.
   const [recentlyClosed, setRecentlyClosed] = useState<Record<string, number>>({});
@@ -668,6 +703,7 @@ export function ContractResults({
     requested: requestedCount,
     total: v1.clauses.length,
   };
+  const targetCounts = comparisonModel.severityCounts;
 
   // --- Filter applied to comparison sections ---------------------------------
   const matchesSearch = (id: string) => {
@@ -705,7 +741,7 @@ export function ContractResults({
     });
   };
   const jumpToClause = (id: string) => {
-    setTab("review");
+    setTab(versions.length < 2 ? "review" : "changes");
     setFilter("all");
     setQuickFilter(null);
     setSearch("");
@@ -728,11 +764,11 @@ export function ContractResults({
       setFilter("all");
     }
     if (next === "need-action") {
-      setTab("compare");
+      setTab("changes");
       setFilter("all");
     }
     if (next === "changes") {
-      setTab("compare");
+      setTab("changes");
       setFilter(isClearing ? "all" : "new-issues");
     }
   };
@@ -763,6 +799,18 @@ export function ContractResults({
   const showUnmarkedSection =
     (filter === "all" || filter === "unmarked") && quickFilter !== "need-action" && quickFilter !== "changes";
   const compactBackLabel = backLabel ?? `Back to ${supplier.name}`;
+  const switchMode = (nextMode: ClauseIqMode) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("mode", nextMode);
+    if (nextMode === "comparison" && versions.length >= 2) {
+      params.set("tab", normalizeComparisonTab(params.get("tab") ?? storedComparisonTab));
+    }
+    if (nextMode === "history") {
+      params.set("filter", historyFilter);
+      params.set("sort", historySort);
+    }
+    setSearchParams(params, { replace: false });
+  };
   const exportCurrentComparison = () => {
     if (!leftVersion || !rightVersion) return;
     const csv = exportContractCsv(
@@ -780,164 +828,48 @@ export function ContractResults({
     toast({ title: "Export ready", description: "Verification CSV downloaded." });
   };
 
-  // ---------------------------------------------------------------------------
-  const hybridScoreBoardPinned = scoringOption === "hybrid";
-  const overviewPanelVisible = hybridScoreBoardPinned || overviewOpen;
-  const overviewToggleLabel = overviewOpen ? "Close" : "Overview";
-  const overviewToggleExpanded = overviewOpen;
-  const toggleOverviewPanel = toggleOverviewOpen;
-  const overviewPanelFlush = hybridScoreBoardPinned;
-  const hasVersionComparison = Boolean(leftVersion && rightVersion && leftVersion.version !== rightVersion.version);
+  const hasVersionComparison = comparisonModel.hasComparison;
 
   return (
     <div className="min-h-screen bg-background">
       {compactHeader ? (
         <div className="sticky top-0 z-30 border-b border-[rgba(0,0,0,0.08)] bg-white">
-          <div className="flex h-11 items-center justify-between gap-3 border-b border-[rgba(0,0,0,0.08)] px-4">
-            <div className="flex min-w-0 items-center gap-3">
-              <button
-                onClick={onBack}
-                className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary hover:underline"
-              >
-                <ChevronLeft className="h-4 w-4" /> {compactBackLabel}
-              </button>
-              <div className="h-4 w-px bg-border" aria-hidden />
-              <h1 className="truncate text-sm font-medium text-foreground">{contract.name}</h1>
-              <Badge variant="outline" className="h-5 rounded-full bg-muted/50 px-2 text-[10px] font-medium">
-                {contract.type}
-              </Badge>
-              <span className="shrink-0 text-[11px] text-muted-foreground">
-                {latest?.version ?? "v1"} · {versions.length} round{versions.length === 1 ? "" : "s"}
-              </span>
-              <span className="hidden min-w-0 truncate text-[11px] text-muted-foreground xl:inline">
-                {initiative.name} · {initiative.reference} · {supplier.name}
-                {latest && <> · Updated {latest.uploadedAt}</>}
-              </span>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {!scoringOptionControlled && (
-                <ScoringOptionSwitcher value={scoringOption} onChange={setScoringOption} />
-              )}
-              <SupplierGroupingPopover supplierId={supplierId} supplierName={supplier.name} compact />
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 gap-1.5 px-3 text-xs"
-                disabled={versions.length < 2}
-                onClick={exportCurrentComparison}
-              >
-                <Download className="h-3.5 w-3.5" /> Export
-              </Button>
-              <Button
-                size="sm"
-                className="h-7 gap-1.5 px-3 text-xs"
-                onClick={onRunAnalysisAgain ?? (() => setUploadOpen(true))}
-              >
-                <RotateCcw className="h-3.5 w-3.5" /> Run analysis again
-              </Button>
-            </div>
-          </div>
-
-          <div className="flex h-8 items-center justify-between gap-3 bg-[#f8f7f5] px-4 text-[11px] text-muted-foreground">
-            <div className="flex min-w-0 items-center gap-2 overflow-x-auto">
-              <CompactStripStat active={quickFilter === "high"} color="#A32D2D" onClick={() => toggleQuickFilter("high")}>
-                <strong>{v1Counts.high}</strong> high
-              </CompactStripStat>
-              <CompactStripStat active={quickFilter === "medium"} color="#854F0B" onClick={() => toggleQuickFilter("medium")}>
-                <strong>{v1Counts.medium}</strong> med
-              </CompactStripStat>
-              <CompactStripStat active={quickFilter === "low"} color="#5F5E5A" onClick={() => toggleQuickFilter("low")}>
-                <strong>{v1Counts.low}</strong> low
-              </CompactStripStat>
-              <CompactDivider />
-              <CompactStripStat onClick={() => setQuickFilter(null)}>
-                <strong>{v1Counts.total}</strong> total
-              </CompactStripStat>
-              <CompactStripStat active={quickFilter === "need-action"} onClick={() => toggleQuickFilter("need-action")}>
-                <strong>{clausesRequiringAction}</strong> need action
-              </CompactStripStat>
-              {hasVersionComparison && (
-                <>
-                  <CompactDivider />
-                  <CompactStripStat color="#3B6D11" onClick={() => toggleQuickFilter("need-action")}>
-                    <IconCircleCheck className="mr-1 inline h-3 w-3 align-[-2px]" />
-                    <strong>{changeTracking.met}/{changeTracking.requestedTotal}</strong> met
-                  </CompactStripStat>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <CompactStripStat active={quickFilter === "changes"} color="#5F5E5A" onClick={() => undefined}>
-                        <strong>{changeTracking.supplierChanges}</strong> changes
-                      </CompactStripStat>
-                    </PopoverTrigger>
-                    <PopoverContent align="start" className="w-56 p-3 text-xs">
-                      <p className="font-medium text-foreground">Supplier-initiated changes</p>
-                      <p className="mt-1 text-muted-foreground">
-                        {changeTracking.improved} improved · {changeTracking.regressed} regressed · {changeTracking.new} {NEW_CHANGE_LABEL.toLowerCase()}
-                      </p>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="mt-3 h-7 w-full text-[11px]"
-                        onClick={() => toggleQuickFilter("changes")}
-                      >
-                        Show New Changes
-                      </Button>
-                    </PopoverContent>
-                  </Popover>
-                </>
-              )}
-              {scoringModel && (
-                <>
-                  <CompactDivider />
-                  <ScoringStripSummary option={scoringOption} model={scoringModel} />
-                </>
-              )}
-            </div>
-            {!hybridScoreBoardPinned && (
-              <button
-                type="button"
-                onClick={toggleOverviewPanel}
-                className="inline-flex shrink-0 items-center gap-1 rounded px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-white hover:text-foreground"
-              >
-                {overviewToggleLabel}
-                <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${overviewToggleExpanded ? "rotate-180" : ""}`} />
-              </button>
-            )}
-          </div>
-
-          <div
-            className={`grid overflow-hidden transition-[grid-template-rows] duration-200 ease-out ${
-              overviewPanelVisible ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-            }`}
-          >
-            <div className="min-h-0 overflow-hidden">
-              <div
-                className={
-                  overviewPanelFlush
-                    ? "border-t border-[rgba(0,0,0,0.08)] bg-white"
-                    : "space-y-4 border-t border-[rgba(0,0,0,0.08)] bg-white p-4"
-                }
-              >
-                {scoringModel && (
-                  <ScoringOptionPanel
-                    option={scoringOption}
-                    model={scoringModel}
-                    versions={versions}
-                    leftLabel={leftVersion?.version ?? "v1"}
-                    rightLabel={rightVersion?.version ?? latest?.version ?? "v1"}
-                    changeItems={panelChangeItems}
-                    onClauseSelect={jumpToClause}
-                    onRequestChanges={() =>
-                      rightVersion &&
-                      setDecisions_((prev) => ({ ...prev, [rightVersion.version]: "changes-requested" }))
-                    }
-                    onAcceptVersion={() => setAcceptConfirmOpen(true)}
-                    currentDecision={currentDecision}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
+          <CompactContractTopbar
+            backLabel={compactBackLabel}
+            onBack={onBack}
+            contractName={contract.name}
+            contractType={contract.type}
+            metadata={`${latest?.version ?? "v1"} · ${versions.length} round${versions.length === 1 ? "" : "s"} · ${supplier.name}${latest ? ` · Updated ${formatShortDate(latest.uploadedAt)}` : ""}`}
+            supplierId={supplierId}
+            supplierName={supplier.name}
+            onExport={exportCurrentComparison}
+            exportDisabled={versions.length < 2}
+            onRunAnalysis={onRunAnalysisAgain ?? (() => setUploadOpen(true))}
+          />
+          <ModeSwitcher mode={mode} onChange={switchMode} />
+          {mode === "comparison" ? (
+            <ComparisonHeader
+              versions={versions}
+              pair={pair}
+              onPairChange={setPair}
+              hasVersionComparison={hasVersionComparison}
+              changeTracking={changeTracking}
+              quickFilter={quickFilter}
+              onToggleQuickFilter={toggleQuickFilter}
+              onClearQuickFilter={() => setQuickFilter(null)}
+              targetCounts={targetCounts}
+              panel={comparisonModel.panel}
+            />
+          ) : (
+            <HistoryHeader
+              versions={versions}
+              model={historyModel}
+              activeFilter={historyFilter}
+              activeSort={historySort}
+              onFilterChange={(next) => updateHistoryState({ filter: next })}
+              onSortChange={(next) => updateHistoryState({ sort: next })}
+            />
+          )}
         </div>
       ) : (
         <>
@@ -1032,12 +964,12 @@ export function ContractResults({
               setDecisions_((prev) => ({ ...prev, [rightVersion.version]: d }))
             }
             onJumpToOpen={() => {
-              setTab("compare");
+              setTab("changes");
               setFilter("open");
               setTimeout(() => document.getElementById("comparison-buckets")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
             }}
             onJumpToChanges={() => {
-              setTab("compare");
+              setTab("changes");
               setFilter("new-issues");
               setTimeout(() => document.getElementById("comparison-buckets")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
             }}
@@ -1056,115 +988,94 @@ export function ContractResults({
               const idx = versions.findIndex((x) => x.version === v);
               if (idx <= 0) return;
               setPair({ left: versions[idx - 1].version, right: v });
-              setTab("compare");
+              setTab("changes");
             }}
           />
         </div>
       )}
 
-      {/* Body: left clause nav + right content */}
-      <div className="max-w-[1600px] mx-auto px-6 py-6 grid grid-cols-[260px_1fr] gap-6">
-        {/* Left clause navigation */}
-        <ClauseNavigator
-          versions={versions}
-          activeCategory={activeCategory}
-          onSelectCategory={setActiveCategory}
-          decisions={allDecisions}
-          rightVersion={rightVersion}
-          leftVersion={leftVersion}
-          compactMode={compactHeader}
-        />
+      {mode === "history" ? (
+        <div className="mx-auto grid max-w-[1600px] grid-cols-[180px_1fr] gap-0 px-6 py-0">
+          <HistoryCategorySidebar
+            categories={historyModel.categories}
+            total={historyModel.rows.length}
+            activeCategory={historyCategory}
+            onSelectCategory={(category) => updateHistoryState({ cat: category })}
+          />
+          <HistoryRoundTable
+            versions={versions}
+            rows={historyModel.filteredRows}
+            onOpenDetail={setDetailClauseId}
+            highlightedId={highlightClauseId}
+          />
+        </div>
+      ) : (
+        <div className="mx-auto grid max-w-[1600px] grid-cols-[260px_1fr] gap-6 px-6 py-6">
+          <ClauseNavigator
+            versions={versions}
+            activeCategory={activeCategory}
+            onSelectCategory={setActiveCategory}
+            decisions={allDecisions}
+            rightVersion={rightVersion}
+            leftVersion={leftVersion}
+            compactMode={compactHeader}
+          />
 
-        {/* Right content */}
-        <div className="space-y-4 min-w-0">
-          <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <TabsList className="shrink-0 bg-card border border-border">
-                <TabsTrigger value="review" className="gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5" /> Review
-                </TabsTrigger>
-                <TabsTrigger value="compare" className="gap-1.5" disabled={versions.length < 2}>
-                  <GitCompare className="w-3.5 h-3.5" /> Changes
-                  {versions.length < 2 && <span className="text-[9px] text-muted-foreground">v2+</span>}
-                </TabsTrigger>
-                <TabsTrigger value="tracker" className="gap-1.5" disabled={versions.length < 2}>
-                  <History className="w-3.5 h-3.5" /> History
-                  {versions.length < 2 && <span className="text-[9px] text-muted-foreground">v2+</span>}
-                </TabsTrigger>
-              </TabsList>
+          <div className="min-w-0 space-y-4">
+            {versions.length >= 2 && (
+              <div className="flex items-center gap-5 border-b border-border px-1">
+                <ComparisonTabButton
+                  active={tab === "changes"}
+                  icon={<IconArrowsDiff size={14} stroke={1.8} />}
+                  count={openRows.length + newIssueRows.length + closedRows.length + unmarkedRows.length}
+                  onClick={() => setTab("changes")}
+                >
+                  Changes
+                </ComparisonTabButton>
+                <ComparisonTabButton
+                  active={tab === "all"}
+                  icon={<IconList size={14} stroke={1.8} />}
+                  count={targetCounts.total}
+                  onClick={() => setTab("all")}
+                >
+                  All clauses
+                </ComparisonTabButton>
+              </div>
+            )}
 
-              {/* Filter / search shared across tabs */}
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-[#f8f7f5] px-3 py-2">
+              {tab === "changes" && versions.length >= 2 ? (
+                <p className="text-[11px] font-medium text-muted-foreground">
+                  Sort: Severity impact
+                </p>
+              ) : (
+                <ReviewGuidance versionLabel={reviewVersion?.version ?? reviewVersionLabel} compact />
+              )}
               <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
-                {tab === "review" && (
-                  <ReviewGuidance versionLabel={reviewVersion?.version ?? reviewVersionLabel} compact />
-                )}
-                <div className="relative min-w-[240px] flex-1 sm:max-w-[340px]">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <div className="relative min-w-[180px] flex-1 sm:max-w-[260px]">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Filter by clause name, category, or ID…"
-                    className="pl-9 h-9 bg-card"
+                    placeholder="Filter by name or ID..."
+                    className="h-8 bg-card pl-8 text-xs"
                   />
                 </div>
-                {tab === "review" && (
-                  <Select value={reviewVersionLabel} onValueChange={setReviewVersionLabel}>
-                    <SelectTrigger className="w-[180px] h-9 bg-card text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {versions.map((v) => (
-                        <SelectItem key={v.version} value={v.version}>
-                          Review {v.version} · {v.uploadedAt}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                {tab === "compare" && versions.length >= 2 && (
+                {tab === "changes" && versions.length >= 2 && (
                   <>
-                    <div className="relative">
-                      <Select value={filter} onValueChange={(v) => setFilter(v as FilterKey)}>
-                        <SelectTrigger className="w-[200px] h-9 bg-card text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All buckets</SelectItem>
-                          <SelectItem value="open">Open Items</SelectItem>
-                          <SelectItem value="new-issues">New Changes</SelectItem>
-                          <SelectItem value="closed">Closed</SelectItem>
-                          <SelectItem value="unmarked">Unmarked clauses</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {/* R3 DI-14: dismissible coachmark — fires when auto-toggle pre-filtered the view */}
-                      {autoToggled && !coachDismissed && filter === "new-issues" && (
-                        <div className="absolute z-20 top-[calc(100%+8px)] left-0 w-[280px] rounded-lg border border-primary/40 bg-card shadow-lg p-3 text-xs">
-                          <div className="absolute -top-1.5 left-6 w-3 h-3 rotate-45 bg-card border-l border-t border-primary/40" aria-hidden />
-                          <p className="font-semibold text-foreground flex items-center gap-1.5">
-                            <Lightbulb className="w-3.5 h-3.5 text-primary" /> We pre-filtered to New Changes
-                          </p>
-                          <p className="text-muted-foreground mt-1">
-                            {comparisonSections.newIssues.length} supplier-initiated change{comparisonSections.newIssues.length === 1 ? "" : "s"}.
-                            Switch back any time.
-                          </p>
-                          <div className="flex justify-end mt-2">
-                            <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={dismissCoach}>Got it</Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    {comparisonSections.newIssues.length > 0 && filter !== "new-issues" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-9 gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/5"
-                        onClick={() => setFilter("new-issues")}
-                      >
-                        <AlertTriangle className="w-3.5 h-3.5" /> Show {comparisonSections.newIssues.length} New Changes
-                      </Button>
-                    )}
-                    <PairSelector versions={versions} pair={pair} onChange={setPair} />
-                    <Button size="sm" variant="ghost" className="h-9 text-xs text-muted-foreground" onClick={resetPair}>
+                    <Select value={filter} onValueChange={(v) => setFilter(v as FilterKey)}>
+                      <SelectTrigger className="h-8 w-[160px] bg-card text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All buckets</SelectItem>
+                        <SelectItem value="open">Open Items</SelectItem>
+                        <SelectItem value="new-issues">New Changes</SelectItem>
+                        <SelectItem value="closed">Closed</SelectItem>
+                        <SelectItem value="unmarked">Unmarked clauses</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button size="sm" variant="ghost" className="h-8 text-[11px] text-muted-foreground" onClick={resetPair}>
                       Reset to latest
                     </Button>
                   </>
@@ -1172,158 +1083,151 @@ export function ContractResults({
               </div>
             </div>
 
-            <TabsContent value="review" className="m-0 mt-3 space-y-5">
-              {versions.length === 0 ? (
-                <div className="bg-card border border-border rounded-lg p-12 text-center text-sm text-muted-foreground">
-                  No versions uploaded yet. Use <span className="font-semibold text-foreground">Upload New Version</span> to get started.
-                </div>
-              ) : (
-                <ReviewScreen
-                  version={reviewVersion ?? v1}
-                  stateOf={stateOf}
-                  activeCategory={activeCategory}
-                  search={search}
-                  quickSeverityFilter={severityQuickFilter}
-                  onDecide={(id, d) => decisions.setRoundDecision(supplierId, contractId, id, (reviewVersion ?? v1).version, d)}
-                  onUpdateText={(id, patch) =>
-                    decisions.updateRequestText(supplierId, contractId, id, (reviewVersion ?? v1).version, patch)
-                  }
-                  onOpenDetail={(id) => setDetailClauseId(id)}
-                  highlightedId={highlightClauseId}
-                />
-              )}
-            </TabsContent>
-
-            <TabsContent value="compare" className="m-0 mt-3 space-y-5" id="comparison-buckets">
-              {versions.length < 2 ? (
-                <div className="bg-card border border-border rounded-lg p-12 text-center text-sm text-muted-foreground">
-                  Upload a second version to start comparing rounds.
-                </div>
-              ) : leftVersion && rightVersion && leftVersion.version !== rightVersion.version ? (
-                <>
-                  <div className="bg-card border border-primary/30 rounded-lg p-4 text-sm text-foreground flex items-start gap-2">
-                    <Sparkles className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                    <div>
-                      <p className="font-semibold">Comparing {leftVersion.version} → {rightVersion.version}</p>
-                      <p className="text-xs text-muted-foreground">Open Items shows clauses you previously requested to change — the Change column tells you whether the supplier acted on them.</p>
-                    </div>
-                  </div>
-                  <ComparisonSection
-                    title="Open Items"
-                    description="Clauses you previously asked the supplier to change. Check whether they updated each one."
-                    accent="primary"
-                    rows={openRows}
-                    leftLabel={leftVersion.version}
-                    rightLabel={rightVersion.version}
-                    visible={showOpenSection}
-                    bucket="open"
-                    changePillOf={(id, prev, curr) => changePillFor(id, prev, curr)}
-                    closureOf={(id) => stateOf(id).closures[rightVersion.version]}
-                    requestOf={(id) => {
-                      const latest = getLatestRequest(stateOf(id), leftVersion.version);
-                      return latest ? { ...latest.request, fromVersion: latest.version } : {};
-                    }}
-                    onClose={(id) => {
-                      const display = leftVersion.clauses.find((c) => c.id === id) ?? rightVersion.clauses.find((c) => c.id === id);
-                      const prev = stateOf(id).closures[rightVersion.version];
-                      closeWithUndo(id, display?.title ?? id.toUpperCase(), prev);
-                    }}
-                    onKeepOpen={(id) => decisions.setClosure(supplierId, contractId, id, rightVersion.version, "keep-open")}
-                    onFollowUp={(id) => decisions.setClosure(supplierId, contractId, id, rightVersion.version, "follow-up")}
-                    onOpenDetail={setDetailClauseId}
-                    pinnedIds={pinnedClauseIds}
-                    onTogglePin={togglePin}
-                    recentlyClosed={recentlyClosed}
-                    onUndoClose={undoClose}
-                  />
-                  <ComparisonSection
-                    title="New Changes"
-                    description="Material changes the supplier made without being asked, plus clauses that didn't exist before."
-                    accent="destructive"
-                    rows={newIssueRows}
-                    leftLabel={leftVersion.version}
-                    rightLabel={rightVersion.version}
-                    visible={showNewIssueSection}
-                    bucket="new"
-                    changePillOf={(id, prev, curr) => changePillFor(id, prev, curr)}
-                    closureOf={() => undefined}
-                    requestOf={() => ({})}
-                    onClose={(id) => decisions.setRoundDecision(supplierId, contractId, id, rightVersion.version, "no-action")}
-                    onKeepOpen={(id) => decisions.setRoundDecision(supplierId, contractId, id, rightVersion.version, "request-update")}
-                    onOpenDetail={setDetailClauseId}
-                    pinnedIds={pinnedClauseIds}
-                    onTogglePin={togglePin}
-                  />
-                  <ComparisonSection
-                    title="Closed"
-                    description="Clauses you marked as resolved for this round. Reopen any that still need work."
-                    accent="success"
-                    rows={closedRows}
-                    leftLabel={leftVersion.version}
-                    rightLabel={rightVersion.version}
-                    visible={showClosedSection}
-                    bucket="closed"
-                    changePillOf={(id, prev, curr) => changePillFor(id, prev, curr)}
-                    closureOf={(id) => stateOf(id).closures[rightVersion.version]}
-                    requestOf={(id) => {
-                      const latest = getLatestRequest(stateOf(id), leftVersion.version);
-                      return latest ? { ...latest.request, fromVersion: latest.version } : {};
-                    }}
-                    onClose={(id) => decisions.setClosure(supplierId, contractId, id, rightVersion.version, "closed")}
-                    onKeepOpen={(id) => decisions.setClosure(supplierId, contractId, id, rightVersion.version, "keep-open")}
-                    onOpenDetail={setDetailClauseId}
-                    pinnedIds={pinnedClauseIds}
-                    onTogglePin={togglePin}
-                  />
-                  <UnmarkedSection
-                    rows={unmarkedRows}
-                    leftLabel={leftVersion.version}
-                    rightLabel={rightVersion.version}
-                    visible={showUnmarkedSection}
-                    defaultOpen={filter === "unmarked"}
-                    requestOf={(id) => stateOf(id).requests[rightVersion.version] ?? {}}
-                    isRequested={(id) => stateOf(id).roundDecisions[rightVersion.version] === "request-update"}
-                    onRequestChange={(id) =>
-                      decisions.setRoundDecision(supplierId, contractId, id, rightVersion.version, "request-update")
-                    }
-                    onUpdateText={(id, patch) =>
-                      decisions.updateRequestText(supplierId, contractId, id, rightVersion.version, patch)
-                    }
-                    onOpenDetail={setDetailClauseId}
-                  />
-                </>
-              ) : (
-                <div className="bg-card border border-border rounded-lg p-12 text-center text-sm text-muted-foreground">
-                  Select two different versions to compare.
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="tracker" className="m-0 mt-3">
-              <RoundTracker
-                versions={versions}
+            {tab === "review" || versions.length < 2 || tab === "all" ? (
+              <ReviewScreen
+                version={tab === "all" ? (rightVersion ?? reviewVersion ?? v1) : (reviewVersion ?? v1)}
                 stateOf={stateOf}
-                search={search}
                 activeCategory={activeCategory}
-                onOpenDetail={setDetailClauseId}
+                search={search}
+                quickSeverityFilter={severityQuickFilter}
+                onSetNoAction={(id) =>
+                  decisions.changeDecision(supplierId, contractId, id, (rightVersion ?? reviewVersion ?? v1).version, "no-action")
+                }
+                onStartDraft={(id, initialDraft) =>
+                  decisions.startDraftRequest(supplierId, contractId, id, (rightVersion ?? reviewVersion ?? v1).version, initialDraft)
+                }
+                onUpdateDraft={(id, patch) =>
+                  decisions.updateDraftRequestText(supplierId, contractId, id, (rightVersion ?? reviewVersion ?? v1).version, patch)
+                }
+                onCancelDraft={(id) =>
+                  decisions.cancelDraftRequest(supplierId, contractId, id, (rightVersion ?? reviewVersion ?? v1).version)
+                }
+                onSubmitDraft={(id) =>
+                  decisions.submitDraftRequest(supplierId, contractId, id, (rightVersion ?? reviewVersion ?? v1).version)
+                }
+                onOpenDetail={(id) => setDetailClauseId(id)}
+                highlightedId={highlightClauseId}
               />
-            </TabsContent>
-          </Tabs>
+            ) : leftVersion && rightVersion && leftVersion.version !== rightVersion.version ? (
+              <div className="space-y-3" id="comparison-buckets">
+                <ComparisonSection
+                  title="Open Items"
+                  description="Clauses you previously asked the supplier to change."
+                  accent="primary"
+                  rows={openRows}
+                  leftLabel={leftVersion.version}
+                  rightLabel={rightVersion.version}
+                  visible={showOpenSection}
+                  bucket="open"
+                  changePillOf={(id, prev, curr) => changePillFor(id, prev, curr)}
+                  closureOf={(id) => stateOf(id).closures[rightVersion.version]}
+                  requestOf={(id) => {
+                    const latest = getLatestRequest(stateOf(id), leftVersion.version);
+                    return latest ? { ...latest.request, fromVersion: latest.version } : {};
+                  }}
+                  onClose={(id) => {
+                    const display = leftVersion.clauses.find((c) => c.id === id) ?? rightVersion.clauses.find((c) => c.id === id);
+                    const prev = stateOf(id).closures[rightVersion.version];
+                    closeWithUndo(id, display?.title ?? id.toUpperCase(), prev);
+                  }}
+                  onKeepOpen={(id) => decisions.setClosure(supplierId, contractId, id, rightVersion.version, "keep-open")}
+                  onFollowUp={(id) => decisions.setClosure(supplierId, contractId, id, rightVersion.version, "follow-up")}
+                  onOpenDetail={setDetailClauseId}
+                  pinnedIds={pinnedClauseIds}
+                  onTogglePin={togglePin}
+                  recentlyClosed={recentlyClosed}
+                  onUndoClose={undoClose}
+                />
+                <ComparisonSection
+                  title="New Changes"
+                  description="Material changes the supplier made without being asked, plus clauses that didn't exist before."
+                  accent="destructive"
+                  rows={newIssueRows}
+                  leftLabel={leftVersion.version}
+                  rightLabel={rightVersion.version}
+                  visible={showNewIssueSection}
+                  bucket="new"
+                  changePillOf={(id, prev, curr) => changePillFor(id, prev, curr)}
+                  closureOf={() => undefined}
+                  requestOf={() => ({})}
+                  onClose={(id) => decisions.setRoundDecision(supplierId, contractId, id, rightVersion.version, "no-action")}
+                  onKeepOpen={(id) => decisions.setRoundDecision(supplierId, contractId, id, rightVersion.version, "request-update")}
+                  onOpenDetail={setDetailClauseId}
+                  pinnedIds={pinnedClauseIds}
+                  onTogglePin={togglePin}
+                />
+                <ComparisonSection
+                  title="Closed"
+                  description="Clauses you marked as resolved for this round."
+                  accent="success"
+                  rows={closedRows}
+                  leftLabel={leftVersion.version}
+                  rightLabel={rightVersion.version}
+                  visible={showClosedSection}
+                  bucket="closed"
+                  changePillOf={(id, prev, curr) => changePillFor(id, prev, curr)}
+                  closureOf={(id) => stateOf(id).closures[rightVersion.version]}
+                  requestOf={(id) => {
+                    const latest = getLatestRequest(stateOf(id), leftVersion.version);
+                    return latest ? { ...latest.request, fromVersion: latest.version } : {};
+                  }}
+                  onClose={(id) => decisions.setClosure(supplierId, contractId, id, rightVersion.version, "closed")}
+                  onKeepOpen={(id) => decisions.setClosure(supplierId, contractId, id, rightVersion.version, "keep-open")}
+                  onOpenDetail={setDetailClauseId}
+                  pinnedIds={pinnedClauseIds}
+                  onTogglePin={togglePin}
+                />
+                <UnmarkedSection
+                  rows={unmarkedRows}
+                  leftLabel={leftVersion.version}
+                  rightLabel={rightVersion.version}
+                  visible={showUnmarkedSection}
+                  defaultOpen={filter === "unmarked"}
+                  requestOf={(id) => stateOf(id).requests[rightVersion.version] ?? {}}
+                  draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
+                  isRequested={(id) => stateOf(id).roundDecisions[rightVersion.version] === "request-update"}
+                  isDrafting={(id) => Boolean(stateOf(id).draftRequests?.[rightVersion.version])}
+                  onRequestChange={(id) => decisions.startDraftRequest(supplierId, contractId, id, rightVersion.version)}
+                  onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, contractId, id, rightVersion.version, patch)}
+                  onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, contractId, id, rightVersion.version)}
+                  onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, contractId, id, rightVersion.version)}
+                  onOpenDetail={setDetailClauseId}
+                />
+              </div>
+            ) : (
+              <div className="rounded-lg border border-border bg-card p-12 text-center text-sm text-muted-foreground">
+                Select two different versions to compare.
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Side-by-side detail drawer */}
+      {/* Unified clause slide-over */}
       {detail && (
-        <ClauseDetailPanel
+        <ClauseSlideOver
           clauseId={detail.id}
           prev={detail.prev}
           curr={detail.curr}
           leftLabel={leftVersion?.version ?? "v1"}
           rightLabel={rightVersion?.version ?? "v1"}
+          mode={mode}
+          versions={versions}
           state={detail.state}
           targetVersion={rightVersion?.version ?? "v1"}
           changePill={changePillFor(detail.id, detail.prev, detail.curr)}
           onClose={() => setDetailClauseId(null)}
+          onViewHistory={(id) => {
+            const params = new URLSearchParams(searchParams);
+            params.set("mode", "history");
+            params.set("filter", historyFilter);
+            params.set("sort", historySort);
+            params.set("clause", id);
+            setSearchParams(params, { replace: false });
+            setHighlightClauseId(id);
+            setTimeout(() => document.getElementById(`history-row-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 80);
+            window.setTimeout(() => setHighlightClauseId((current) => (current === id ? null : current)), 2200);
+          }}
           onCloseClause={(id) => {
             decisions.setClosure(supplierId, contractId, id, rightVersion?.version ?? "v1", "closed");
             setDetailClauseId(null);
@@ -1475,30 +1379,291 @@ function UploadVersionDialog({
 
 // ---- pieces -----------------------------------------------------------------
 
-function CompactStripStat({
-  active,
-  color,
-  onClick,
-  children,
+function formatShortDate(date: string) {
+  return new Date(date).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}
+
+function CompactContractTopbar({
+  backLabel,
+  onBack,
+  contractName,
+  contractType,
+  metadata,
+  supplierId,
+  supplierName,
+  onExport,
+  exportDisabled,
+  onRunAnalysis,
 }: {
-  active?: boolean;
-  color?: string;
-  onClick: () => void;
-  children: ReactNode;
+  backLabel: string;
+  onBack: () => void;
+  contractName: string;
+  contractType: string;
+  metadata: string;
+  supplierId: string;
+  supplierName: string;
+  onExport: () => void;
+  exportDisabled: boolean;
+  onRunAnalysis: () => void;
 }) {
+  return (
+    <div className="flex h-10 items-center gap-3 border-b border-[rgba(0,0,0,0.08)] px-3">
+      <button
+        onClick={onBack}
+        className="inline-flex shrink-0 items-center gap-1 text-[13px] font-medium text-primary hover:underline"
+      >
+        <ChevronLeft className="h-3.5 w-3.5" /> {backLabel.replace(/^Back to /, "Back")}
+      </button>
+      <div className="h-3.5 w-px bg-border" aria-hidden />
+      <div className="flex min-w-0 items-center gap-2">
+        <h1 className="truncate text-sm font-medium text-foreground">{contractName}</h1>
+        <Badge variant="outline" className="h-5 rounded-full bg-muted/50 px-2 text-[9px] font-medium">
+          {contractType}
+        </Badge>
+        <span className="hidden truncate text-[11px] text-muted-foreground lg:inline">{metadata}</span>
+        <SupplierGroupingLink supplierId={supplierId} supplierName={supplierName} />
+      </div>
+      <div className="ml-auto flex shrink-0 items-center gap-2">
+        <Button size="sm" variant="outline" className="h-7 gap-1.5 px-3 text-xs" disabled={exportDisabled} onClick={onExport}>
+          <Download className="h-3.5 w-3.5" /> Export
+        </Button>
+        <Button size="sm" className="h-7 gap-1.5 bg-[#1a2744] px-3 text-xs text-white hover:bg-[#243454]" onClick={onRunAnalysis}>
+          <RotateCcw className="h-3.5 w-3.5" /> Run analysis
+        </Button>
+        <button type="button" className="grid h-7 w-7 place-items-center rounded-md border border-border text-muted-foreground hover:bg-muted">
+          <span aria-hidden>...</span>
+          <span className="sr-only">More actions</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ModeSwitcher({ mode, onChange }: { mode: ClauseIqMode; onChange: (mode: ClauseIqMode) => void }) {
+  return (
+    <div className="flex items-center border-b border-[rgba(0,0,0,0.08)] bg-white px-3 py-1.5">
+      <div className="inline-flex overflow-hidden rounded-md border border-border">
+        {([
+          ["comparison", <IconArrowsDiff key="comparison-icon" size={13} stroke={1.8} />, "Comparison"],
+          ["history", <IconTimeline key="history-icon" size={13} stroke={1.8} />, "History"],
+        ] as const).map(([value, icon, label]) => {
+          const active = mode === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              onClick={() => onChange(value)}
+              className={`inline-flex h-7 items-center gap-1.5 border-r border-border px-3 text-[11px] font-medium last:border-r-0 ${
+                active ? "bg-[#1a2744] text-white" : "bg-white text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {icon}
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ComparisonHeader({
+  versions,
+  pair,
+  onPairChange,
+  hasVersionComparison,
+  changeTracking,
+  quickFilter,
+  onToggleQuickFilter,
+  onClearQuickFilter,
+  targetCounts,
+  panel,
+}: {
+  versions: ContractVersion[];
+  pair: { left: string; right: string };
+  onPairChange: (pair: { left: string; right: string }) => void;
+  hasVersionComparison: boolean;
+  changeTracking: ReturnType<typeof deriveComparisonModel>["changeTracking"];
+  quickFilter: QuickFilterKey | null;
+  onToggleQuickFilter: (key: QuickFilterKey) => void;
+  onClearQuickFilter: () => void;
+  targetCounts: ReturnType<typeof deriveComparisonModel>["severityCounts"];
+  panel: VersionPanelData;
+}) {
+  return (
+    <>
+      {versions.length >= 2 && (
+        <div className="flex h-8 items-center gap-2 border-b border-[rgba(0,0,0,0.08)] px-3 text-[10px] text-muted-foreground">
+          <span>Comparing</span>
+          <PairSelector versions={versions} pair={pair} onChange={onPairChange} compact />
+        </div>
+      )}
+      <div className="flex h-8 items-center gap-2 border-b border-[rgba(0,0,0,0.08)] bg-[#f8f7f5] px-3 text-[11px] text-muted-foreground">
+        {hasVersionComparison && (
+          <>
+            <CompactStripStat active={quickFilter === "need-action"} onClick={() => onToggleQuickFilter("need-action")}>
+              {changeTracking.notMet === 0 && changeTracking.requestedTotal > 0 ? (
+                <span className="font-medium text-[#3B6D11]">All met</span>
+              ) : (
+                <><strong>{changeTracking.met}</strong> of <strong>{changeTracking.requestedTotal}</strong> met</>
+              )}
+            </CompactStripStat>
+            <span className="text-muted-foreground">·</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <CompactStripStat active={quickFilter === "changes"} onClick={() => undefined}>
+                  <strong>{changeTracking.supplierChanges}</strong> {changeTracking.supplierChanges === 1 ? "change" : "changes"}
+                </CompactStripStat>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-56 p-3 text-xs">
+                <p className="font-medium text-foreground">Supplier-initiated changes</p>
+                <p className="mt-1 text-muted-foreground">
+                  {changeTracking.improved} improved · {changeTracking.regressed} regressed · {changeTracking.new} {NEW_CHANGE_LABEL.toLowerCase()}
+                </p>
+                <Button size="sm" variant="outline" className="mt-3 h-7 w-full text-[11px]" onClick={() => onToggleQuickFilter("changes")}>
+                  Show New Changes
+                </Button>
+              </PopoverContent>
+            </Popover>
+            <CompactDivider />
+          </>
+        )}
+        <CompactStripStat active={quickFilter === "high"} color="#A32D2D" onClick={() => onToggleQuickFilter("high")}>
+          <strong>{targetCounts.high}</strong> high
+        </CompactStripStat>
+        <CompactStripStat active={quickFilter === "medium"} color="#854F0B" onClick={() => onToggleQuickFilter("medium")}>
+          <strong>{targetCounts.medium}</strong> med
+        </CompactStripStat>
+        <CompactStripStat active={quickFilter === "low"} color="#5F5E5A" onClick={() => onToggleQuickFilter("low")}>
+          <strong>{targetCounts.low}</strong> low
+        </CompactStripStat>
+        <CompactStripStat onClick={onClearQuickFilter}>
+          <strong>{targetCounts.total}</strong> total
+        </CompactStripStat>
+        <div className="ml-auto rounded-md border border-border bg-white px-2 py-0.5 text-[10px]">
+          <span className="mr-1 uppercase text-muted-foreground">Score</span>
+          <strong className="text-[13px] text-foreground">{panel.current.score}</strong>
+          <span className={panel.delta > 0 ? "ml-1 text-[#3B6D11]" : panel.delta < 0 ? "ml-1 text-[#A32D2D]" : "ml-1 text-muted-foreground"}>
+            {panel.delta > 0 ? `↑+${panel.delta}` : panel.delta < 0 ? `↓-${Math.abs(panel.delta)}` : "→0"}
+          </span>
+        </div>
+      </div>
+      <HybridVersionMovementPanel data={panel} />
+    </>
+  );
+}
+
+function HistoryHeader({
+  versions,
+  model,
+  activeFilter,
+  activeSort,
+  onFilterChange,
+  onSortChange,
+}: {
+  versions: ContractVersion[];
+  model: ReturnType<typeof deriveHistoryModel>;
+  activeFilter: HistoryFilter;
+  activeSort: HistorySort;
+  onFilterChange: (filter: HistoryFilter) => void;
+  onSortChange: (sort: HistorySort) => void;
+}) {
+  const first = versions[0];
+  const latest = versions.at(-1);
+  return (
+    <>
+      <div className="flex h-8 items-center gap-1.5 border-b border-[rgba(0,0,0,0.08)] bg-[#FAEEDA]/40 px-3 text-[10px] font-medium text-[#633806]">
+        <IconInfoCircle size={13} stroke={1.8} />
+        Showing all {versions.length} rounds · {first?.version ?? "v1"} through {latest?.version ?? "v1"}
+        {first && latest && <> · {formatShortDate(first.uploadedAt)} to {formatShortDate(latest.uploadedAt)}</>}
+      </div>
+      <div className="grid grid-cols-4 gap-3 border-b border-[rgba(0,0,0,0.08)] bg-white px-3 py-3">
+        <HistoryStatCard value={model.stats.totalClauses} label="Total clauses" trend={`across ${model.stats.roundCount} rounds`} />
+        <HistoryStatCard value={model.stats.stillOpen} label="Still open" trend={`after ${model.stats.roundCount} rounds`} tone="danger" />
+        <HistoryStatCard value={model.stats.avgRoundsToResolve} label="Avg rounds to resolve" trend="computed from met clauses" tone="success" />
+        <HistoryStatCard value={`${model.stats.settledByRound3Pct}%`} label="Settled by round 3" trend="benchmark 65%" tone={model.stats.settledByRound3Pct >= 65 ? "success" : "danger"} />
+      </div>
+      <div className="flex items-center gap-2 border-b border-[rgba(0,0,0,0.08)] bg-[#f8f7f5] px-3 py-2">
+        {(Object.keys(historyFilterLabels) as HistoryFilter[]).map((filter) => (
+          <button
+            key={filter}
+            type="button"
+            onClick={() => onFilterChange(filter)}
+            className={`inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-[10px] font-medium ${
+              activeFilter === filter
+                ? "bg-[#1a2744] text-white"
+                : "border border-border bg-white text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {historyFilterLabels[filter]}
+            <span className={`rounded-full px-1.5 py-px text-[9px] ${activeFilter === filter ? "bg-white/20" : "bg-muted"}`}>
+              {model.filterCounts[filter]}
+            </span>
+          </button>
+        ))}
+        <Select value={activeSort} onValueChange={(value) => onSortChange(value as HistorySort)}>
+          <SelectTrigger className="ml-auto h-8 w-[210px] bg-white text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="contentious">Sort: Most contentious</SelectItem>
+            <SelectItem value="clause_id">Sort: Clause ID</SelectItem>
+            <SelectItem value="current_status">Sort: Current status</SelectItem>
+            <SelectItem value="rounds_to_resolve">Sort: Rounds to resolve</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </>
+  );
+}
+
+function HistoryStatCard({ value, label, trend, tone = "neutral" }: { value: ReactNode; label: string; trend: string; tone?: "neutral" | "success" | "danger" }) {
+  const trendClass = tone === "success" ? "text-[#3B6D11]" : tone === "danger" ? "text-[#A32D2D]" : "text-muted-foreground";
+  return (
+    <div className="rounded-md bg-[#f8f7f5] px-3 py-2">
+      <p className="text-lg font-medium tabular-nums text-foreground">{value}</p>
+      <p className="text-[9px] font-medium uppercase text-muted-foreground">{label}</p>
+      <p className={`mt-1 text-[9px] ${trendClass}`}>{trend}</p>
+    </div>
+  );
+}
+
+function ComparisonTabButton({ active, icon, count, onClick, children }: { active: boolean; icon: ReactNode; count: number; onClick: () => void; children: ReactNode }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      style={{ color }}
-      className={`shrink-0 rounded px-1.5 py-0.5 transition-colors hover:bg-white ${
-        active ? "bg-white shadow-sm" : ""
+      className={`inline-flex h-10 items-center gap-1.5 border-b-2 text-[12px] font-medium ${
+        active ? "border-[#1a2744] text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
       }`}
     >
+      {icon}
       {children}
+      <span className="rounded-full bg-muted px-1.5 py-px text-[9px] text-muted-foreground">{count}</span>
     </button>
   );
 }
+
+
+const CompactStripStat = forwardRef<HTMLButtonElement, {
+  active?: boolean;
+  color?: string;
+  onClick?: () => void;
+  children: ReactNode;
+}>(({ active, color, onClick, children }, ref) => (
+  <button
+    ref={ref}
+    type="button"
+    onClick={onClick}
+    style={{ color }}
+    className={`shrink-0 rounded px-1.5 py-0.5 transition-colors hover:bg-white ${
+      active ? "bg-white shadow-sm" : ""
+    }`}
+  >
+    {children}
+  </button>
+));
+CompactStripStat.displayName = "CompactStripStat";
 
 function CompactDivider() {
   return <span className="h-3 w-px shrink-0 bg-border" aria-hidden />;
@@ -1567,11 +1732,103 @@ function ChangePillBadge({ result }: { result: ChangePillResult }) {
   );
 }
 
+function DecisionBadge({ decision }: { decision: RoundDecision }) {
+  if (decision === "request-update") {
+    return (
+      <span className="inline-flex cursor-default items-center gap-1 rounded-full bg-primary px-2 py-1 text-[10px] font-medium text-primary-foreground">
+        <Sparkles className="h-3 w-3" />
+        Requested
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex cursor-default items-center gap-1 rounded-full bg-[#EAF3DE] px-2 py-1 text-[10px] font-medium text-[#27500A]">
+      <CheckCircle2 className="h-3 w-3" />
+      No Action
+    </span>
+  );
+}
+
 function OverviewSectionLabel({ children }: { children: ReactNode }) {
   return (
     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
       {children}
     </p>
+  );
+}
+
+function ComparisonOverviewPanel({
+  state,
+  data,
+  pair,
+  onExpand,
+}: {
+  state: PanelState;
+  data: VersionPanelData;
+  pair: VersionComparisonPair;
+  onExpand: () => void;
+}) {
+  if (state === "closed") return null;
+  if (state === "collapsed") {
+    const deltaLabel = data.delta > 0 ? `+${data.delta}` : data.delta < 0 ? `−${Math.abs(data.delta)}` : "0";
+    const deltaColor = data.delta > 0 ? "#3B6D11" : data.delta < 0 ? "#A32D2D" : "hsl(var(--muted-foreground))";
+    return (
+      <div className="flex h-7 items-center gap-2 border-b border-[rgba(0,0,0,0.08)] bg-white px-4 text-[11px]">
+        <span className="shrink-0 font-medium text-muted-foreground">
+          {data.previous ? `${pair.from} → ${pair.to}` : "First analysis"}
+        </span>
+        {data.previous ? (
+          <>
+            <MiniDistributionBar distribution={data.previous.distribution} muted />
+            <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <MiniDistributionBar distribution={data.current.distribution} />
+            <span className="shrink-0 font-medium tabular-nums" style={{ color: deltaColor }}>
+              {deltaLabel} pts
+            </span>
+            <CompactDivider />
+            {data.movement.improved > 0 && (
+              <span className="shrink-0 font-medium text-[#3B6D11]">↑ {data.movement.improved} improved</span>
+            )}
+            {data.movement.declined > 0 && (
+              <span className="shrink-0 font-medium text-[#A32D2D]">↓ {data.movement.declined} declined</span>
+            )}
+          </>
+        ) : (
+          <MiniDistributionBar distribution={data.current.distribution} />
+        )}
+        <button
+          type="button"
+          onClick={onExpand}
+          className="ml-auto shrink-0 rounded px-2 py-0.5 font-medium text-primary hover:bg-primary/5"
+        >
+          Expand
+        </button>
+      </div>
+    );
+  }
+
+  return <HybridVersionMovementPanel data={data} />;
+}
+
+function MiniDistributionBar({ distribution, muted }: { distribution: DeviationDistribution; muted?: boolean }) {
+  return (
+    <span className={`flex h-1 w-[60px] shrink-0 overflow-hidden rounded-sm bg-muted ${muted ? "opacity-50" : ""}`} style={{ gap: 1 }}>
+      {(Object.keys(deviationDistributionColors) as Array<keyof DeviationDistribution>).map((key) => {
+        const value = distribution[key];
+        if (value <= 0) return null;
+        return (
+          <span
+            key={key}
+            style={{
+              flex: `${value} 1 0`,
+              minWidth: 1,
+              backgroundColor: deviationDistributionColors[key],
+            }}
+          />
+        );
+      })}
+    </span>
   );
 }
 
@@ -1771,8 +2028,6 @@ function ScoringPanelFooter({
   );
 }
 
-type DeviationDistribution = Record<"high" | "medium" | "low" | "clean", number>;
-
 interface HybridMovementPanelData {
   previous?: {
     version: string;
@@ -1905,7 +2160,6 @@ function VersionDistributionColumn({
           {version.version} ({label})
         </span>
         <span className="text-base font-medium leading-none text-foreground tabular-nums">{version.score}</span>
-        <BandChip band={version.band} />
       </div>
       <DeviationDistributionBar distribution={version.distribution} />
     </div>
@@ -2216,35 +2470,76 @@ function SummaryStat({ label, value, tone }: { label: string; value: number; ton
 }
 
 function PairSelector({
-  versions, pair, onChange,
+  versions, pair, onChange, compact = false,
 }: {
   versions: ContractVersion[];
   pair: { left: string; right: string };
   onChange: (p: { left: string; right: string }) => void;
+  compact?: boolean;
 }) {
-  const value = `${pair.left}->${pair.right}`;
-  const opts: { left: string; right: string; label: string }[] = [];
-  for (let i = 0; i < versions.length - 1; i++) {
-    opts.push({ left: versions[i].version, right: versions[i + 1].version, label: `${versions[i].version} → ${versions[i + 1].version}` });
+  const leftVersion = versions.find((version) => version.version === pair.left);
+  const rightVersion = versions.find((version) => version.version === pair.right);
+  const staticOnly = versions.length <= 2;
+  const triggerClass = compact ? "h-6 w-[116px] rounded-md bg-white px-2 text-[11px]" : "h-9 w-[164px] text-sm";
+  const formatVersion = (version?: ContractVersion) =>
+    version ? `${version.version} · ${new Date(version.uploadedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : "Version";
+
+  if (staticOnly) {
+    return (
+      <div className={`inline-flex items-center gap-1.5 text-muted-foreground ${compact ? "text-[11px]" : "text-sm"}`}>
+        <span className="rounded border border-border bg-white px-2 py-0.5">{formatVersion(leftVersion)}</span>
+        <ArrowRight className="h-3.5 w-3.5" />
+        <span className="rounded border border-border bg-white px-2 py-0.5">{formatVersion(rightVersion)}</span>
+      </div>
+    );
   }
-  // Baseline shortcut.
-  if (versions.length >= 2) {
-    opts.push({ left: versions[0].version, right: versions.at(-1)!.version, label: `${versions[0].version} → ${versions.at(-1)!.version} (baseline)` });
-  }
+
+  const updateLeft = (left: string) => {
+    const normalized = normalizeVersionComparisonPair(versions, { from: left, to: pair.right });
+    onChange({ left: normalized.from, right: normalized.to });
+  };
+
+  const updateRight = (right: string) => {
+    const normalized = normalizeVersionComparisonPair(versions, { from: pair.left, to: right });
+    onChange({ left: normalized.from, right: normalized.to });
+  };
+
   return (
-    <Select value={value} onValueChange={(v) => {
-      const opt = opts.find((o) => `${o.left}->${o.right}` === v);
-      if (opt) onChange({ left: opt.left, right: opt.right });
-    }}>
-      <SelectTrigger className="w-[220px] h-9 text-sm">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {opts.map((o) => (
-          <SelectItem key={`${o.left}->${o.right}`} value={`${o.left}->${o.right}`}>{o.label}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className={`inline-flex items-center gap-1.5 ${compact ? "text-[11px]" : "text-sm"}`}>
+      <Select value={pair.left} onValueChange={updateLeft}>
+        <SelectTrigger className={triggerClass} aria-label="Compare from version">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {versions.map((version) => (
+            <SelectItem
+              key={version.version}
+              value={version.version}
+              disabled={versionOrder(version.version) >= versionOrder(pair.right)}
+            >
+              {formatVersion(version)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <ArrowRight className={compact ? "h-3.5 w-3.5 text-muted-foreground" : "h-4 w-4 text-muted-foreground"} />
+      <Select value={pair.right} onValueChange={updateRight}>
+        <SelectTrigger className={triggerClass} aria-label="Compare to version">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {versions.map((version) => (
+            <SelectItem
+              key={version.version}
+              value={version.version}
+              disabled={versionOrder(version.version) <= versionOrder(pair.left)}
+            >
+              {formatVersion(version)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 
@@ -2507,15 +2802,29 @@ function ReviewGuidance({ versionLabel, compact = false }: { versionLabel: strin
 }
 
 function ReviewScreen({
-  version, stateOf, activeCategory, search, quickSeverityFilter, onDecide, onUpdateText, onOpenDetail, highlightedId,
+  version,
+  stateOf,
+  activeCategory,
+  search,
+  quickSeverityFilter,
+  onSetNoAction,
+  onStartDraft,
+  onUpdateDraft,
+  onCancelDraft,
+  onSubmitDraft,
+  onOpenDetail,
+  highlightedId,
 }: {
   version: ContractVersion;
   stateOf: (id: string) => ClauseDecisionState;
   activeCategory: string | null;
   search: string;
   quickSeverityFilter: "high" | "medium" | "low" | null;
-  onDecide: (id: string, d: RoundDecision) => void;
-  onUpdateText: (id: string, patch: { requestedChange?: string; rationale?: string }) => void;
+  onSetNoAction: (id: string) => void;
+  onStartDraft: (id: string, initialDraft?: { requestedChange?: string; rationale?: string }) => void;
+  onUpdateDraft: (id: string, patch: { requestedChange?: string; rationale?: string }) => void;
+  onCancelDraft: (id: string) => void;
+  onSubmitDraft: (id: string) => void;
   onOpenDetail: (id: string) => void;
   highlightedId?: string | null;
 }) {
@@ -2533,18 +2842,72 @@ function ReviewScreen({
         const state = stateOf(c.id);
         const decision = state.roundDecisions[versionLabel];
         const own = state.requests[versionLabel] ?? {};
+        const draft = state.draftRequests?.[versionLabel];
+        const isDrafting = Boolean(draft);
         const inherited = getLatestRequest(state, versionLabel);
         const inheritedFromOlder = inherited && inherited.version !== versionLabel ? inherited : undefined;
+        const settled = decision === "request-update" || decision === "no-action";
+        const draftHasText = Boolean(draft?.requestedChange?.trim() || draft?.rationale?.trim());
+        const cancelDraft = () => {
+          if (draftHasText && !window.confirm("Discard this draft request?")) return;
+          onCancelDraft(c.id);
+        };
+
+        if (settled && !isDrafting) {
+          return (
+            <div
+              id={`clause-row-${c.id}`}
+              key={c.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => onOpenDetail(c.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") onOpenDetail(c.id);
+              }}
+              className={`group flex min-h-9 cursor-pointer items-center gap-3 rounded-lg border bg-card px-3 py-2 text-sm transition-colors hover:border-primary/30 hover:bg-[#E6F1FB]/30 ${
+                decision === "request-update" ? "border-l-4 border-l-primary" : "border-l-4 border-l-success"
+              } ${highlightedId === c.id ? "ring-2 ring-primary/40 bg-primary/5" : ""}`}
+            >
+              <span className="w-9 shrink-0 text-[10px] font-bold font-mono text-muted-foreground">{c.id.toUpperCase()}</span>
+              <span className="min-w-0 flex-1 truncate font-medium text-foreground">{c.title}</span>
+              <Badge variant="outline" className={severityTone(c.severity)}>
+                {c.severity}
+              </Badge>
+              {decision === "request-update" && own.requestedChange && (
+                <span className="hidden min-w-0 flex-[1.2] truncate text-xs italic text-muted-foreground lg:block">
+                  {own.requestedChange}
+                </span>
+              )}
+              <DecisionBadge decision={decision} />
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (decision === "request-update") onStartDraft(c.id, own);
+                  else onStartDraft(c.id);
+                }}
+                className="shrink-0 text-[11px] font-medium text-primary hover:underline"
+              >
+                {decision === "request-update" ? "Edit" : "Change decision"}
+              </button>
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-60" />
+            </div>
+          );
+        }
+
         return (
           <div
             id={`clause-row-${c.id}`}
             key={c.id}
-            className={`bg-card border rounded-lg p-4 border-l-4 ${
-              decision === "request-update" ? "border-l-primary border-border"
-                : decision === "no-action" ? "border-l-success border-border"
+            onClick={() => !isDrafting && onOpenDetail(c.id)}
+            className={`group relative cursor-pointer rounded-lg border bg-card p-4 pr-10 transition-colors hover:border-primary/30 hover:bg-[#E6F1FB]/30 border-l-4 ${
+              isDrafting ? "border-l-primary border-border"
                 : "border-l-border"
             } ${highlightedId === c.id ? "ring-2 ring-primary/40 bg-primary/5" : ""}`}
           >
+            {!isDrafting && (
+              <ChevronRight className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-50" />
+            )}
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0 space-y-1.5">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -2556,6 +2919,11 @@ function ReviewScreen({
                     <span className={`w-1.5 h-1.5 rounded-full mr-1 ${severityDot(c.severity)}`} />
                     {c.severity}
                   </Badge>
+                  {isDrafting && (
+                    <Badge variant="outline" className="bg-[#E6F1FB] text-[#0C447C] border-[#185FA5]/25 text-[10px]">
+                      Drafting request
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-sm text-foreground">{c.deviation}</p>
                 {c.actionability && (
@@ -2565,21 +2933,21 @@ function ReviewScreen({
                   </p>
                 )}
               </div>
-              <div className="flex flex-col items-stretch gap-2 shrink-0 w-[180px]">
+              <div className="flex flex-col items-stretch gap-2 shrink-0 w-[180px]" onClick={(e) => e.stopPropagation()}>
                 <Button
                   size="sm"
-                  variant={decision === "request-update" ? "default" : "outline"}
+                  variant={isDrafting ? "secondary" : "outline"}
                   className="h-8 text-xs gap-1.5"
-                  onClick={() => onDecide(c.id, "request-update")}
+                  onClick={() => onStartDraft(c.id, own)}
                 >
-                  <Sparkles className={`w-3.5 h-3.5 ${decision === "request-update" ? "fill-current" : ""}`} />
-                  {decision === "request-update" ? "Requested" : "Request Change"}
+                  <Sparkles className="w-3.5 h-3.5" />
+                  {isDrafting ? "Drafting" : "Request Change"}
                 </Button>
                 <Button
                   size="sm"
-                  variant={decision === "no-action" ? "secondary" : "outline"}
+                  variant="outline"
                   className="h-8 text-xs gap-1.5"
-                  onClick={() => onDecide(c.id, "no-action")}
+                  onClick={() => onSetNoAction(c.id)}
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" /> No Action
                 </Button>
@@ -2592,9 +2960,9 @@ function ReviewScreen({
               </div>
             </div>
 
-            {decision === "request-update" && (
-              <div className="mt-3 pt-3 border-t border-border space-y-3">
-                {inheritedFromOlder && !own.requestedChange && !own.rationale && (
+            {isDrafting && (
+              <div className="mt-3 space-y-3 border-t border-border pt-3" onClick={(e) => e.stopPropagation()}>
+                {inheritedFromOlder && !draft?.requestedChange && !draft?.rationale && (
                   <div className="rounded-md border-l-2 border-primary bg-primary/5 px-3 py-2 space-y-1 text-xs">
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">
                       Currently in effect — from {inheritedFromOlder.version}
@@ -2613,11 +2981,11 @@ function ReviewScreen({
                 <div className="grid md:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="text-[11px] font-semibold text-muted-foreground uppercase">
-                      Requested change ({versionLabel})
+                      Requested change ({versionLabel}) <span className="text-destructive">*</span>
                     </label>
                     <Textarea
-                      value={own.requestedChange ?? ""}
-                      onChange={(e) => onUpdateText(c.id, { requestedChange: e.target.value })}
+                      value={draft?.requestedChange ?? ""}
+                      onChange={(e) => onUpdateDraft(c.id, { requestedChange: e.target.value })}
                       placeholder={
                         inheritedFromOlder
                           ? `Override the ${inheritedFromOlder.version} ask for this round (optional)`
@@ -2629,11 +2997,29 @@ function ReviewScreen({
                   <div className="space-y-1">
                     <label className="text-[11px] font-semibold text-muted-foreground uppercase">Rationale (optional)</label>
                     <Textarea
-                      value={own.rationale ?? ""}
-                      onChange={(e) => onUpdateText(c.id, { rationale: e.target.value })}
+                      value={draft?.rationale ?? ""}
+                      onChange={(e) => onUpdateDraft(c.id, { rationale: e.target.value })}
                       placeholder="Why is this change required?"
                       className="min-h-[64px] text-sm"
                     />
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-[11px] text-muted-foreground">
+                    Request will be included when the next version is uploaded.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={cancelDraft}>
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="h-8 text-xs gap-1.5"
+                      disabled={!draft?.requestedChange?.trim()}
+                      onClick={() => onSubmitDraft(c.id)}
+                    >
+                      <Sparkles className="h-3.5 w-3.5" /> Submit request
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -2948,7 +3334,7 @@ function ComparisonSection({
 
 function UnmarkedSection({
   rows, leftLabel, rightLabel, visible, defaultOpen,
-  requestOf, isRequested, onRequestChange, onUpdateText, onOpenDetail,
+  requestOf, draftOf, isRequested, isDrafting, onRequestChange, onUpdateText, onCancelDraft, onSubmitDraft, onOpenDetail,
 }: {
   rows: { id: string; prev?: ClauseResult; curr?: ClauseResult }[];
   leftLabel: string;
@@ -2956,9 +3342,13 @@ function UnmarkedSection({
   visible: boolean;
   defaultOpen: boolean;
   requestOf: (id: string) => { requestedChange?: string; rationale?: string };
+  draftOf: (id: string) => { requestedChange?: string; rationale?: string };
   isRequested: (id: string) => boolean;
+  isDrafting: (id: string) => boolean;
   onRequestChange: (id: string) => void;
   onUpdateText: (id: string, patch: { requestedChange?: string; rationale?: string }) => void;
+  onCancelDraft: (id: string) => void;
+  onSubmitDraft: (id: string) => void;
   onOpenDetail: (id: string) => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -3033,8 +3423,15 @@ function UnmarkedSection({
                 {filteredRows.map((r) => {
                   const display = r.curr ?? r.prev!;
                   const requested = isRequested(r.id);
+                  const drafting = isDrafting(r.id);
                   const req = requestOf(r.id);
-                  const isExpanded = expandedId === r.id || requested;
+                  const draft = draftOf(r.id);
+                  const isExpanded = expandedId === r.id || drafting;
+                  const cancelDraft = () => {
+                    if ((draft.requestedChange?.trim() || draft.rationale?.trim()) && !window.confirm("Discard this draft request?")) return;
+                    onCancelDraft(r.id);
+                    setExpandedId(null);
+                  };
                   return (
                     <Fragment key={r.id}>
                       <TableRow
@@ -3050,6 +3447,10 @@ function UnmarkedSection({
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                           {requested ? (
                             <Badge variant="secondary" className="text-[10px]">Requested</Badge>
+                          ) : drafting ? (
+                            <Badge variant="outline" className="bg-[#E6F1FB] text-[#0C447C] border-[#185FA5]/25 text-[10px]">
+                              Drafting request
+                            </Badge>
                           ) : (
                             <Button
                               size="sm"
@@ -3068,26 +3469,49 @@ function UnmarkedSection({
                       {isExpanded && (
                         <TableRow className="bg-muted/20" onClick={(e) => e.stopPropagation()}>
                           <TableCell colSpan={4} className="p-4">
-                            <div className="grid md:grid-cols-2 gap-3">
-                              <div className="space-y-1">
-                                <label className="text-[11px] font-semibold text-muted-foreground uppercase">
-                                  Requested change ({rightLabel})
-                                </label>
-                                <Textarea
-                                  value={req.requestedChange ?? ""}
-                                  onChange={(e) => onUpdateText(r.id, { requestedChange: e.target.value })}
-                                  placeholder="Describe the change you want from the supplier"
-                                  className="min-h-[64px] text-sm"
-                                />
+                            <div className="space-y-3">
+                              <div className="grid md:grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                  <label className="text-[11px] font-semibold text-muted-foreground uppercase">
+                                    Requested change ({rightLabel}) <span className="text-destructive">*</span>
+                                  </label>
+                                  <Textarea
+                                    value={draft.requestedChange ?? req.requestedChange ?? ""}
+                                    onChange={(e) => onUpdateText(r.id, { requestedChange: e.target.value })}
+                                    placeholder="Describe the change you want from the supplier"
+                                    className="min-h-[64px] text-sm"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[11px] font-semibold text-muted-foreground uppercase">Rationale (optional)</label>
+                                  <Textarea
+                                    value={draft.rationale ?? req.rationale ?? ""}
+                                    onChange={(e) => onUpdateText(r.id, { rationale: e.target.value })}
+                                    placeholder="Why is this change required?"
+                                    className="min-h-[64px] text-sm"
+                                  />
+                                </div>
                               </div>
-                              <div className="space-y-1">
-                                <label className="text-[11px] font-semibold text-muted-foreground uppercase">Rationale (optional)</label>
-                                <Textarea
-                                  value={req.rationale ?? ""}
-                                  onChange={(e) => onUpdateText(r.id, { rationale: e.target.value })}
-                                  placeholder="Why is this change required?"
-                                  className="min-h-[64px] text-sm"
-                                />
+                              <div className="flex flex-wrap items-center justify-between gap-3">
+                                <p className="text-[11px] text-muted-foreground">
+                                  Request will be included when the next version is uploaded.
+                                </p>
+                                <div className="flex items-center gap-2">
+                                  <Button size="sm" variant="outline" className="h-8 text-xs" onClick={cancelDraft}>
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    className="h-8 text-xs gap-1.5"
+                                    disabled={!(draft.requestedChange ?? req.requestedChange)?.trim()}
+                                    onClick={() => {
+                                      onSubmitDraft(r.id);
+                                      setExpandedId(null);
+                                    }}
+                                  >
+                                    <Sparkles className="h-3.5 w-3.5" /> Submit request
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           </TableCell>
@@ -3184,6 +3608,213 @@ function RoundTracker({
 }
 
 // ---- Side-by-side detail panel ---------------------------------------------
+
+function ClauseSlideOver({
+  clauseId,
+  prev,
+  curr,
+  leftLabel,
+  rightLabel,
+  mode,
+  versions,
+  state,
+  targetVersion,
+  changePill,
+  onClose,
+  onViewHistory,
+  onCloseClause,
+  onKeepOpen,
+  onMarkNewIssue,
+}: {
+  clauseId: string;
+  prev?: ClauseResult;
+  curr?: ClauseResult;
+  leftLabel: string;
+  rightLabel: string;
+  mode: ClauseIqMode;
+  versions: ContractVersion[];
+  state: ClauseDecisionState;
+  targetVersion: string;
+  changePill: ChangePillResult;
+  onClose: () => void;
+  onViewHistory: (id: string) => void;
+  onCloseClause: (id: string) => void;
+  onKeepOpen: (id: string) => void;
+  onMarkNewIssue: (id: string) => void;
+}) {
+  const def = CLAUSE_FRAMEWORK.find((d) => d.id === clauseId);
+  const display = curr ?? prev ?? versions.at(-1)?.clauses.find((clause) => clause.id === clauseId);
+  const historyRow = buildHistoryRow(clauseId, versions, state);
+  if (!def || !display || !historyRow) return null;
+  const isNewClause = changePill.status === "new";
+  const callout = slideOverCallout(changePill.status, leftLabel);
+  const request = getLatestRequest(state, leftLabel)?.request;
+  const latestCell = [...historyRow.cells].reverse().find((cell) => cell.status !== "missing");
+
+  return (
+    <div className="fixed inset-0 z-50 flex">
+      <div className="flex-1 bg-foreground/25" onClick={onClose} />
+      <aside className="flex h-full w-[380px] flex-col border-l border-border bg-white shadow-xl">
+        <div className="shrink-0 border-b border-border px-3.5 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[9px] font-medium uppercase text-muted-foreground">{clauseId.toUpperCase()} · {def.category}</p>
+              <h2 className="mt-1 truncate text-[13px] font-medium text-foreground">{display.title}</h2>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <Badge variant="outline" className={`${severityTone(display.severity)} text-[9px]`}>{display.severity}</Badge>
+                {changePill.status ? <ChangePillBadge result={changePill} /> : <RoundStatusPill status={historyRow.currentStatus}>{roundStatusLabel(historyRow.currentStatus)}</RoundStatusPill>}
+                <button
+                  type="button"
+                  onClick={() => onViewHistory(clauseId)}
+                  className="inline-flex items-center gap-1 rounded-full bg-[#FAEEDA]/70 px-2 py-0.5 text-[9px] font-medium text-[#633806] hover:bg-[#FAEEDA]"
+                >
+                  <IconTimeline size={11} stroke={1.8} />
+                  {historyRow.existsInRounds} rounds of history
+                </button>
+              </div>
+            </div>
+            <button type="button" onClick={onClose} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="shrink-0 border-b border-border bg-[#f8f7f5] px-3.5 py-2">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[9px] font-medium uppercase text-muted-foreground">Negotiation timeline</p>
+            {mode === "comparison" && (
+              <button type="button" onClick={() => onViewHistory(clauseId)} className="text-[9px] font-medium text-primary hover:underline">
+                View in History →
+              </button>
+            )}
+          </div>
+          <div className="relative flex min-w-0 items-start gap-3 overflow-x-auto px-1 pb-1" aria-label={`Timeline for ${display.title}`}>
+            <div className="absolute left-4 right-4 top-2 h-px bg-border" aria-hidden />
+            {historyRow.cells.map((cell, index) => (
+              <div key={cell.version || index} className="relative z-10 flex min-w-[42px] flex-col items-center gap-1">
+                <span className={`grid h-4 w-4 place-items-center rounded-full border text-[8px] font-medium ${roundStatusTone(cell.status)} ${index === historyRow.cells.length - 1 ? "outline outline-2 outline-offset-1 outline-[#185FA5]" : ""}`}>
+                  {index + 1}
+                </span>
+                <span className="text-[7px] text-muted-foreground">{cell.version || "—"}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3.5 py-3">
+          {mode === "comparison" ? (
+            <>
+              {callout && (
+                <div className={`rounded-md border-l-2 px-2.5 py-2 text-[10px] ${callout.className}`}>
+                  <p>{callout.text}</p>
+                </div>
+              )}
+              <SectionLabel>{leftLabel} → {rightLabel} diff</SectionLabel>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-md bg-[#f8f7f5] px-2.5 py-2 opacity-75">
+                  <p className="text-[8px] font-medium uppercase text-muted-foreground">{leftLabel} · previous</p>
+                  <p className="mt-1 text-[10px] text-foreground">{isNewClause ? `(Clause did not exist in ${leftLabel})` : prev?.deviation ?? "—"}</p>
+                </div>
+                <div className="rounded-md bg-[#E6F1FB]/50 px-2.5 py-2">
+                  <p className="text-[8px] font-medium uppercase text-[#185FA5]">{rightLabel} · current</p>
+                  <p className="mt-1 text-[10px] text-foreground">{curr?.deviation ?? display.deviation}</p>
+                </div>
+              </div>
+              <SectionLabel>AI analysis</SectionLabel>
+              <p className="rounded-md bg-[#f8f7f5] px-2.5 py-2 text-[11px] text-muted-foreground">
+                {display.improvementReason ?? display.actionability ?? `Based on the playbook benchmark for ${def.category}, review this clause before accepting the version.`}
+              </p>
+              {(changePill.status === "met" || changePill.status === "not_met") && request?.requestedChange && (
+                <>
+                  <SectionLabel>Your request</SectionLabel>
+                  <p className="rounded-md bg-[#f8f7f5] px-2.5 py-2 text-[11px] text-muted-foreground">{request.requestedChange}</p>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <SectionLabel>Description</SectionLabel>
+              <p className="rounded-md bg-[#f8f7f5] px-2.5 py-2 text-[11px] text-muted-foreground">{display.deviation}</p>
+              <SectionLabel>Latest diff</SectionLabel>
+              <p className="rounded-md bg-[#f8f7f5] px-2.5 py-2 text-[11px] text-muted-foreground">
+                {latestCell?.clause?.improvementReason ?? latestCell?.clause?.deviation ?? "No latest change available."}
+              </p>
+              <SectionLabel>AI analysis</SectionLabel>
+              <p className="rounded-md bg-[#f8f7f5] px-2.5 py-2 text-[11px] text-muted-foreground">
+                {display.actionability ?? `Clause history shows ${historyRow.stateChanges} state change${historyRow.stateChanges === 1 ? "" : "s"} across the negotiation.`}
+              </p>
+              <SectionLabel>Round-by-round</SectionLabel>
+              <div className="space-y-1.5">
+                {historyRow.cells.map((cell, index) => (
+                  <div key={`${cell.version}-${index}`} className="flex items-start justify-between gap-2 rounded-md border border-border px-2.5 py-2 text-[10px]">
+                    <div>
+                      <p className="font-medium text-foreground">Round {index + 1} · {cell.version}</p>
+                      <p className="mt-0.5 text-muted-foreground">{cell.clause?.improvementReason ?? cell.clause?.deviation ?? "Clause not present in this round."}</p>
+                    </div>
+                    <RoundStatusPill status={cell.status}>{cell.label}</RoundStatusPill>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2 border-t border-border px-3.5 py-2.5">
+          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => toast({ title: "Full text", description: display.excerpt })}>
+            View full text
+          </Button>
+          <SlideOverPrimaryAction
+            status={changePill.status}
+            onCloseClause={() => onCloseClause(clauseId)}
+            onKeepOpen={() => onKeepOpen(clauseId)}
+            onMarkNewIssue={() => onMarkNewIssue(clauseId)}
+          />
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function slideOverCallout(status: ChangePillStatus | null, leftLabel: string) {
+  if (status === "regressed") {
+    return {
+      text: "Supplier weakened this clause without being asked. Recommended: request revert in the next round.",
+      className: "border-[#A32D2D] bg-[#FCEBEB]/50 text-[#791F1F]",
+    };
+  }
+  if (status === "improved") {
+    return {
+      text: "Supplier improved this clause without being asked. You can accept or push for further improvement.",
+      className: "border-[#3B6D11] bg-[#EAF3DE]/70 text-[#27500A]",
+    };
+  }
+  if (status === "new") {
+    return {
+      text: `This clause did not exist in ${leftLabel}. Review carefully before accepting.`,
+      className: "border-[#185FA5] bg-[#E6F1FB]/70 text-[#0C447C]",
+    };
+  }
+  return null;
+}
+
+function SlideOverPrimaryAction({
+  status,
+  onCloseClause,
+  onKeepOpen,
+  onMarkNewIssue,
+}: {
+  status: ChangePillStatus | null;
+  onCloseClause: () => void;
+  onKeepOpen: () => void;
+  onMarkNewIssue: () => void;
+}) {
+  const className = "ml-auto h-8 bg-[#1a2744] px-3 text-xs text-white hover:bg-[#243454]";
+  if (status === "regressed") return <Button size="sm" className={className} onClick={onMarkNewIssue}>Request revert</Button>;
+  if (status === "new" || status === "improved") return <Button size="sm" className={className} onClick={onCloseClause}>Accept</Button>;
+  if (status === "met") return <Button size="sm" className={className} onClick={onCloseClause}>Mark resolved</Button>;
+  if (status === "not_met") return <Button size="sm" className={className} onClick={onKeepOpen}>Re-request</Button>;
+  return <Button size="sm" className={className} onClick={onMarkNewIssue}>Request change</Button>;
+}
 
 function detailCalloutForStatus(status: ChangePillStatus | null): {
   title: string;
@@ -3489,6 +4120,167 @@ function SupplierGroupingPopover({
       </PopoverContent>
     </Popover>
   );
+}
+
+function SupplierGroupingLink({ supplierId, supplierName }: { supplierId: string; supplierName: string }) {
+  const g = getSupplierGrouping(supplierId);
+  const isManual = g.source === "manual";
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex shrink-0 items-center gap-1 border-b border-dotted border-muted-foreground/60 text-[11px] font-medium text-muted-foreground hover:border-primary hover:text-primary"
+        >
+          <IconInfoCircle size={12} stroke={1.8} />
+          Why grouped?
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-80 space-y-2">
+        <p className="text-sm font-semibold text-foreground">Why is this grouped under {supplierName}?</p>
+        <p className="text-xs text-muted-foreground">{g.matchBasis}</p>
+        <div className="flex items-center justify-between border-t border-border pt-2 text-[11px] text-muted-foreground">
+          <span>Source: <span className="font-semibold capitalize text-foreground">{g.source}</span></span>
+          <Badge variant="outline" className={isManual ? "bg-secondary text-secondary-foreground" : "bg-success/10 text-success border-success/20"}>
+            {isManual ? "Manual" : `Auto · ${(g.confidence * 100).toFixed(0)}%`}
+          </Badge>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function HistoryCategorySidebar({
+  categories,
+  total,
+  activeCategory,
+  onSelectCategory,
+}: {
+  categories: Array<{ name: string; count: number }>;
+  total: number;
+  activeCategory: string | null;
+  onSelectCategory: (category: string | null) => void;
+}) {
+  return (
+    <aside className="sticky top-[178px] h-[calc(100vh-178px)] border-r border-border py-2">
+      <p className="px-3 py-1 text-[9px] font-medium uppercase text-muted-foreground">Categories</p>
+      <button
+        type="button"
+        onClick={() => onSelectCategory(null)}
+        className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-[11px] ${
+          !activeCategory ? "bg-[#E6F1FB] font-medium text-foreground" : "text-muted-foreground hover:bg-[#f8f7f5]"
+        }`}
+      >
+        <span>All</span>
+        <span className="rounded-full bg-muted px-1.5 py-px text-[9px]">{total}</span>
+      </button>
+      {categories.map((category) => (
+        <button
+          key={category.name}
+          type="button"
+          onClick={() => onSelectCategory(category.name)}
+          className={`flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-[11px] ${
+            activeCategory === category.name ? "bg-[#E6F1FB] font-medium text-foreground" : "text-muted-foreground hover:bg-[#f8f7f5]"
+          }`}
+        >
+          <span className="truncate">{category.name}</span>
+          <span className="rounded-full bg-muted px-1.5 py-px text-[9px]">{category.count}</span>
+        </button>
+      ))}
+    </aside>
+  );
+}
+
+function HistoryRoundTable({
+  versions,
+  rows,
+  onOpenDetail,
+  highlightedId,
+}: {
+  versions: ContractVersion[];
+  rows: HistoryRow[];
+  onOpenDetail: (id: string) => void;
+  highlightedId: string | null;
+}) {
+  if (rows.length === 0) {
+    return (
+      <div className="py-16 text-center text-[11px] italic text-muted-foreground">
+        No clauses match the current filters.
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto py-2">
+      <div
+        className="min-w-[860px]"
+        style={{ display: "grid", gridTemplateColumns: `24px 180px repeat(${versions.length}, minmax(84px, 1fr)) 84px 18px` }}
+      >
+        <div className="border-b border-border px-3 py-2" />
+        <div className="border-b border-border px-3 py-2 text-[8px] font-medium uppercase text-muted-foreground">Clause</div>
+        {versions.map((version, index) => (
+          <div key={version.version} className="border-b border-border px-3 py-2 text-center text-[8px] font-medium uppercase text-muted-foreground">
+            R{index + 1} {version.version}
+          </div>
+        ))}
+        <div className="border-b border-border px-3 py-2 text-center text-[8px] font-medium uppercase text-muted-foreground">Status</div>
+        <div className="border-b border-border px-3 py-2" />
+
+        {rows.map((row) => (
+          <button
+            id={`history-row-${row.id}`}
+            key={row.id}
+            type="button"
+            onClick={() => onOpenDetail(row.id)}
+            className={`contents text-left ${highlightedId === row.id ? "[&>*]:bg-[#E6F1FB]" : ""}`}
+          >
+            <div className="border-b border-border px-3 py-2">
+              {row.stateChanges >= 3 && <span className="mt-2 block h-1.5 w-1.5 rounded-full bg-[#A32D2D]" />}
+            </div>
+            <div className="min-w-0 border-b border-border px-3 py-2 hover:bg-[#E6F1FB]/50">
+              <p className="truncate text-[10px] font-medium text-foreground">{row.title}</p>
+              <p className="text-[8px] uppercase text-muted-foreground">{row.id.toUpperCase()} · {row.category}</p>
+            </div>
+            {row.cells.map((cell) => (
+              <div key={`${row.id}-${cell.version}`} className="border-b border-border px-3 py-2 text-center hover:bg-[#E6F1FB]/50">
+                <RoundStatusPill status={cell.status}>{cell.label}</RoundStatusPill>
+              </div>
+            ))}
+            <div className="border-b border-border px-3 py-2 text-center hover:bg-[#E6F1FB]/50">
+              {row.currentPill.status ? <ChangePillBadge result={row.currentPill} /> : <RoundStatusPill status={row.currentStatus}>{roundStatusLabel(row.currentStatus)}</RoundStatusPill>}
+            </div>
+            <div className="border-b border-border px-3 py-2 text-center text-sm text-muted-foreground hover:bg-[#E6F1FB]/50">›</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RoundStatusPill({ status, children }: { status: RoundStatus; children: ReactNode }) {
+  return (
+    <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[9px] font-medium ${roundStatusTone(status)}`}>
+      {children}
+    </span>
+  );
+}
+
+function roundStatusTone(status: RoundStatus) {
+  if (status === "requested") return "border-[#185FA5]/25 bg-[#E6F1FB] text-[#185FA5]";
+  if (status === "open") return "border-[#BA7517]/25 bg-[#FAEEDA] text-[#633806]";
+  if (status === "updated") return "border-border bg-muted text-muted-foreground";
+  if (status === "met") return "border-[#3B6D11]/25 bg-[#EAF3DE] text-[#27500A]";
+  if (status === "not_met") return "border-[#A32D2D]/25 bg-[#FCEBEB] text-[#791F1F]";
+  if (status === "regressed") return "border-[#A32D2D]/25 bg-[#FAEEDA] text-[#633806]";
+  if (status === "new") return "border-[#185FA5]/25 bg-[#E6F1FB] text-[#0C447C]";
+  return "border-transparent bg-transparent text-muted-foreground";
+}
+
+function roundStatusLabel(status: RoundStatus) {
+  if (status === "not_met") return "Not met";
+  if (status === "requested") return "Req";
+  if (status === "updated") return "Upd";
+  return status === "missing" ? "—" : status.charAt(0).toUpperCase() + status.slice(1);
 }
 
 // ---- Clause audit + AI confidence (TASK-05 / TASK-08, R3 DI-15 + DI-17) ---

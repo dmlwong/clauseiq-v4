@@ -1,6 +1,10 @@
 import type { ClauseResult } from "./workflow-types";
 
-export type ChangePillStatus = "met" | "not-met" | "improved" | "regressed" | "new";
+export type VersionComparisonPair = { from: string; to: string };
+export type PanelState = "closed" | "collapsed" | "expanded";
+export type ChangePillType = "met" | "not_met" | "improved" | "regressed" | "new";
+export type ComparisonBucketKey = "open_items" | "new_changes" | "closed" | "unmarked";
+export type ChangePillStatus = ChangePillType;
 export type ClauseDirection = "improved" | "regressed" | "unchanged";
 
 export interface ChangePillResult {
@@ -58,7 +62,7 @@ export function determineChangePill({
 
   if (wasRequestedInPreviousRound) {
     const fulfilled = direction === "improved" || clause.resolved || clause.change === "improved";
-    return { status: fulfilled ? "met" : "not-met" };
+    return { status: fulfilled ? "met" : "not_met" };
   }
 
   if (direction === "improved" || clause.change === "improved") {
@@ -75,7 +79,7 @@ export function sortChangePillStatus(status: ChangePillStatus | null): number {
   if (status === "regressed") return 0;
   if (status === "improved") return 1;
   if (status === "new") return 2;
-  if (status === "not-met") return 3;
+  if (status === "not_met") return 3;
   if (status === "met") return 4;
   return 5;
 }

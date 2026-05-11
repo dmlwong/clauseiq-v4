@@ -37,8 +37,10 @@ export interface ClauseDecisionState {
    * against (e.g. "v1", "v2"). When comparing v_n → v_{n+1} we display the
    * latest note authored on or before v_n, so a v1 ask "rolls forward" until
    * the user explicitly overrides it at v2/v3/…
-   */
+  */
   requests: Record<string, ClauseRequest>;
+  /** Draft request text keyed by target version, before the user submits the request. */
+  draftRequests?: Record<string, ClauseRequest>;
   updatedAt: string;
 }
 
@@ -49,8 +51,13 @@ const EMPTY: ClauseDecisionState = {
   roundDecisions: {},
   closures: {},
   requests: {},
+  draftRequests: {},
   updatedAt: "",
 };
+
+interface ClauseDecisionOptions {
+  storageKey?: string;
+}
 
 /**
  * Parses a "vN" label to a number. Falls back to 0 for malformed input.
@@ -78,8 +85,33 @@ export function getLatestRequest(
   return { request, version };
 }
 
-export function useClauseDecisions(initial: Store = {}) {
-  const [store, setStore] = useState<Store>(initial);
+function loadStored(initial: Store, storageKey?: string): Store {
+  if (!storageKey || typeof window === "undefined") return initial;
+  try {
+    const raw = localStorage.getItem(storageKey);
+    return raw ? { ...initial, ...(JSON.parse(raw) as Store) } : initial;
+  } catch {
+    return initial;
+  }
+}
+
+function saveStored(storageKey: string | undefined, next: Store) {
+  if (!storageKey || typeof window === "undefined") return;
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(next));
+  } catch {
+    // Ignore private-mode/localStorage failures in the prototype.
+  }
+}
+
+function withoutKey<T>(record: Record<string, T> | undefined, key: string): Record<string, T> {
+  const next = { ...(record ?? {}) };
+  delete next[key];
+  return next;
+}
+
+export function useClauseDecisions(initial: Store = {}, options: ClauseDecisionOptions = {}) {
+  const [store, setStore] = useState<Store>(() => loadStored(initial, options.storageKey));
 
   const getState = useCallback(
     (supplierId: string, contractId: string, clauseId: string): ClauseDecisionState => {
@@ -105,16 +137,18 @@ export function useClauseDecisions(initial: Store = {}) {
         const list = prev[key] ?? {};
         const current = list[clauseId] ?? EMPTY;
         const next = patch(current);
-        return {
+        const nextStore = {
           ...prev,
           [key]: {
             ...list,
             [clauseId]: { ...next, updatedAt: new Date().toISOString() },
           },
         };
+        saveStored(options.storageKey, nextStore);
+        return nextStore;
       });
     },
-    [],
+    [options.storageKey],
   );
 
   const setRoundDecision = useCallback(
@@ -177,6 +211,96 @@ export function useClauseDecisions(initial: Store = {}) {
     },
     [mutate],
   );
+
+  const startDraftRequest = useCallback(
+    (
+      supplierId: string,
+      contractId: string,
+      clauseId: string,
+      version: string,
+      initialDraft?: ClauseRequest,
+    ) => {
+      mutate(supplierId, contractId, clauseId, (s) => ({
+        ...s,
+        draftRequests: {
+          ...(s.draftRequests ?? {}),
+          [version]: initialDraft ?? s.requests[version] ?? s.draftRequests?.[version] ?? {},
+        },
+      }));
+    },
+    [mutate],
+  );
+
+  const updateDraftRequestText = useCallback(
+    (
+      supplierId: string,
+      contractId: string,
+      clauseId: string,
+      version: string,
+      patch: ClauseRequest,
+    ) => {
+      mutate(supplierId, contractId, clauseId, (s) => {
+        const existing = s.draftRequests?.[version] ?? {};
+        return {
+          ...s,
+          draftRequests: {
+            ...(s.draftRequests ?? {}),
+            [version]: { ...existing, ...patch },
+          },
+        };
+      });
+    },
+    [mutate],
+  );
+
+  const cancelDraftRequest = useCallback(
+    (supplierId: string, contractId: string, clauseId: string, version: string) => {
+      mutate(supplierId, contractId, clauseId, (s) => ({
+        ...s,
+        draftRequests: withoutKey(s.draftRequests, version),
+      }));
+    },
+    [mutate],
+  );
+
+  const submitDraftRequest = useCallback(
+    (supplierId: string, contractId: string, clauseId: string, version: string) => {
+      mutate(supplierId, contractId, clauseId, (s) => {
+        const draft = s.draftRequests?.[version] ?? {};
+        if (!draft.requestedChange?.trim()) return s;
+        return {
+          ...s,
+          roundDecisions: { ...s.roundDecisions, [version]: "request-update" },
+          requests: {
+            ...s.requests,
+            [version]: {
+              requestedChange: draft.requestedChange.trim(),
+              rationale: draft.rationale?.trim() || undefined,
+            },
+          },
+          draftRequests: withoutKey(s.draftRequests, version),
+        };
+      });
+    },
+    [mutate],
+  );
+
+  const changeDecision = useCallback(
+    (
+      supplierId: string,
+      contractId: string,
+      clauseId: string,
+      version: string,
+      decision: RoundDecision,
+    ) => {
+      mutate(supplierId, contractId, clauseId, (s) => ({
+        ...s,
+        roundDecisions: { ...s.roundDecisions, [version]: decision },
+        draftRequests: withoutKey(s.draftRequests, version),
+      }));
+    },
+    [mutate],
+  );
   /**
    * Seed plausible round-1 decisions from focus-clause IDs so the demo
    * starts with a meaningful negotiation request list without forcing the
@@ -203,10 +327,12 @@ export function useClauseDecisions(initial: Store = {}) {
             updatedAt: now,
           };
         }
-        return { ...prev, [key]: built };
+        const nextStore = { ...prev, [key]: built };
+        saveStored(options.storageKey, nextStore);
+        return nextStore;
       });
     },
-    [],
+    [options.storageKey],
   );
 
   return useMemo(
@@ -216,10 +342,28 @@ export function useClauseDecisions(initial: Store = {}) {
       setRoundDecision,
       setClosure,
       setFollowUpNote,
+      startDraftRequest,
+      updateDraftRequestText,
+      cancelDraftRequest,
+      submitDraftRequest,
+      changeDecision,
       updateRequestText,
       seedDefaults,
     }),
-    [getState, getAll, setRoundDecision, setClosure, setFollowUpNote, updateRequestText, seedDefaults],
+    [
+      getState,
+      getAll,
+      setRoundDecision,
+      setClosure,
+      setFollowUpNote,
+      startDraftRequest,
+      updateDraftRequestText,
+      cancelDraftRequest,
+      submitDraftRequest,
+      changeDecision,
+      updateRequestText,
+      seedDefaults,
+    ],
   );
 }
 

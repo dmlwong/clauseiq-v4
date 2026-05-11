@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   usePrototypeStore,
+  prototypePreviewUrl,
   summarize,
   type VersionStatus,
   type PrototypeVersion,
@@ -116,7 +117,7 @@ export default function PrototypeTimeline() {
               version={current}
               onView={() => navigate(`/prototypes/${current.id}`)}
               onDuplicate={() => handleDuplicate(current.id)}
-              onOpen={() => openPrototype(current.previewUrl)}
+              onOpen={() => openPrototype(prototypePreviewUrl(current))}
               onDelete={() => handleDelete(current.id)}
             />
           </section>
@@ -134,7 +135,7 @@ export default function PrototypeTimeline() {
                   version={v}
                   onView={() => navigate(`/prototypes/${v.id}`)}
                   onDuplicate={() => handleDuplicate(v.id)}
-                  onOpen={() => openPrototype(v.previewUrl)}
+                  onOpen={() => openPrototype(prototypePreviewUrl(v))}
                   onDelete={() => handleDelete(v.id)}
                 />
               ))}
@@ -182,6 +183,7 @@ function CurrentCard({
   onDelete: () => void;
 }) {
   const s = summarize(version);
+  const previewUrl = prototypePreviewUrl(version);
   return (
     <div className="bg-card border-2 border-primary/30 rounded-xl p-6 shadow-sm">
       <div className="flex items-start justify-between gap-6">
@@ -194,7 +196,7 @@ function CurrentCard({
             <span className="text-xs text-muted-foreground">· {relativeDate(version.createdAt)}</span>
           </div>
 
-          <PrototypeUrlPill url={version.previewUrl} />
+          <PrototypeUrlPill url={previewUrl} />
 
           {version.goal && (
             <div>
@@ -237,7 +239,7 @@ function CurrentCard({
         </div>
 
         <div className="flex flex-col gap-2 shrink-0 w-44">
-          <Button onClick={onOpen} disabled={!version.previewUrl} className="gap-2">
+          <Button onClick={onOpen} disabled={!previewUrl} className="gap-2">
             <ExternalLink className="w-4 h-4" /> Open Prototype
           </Button>
           <Button variant="outline" onClick={onView} className="gap-2">
@@ -267,6 +269,7 @@ function HistoryRow({
   onDelete: () => void;
 }) {
   const s = summarize(version);
+  const previewUrl = prototypePreviewUrl(version);
   return (
     <div className="p-5 hover:bg-muted/40 transition-colors flex items-start gap-4">
       <div className="mt-1.5">
@@ -280,7 +283,7 @@ function HistoryRow({
             {version.status}
           </Badge>
         </div>
-        <PrototypeUrlPill url={version.previewUrl} />
+        <PrototypeUrlPill url={previewUrl} />
         {version.notes && (
           <p className="text-sm text-muted-foreground line-clamp-2">{version.notes}</p>
         )}
@@ -298,7 +301,7 @@ function HistoryRow({
           size="sm"
           variant="outline"
           onClick={onOpen}
-          disabled={!version.previewUrl}
+          disabled={!previewUrl}
           className="gap-1.5"
         >
           <ExternalLink className="w-3.5 h-3.5" /> Open Prototype
@@ -365,4 +368,3 @@ function DeleteVersionButton({
     </AlertDialog>
   );
 }
-

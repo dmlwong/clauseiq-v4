@@ -3,7 +3,7 @@ import {
   ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, Search, MapPin, Lightbulb,
   GitCompare, History, X, ArrowRight, Sparkles, Upload, Trash2, FileText, Loader2,
   Download, Info, FileDiff, ShieldCheck, ExternalLink, Sigma, Pin, RotateCcw,
-  Clock, MoreHorizontal, ShieldX,
+  Clock, ShieldX,
 } from "lucide-react";
 
 import { toast } from "@/components/ui/use-toast";
@@ -20,10 +20,6 @@ import {
 } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
-  DropdownMenuSeparator, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import {
   IconCircleCheck,
@@ -785,11 +781,12 @@ export function ContractResults({
   };
 
   // ---------------------------------------------------------------------------
-  const overviewPanelVisible = overviewOpen;
+  const hybridScoreBoardPinned = scoringOption === "hybrid";
+  const overviewPanelVisible = hybridScoreBoardPinned || overviewOpen;
   const overviewToggleLabel = overviewOpen ? "Close" : "Overview";
   const overviewToggleExpanded = overviewOpen;
   const toggleOverviewPanel = toggleOverviewOpen;
-  const overviewPanelFlush = scoringOption === "hybrid";
+  const overviewPanelFlush = hybridScoreBoardPinned;
   const hasVersionComparison = Boolean(leftVersion && rightVersion && leftVersion.version !== rightVersion.version);
 
   return (
@@ -838,25 +835,6 @@ export function ContractResults({
               >
                 <RotateCcw className="h-3.5 w-3.5" /> Run analysis again
               </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="icon" variant="outline" className="h-7 w-7" aria-label="More version actions">
-                    <MoreHorizontal className="h-3.5 w-3.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel className="text-xs">Version actions</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    disabled={versions.length === 0}
-                    className="gap-2 text-xs text-destructive focus:text-destructive"
-                    onClick={() => latest && setDeleteTarget(latest.version)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Delete latest version
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
           </div>
 
@@ -915,14 +893,16 @@ export function ContractResults({
                 </>
               )}
             </div>
-            <button
-              type="button"
-              onClick={toggleOverviewPanel}
-              className="inline-flex shrink-0 items-center gap-1 rounded px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-white hover:text-foreground"
-            >
-              {overviewToggleLabel}
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${overviewToggleExpanded ? "rotate-180" : ""}`} />
-            </button>
+            {!hybridScoreBoardPinned && (
+              <button
+                type="button"
+                onClick={toggleOverviewPanel}
+                className="inline-flex shrink-0 items-center gap-1 rounded px-2 py-1 text-[11px] font-medium text-muted-foreground hover:bg-white hover:text-foreground"
+              >
+                {overviewToggleLabel}
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${overviewToggleExpanded ? "rotate-180" : ""}`} />
+              </button>
+            )}
           </div>
 
           <div

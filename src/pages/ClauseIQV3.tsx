@@ -13,13 +13,8 @@ import { CIQ_INITIATIVES, PLAYBOOK_SCOPE_DISCLAIMER, type CiqInitiative } from "
 import { cn } from "@/lib/utils";
 import { mockInitiative } from "@/data/mock-clauseiq";
 import {
-  DEFAULT_FILTERED_LIST_CONTROLS,
-  FilteredListToolbar,
   MasterSupplierRail,
-  OptionSwitcher,
   ResultsContent,
-  type FilteredListControls,
-  type ResultsOption,
   useMasterDetailState,
 } from "@/components/clauseiq-v3/supplier-results";
 
@@ -40,8 +35,6 @@ export default function ClauseIQV3() {
   );
   const [file, setFile] = useState<File | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [activeOption, setActiveOption] = useState<ResultsOption>("master-detail");
-  const [filteredControls, setFilteredControls] = useState<FilteredListControls>(DEFAULT_FILTERED_LIST_CONTROLS);
   const [rerunUploadVisible, setRerunUploadVisible] = useState(rerunUploadFromRoute);
   const [rerunProcessing, setRerunProcessing] = useState(false);
 
@@ -99,7 +92,7 @@ export default function ClauseIQV3() {
   const processingState: CardState = step === "processing" ? "active" : "default";
   const resultsVisible = step === "results";
   const initiativeLocked = step === "processing" || step === "results";
-  const wideResults = resultsVisible && activeOption === "master-detail";
+  const wideResults = resultsVisible;
 
   // ---- handlers ----
   const handleSelect = (i: CiqInitiative) => {
@@ -139,21 +132,10 @@ export default function ClauseIQV3() {
       title="ClauseIQ"
       subtitle="AI tool for detailed contract analyses"
       headerRight={
-        resultsVisible ? (
-          <OptionSwitcher value={activeOption} onChange={setActiveOption} />
-        ) : (
+        !resultsVisible ? (
           <div className="h-9 w-9 rounded-lg bg-primary text-primary-foreground grid place-items-center">
             <Sparkles className="h-4 w-4" />
           </div>
-        )
-      }
-      subheader={
-        resultsVisible && activeOption === "filtered-list" ? (
-          <FilteredListToolbar
-            initiative={mockInitiative}
-            controls={filteredControls}
-            onControlsChange={setFilteredControls}
-          />
         ) : undefined
       }
       sidePanel={
@@ -293,15 +275,12 @@ export default function ClauseIQV3() {
             {resultsVisible && (
               <div ref={resultRef} className="space-y-4">
                 <ResultsContent
-                  view={activeOption}
                   initiative={mockInitiative}
                   onRunAgain={showRunAgainUpload}
                   onDownload={() => toast.success("Report download queued.")}
                   onViewResult={() =>
                     navigate("/initiatives-v3?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq")
                   }
-                  filteredControls={filteredControls}
-                  onFilteredControlsChange={setFilteredControls}
                   masterDetailState={masterDetailState}
                 />
                 {rerunUploadVisible && (

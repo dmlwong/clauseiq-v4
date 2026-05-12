@@ -16,6 +16,15 @@ export type ComparisonTab = "changes" | "all";
 export type HistoryFilter = "all" | "still_open" | "regressed_last_round" | "met" | "new_clauses";
 export type HistorySort = "contentious" | "clause_id" | "current_status" | "rounds_to_resolve";
 export type RoundStatus = "requested" | "open" | "updated" | "met" | "not_met" | "regressed" | "new" | "missing";
+export type ComparisonActionState =
+  | "unreviewed"
+  | "drafting"
+  | "requested"
+  | "submitted_request"
+  | "no_action"
+  | "closed"
+  | "keep_open"
+  | "follow_up";
 
 export interface ComparisonRow {
   id: string;
@@ -25,6 +34,53 @@ export interface ComparisonRow {
   bucket: ComparisonBucketKey;
   wasRequested: boolean;
   closed: boolean;
+  actionState: ComparisonActionState;
+}
+
+export interface ComparisonContractFacts {
+  version: string;
+  high: number;
+  medium: number;
+  low: number;
+  total: number;
+  score: number;
+  band: ScoreBand;
+  distribution: DeviationDistribution;
+}
+
+export interface ComparisonFacts {
+  met: number;
+  notMet: number;
+  improved: number;
+  regressed: number;
+  new: number;
+  requestedTotal: number;
+  supplierChanges: number;
+  scoreDelta: number;
+}
+
+export interface ComparisonActionFacts {
+  pendingReview: number;
+  draftedRequests: number;
+  pendingRequests: number;
+  submittedRequests: number;
+  noAction: number;
+  closed: number;
+  keepOpen: number;
+  followUp: number;
+  actioned: number;
+}
+
+export interface ComparisonBucketStats extends ComparisonActionFacts {
+  total: number;
+  visible: number;
+  unreviewed: number;
+}
+
+export interface ComparisonStripStats {
+  contract: ComparisonContractFacts;
+  comparison: ComparisonFacts;
+  actions: ComparisonActionFacts;
 }
 
 export interface VersionPanelData {
@@ -63,6 +119,11 @@ export interface ClauseIqComparisonModel {
     supplierChanges: number;
     needAction: number;
   };
+  contractFacts: ComparisonContractFacts;
+  comparisonFacts: ComparisonFacts;
+  actionFacts: ComparisonActionFacts;
+  bucketStats: Record<ComparisonBucketKey, ComparisonBucketStats>;
+  stripStats: ComparisonStripStats;
   severityCounts: {
     high: number;
     medium: number;
@@ -166,6 +227,136 @@ export function wasRequestedByVersion(
   });
 }
 
+function actionStateForRow(
+  state: ClauseDecisionState | undefined,
+  targetVersion: string | undefined,
+  bucket: ComparisonBucketKey,
+): ComparisonActionState {
+  if (!targetVersion) return "unreviewed";
+
+  const closure = state?.closures?.[targetVersion];
+  if (closure === "closed") return "closed";
+  if (closure === "keep-open") return "keep_open";
+  if (closure === "follow-up") return "follow_up";
+
+  if (state?.draftRequests?.[targetVersion]) return "drafting";
+
+  const decision = state?.roundDecisions?.[targetVersion];
+  if (decision === "request-update") {
+    const request = state?.requests?.[targetVersion];
+    if (request?.state === "submitted") return "submitted_request";
+    return "requested";
+  }
+  if (decision === "no-action") return "no_action";
+
+  if (bucket === "open_items" || bucket === "new_changes") return "unreviewed";
+  return "unreviewed";
+}
+
+function isPendingReview(row: Pick<ComparisonRow, "bucket" | "actionState">) {
+  return (
+    (row.bucket === "open_items" || row.bucket === "new_changes") &&
+    (row.actionState === "unreviewed" || row.actionState === "drafting")
+  );
+}
+
+function isActioned(row: Pick<ComparisonRow, "actionState">) {
+  return (
+    row.actionState === "requested" ||
+    row.actionState === "submitted_request" ||
+    row.actionState === "no_action" ||
+    row.actionState === "closed" ||
+    row.actionState === "keep_open" ||
+    row.actionState === "follow_up"
+  );
+}
+
+export function summariseComparisonRows(rows: ComparisonRow[]): ComparisonBucketStats {
+  return rows.reduce<ComparisonBucketStats>(
+    (stats, row) => {
+      stats.total += 1;
+      stats.visible += 1;
+      if (row.actionState === "unreviewed") stats.unreviewed += 1;
+      if (row.actionState === "drafting") stats.draftedRequests += 1;
+      if (row.actionState === "requested") stats.pendingRequests += 1;
+      if (row.actionState === "submitted_request") stats.submittedRequests += 1;
+      if (row.actionState === "no_action") stats.noAction += 1;
+      if (row.actionState === "closed") stats.closed += 1;
+      if (row.actionState === "keep_open") stats.keepOpen += 1;
+      if (row.actionState === "follow_up") stats.followUp += 1;
+      if (isPendingReview(row)) stats.pendingReview += 1;
+      if (isActioned(row)) stats.actioned += 1;
+      return stats;
+    },
+    {
+      total: 0,
+      visible: 0,
+      pendingReview: 0,
+      draftedRequests: 0,
+      pendingRequests: 0,
+      submittedRequests: 0,
+      noAction: 0,
+      closed: 0,
+      keepOpen: 0,
+      followUp: 0,
+      actioned: 0,
+      unreviewed: 0,
+    },
+  );
+}
+
+function summariseComparisonBuckets(buckets: Record<ComparisonBucketKey, ComparisonRow[]>) {
+  return {
+    open_items: summariseComparisonRows(buckets.open_items),
+    new_changes: summariseComparisonRows(buckets.new_changes),
+    closed: summariseComparisonRows(buckets.closed),
+    unmarked: summariseComparisonRows(buckets.unmarked),
+  };
+}
+
+function summariseComparisonActions(bucketStats: Record<ComparisonBucketKey, ComparisonBucketStats>): ComparisonActionFacts {
+  return Object.values(bucketStats).reduce<ComparisonActionFacts>(
+    (facts, stats) => {
+      facts.pendingReview += stats.pendingReview;
+      facts.draftedRequests += stats.draftedRequests;
+      facts.pendingRequests += stats.pendingRequests;
+      facts.submittedRequests += stats.submittedRequests;
+      facts.noAction += stats.noAction;
+      facts.closed += stats.closed;
+      facts.keepOpen += stats.keepOpen;
+      facts.followUp += stats.followUp;
+      facts.actioned += stats.actioned;
+      return facts;
+    },
+    {
+      pendingReview: 0,
+      draftedRequests: 0,
+      pendingRequests: 0,
+      submittedRequests: 0,
+      noAction: 0,
+      closed: 0,
+      keepOpen: 0,
+      followUp: 0,
+      actioned: 0,
+    },
+  );
+}
+
+function contractFactsForVersion(version?: ContractVersion): ComparisonContractFacts {
+  const severity = severityCountsForVersion(version);
+  const score = version?.overallScore ?? 0;
+  return {
+    version: version?.version ?? "",
+    high: severity.high,
+    medium: severity.medium,
+    low: severity.low,
+    total: severity.total,
+    score,
+    band: scoreBand(score),
+    distribution: version ? distributionForVersion(version) : { high: 0, medium: 0, low: 0, clean: 0 },
+  };
+}
+
 export function deriveComparisonModel(
   versions: ContractVersion[],
   requestedPair: VersionComparisonPair,
@@ -218,8 +409,9 @@ export function deriveComparisonModel(
       else if (pill.status === "improved" || pill.status === "regressed" || pill.status === "new") {
         bucket = "new_changes";
       }
+      const actionState = actionStateForRow(state, rightVersion.version, bucket);
 
-      buckets[bucket].push({ id: def.id, prev, curr, pill, bucket, wasRequested, closed });
+      buckets[bucket].push({ id: def.id, prev, curr, pill, bucket, wasRequested, closed, actionState });
     }
   }
 
@@ -233,10 +425,29 @@ export function deriveComparisonModel(
 
   changeTracking.requestedTotal = changeTracking.met + changeTracking.notMet;
   changeTracking.supplierChanges = changeTracking.improved + changeTracking.regressed + changeTracking.new;
-  changeTracking.needAction = buckets.open_items.length + buckets.new_changes.length;
 
   const countVersion = rightVersion ?? versions[0];
   const severityCounts = severityCountsForVersion(countVersion);
+  const panel = buildVersionPanelData(leftVersion, rightVersion ?? countVersion);
+  const contractFacts = contractFactsForVersion(countVersion);
+  const bucketStats = summariseComparisonBuckets(buckets);
+  const actionFacts = summariseComparisonActions(bucketStats);
+  const comparisonFacts: ComparisonFacts = {
+    met: changeTracking.met,
+    notMet: changeTracking.notMet,
+    improved: changeTracking.improved,
+    regressed: changeTracking.regressed,
+    new: changeTracking.new,
+    requestedTotal: changeTracking.requestedTotal,
+    supplierChanges: changeTracking.supplierChanges,
+    scoreDelta: panel.delta,
+  };
+  changeTracking.needAction = actionFacts.pendingReview;
+  const stripStats = {
+    contract: contractFacts,
+    comparison: comparisonFacts,
+    actions: actionFacts,
+  };
 
   return {
     pair,
@@ -245,8 +456,13 @@ export function deriveComparisonModel(
     hasComparison,
     buckets,
     changeTracking,
+    contractFacts,
+    comparisonFacts,
+    actionFacts,
+    bucketStats,
+    stripStats,
     severityCounts,
-    panel: buildVersionPanelData(leftVersion, rightVersion ?? countVersion),
+    panel,
   };
 }
 

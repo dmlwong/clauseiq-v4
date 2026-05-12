@@ -14,7 +14,6 @@ import UsabilityStudyV4 from "./pages/UsabilityStudyV4.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import PrototypeTimeline from "./pages/PrototypeTimeline.tsx";
 import PrototypeDetail from "./pages/PrototypeDetail.tsx";
-import HomeButton from "./components/HomeButton.tsx";
 import DeliveryEnginePage from "./pages/delivery-engine/DeliveryEnginePage.tsx";
 import InitiativeDetailPage from "./pages/delivery-engine/InitiativeDetailPage.tsx";
 
@@ -43,7 +42,6 @@ const App = () => (
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-        <HomeButton />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

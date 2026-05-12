@@ -19,7 +19,6 @@ import { cn } from "@/lib/utils";
 
 const topNav = [
   { label: "Notifications", icon: Bell, badge: "3" },
-  { label: "Home", icon: Home },
   { label: "Data Tracker & Insights", icon: Database },
   { label: "Content Search", icon: Search },
 ];
@@ -166,9 +165,18 @@ export function CiqSidebar() {
         </div>
       </nav>
 
-      <div className="flex h-14 items-center gap-2 border-t border-slate-200 px-4">
-        <div className="grid h-6 w-6 place-items-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">DW</div>
-        <span className="text-sm text-slate-800">Derek Wong</span>
+      <div className="border-t border-slate-200 p-3">
+        <div className="mb-2 flex items-center gap-2 px-1 py-1">
+          <div className="grid h-6 w-6 place-items-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">DW</div>
+          <span className="text-sm text-slate-800">Derek Wong</span>
+        </div>
+        <NavLink
+          to="/"
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950"
+        >
+          <Home className="h-4 w-4 text-slate-500" />
+          <span>Prototype home</span>
+        </NavLink>
       </div>
     </aside>
   );

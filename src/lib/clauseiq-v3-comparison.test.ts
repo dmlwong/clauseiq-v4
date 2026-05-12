@@ -6,6 +6,7 @@ import {
   deriveComparisonModel,
   deriveHistoryModel,
   normalizeVersionComparisonPair,
+  summariseComparisonRows,
 } from "@/lib/clauseiq-v3-comparison";
 import { determineChangePill } from "@/lib/change-tracking";
 
@@ -51,6 +52,125 @@ describe("ClauseIQ v3 comparison model", () => {
     expect(model.panel.current.version).toBe("v4");
     expect(model.panel.delta).toBe(ACME_MSA_VERSIONS[3].overallScore - ACME_MSA_VERSIONS[2].overallScore);
     expect(model.panel.movement.improved).toBeGreaterThan(0);
+  });
+
+  it("links v3 to v4 strip, bucket, and action facts from one model", () => {
+    const model = deriveComparisonModel(ACME_MSA_VERSIONS, { from: "v3", to: "v4" }, seededDecisions);
+
+    expect(model.contractFacts).toMatchObject({
+      version: "v4",
+      high: 9,
+      medium: 16,
+      low: 17,
+      total: 66,
+      score: 77,
+    });
+    expect(model.comparisonFacts).toMatchObject({
+      met: 5,
+      notMet: 0,
+      requestedTotal: 5,
+      supplierChanges: 2,
+      improved: 1,
+      regressed: 0,
+      new: 1,
+    });
+    expect(model.bucketStats.open_items.total).toBe(5);
+    expect(model.bucketStats.new_changes.total).toBe(2);
+    expect(model.bucketStats.unmarked.total).toBe(59);
+    expect(model.actionFacts.pendingReview).toBe(7);
+  });
+
+  it("keeps contract and comparison facts stable when a new change is requested", () => {
+    const decisions: Record<string, ClauseDecisionState> = {
+      ...seededDecisions,
+      c11: {
+        roundDecisions: { v4: "request-update" },
+        closures: {},
+        requests: { v4: { requestedChange: "Remove the planned maintenance carve-out." } },
+        updatedAt: "",
+      },
+    };
+    const model = deriveComparisonModel(ACME_MSA_VERSIONS, { from: "v3", to: "v4" }, decisions);
+    const row = model.buckets.new_changes.find((item) => item.id === "c11");
+
+    expect(row?.actionState).toBe("requested");
+    expect(model.actionFacts.pendingReview).toBe(6);
+    expect(model.bucketStats.new_changes.pendingRequests).toBe(1);
+    expect(model.contractFacts).toMatchObject({ high: 9, medium: 16, low: 17, total: 66, score: 77 });
+    expect(model.comparisonFacts.supplierChanges).toBe(2);
+  });
+
+  it("removes submitted requests from pending request accounting", () => {
+    const decisions: Record<string, ClauseDecisionState> = {
+      ...seededDecisions,
+      c11: {
+        roundDecisions: { v4: "request-update" },
+        closures: {},
+        requests: {
+          v4: {
+            requestedChange: "Remove the planned maintenance carve-out.",
+            state: "submitted",
+            submittedAt: "2026-05-12T12:00:00.000Z",
+          },
+        },
+        updatedAt: "",
+      },
+    };
+    const model = deriveComparisonModel(ACME_MSA_VERSIONS, { from: "v3", to: "v4" }, decisions);
+    const row = model.buckets.new_changes.find((item) => item.id === "c11");
+
+    expect(row?.actionState).toBe("submitted_request");
+    expect(model.bucketStats.new_changes.pendingRequests).toBe(0);
+    expect(model.bucketStats.new_changes.submittedRequests).toBe(1);
+    expect(model.actionFacts.pendingReview).toBe(6);
+    expect(model.comparisonFacts.supplierChanges).toBe(2);
+  });
+
+  it("keeps detected supplier changes stable when a new change is marked no action", () => {
+    const decisions: Record<string, ClauseDecisionState> = {
+      ...seededDecisions,
+      c11: {
+        roundDecisions: { v4: "no-action" },
+        closures: {},
+        requests: {},
+        updatedAt: "",
+      },
+    };
+    const model = deriveComparisonModel(ACME_MSA_VERSIONS, { from: "v3", to: "v4" }, decisions);
+    const row = model.buckets.new_changes.find((item) => item.id === "c11");
+
+    expect(row?.actionState).toBe("no_action");
+    expect(model.actionFacts.pendingReview).toBe(6);
+    expect(model.bucketStats.new_changes.noAction).toBe(1);
+    expect(model.contractFacts).toMatchObject({ high: 9, medium: 16, low: 17, total: 66, score: 77 });
+    expect(model.comparisonFacts.supplierChanges).toBe(2);
+  });
+
+  it("moves a closed open item into closed bucket stats", () => {
+    const decisions: Record<string, ClauseDecisionState> = {
+      ...seededDecisions,
+      c3: {
+        ...seededDecisions.c3,
+        closures: { v4: "closed" },
+      },
+    };
+    const model = deriveComparisonModel(ACME_MSA_VERSIONS, { from: "v3", to: "v4" }, decisions);
+
+    expect(model.buckets.closed.find((row) => row.id === "c3")?.actionState).toBe("closed");
+    expect(model.bucketStats.open_items.total).toBe(4);
+    expect(model.bucketStats.closed.total).toBe(1);
+    expect(model.actionFacts.closed).toBe(1);
+    expect(model.actionFacts.pendingReview).toBe(6);
+  });
+
+  it("lets filtered visible row stats change without mutating model totals", () => {
+    const model = deriveComparisonModel(ACME_MSA_VERSIONS, { from: "v3", to: "v4" }, seededDecisions);
+    const visibleNewHighRows = model.buckets.new_changes.filter((row) => row.curr?.severity === "high");
+    const visibleStats = summariseComparisonRows(visibleNewHighRows);
+
+    expect(visibleStats.total).toBeLessThan(model.bucketStats.new_changes.total);
+    expect(model.bucketStats.new_changes.total).toBe(2);
+    expect(model.contractFacts.total).toBe(66);
   });
 });
 

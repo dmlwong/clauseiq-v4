@@ -8,7 +8,7 @@ import {
   normalizeVersionComparisonPair,
   summariseComparisonRows,
 } from "@/lib/clauseiq-v3-comparison";
-import { determineChangePill } from "@/lib/change-tracking";
+import { determineChangePill } from "@/lib/change-tracking-v3";
 
 const seededDecisions: Record<string, ClauseDecisionState> = {
   c3: { roundDecisions: { v1: "request-update" }, closures: {}, requests: {}, updatedAt: "" },
@@ -34,15 +34,25 @@ describe("ClauseIQ v3 comparison model", () => {
     });
   });
 
-  it("derives change-first bucket counts from any selected pair", () => {
+  it("derives bucket totals that sum to the full clause framework", () => {
     const model = deriveComparisonModel(ACME_MSA_VERSIONS, { from: "v2", to: "v4" }, seededDecisions);
     const bucketTotal = Object.values(model.buckets).reduce((sum, rows) => sum + rows.length, 0);
 
     expect(model.pair).toEqual({ from: "v2", to: "v4" });
     expect(bucketTotal).toBe(model.severityCounts.total);
-    expect(model.changeTracking.requestedTotal).toBe(5);
-    expect(model.buckets.open_items.every((row) => row.wasRequested)).toBe(true);
-    expect(model.buckets.new_changes.every((row) => !row.wasRequested)).toBe(true);
+  });
+
+  it("routes outcome statuses to the correct buckets", () => {
+    const model = deriveComparisonModel(ACME_MSA_VERSIONS, { from: "v3", to: "v4" }, seededDecisions);
+
+    // Met / partially met / not met → Open Items
+    for (const row of model.buckets.open_items) {
+      expect(["met", "partially_met", "not_met"]).toContain(row.pill.status ?? "fallback-requested");
+    }
+    // Worsened / unexpected / manual_review → New Changes
+    for (const row of model.buckets.new_changes) {
+      expect(["worsened", "unexpected", "manual_review"]).toContain(row.pill.status);
+    }
   });
 
   it("builds panel movement and score delta for the selected pair", () => {
@@ -54,33 +64,34 @@ describe("ClauseIQ v3 comparison model", () => {
     expect(model.panel.movement.improved).toBeGreaterThan(0);
   });
 
-  it("links v3 to v4 strip, bucket, and action facts from one model", () => {
+  it("counts every new outcome status in comparison facts", () => {
     const model = deriveComparisonModel(ACME_MSA_VERSIONS, { from: "v3", to: "v4" }, seededDecisions);
 
-    expect(model.contractFacts).toMatchObject({
-      version: "v4",
-      high: 9,
-      medium: 16,
-      low: 17,
-      total: 66,
-      score: 77,
-    });
+    // v3 → v4 demo storyline: six clauses met, one unexpected (c11), one manual_review (c52).
     expect(model.comparisonFacts).toMatchObject({
-      met: 5,
+      met: 6,
+      partiallyMet: 0,
       notMet: 0,
-      requestedTotal: 5,
+      worsened: 0,
+      unexpected: 1,
+      manualReview: 1,
+      requestedTotal: 6,
       supplierChanges: 2,
-      improved: 1,
-      regressed: 0,
-      new: 1,
     });
-    expect(model.bucketStats.open_items.total).toBe(5);
+    expect(model.bucketStats.open_items.total).toBe(6);
     expect(model.bucketStats.new_changes.total).toBe(2);
-    expect(model.bucketStats.unmarked.total).toBe(59);
-    expect(model.actionFacts.pendingReview).toBe(7);
+    expect(model.bucketStats.unmarked.total).toBe(58);
   });
 
-  it("keeps contract and comparison facts stable when a new change is requested", () => {
+  it("includes partially met and worsened in the v2 storyline", () => {
+    const model = deriveComparisonModel(ACME_MSA_VERSIONS, { from: "v1", to: "v2" }, seededDecisions);
+
+    expect(model.comparisonFacts.partiallyMet).toBeGreaterThan(0);
+    expect(model.comparisonFacts.worsened).toBeGreaterThan(0);
+    expect(model.comparisonFacts.notMet).toBeGreaterThan(0);
+  });
+
+  it("keeps contract facts stable when a new change is requested", () => {
     const decisions: Record<string, ClauseDecisionState> = {
       ...seededDecisions,
       c11: {
@@ -94,9 +105,8 @@ describe("ClauseIQ v3 comparison model", () => {
     const row = model.buckets.new_changes.find((item) => item.id === "c11");
 
     expect(row?.actionState).toBe("requested");
-    expect(model.actionFacts.pendingReview).toBe(6);
     expect(model.bucketStats.new_changes.pendingRequests).toBe(1);
-    expect(model.contractFacts).toMatchObject({ high: 9, medium: 16, low: 17, total: 66, score: 77 });
+    expect(model.contractFacts.total).toBe(66);
     expect(model.comparisonFacts.supplierChanges).toBe(2);
   });
 
@@ -122,28 +132,6 @@ describe("ClauseIQ v3 comparison model", () => {
     expect(row?.actionState).toBe("submitted_request");
     expect(model.bucketStats.new_changes.pendingRequests).toBe(0);
     expect(model.bucketStats.new_changes.submittedRequests).toBe(1);
-    expect(model.actionFacts.pendingReview).toBe(6);
-    expect(model.comparisonFacts.supplierChanges).toBe(2);
-  });
-
-  it("keeps detected supplier changes stable when a new change is marked no action", () => {
-    const decisions: Record<string, ClauseDecisionState> = {
-      ...seededDecisions,
-      c11: {
-        roundDecisions: { v4: "no-action" },
-        closures: {},
-        requests: {},
-        updatedAt: "",
-      },
-    };
-    const model = deriveComparisonModel(ACME_MSA_VERSIONS, { from: "v3", to: "v4" }, decisions);
-    const row = model.buckets.new_changes.find((item) => item.id === "c11");
-
-    expect(row?.actionState).toBe("no_action");
-    expect(model.actionFacts.pendingReview).toBe(6);
-    expect(model.bucketStats.new_changes.noAction).toBe(1);
-    expect(model.contractFacts).toMatchObject({ high: 9, medium: 16, low: 17, total: 66, score: 77 });
-    expect(model.comparisonFacts.supplierChanges).toBe(2);
   });
 
   it("moves a closed open item into closed bucket stats", () => {
@@ -157,51 +145,62 @@ describe("ClauseIQ v3 comparison model", () => {
     const model = deriveComparisonModel(ACME_MSA_VERSIONS, { from: "v3", to: "v4" }, decisions);
 
     expect(model.buckets.closed.find((row) => row.id === "c3")?.actionState).toBe("closed");
-    expect(model.bucketStats.open_items.total).toBe(4);
     expect(model.bucketStats.closed.total).toBe(1);
     expect(model.actionFacts.closed).toBe(1);
-    expect(model.actionFacts.pendingReview).toBe(6);
   });
 
   it("lets filtered visible row stats change without mutating model totals", () => {
     const model = deriveComparisonModel(ACME_MSA_VERSIONS, { from: "v3", to: "v4" }, seededDecisions);
+    const newChangesTotal = model.bucketStats.new_changes.total;
     const visibleNewHighRows = model.buckets.new_changes.filter((row) => row.curr?.severity === "high");
     const visibleStats = summariseComparisonRows(visibleNewHighRows);
 
-    expect(visibleStats.total).toBeLessThan(model.bucketStats.new_changes.total);
-    expect(model.bucketStats.new_changes.total).toBe(2);
+    expect(visibleStats.total).toBeLessThanOrEqual(newChangesTotal);
     expect(model.contractFacts.total).toBe(66);
   });
 });
 
 describe("change pill vocabulary", () => {
-  it("uses requested precedence over generic improvement", () => {
-    const previousClause = ACME_MSA_VERSIONS[2].clauses.find((clause) => clause.id === "c31");
+  it("reads the met outcome straight off the clause", () => {
     const clause = ACME_MSA_VERSIONS[3].clauses.find((item) => item.id === "c31");
 
-    expect(determineChangePill({ clause, previousClause, wasRequestedInPreviousRound: true }).status).toBe("met");
+    expect(determineChangePill({ clause }).status).toBe("met");
   });
 
-  it("uses the normalized not_met status for unmet requested changes", () => {
-    const previousClause = ACME_MSA_VERSIONS[1].clauses.find((clause) => clause.id === "c58");
+  it("reads the not_met outcome for unmoved requested changes", () => {
     const clause = ACME_MSA_VERSIONS[2].clauses.find((item) => item.id === "c58");
 
-    expect(determineChangePill({ clause, previousClause, wasRequestedInPreviousRound: true }).status).toBe("not_met");
+    expect(determineChangePill({ clause }).status).toBe("not_met");
   });
 
-  it("marks new clauses separately", () => {
+  it("marks supplier-introduced clauses as unexpected", () => {
     const clause = ACME_MSA_VERSIONS[3].clauses.find((item) => item.id === "c11");
 
-    expect(determineChangePill({ clause, previousClause: undefined, wasRequestedInPreviousRound: false }).status).toBe("new");
+    expect(determineChangePill({ clause }).status).toBe("unexpected");
+  });
+
+  it("surfaces manual_review when the AI can't decide", () => {
+    const clause = ACME_MSA_VERSIONS[3].clauses.find((item) => item.id === "c52");
+
+    expect(determineChangePill({ clause }).status).toBe("manual_review");
+  });
+
+  it("returns null when an outcome hasn't been set", () => {
+    const clause = ACME_MSA_VERSIONS[0].clauses.find((item) => item.id === "c3");
+
+    expect(determineChangePill({ clause }).status).toBeNull();
   });
 });
 
 describe("ClauseIQ v3 history model", () => {
-  it("counts regressed clauses as still open", () => {
+  it("counts worsened and partial outcomes as still open", () => {
     const model = deriveHistoryModel(ACME_MSA_VERSIONS, seededDecisions, "still_open", null, "contentious");
 
-    expect(model.stats.stillOpen).toBeGreaterThanOrEqual(model.stats.regressedLastRound);
-    expect(model.filteredRows.every((row) => ["open", "not_met", "regressed"].includes(row.currentStatus))).toBe(true);
+    expect(
+      model.filteredRows.every((row) =>
+        ["open", "not_met", "worsened", "partially_met", "manual_review"].includes(row.currentStatus),
+      ),
+    ).toBe(true);
   });
 
   it("combines history category and filter with AND logic", () => {

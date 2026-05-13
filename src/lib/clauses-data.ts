@@ -1,5 +1,10 @@
 import { CLAUSE_FRAMEWORK } from "./clauses-framework";
-import type { ClauseResult, ClauseSeverity, ClauseChange, ContractVersion } from "./workflow-types";
+import type {
+  ClauseChange,
+  ClauseResult,
+  ClauseSeverity,
+  ContractVersion,
+} from "./workflow-types";
 
 // Deterministic baseline severity per clause (stable across versions for non-focus clauses)
 function baselineSeverity(num: number): ClauseSeverity {
@@ -26,7 +31,20 @@ function genericDeviation(severity: ClauseSeverity, title: string): string {
 // Per-version overrides for the 5 example focus clauses (Acme MSA storyline)
 // Clause IDs: c3 Termination for Convenience, c31 Payment Terms, c35 Liability Cap of Supplier,
 // c48 Data Processing, c58 Subcontracting
-type FocusOverride = Partial<Pick<ClauseResult, "severity" | "resolved" | "change" | "excerpt" | "deviation" | "improvementReason" | "locations" | "actionability">>;
+type FocusOverride = Partial<
+  Pick<
+    ClauseResult,
+    | "severity"
+    | "resolved"
+    | "change"
+    | "excerpt"
+    | "deviation"
+    | "improvementReason"
+    | "locations"
+    | "actionability"
+    | "outcome"
+  >
+>;
 
 // Static enrichment for the 5 focus clauses — applies across all versions unless overridden.
 const FOCUS_ENRICHMENT: Record<string, Pick<ClauseResult, "locations" | "actionability">> = {
@@ -65,30 +83,36 @@ const ACME_FOCUS: Record<string, Record<string, FocusOverride>> = {
     c10: { severity: "low", resolved: true, deviation: "Service levels aligned with benchmark playbook.", excerpt: "Supplier shall meet 99.9% availability with monthly service credits as detailed in Schedule 3." },
   },
   v2: {
-    c3:  { severity: "high",   resolved: false, change: "unchanged", deviation: "Notice period 90 days vs benchmark 30 days.", excerpt: "Either party may terminate this Agreement for convenience upon ninety (90) days written notice." },
-    c31: { severity: "medium", resolved: false, change: "improved",  deviation: "Payment terms extended to Net 45 — closer to benchmark Net 60.", excerpt: "Invoices payable within forty-five (45) days of receipt.", improvementReason: "Net 30 → Net 45 (longer payment window for buyer)" },
-    c35: { severity: "high",   resolved: false, change: "unchanged", deviation: "Cap set at 50% of fees — below benchmark (100%).", excerpt: "Supplier's total liability shall not exceed fifty percent (50%) of fees paid in the prior 12 months." },
-    c48: { severity: "medium", resolved: false, change: "improved",  deviation: "GDPR sub-processor list provided; some controls still missing.", excerpt: "Supplier shall maintain a list of approved sub-processors and notify Buyer of changes.", improvementReason: "Sub-processor list added" },
-    c58: { severity: "high",   resolved: false, change: "worsened",  deviation: "Subcontracting now permitted without any notification.", excerpt: "Supplier may freely subcontract the Services without notice." },
+    c3:  { severity: "high",   resolved: false, change: "unchanged", outcome: "not_met",       deviation: "Notice period 90 days vs benchmark 30 days.", excerpt: "Either party may terminate this Agreement for convenience upon ninety (90) days written notice." },
+    c31: { severity: "medium", resolved: false, change: "improved",  outcome: "partially_met", deviation: "Payment terms extended to Net 45 — closer to benchmark Net 60.", excerpt: "Invoices payable within forty-five (45) days of receipt.", improvementReason: "Net 30 → Net 45 (longer payment window for buyer)" },
+    c35: { severity: "high",   resolved: false, change: "unchanged", outcome: "not_met",       deviation: "Cap set at 50% of fees — below benchmark (100%).", excerpt: "Supplier's total liability shall not exceed fifty percent (50%) of fees paid in the prior 12 months." },
+    c48: { severity: "medium", resolved: false, change: "improved",  outcome: "partially_met", deviation: "GDPR sub-processor list provided; some controls still missing.", excerpt: "Supplier shall maintain a list of approved sub-processors and notify Buyer of changes.", improvementReason: "Sub-processor list added" },
+    c58: { severity: "high",   resolved: false, change: "worsened",  outcome: "worsened",      deviation: "Subcontracting now permitted without any notification.", excerpt: "Supplier may freely subcontract the Services without notice." },
     // NEW ISSUE in v2 — buyer never flagged this in v1 but supplier weakened SLA.
-    c10: { severity: "high", resolved: false, change: "worsened", deviation: "Availability target lowered to 99.0% and service credits removed.", excerpt: "Supplier shall use reasonable endeavours to meet 99.0% availability. Service credits no longer apply." },
+    c10: { severity: "high",   resolved: false, change: "worsened",  outcome: "worsened",      deviation: "Availability target lowered to 99.0% and service credits removed.", excerpt: "Supplier shall use reasonable endeavours to meet 99.0% availability. Service credits no longer apply." },
+    // AI couldn't determine whether the pricing schedule rewrite is materially the same.
+    c25: { outcome: "manual_review", deviation: "Pricing schedule structure changed; AI cannot determine if commercial substance is preserved.", excerpt: "See revised Schedule 2 — Pricing." },
   },
   v3: {
-    c3:  { severity: "medium", resolved: false, change: "improved",  deviation: "Notice period reduced to 60 days.", excerpt: "Either party may terminate this Agreement for convenience upon sixty (60) days written notice.", improvementReason: "90 → 60 days notice" },
-    c31: { severity: "medium", resolved: false, change: "unchanged", deviation: "Payment terms Net 45 — still short of benchmark Net 60.", excerpt: "Invoices payable within forty-five (45) days of receipt." },
-    c35: { severity: "medium", resolved: false, change: "improved",  deviation: "Cap raised to 75% of fees.", excerpt: "Supplier's total liability shall not exceed seventy-five percent (75%) of fees paid in the prior 12 months.", improvementReason: "Liability cap 50% → 75%" },
-    c48: { severity: "medium", resolved: false, change: "unchanged", deviation: "GDPR sub-processor list provided; some controls still missing.", excerpt: "Supplier shall maintain a list of approved sub-processors and notify Buyer of changes." },
-    c58: { severity: "high",   resolved: false, change: "unchanged", deviation: "Subcontracting permitted without notification.", excerpt: "Supplier may freely subcontract the Services without notice." },
-    c10: { severity: "medium", resolved: false, change: "improved", deviation: "Availability restored to 99.5%; service credits partially reinstated.", excerpt: "Supplier shall meet 99.5% availability with service credits for sustained breaches.", improvementReason: "99.0% → 99.5% and credits partially restored" },
+    c3:  { severity: "medium", resolved: false, change: "improved",  outcome: "partially_met", deviation: "Notice period reduced to 60 days.", excerpt: "Either party may terminate this Agreement for convenience upon sixty (60) days written notice.", improvementReason: "90 → 60 days notice" },
+    c31: { severity: "medium", resolved: false, change: "unchanged", outcome: "not_met",       deviation: "Payment terms Net 45 — still short of benchmark Net 60.", excerpt: "Invoices payable within forty-five (45) days of receipt." },
+    c35: { severity: "medium", resolved: false, change: "improved",  outcome: "partially_met", deviation: "Cap raised to 75% of fees.", excerpt: "Supplier's total liability shall not exceed seventy-five percent (75%) of fees paid in the prior 12 months.", improvementReason: "Liability cap 50% → 75%" },
+    c48: { severity: "medium", resolved: false, change: "unchanged", outcome: "not_met",       deviation: "GDPR sub-processor list provided; some controls still missing.", excerpt: "Supplier shall maintain a list of approved sub-processors and notify Buyer of changes." },
+    c58: { severity: "high",   resolved: false, change: "unchanged", outcome: "not_met",       deviation: "Subcontracting permitted without notification.", excerpt: "Supplier may freely subcontract the Services without notice." },
+    c10: { severity: "medium", resolved: false, change: "improved",  outcome: "partially_met", deviation: "Availability restored to 99.5%; service credits partially reinstated.", excerpt: "Supplier shall meet 99.5% availability with service credits for sustained breaches.", improvementReason: "99.0% → 99.5% and credits partially restored" },
+    // Confidentiality wording reordered — flagged for human review.
+    c47: { outcome: "manual_review", deviation: "Confidentiality wording reorganised; AI flagged for legal review.", excerpt: "Confidentiality provisions restructured into a new Schedule 6." },
   },
   v4: {
-    c3:  { severity: "low", resolved: true,  change: "improved", deviation: "Notice period 30 days — meets benchmark. Resolved.", excerpt: "Either party may terminate this Agreement for convenience upon thirty (30) days written notice.", improvementReason: "60 → 30 days; resolved" },
-    c31: { severity: "low", resolved: true,  change: "improved", deviation: "Payment terms Net 60 — meets benchmark. Resolved.", excerpt: "Invoices payable within sixty (60) days of receipt.", improvementReason: "Net 45 → Net 60; resolved" },
-    c35: { severity: "low", resolved: true,  change: "improved", deviation: "Liability cap 100% of fees — meets benchmark. Resolved.", excerpt: "Supplier's total liability shall not exceed one hundred percent (100%) of fees paid in the prior 12 months.", improvementReason: "Liability cap 75% → 100%; resolved" },
-    c48: { severity: "low", resolved: true,  change: "improved", deviation: "Full GDPR processor terms with breach notification SLAs. Resolved.", excerpt: "Supplier shall comply with GDPR Art. 28 obligations including audit rights and notification within 24 hours.", improvementReason: "Full GDPR Art. 28 schedule added; resolved" },
-    c58: { severity: "medium", resolved: true, change: "improved", deviation: "Subcontracting requires prior written consent. Resolved.", excerpt: "Supplier shall not subcontract any part of the Services without Buyer's prior written consent.", improvementReason: "Consent now required; resolved" },
-    c10: { severity: "low", resolved: true, change: "improved", deviation: "Service levels back to 99.9% with full service credits. Resolved.", excerpt: "Supplier shall meet 99.9% availability with service credits per Schedule 3.", improvementReason: "Service levels fully restored; resolved" },
-    c11: { severity: "medium", resolved: false, change: "new", deviation: "New service credit carve-out added for planned supplier maintenance windows.", excerpt: "Service credits shall not apply during supplier-designated planned maintenance windows up to twelve (12) hours per month." },
+    c3:  { severity: "low", resolved: true,  change: "improved", outcome: "met", deviation: "Notice period 30 days — meets benchmark. Resolved.", excerpt: "Either party may terminate this Agreement for convenience upon thirty (30) days written notice.", improvementReason: "60 → 30 days; resolved" },
+    c31: { severity: "low", resolved: true,  change: "improved", outcome: "met", deviation: "Payment terms Net 60 — meets benchmark. Resolved.", excerpt: "Invoices payable within sixty (60) days of receipt.", improvementReason: "Net 45 → Net 60; resolved" },
+    c35: { severity: "low", resolved: true,  change: "improved", outcome: "met", deviation: "Liability cap 100% of fees — meets benchmark. Resolved.", excerpt: "Supplier's total liability shall not exceed one hundred percent (100%) of fees paid in the prior 12 months.", improvementReason: "Liability cap 75% → 100%; resolved" },
+    c48: { severity: "low", resolved: true,  change: "improved", outcome: "met", deviation: "Full GDPR processor terms with breach notification SLAs. Resolved.", excerpt: "Supplier shall comply with GDPR Art. 28 obligations including audit rights and notification within 24 hours.", improvementReason: "Full GDPR Art. 28 schedule added; resolved" },
+    c58: { severity: "medium", resolved: true, change: "improved", outcome: "met", deviation: "Subcontracting requires prior written consent. Resolved.", excerpt: "Supplier shall not subcontract any part of the Services without Buyer's prior written consent.", improvementReason: "Consent now required; resolved" },
+    c10: { severity: "low", resolved: true, change: "improved", outcome: "met", deviation: "Service levels back to 99.9% with full service credits. Resolved.", excerpt: "Supplier shall meet 99.9% availability with service credits per Schedule 3.", improvementReason: "Service levels fully restored; resolved" },
+    c11: { severity: "medium", resolved: false, change: "new", outcome: "unexpected", deviation: "New service credit carve-out added for planned supplier maintenance windows.", excerpt: "Service credits shall not apply during supplier-designated planned maintenance windows up to twelve (12) hours per month." },
+    // Benchmarking clause rewritten — AI cannot confidently classify the change.
+    c52: { outcome: "manual_review", deviation: "Benchmarking clause rewritten; AI confidence below threshold — manual review required.", excerpt: "Benchmarking obligations consolidated into a new annex." },
   },
 };
 
@@ -142,7 +166,8 @@ function buildClauseFor(versionLabel: string, prevVersionLabel: string | null, o
       improvementReason: ovr.improvementReason,
       locations: ovr.locations ?? enrich?.locations,
       actionability: ovr.actionability ?? enrich?.actionability,
-    };
+      outcome: ovr.outcome,
+    } satisfies ClauseResult;
   });
 }
 

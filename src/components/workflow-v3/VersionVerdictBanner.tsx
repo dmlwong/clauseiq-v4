@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { ClauseResult, ContractVersion } from "@/lib/workflow-types";
-import { determineChangePill } from "@/lib/change-tracking";
+import { determineChangePill } from "@/lib/change-tracking-v3";
 import type { ClauseDecisionState } from "@/hooks/use-clause-decisions";
 
 type Decision = "accepted" | "changes-requested" | null;
@@ -43,47 +43,35 @@ export function VersionVerdictBanner({
   onJumpToOpen,
   onJumpToChanges,
 }: Props) {
-  const { met, notMet, supplierChanges, requestedTotal } = useMemo(() => {
+  const { met, partiallyMet, notMet, supplierChanges, requestedTotal } = useMemo(() => {
     const met: Bucket[] = [];
+    const partiallyMet: Bucket[] = [];
     const notMet: Bucket[] = [];
     const supplierChanges: Bucket[] = [];
-    const leftIdx = versions.findIndex((v) => v.version === leftVersion.version);
 
-    for (const id of Object.keys(allDecisions)) {
-      // walk every clause that has any decision history; we determine if it was
-      // requested in or before the left ("previous") version.
-    }
-
-    // Iterate clauses present on the right version (the "new" upload)
     for (const curr of rightVersion.clauses) {
       const prev = leftVersion.clauses.find((c) => c.id === curr.id);
-      const s = allDecisions[curr.id];
-      const wasRequested = s
-        ? Object.entries(s.roundDecisions).some(
-            ([v, d]) =>
-              d === "request-update" &&
-              versions.findIndex((x) => x.version === v) <= leftIdx,
-          )
-        : false;
-      const pill = determineChangePill({
-        clause: curr,
-        previousClause: prev,
-        wasRequestedInPreviousRound: wasRequested,
-      });
+      const pill = determineChangePill({ clause: curr });
 
       if (pill.status === "met") met.push({ id: curr.id, prev, curr });
+      if (pill.status === "partially_met") partiallyMet.push({ id: curr.id, prev, curr });
       if (pill.status === "not_met") notMet.push({ id: curr.id, prev, curr });
-      if (pill.status === "improved" || pill.status === "regressed" || pill.status === "new") {
+      if (
+        pill.status === "worsened" ||
+        pill.status === "unexpected" ||
+        pill.status === "manual_review"
+      ) {
         supplierChanges.push({ id: curr.id, prev, curr });
       }
     }
     return {
       met,
+      partiallyMet,
       notMet,
       supplierChanges,
-      requestedTotal: met.length + notMet.length,
+      requestedTotal: met.length + partiallyMet.length + notMet.length,
     };
-  }, [leftVersion, rightVersion, versions, allDecisions]);
+  }, [leftVersion, rightVersion]);
 
   // Verdict tone — green if everything met & no supplier changes, amber if partial, red if nothing met or many supplier changes.
   const allMet = requestedTotal > 0 && notMet.length === 0;
@@ -149,10 +137,16 @@ export function VersionVerdictBanner({
             </div>
             <p className="text-sm text-muted-foreground mt-1">{subline}</p>
 
-            {/* Three quick stats — clickable to jump */}
+            {/* Four quick stats — clickable to jump */}
             <div className="flex flex-wrap gap-2 mt-3">
               <Stat label="Met" value={met.length} tone="success" />
-              <Stat label="Not met" value={notMet.length} tone="warning" onClick={notMet.length ? onJumpToOpen : undefined} />
+              <Stat
+                label="Partially met"
+                value={partiallyMet.length}
+                tone="warning"
+                onClick={partiallyMet.length ? onJumpToOpen : undefined}
+              />
+              <Stat label="Not met" value={notMet.length} tone="destructive" onClick={notMet.length ? onJumpToOpen : undefined} />
               <Stat label="Changes" value={supplierChanges.length} tone="destructive" onClick={supplierChanges.length ? onJumpToChanges : undefined} />
             </div>
           </div>

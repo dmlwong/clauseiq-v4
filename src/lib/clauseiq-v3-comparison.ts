@@ -6,16 +6,30 @@ import {
   type ChangePillResult,
   type ComparisonBucketKey,
   type VersionComparisonPair,
-} from "@/lib/change-tracking";
+} from "@/lib/change-tracking-v3";
 import type { ClauseResult, ContractVersion } from "@/lib/workflow-types";
 
 export type DeviationDistribution = Record<"high" | "medium" | "low" | "clean", number>;
 export type ScoreBand = "A" | "B" | "C" | "D" | "F";
 export type ClauseIqMode = "comparison" | "history";
 export type ComparisonTab = "changes" | "all";
-export type HistoryFilter = "all" | "still_open" | "regressed_last_round" | "met" | "new_clauses";
+export type HistoryFilter =
+  | "all"
+  | "still_open"
+  | "worsened_last_round"
+  | "met"
+  | "unexpected_clauses";
 export type HistorySort = "contentious" | "clause_id" | "current_status" | "rounds_to_resolve";
-export type RoundStatus = "requested" | "open" | "updated" | "met" | "not_met" | "regressed" | "new" | "missing";
+export type RoundStatus =
+  | "requested"
+  | "open"
+  | "met"
+  | "partially_met"
+  | "not_met"
+  | "worsened"
+  | "unexpected"
+  | "manual_review"
+  | "missing";
 export type ComparisonActionState =
   | "unreviewed"
   | "drafting"
@@ -50,10 +64,11 @@ export interface ComparisonContractFacts {
 
 export interface ComparisonFacts {
   met: number;
+  partiallyMet: number;
   notMet: number;
-  improved: number;
-  regressed: number;
-  new: number;
+  worsened: number;
+  unexpected: number;
+  manualReview: number;
   requestedTotal: number;
   supplierChanges: number;
   scoreDelta: number;
@@ -111,10 +126,11 @@ export interface ClauseIqComparisonModel {
   buckets: Record<ComparisonBucketKey, ComparisonRow[]>;
   changeTracking: {
     met: number;
+    partiallyMet: number;
     notMet: number;
-    improved: number;
-    regressed: number;
-    new: number;
+    worsened: number;
+    unexpected: number;
+    manualReview: number;
     requestedTotal: number;
     supplierChanges: number;
     needAction: number;
@@ -168,9 +184,9 @@ export interface ClauseIqHistoryModel {
     stillOpen: number;
     avgRoundsToResolve: number;
     settledByRound3Pct: number;
-    regressedLastRound: number;
+    worsenedLastRound: number;
     met: number;
-    newClauses: number;
+    unexpectedClauses: number;
   };
   filterCounts: Record<HistoryFilter, number>;
 }
@@ -375,10 +391,11 @@ export function deriveComparisonModel(
   };
   const changeTracking = {
     met: 0,
+    partiallyMet: 0,
     notMet: 0,
-    improved: 0,
-    regressed: 0,
-    new: 0,
+    worsened: 0,
+    unexpected: 0,
+    manualReview: 0,
     requestedTotal: 0,
     supplierChanges: 0,
     needAction: 0,
@@ -398,16 +415,27 @@ export function deriveComparisonModel(
       const closed = state?.closures?.[rightVersion.version] === "closed";
 
       if (pill.status === "met") changeTracking.met += 1;
+      if (pill.status === "partially_met") changeTracking.partiallyMet += 1;
       if (pill.status === "not_met") changeTracking.notMet += 1;
-      if (pill.status === "improved") changeTracking.improved += 1;
-      if (pill.status === "regressed") changeTracking.regressed += 1;
-      if (pill.status === "new") changeTracking.new += 1;
+      if (pill.status === "worsened") changeTracking.worsened += 1;
+      if (pill.status === "unexpected") changeTracking.unexpected += 1;
+      if (pill.status === "manual_review") changeTracking.manualReview += 1;
 
       let bucket: ComparisonBucketKey = "unmarked";
       if (closed) bucket = "closed";
-      else if (wasRequested) bucket = "open_items";
-      else if (pill.status === "improved" || pill.status === "regressed" || pill.status === "new") {
+      else if (
+        pill.status === "worsened" ||
+        pill.status === "unexpected" ||
+        pill.status === "manual_review"
+      ) {
         bucket = "new_changes";
+      } else if (
+        wasRequested ||
+        pill.status === "met" ||
+        pill.status === "partially_met" ||
+        pill.status === "not_met"
+      ) {
+        bucket = "open_items";
       }
       const actionState = actionStateForRow(state, rightVersion.version, bucket);
 
@@ -423,8 +451,10 @@ export function deriveComparisonModel(
     return aTitle.localeCompare(bTitle);
   });
 
-  changeTracking.requestedTotal = changeTracking.met + changeTracking.notMet;
-  changeTracking.supplierChanges = changeTracking.improved + changeTracking.regressed + changeTracking.new;
+  changeTracking.requestedTotal =
+    changeTracking.met + changeTracking.partiallyMet + changeTracking.notMet;
+  changeTracking.supplierChanges =
+    changeTracking.worsened + changeTracking.unexpected + changeTracking.manualReview;
 
   const countVersion = rightVersion ?? versions[0];
   const severityCounts = severityCountsForVersion(countVersion);
@@ -434,10 +464,11 @@ export function deriveComparisonModel(
   const actionFacts = summariseComparisonActions(bucketStats);
   const comparisonFacts: ComparisonFacts = {
     met: changeTracking.met,
+    partiallyMet: changeTracking.partiallyMet,
     notMet: changeTracking.notMet,
-    improved: changeTracking.improved,
-    regressed: changeTracking.regressed,
-    new: changeTracking.new,
+    worsened: changeTracking.worsened,
+    unexpected: changeTracking.unexpected,
+    manualReview: changeTracking.manualReview,
     requestedTotal: changeTracking.requestedTotal,
     supplierChanges: changeTracking.supplierChanges,
     scoreDelta: panel.delta,
@@ -487,18 +518,18 @@ export function deriveHistoryModel(
   const filterCounts: Record<HistoryFilter, number> = {
     all: latestRows.length,
     still_open: latestRows.filter(isStillOpenHistoryRow).length,
-    regressed_last_round: latestRows.filter((row) => row.currentStatus === "regressed").length,
+    worsened_last_round: latestRows.filter((row) => row.currentStatus === "worsened").length,
     met: latestRows.filter((row) => row.currentStatus === "met").length,
-    new_clauses: latestRows.filter((row) => row.currentStatus === "new").length,
+    unexpected_clauses: latestRows.filter((row) => row.currentStatus === "unexpected").length,
   };
 
   const filteredRows = sortHistoryRows(
     rows.filter((row) => {
       if (activeCategory && row.category !== activeCategory) return false;
       if (activeFilter === "still_open") return isStillOpenHistoryRow(row);
-      if (activeFilter === "regressed_last_round") return row.currentStatus === "regressed";
+      if (activeFilter === "worsened_last_round") return row.currentStatus === "worsened";
       if (activeFilter === "met") return row.currentStatus === "met";
-      if (activeFilter === "new_clauses") return row.currentStatus === "new";
+      if (activeFilter === "unexpected_clauses") return row.currentStatus === "unexpected";
       return true;
     }),
     sort,
@@ -523,9 +554,9 @@ export function deriveHistoryModel(
       stillOpen: filterCounts.still_open,
       avgRoundsToResolve,
       settledByRound3Pct: rows.length ? Math.round((settledByRound3Rows.length / rows.length) * 100) : 0,
-      regressedLastRound: filterCounts.regressed_last_round,
+      worsenedLastRound: filterCounts.worsened_last_round,
       met: filterCounts.met,
-      newClauses: filterCounts.new_clauses,
+      unexpectedClauses: filterCounts.unexpected_clauses,
     },
     filterCounts,
   };
@@ -600,43 +631,71 @@ export function historyCellForClause(
     };
   }
 
-  const previous = versions[versionIndex - 1]?.clauses.find((item) => item.id === clauseId);
-  const wasRequested = wasRequestedByVersion(state, versions, versions[versionIndex - 1]?.version);
-  const pill = determineChangePill({ clause, previousClause: previous, wasRequestedInPreviousRound: wasRequested });
   const closed = state?.closures?.[version.version] === "closed";
-
-  if (closed || pill.status === "met" || clause.resolved) {
+  if (closed) {
     return { version: version.version, uploadedAt: version.uploadedAt, status: "met", label: "Met", clause };
   }
-  if (pill.status === "not_met") {
-    return { version: version.version, uploadedAt: version.uploadedAt, status: "not_met", label: "Not met", clause };
+  if (clause.outcome) {
+    return {
+      version: version.version,
+      uploadedAt: version.uploadedAt,
+      status: clause.outcome,
+      label: roundStatusShortLabel(clause.outcome),
+      clause,
+    };
   }
-  if (pill.status === "regressed") {
-    return { version: version.version, uploadedAt: version.uploadedAt, status: "regressed", label: "Reg", clause };
-  }
-  if (pill.status === "new") {
-    return { version: version.version, uploadedAt: version.uploadedAt, status: "new", label: "New", clause };
-  }
-  if (pill.status === "improved" || clause.change === "improved") {
-    return { version: version.version, uploadedAt: version.uploadedAt, status: "updated", label: "Upd", clause };
+  if (clause.resolved) {
+    return { version: version.version, uploadedAt: version.uploadedAt, status: "met", label: "Met", clause };
   }
   return { version: version.version, uploadedAt: version.uploadedAt, status: "open", label: "Open", clause };
 }
 
+function roundStatusShortLabel(status: RoundStatus): string {
+  switch (status) {
+    case "met":
+      return "Met";
+    case "partially_met":
+      return "Partial";
+    case "not_met":
+      return "Not met";
+    case "worsened":
+      return "Worsened";
+    case "unexpected":
+      return "Unexpected";
+    case "manual_review":
+      return "Review";
+    case "open":
+      return "Open";
+    case "requested":
+      return "Req";
+    case "missing":
+      return "—";
+    default:
+      return status;
+  }
+}
+
 export function isStillOpenHistoryRow(row: HistoryRow) {
-  return row.currentStatus === "open" || row.currentStatus === "not_met" || row.currentStatus === "regressed";
+  return (
+    row.currentStatus === "open" ||
+    row.currentStatus === "not_met" ||
+    row.currentStatus === "worsened" ||
+    row.currentStatus === "partially_met" ||
+    row.currentStatus === "manual_review"
+  );
 }
 
 export function sortHistoryRows(rows: HistoryRow[], sort: HistorySort) {
   const statusOrder: Record<RoundStatus, number> = {
-    regressed: 0,
+    worsened: 0,
     not_met: 1,
-    open: 2,
-    new: 3,
-    requested: 4,
-    updated: 5,
-    met: 6,
-    missing: 7,
+    partially_met: 2,
+    open: 3,
+    unexpected: 4,
+    manual_review: 5,
+    requested: 6,
+    met: 7,
+    missing: 8,
   };
 
   return [...rows].sort((a, b) => {

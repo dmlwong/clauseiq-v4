@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { CLAUSE_FRAMEWORK } from "@/lib/clauses-framework";
 import type { ContractVersion } from "@/lib/workflow-types";
 import type { ClauseDecisionState } from "@/hooks/use-clause-decisions";
-import { determineChangePill } from "@/lib/change-tracking";
+import { determineChangePill } from "@/lib/change-tracking-v3";
 
 interface Props {
   versions: ContractVersion[];
@@ -33,22 +33,16 @@ export function NegotiationTrendStrip({ versions, allDecisions, activeVersion, o
       }
       let supplierChanges = 0;
       if (idx > 0) {
-        const prevV = versions[idx - 1];
         for (const def of CLAUSE_FRAMEWORK) {
-          const prev = prevV.clauses.find((c) => c.id === def.id);
           const curr = v.clauses.find((c) => c.id === def.id);
-          const s = allDecisions[def.id];
-          const wasReq = s
-            ? Object.entries(s.roundDecisions).some(
-                ([vv, d]) => d === "request-update" && versions.findIndex((x) => x.version === vv) < idx,
-              )
-            : false;
-          const pill = determineChangePill({
-            clause: curr,
-            previousClause: prev,
-            wasRequestedInPreviousRound: wasReq,
-          });
-          if (pill.status === "improved" || pill.status === "regressed" || pill.status === "new") supplierChanges++;
+          const pill = determineChangePill({ clause: curr });
+          if (
+            pill.status === "worsened" ||
+            pill.status === "unexpected" ||
+            pill.status === "manual_review"
+          ) {
+            supplierChanges++;
+          }
         }
       }
       return { version: v.version, high, medium, openRequests, supplierChanges };

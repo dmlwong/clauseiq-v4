@@ -24,20 +24,19 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ChevronDown } from "lucide-react";
 import {
+  IconAlertTriangle,
   IconCircleCheck,
+  IconCircleDashed,
   IconCircleX,
   IconArrowsDiff,
-  IconArrowDown,
-  IconArrowUp,
   IconEye,
   IconFlame,
   IconHelp,
   IconInfoCircle,
   IconList,
-  IconPlus,
+  IconProgress,
   IconTimeline,
   IconTrendingDown,
-  IconTrendingUp,
 } from "@tabler/icons-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -62,13 +61,13 @@ import { CLAUSE_FRAMEWORK } from "@/lib/clauses-framework";
 import { classifyChange, materialChangeLabel, materialChangeTone } from "@/lib/material-change";
 import {
   CHANGE_DIRECTION_CONFIDENCE_THRESHOLD,
-  NEW_CHANGE_LABEL,
+  UNEXPECTED_CHANGE_LABEL,
   determineChangePill,
   sortChangePillStatus,
   type ChangePillResult,
   type ChangePillStatus,
   type VersionComparisonPair,
-} from "@/lib/change-tracking";
+} from "@/lib/change-tracking-v3";
 import { VersionVerdictBanner } from "./VersionVerdictBanner";
 import { TextDiff } from "./TextDiff";
 import { NegotiationTrendStrip } from "./NegotiationTrendStrip";
@@ -120,7 +119,7 @@ interface CategorySidebarItem {
 }
 
 type MoverSeverity = "high" | "medium" | "low" | "clean";
-type ComparisonMoverDirection = "improved" | "regressed" | "new";
+type ComparisonMoverDirection = "worsened" | "unexpected" | "manual_review";
 
 interface ComparisonMover {
   id: string;
@@ -198,9 +197,9 @@ const bandColor: Record<ScoreBand, string> = {
 const historyFilterLabels: Record<HistoryFilter, string> = {
   all: "All",
   still_open: "Still open",
-  regressed_last_round: "Regressed last round",
+  worsened_last_round: "Worsened last round",
   met: "Met",
-  new_clauses: "New clauses",
+  unexpected_clauses: "Unexpected clauses",
 };
 
 function normalizeMode(value: string | null): ClauseIqMode {
@@ -215,9 +214,9 @@ function normalizeComparisonTab(value: string | null): ComparisonTab {
 
 function normalizeHistoryFilter(value: string | null): HistoryFilter {
   return value === "still_open" ||
-    value === "regressed_last_round" ||
+    value === "worsened_last_round" ||
     value === "met" ||
-    value === "new_clauses"
+    value === "unexpected_clauses"
     ? value
     : "all";
 }
@@ -325,7 +324,9 @@ function deriveComparisonMovers(rows: ComparisonRow[]): ComparisonMover[] {
   return rows
     .map((row) => {
       const direction =
-        row.pill.status === "improved" || row.pill.status === "regressed" || row.pill.status === "new"
+        row.pill.status === "worsened" ||
+        row.pill.status === "unexpected" ||
+        row.pill.status === "manual_review"
           ? row.pill.status
           : null;
       if (!direction || !row.curr) return null;
@@ -335,9 +336,11 @@ function deriveComparisonMovers(rows: ComparisonRow[]): ComparisonMover[] {
       const previousWeight = previousSeverity ? moverSeverityWeight[previousSeverity] : 0;
       const currentWeight = moverSeverityWeight[currentSeverity];
       const movementScore =
-        direction === "new"
+        direction === "unexpected"
           ? currentWeight
-          : (previousWeight - currentWeight) * (direction === "regressed" ? 2 : 1);
+          : direction === "worsened"
+            ? (currentWeight - previousWeight) * 2
+            : currentWeight;
 
       return {
         id: row.id,
@@ -355,7 +358,11 @@ function visibleTopMovers(movers: ComparisonMover[]) {
   const ranked = [...movers]
     .sort((a, b) => Math.abs(b.movementScore) - Math.abs(a.movementScore) || moverSeverityWeight[b.currentSeverity] - moverSeverityWeight[a.currentSeverity] || a.name.localeCompare(b.name))
     .slice(0, 3);
-  const directionOrder: Record<ComparisonMoverDirection, number> = { regressed: 0, improved: 1, new: 2 };
+  const directionOrder: Record<ComparisonMoverDirection, number> = {
+    worsened: 0,
+    unexpected: 1,
+    manual_review: 2,
+  };
   return ranked.sort(
     (a, b) =>
       directionOrder[a.direction] - directionOrder[b.direction] ||
@@ -2006,25 +2013,30 @@ const changePillConfig: Record<ChangePillStatus, {
     className: "bg-[#EAF3DE] text-[#27500A]",
     Icon: IconCircleCheck,
   },
+  partially_met: {
+    label: "Partially Met",
+    className: "bg-[#FAEEDA] text-[#633806]",
+    Icon: IconProgress,
+  },
   not_met: {
     label: "Not met",
     className: "bg-[#FCEBEB] text-[#791F1F]",
     Icon: IconCircleX,
   },
-  improved: {
-    label: "Improved",
-    className: "bg-[#E1F5EE] text-[#085041]",
-    Icon: IconTrendingUp,
-  },
-  regressed: {
-    label: "Regressed",
-    className: "bg-[#FAEEDA] text-[#633806]",
+  worsened: {
+    label: "Worsened",
+    className: "bg-[#FCEBEB] text-[#791F1F]",
     Icon: IconTrendingDown,
   },
-  new: {
-    label: NEW_CHANGE_LABEL,
+  unexpected: {
+    label: UNEXPECTED_CHANGE_LABEL,
     className: "bg-[#E6F1FB] text-[#0C447C]",
-    Icon: IconPlus,
+    Icon: IconAlertTriangle,
+  },
+  manual_review: {
+    label: "Manual Review",
+    className: "bg-[#F1EFE8] text-[#5F5E5A]",
+    Icon: IconCircleDashed,
   },
 };
 
@@ -2033,7 +2045,7 @@ function ChangePillBadge({ result }: { result: ChangePillResult }) {
   const config = changePillConfig[result.status];
   const Icon = config.Icon;
   const lowConfidence =
-    (result.status === "improved" || result.status === "regressed") &&
+    (result.status === "partially_met" || result.status === "worsened") &&
     typeof result.confidence === "number" &&
     result.confidence < CHANGE_DIRECTION_CONFIDENCE_THRESHOLD;
 
@@ -2652,52 +2664,45 @@ function MovementSummaryZone({
 }
 
 function MovementNarrative({ movers, delta }: { movers: ComparisonMover[]; delta: number }) {
-  const improved = movers.filter((mover) => mover.direction === "improved").length;
-  const regressed = movers.filter((mover) => mover.direction === "regressed").length;
-  const created = movers.filter((mover) => mover.direction === "new").length;
-  const total = improved + regressed + created;
+  const worsened = movers.filter((mover) => mover.direction === "worsened").length;
+  const unexpected = movers.filter((mover) => mover.direction === "unexpected").length;
+  const manualReview = movers.filter((mover) => mover.direction === "manual_review").length;
+  const total = worsened + unexpected + manualReview;
   const scoreText = delta > 0 ? `Net change: +${delta} points.` : delta < 0 ? `Net change: -${Math.abs(delta)} points.` : total > 0 ? "Score unchanged." : "";
   const ariaLabel =
     total === 0
       ? delta === 0
-        ? "No changes in this round."
-        : `Score recalculated. No clause movement this round. ${scoreText}`
-      : `${improved ? `${improved} improved` : ""}${improved && regressed ? ", " : ""}${regressed ? `${regressed} regressed` : ""}${(improved || regressed) && created ? ", " : ""}${created ? `${created} new clause${created === 1 ? "" : "s"}` : ""}. ${scoreText}`.trim();
+        ? "No supplier-initiated changes in this round."
+        : `Score recalculated. No supplier-initiated changes this round. ${scoreText}`
+      : `${worsened ? `${worsened} worsened` : ""}${worsened && unexpected ? ", " : ""}${unexpected ? `${unexpected} unexpected` : ""}${(worsened || unexpected) && manualReview ? ", " : ""}${manualReview ? `${manualReview} need manual review` : ""}. ${scoreText}`.trim();
 
   return (
     <p className="ml-[30px] mt-1.5 min-w-0 text-[12px] leading-[1.55] text-foreground" aria-label={ariaLabel}>
       {total === 0 ? (
         delta === 0 ? (
-          <>No changes in this round.</>
+          <>No supplier-initiated changes in this round.</>
         ) : (
           <>
-            <span className="font-medium">Score recalculated.</span> No clause movement this round. <ScoreDeltaText delta={delta} />
+            <span className="font-medium">Score recalculated.</span> No supplier-initiated changes this round. <ScoreDeltaText delta={delta} />
           </>
         )
       ) : (
         <>
-          {regressed > improved && regressed > 0 ? (
+          {worsened > 0 && (
             <>
-              <NarrativeCount count={regressed} /> <span className="font-medium">regressed</span>
-              {improved > 0 && <> , <NarrativeCount count={improved} /> <span className="font-medium">improved</span></>}
+              <NarrativeCount count={worsened} /> <span className="font-medium">worsened</span>
             </>
-          ) : improved > 0 && regressed > 0 ? (
+          )}
+          {unexpected > 0 && (
             <>
-              <NarrativeCount count={improved} /> <span className="font-medium">improved</span>, <NarrativeCount count={regressed} /> <span className="font-medium">regressed</span>
+              {worsened > 0 && <>, </>}
+              <NarrativeCount count={unexpected} /> <span className="font-medium">unexpected</span>
             </>
-          ) : improved > 0 ? (
+          )}
+          {manualReview > 0 && (
             <>
-              <NarrativeCount count={improved} /> clause{improved === 1 ? "" : "s"} <span className="font-medium">improved</span> this round
-            </>
-          ) : regressed > 0 ? (
-            <>
-              <NarrativeCount count={regressed} /> clause{regressed === 1 ? "" : "s"} <span className="font-medium">regressed</span>
-            </>
-          ) : null}
-          {created > 0 && (
-            <>
-              {(improved > 0 || regressed > 0) && <>, </>}
-              <NarrativeCount count={created} /> new clause{created === 1 ? "" : "s"}
+              {(worsened > 0 || unexpected > 0) && <>, </>}
+              <NarrativeCount count={manualReview} /> need <span className="font-medium">manual review</span>
             </>
           )}
           . {delta === 0 ? "Score unchanged." : <ScoreDeltaText delta={delta} />}
@@ -2737,25 +2742,38 @@ function TopMoversList({
   return (
     <div className="flex flex-col gap-1">
       {visibleMovers.map((mover) => {
-        const regressed = mover.direction === "regressed";
-        const created = mover.direction === "new";
-        const tone = regressed
+        const worsened = mover.direction === "worsened";
+        const unexpected = mover.direction === "unexpected";
+        const manualReview = mover.direction === "manual_review";
+        const tone = worsened
           ? "bg-[rgba(252,235,235,0.4)] hover:bg-[rgba(252,235,235,0.65)]"
           : "bg-white hover:bg-[#E6F1FB]/30";
-        const badgeClass = regressed ? "bg-[#A32D2D]" : created ? "bg-[#185FA5]" : "bg-[#3B6D11]";
-        const Icon = regressed ? IconArrowDown : created ? IconPlus : IconArrowUp;
-        const transitionLabel = created ? (
-          <span>New clause</span>
-        ) : (
-          <>
-            <strong className="font-medium text-foreground">{formatMoverSeverity(mover.previousSeverity)}</strong>
-            <span aria-hidden> → </span>
-            <strong className="font-medium text-foreground">{formatMoverSeverity(mover.currentSeverity)}</strong>
-          </>
-        );
-        const accessibleTransition = created
-          ? "new clause"
-          : `moved from ${formatMoverSeverity(mover.previousSeverity)} to ${formatMoverSeverity(mover.currentSeverity)}`;
+        const badgeClass = worsened
+          ? "bg-[#A32D2D]"
+          : unexpected
+            ? "bg-[#185FA5]"
+            : "bg-[#5F5E5A]";
+        const Icon = worsened
+          ? IconTrendingDown
+          : unexpected
+            ? IconAlertTriangle
+            : IconCircleDashed;
+        const transitionLabel =
+          unexpected || manualReview ? (
+            <span>{unexpected ? "Unexpected" : "Manual review"}</span>
+          ) : (
+            <>
+              <strong className="font-medium text-foreground">{formatMoverSeverity(mover.previousSeverity)}</strong>
+              <span aria-hidden> → </span>
+              <strong className="font-medium text-foreground">{formatMoverSeverity(mover.currentSeverity)}</strong>
+            </>
+          );
+        const accessibleTransition =
+          unexpected
+            ? "unexpected clause change"
+            : manualReview
+              ? "needs manual review"
+              : `moved from ${formatMoverSeverity(mover.previousSeverity)} to ${formatMoverSeverity(mover.currentSeverity)}`;
 
         return (
           <button
@@ -2885,7 +2903,14 @@ function HybridChangeList({
     );
   }
 
-  const statusOrder: PanelChangeStatus[] = ["met", "not_met", "regressed", "improved", "new"];
+  const statusOrder: PanelChangeStatus[] = [
+    "met",
+    "partially_met",
+    "not_met",
+    "worsened",
+    "unexpected",
+    "manual_review",
+  ];
 
   return (
     <div className="divide-y divide-border">
@@ -2898,7 +2923,7 @@ function HybridChangeList({
             type="button"
             onClick={() => onClauseSelect(item.id)}
             className={`grid w-full grid-cols-[82px_minmax(0,1fr)_34px] items-center gap-2 py-2 text-left hover:bg-muted/35 ${
-              (status === "regressed" || status === "improved" || status === "new") && index === 0 ? "border-t border-border" : ""
+              (status === "worsened" || status === "unexpected" || status === "manual_review") && index === 0 ? "border-t border-border" : ""
             }`}
           >
             <ChangePillBadge result={{ status }} />
@@ -4006,7 +4031,7 @@ function ComparisonSection({
                   draft={draft}
                   isDrafting={drafting}
                   changePill={r.pill}
-                  metaPrefix={r.pill.status === "new" ? <span className="mr-1 text-[#0C447C]">+</span> : null}
+                  metaPrefix={r.pill.status === "unexpected" ? <span className="mr-1 text-[#0C447C]">+</span> : null}
                   extraContent={
                     <>
                       {comparisonDetails}
@@ -4326,7 +4351,7 @@ function ClauseSlideOver({
   const display = curr ?? prev ?? versions.at(-1)?.clauses.find((clause) => clause.id === clauseId);
   const historyRow = buildHistoryRow(clauseId, versions, state);
   if (!def || !display || !historyRow) return null;
-  const isNewClause = changePill.status === "new";
+  const isNewClause = changePill.status === "unexpected";
   const callout = slideOverCallout(changePill.status, leftLabel);
   const request = getLatestRequest(state, leftLabel)?.request;
   const latestCell = [...historyRow.cells].reverse().find((cell) => cell.status !== "missing");
@@ -4404,7 +4429,10 @@ function ClauseSlideOver({
               <p className="rounded-md bg-[#f8f7f5] px-2.5 py-2 text-[11px] text-muted-foreground">
                 {display.improvementReason ?? display.actionability ?? `Based on the playbook benchmark for ${def.category}, review this clause before accepting the version.`}
               </p>
-              {(changePill.status === "met" || changePill.status === "not_met") && request?.requestedChange && (
+              {(changePill.status === "met" ||
+                changePill.status === "partially_met" ||
+                changePill.status === "not_met") &&
+                request?.requestedChange && (
                 <>
                   <SectionLabel>Your request</SectionLabel>
                   <p className="rounded-md bg-[#f8f7f5] px-2.5 py-2 text-[11px] text-muted-foreground">{request.requestedChange}</p>
@@ -4456,22 +4484,28 @@ function ClauseSlideOver({
 }
 
 function slideOverCallout(status: ChangePillStatus | null, leftLabel: string) {
-  if (status === "regressed") {
+  if (status === "worsened") {
     return {
       text: "Supplier weakened this clause without being asked. Recommended: request revert in the next round.",
       className: "border-[#A32D2D] bg-[#FCEBEB]/50 text-[#791F1F]",
     };
   }
-  if (status === "improved") {
+  if (status === "partially_met") {
     return {
-      text: "Supplier improved this clause without being asked. You can accept or push for further improvement.",
-      className: "border-[#3B6D11] bg-[#EAF3DE]/70 text-[#27500A]",
+      text: "Supplier moved toward the ask but did not fully meet it. Decide whether to push for more or close as a follow-up.",
+      className: "border-[#BA7517] bg-[#FAEEDA]/70 text-[#633806]",
     };
   }
-  if (status === "new") {
+  if (status === "unexpected") {
     return {
-      text: `This clause did not exist in ${leftLabel}. Review carefully before accepting.`,
+      text: `This clause did not exist in ${leftLabel} or was changed without being asked. Review carefully before accepting.`,
       className: "border-[#185FA5] bg-[#E6F1FB]/70 text-[#0C447C]",
+    };
+  }
+  if (status === "manual_review") {
+    return {
+      text: "AI could not determine an outcome with confidence. Manual review required before accepting.",
+      className: "border-[#5F5E5A] bg-[#F1EFE8]/70 text-[#3a3a37]",
     };
   }
   return null;
@@ -4489,10 +4523,12 @@ function SlideOverPrimaryAction({
   onMarkNewIssue: () => void;
 }) {
   const className = "ml-auto h-8 bg-[#1a2744] px-3 text-xs text-white hover:bg-[#243454]";
-  if (status === "regressed") return <Button size="sm" className={className} onClick={onMarkNewIssue}>Request revert</Button>;
-  if (status === "new" || status === "improved") return <Button size="sm" className={className} onClick={onCloseClause}>Accept</Button>;
+  if (status === "worsened") return <Button size="sm" className={className} onClick={onMarkNewIssue}>Request revert</Button>;
+  if (status === "unexpected") return <Button size="sm" className={className} onClick={onCloseClause}>Accept</Button>;
   if (status === "met") return <Button size="sm" className={className} onClick={onCloseClause}>Mark resolved</Button>;
+  if (status === "partially_met") return <Button size="sm" className={className} onClick={onKeepOpen}>Push for more</Button>;
   if (status === "not_met") return <Button size="sm" className={className} onClick={onKeepOpen}>Re-request</Button>;
+  if (status === "manual_review") return <Button size="sm" className={className} onClick={onMarkNewIssue}>Review &amp; request</Button>;
   return <Button size="sm" className={className} onClick={onMarkNewIssue}>Request change</Button>;
 }
 
@@ -4501,25 +4537,46 @@ function detailCalloutForStatus(status: ChangePillStatus | null): {
   description: string;
   className: string;
 } | null {
-  if (status === "improved") {
+  if (status === "met") {
     return {
-      title: "Supplier improved this clause without being asked.",
-      description: "You can accept, challenge, or push for further improvement.",
+      title: "Supplier delivered the requested change.",
+      description: "Mark resolved to close this out, or keep open if you spot a follow-up.",
       className: "border-[#3B6D11]/25 bg-[#EAF3DE] text-[#27500A]",
     };
   }
-  if (status === "regressed") {
+  if (status === "partially_met") {
+    return {
+      title: "Supplier moved part of the way but didn't fully meet the ask.",
+      description: "Decide whether to push for more or close with a follow-up note.",
+      className: "border-[#BA7517]/25 bg-[#FAEEDA] text-[#633806]",
+    };
+  }
+  if (status === "not_met") {
+    return {
+      title: "Supplier did not deliver the requested change.",
+      description: "Re-request in the next round or escalate.",
+      className: "border-[#A32D2D]/25 bg-[#FCEBEB] text-[#791F1F]",
+    };
+  }
+  if (status === "worsened") {
     return {
       title: "Supplier weakened this clause without being asked.",
       description: "Recommended: request revert in the next round.",
       className: "border-[#A32D2D]/25 bg-[#FCEBEB] text-[#791F1F]",
     };
   }
-  if (status === "new") {
+  if (status === "unexpected") {
     return {
-      title: "This clause did not exist in the previous version.",
+      title: "Supplier introduced or changed this clause without being asked.",
       description: "Review carefully before accepting.",
       className: "border-[#185FA5]/25 bg-[#E6F1FB] text-[#0C447C]",
+    };
+  }
+  if (status === "manual_review") {
+    return {
+      title: "Automated review couldn't classify this change.",
+      description: "Read the clause text and assign an outcome manually.",
+      className: "border-[#5F5E5A]/25 bg-[#F1EFE8] text-[#3a3a37]",
     };
   }
   return null;
@@ -4546,7 +4603,7 @@ function ClauseDetailPanel({
   const display = curr ?? prev;
   if (!def || !display) return null;
   const change = classifyChange(prev, curr);
-  const isNewClause = changePill.status === "new";
+  const isNewClause = changePill.status === "unexpected";
   const directionalCallout = detailCalloutForStatus(changePill.status);
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -4670,16 +4727,34 @@ function ClauseDetailPanel({
               )}
             </div>
             <div className="flex items-center gap-2">
-              {changePill.status === "improved" ? (
+              {changePill.status === "met" ? (
                 <>
                   <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => onCloseClause(clauseId)}>
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Accept
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Mark resolved
                   </Button>
-                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onMarkNewIssue(clauseId)}>
-                    Challenge change
+                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onKeepOpen(clauseId)}>
+                    Keep open
                   </Button>
                 </>
-              ) : changePill.status === "regressed" ? (
+              ) : changePill.status === "partially_met" ? (
+                <>
+                  <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => onKeepOpen(clauseId)}>
+                    <ArrowRight className="w-3.5 h-3.5" /> Push for more
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onCloseClause(clauseId)}>
+                    Close with follow-up
+                  </Button>
+                </>
+              ) : changePill.status === "not_met" ? (
+                <>
+                  <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => onMarkNewIssue(clauseId)}>
+                    <AlertTriangle className="w-3.5 h-3.5" /> Re-request
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onKeepOpen(clauseId)}>
+                    Keep open
+                  </Button>
+                </>
+              ) : changePill.status === "worsened" ? (
                 <>
                   <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => onMarkNewIssue(clauseId)}>
                     <AlertTriangle className="w-3.5 h-3.5" /> Request revert
@@ -4688,13 +4763,22 @@ function ClauseDetailPanel({
                     Accept change
                   </Button>
                 </>
-              ) : changePill.status === "new" ? (
+              ) : changePill.status === "unexpected" ? (
                 <>
                   <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => onCloseClause(clauseId)}>
                     <CheckCircle2 className="w-3.5 h-3.5" /> Accept
                   </Button>
                   <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onMarkNewIssue(clauseId)}>
                     Request removal
+                  </Button>
+                </>
+              ) : changePill.status === "manual_review" ? (
+                <>
+                  <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => onMarkNewIssue(clauseId)}>
+                    <AlertTriangle className="w-3.5 h-3.5" /> Flag for review
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onCloseClause(clauseId)}>
+                    Accept anyway
                   </Button>
                 </>
               ) : (
@@ -4907,19 +4991,22 @@ function RoundStatusPill({ status, children }: { status: RoundStatus; children: 
 function roundStatusTone(status: RoundStatus) {
   if (status === "requested") return "border-[#185FA5]/25 bg-[#E6F1FB] text-[#185FA5]";
   if (status === "open") return "border-[#BA7517]/25 bg-[#FAEEDA] text-[#633806]";
-  if (status === "updated") return "border-border bg-muted text-muted-foreground";
   if (status === "met") return "border-[#3B6D11]/25 bg-[#EAF3DE] text-[#27500A]";
+  if (status === "partially_met") return "border-[#BA7517]/25 bg-[#FAEEDA] text-[#633806]";
   if (status === "not_met") return "border-[#A32D2D]/25 bg-[#FCEBEB] text-[#791F1F]";
-  if (status === "regressed") return "border-[#A32D2D]/25 bg-[#FAEEDA] text-[#633806]";
-  if (status === "new") return "border-[#185FA5]/25 bg-[#E6F1FB] text-[#0C447C]";
+  if (status === "worsened") return "border-[#A32D2D]/25 bg-[#FCEBEB] text-[#791F1F]";
+  if (status === "unexpected") return "border-[#185FA5]/25 bg-[#E6F1FB] text-[#0C447C]";
+  if (status === "manual_review") return "border-[#5F5E5A]/25 bg-[#F1EFE8] text-[#3a3a37]";
   return "border-transparent bg-transparent text-muted-foreground";
 }
 
 function roundStatusLabel(status: RoundStatus) {
   if (status === "not_met") return "Not met";
+  if (status === "partially_met") return "Partially Met";
+  if (status === "manual_review") return "Manual Review";
   if (status === "requested") return "Req";
-  if (status === "updated") return "Upd";
-  return status === "missing" ? "—" : status.charAt(0).toUpperCase() + status.slice(1);
+  if (status === "missing") return "—";
+  return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
 // ---- Clause audit + AI confidence (TASK-05 / TASK-08, R3 DI-15 + DI-17) ---

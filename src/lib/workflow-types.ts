@@ -6,6 +6,19 @@ export type ClauseChange = "improved" | "worsened" | "unchanged" | "new";
 export type ClausePriority = "Critical" | "Important" | "Watchlist";
 export type ClauseLifecycleStatus = "Open" | "In negotiation" | "Resolved";
 
+/**
+ * Round outcome of a clause as the contract negotiation progresses between
+ * buyer and supplier. Demonstration vocabulary — a future backend would
+ * compute this; in this prototype it is seeded on the mock clauses.
+ */
+export type ClauseOutcome =
+  | "met"
+  | "partially_met"
+  | "not_met"
+  | "worsened"
+  | "unexpected"
+  | "manual_review";
+
 export interface ClauseResult {
   id: string; // matches CLAUSE_FRAMEWORK id (c1..c66)
   title: string;
@@ -21,6 +34,8 @@ export interface ClauseResult {
   locations?: string[];
   /** Suggested next action / negotiation step for the buyer. */
   actionability?: string;
+  /** Outcome of this clause for the current round (set once a version is compared). */
+  outcome?: ClauseOutcome;
 }
 
 export interface ContractVersion {

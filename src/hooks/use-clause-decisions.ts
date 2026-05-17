@@ -333,6 +333,7 @@ export function useClauseDecisions(initial: Store = {}, options: ClauseDecisionO
         return {
           ...s,
           roundDecisions: withoutKey(s.roundDecisions, version),
+          closures: s.closures?.[version] === "follow-up" ? withoutKey(s.closures, version) : s.closures,
           requests: withoutKey(s.requests, version),
           draftRequests: withoutKey(s.draftRequests, version),
         };

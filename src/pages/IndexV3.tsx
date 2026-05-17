@@ -13,6 +13,10 @@ import { useContractStatus } from "@/hooks/use-contract-status";
 import { auditLog } from "@/lib/mock-api";
 import { getInitiative, getSupplier, getContract } from "@/lib/workflow-data";
 import { V3Shell } from "@/components/clauseiq-v3/V3Shell";
+import {
+  DesignOptionSwitcher,
+  type ComparisonDesignOption,
+} from "@/components/workflow-v3/ComparisonDesignOptions";
 
 type View =
   | { name: "initiatives" }
@@ -23,7 +27,7 @@ type View =
 
 const IndexV3 = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const initialView: View = (() => {
     const v = searchParams.get("view");
     if (v === "results") {
@@ -56,6 +60,19 @@ const IndexV3 = () => {
   const isDeliveryEngineResultRoute = routeSource === "delivery-engine";
   const isExternalResultRoute = isClauseIQResultRoute || isDeliveryEngineResultRoute;
   const deliveryEngineReturnPath = searchParams.get("return") ?? "/delivery-engine/YRK18-1043";
+  const resultMode = searchParams.get("mode") === "history" ? "history" : "comparison";
+  const designOption: ComparisonDesignOption =
+    searchParams.get("design") === "side-by-side" || searchParams.get("design") === "document"
+      ? (searchParams.get("design") as ComparisonDesignOption)
+      : "evolved";
+  const showDesignSwitcher = view.name === "results" && resultMode === "comparison";
+
+  const setDesignOption = (nextDesign: ComparisonDesignOption) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("mode", "comparison");
+    next.set("design", nextDesign);
+    setSearchParams(next, { replace: false });
+  };
 
   const launchClauseIQ = (initiativeId: string, supplierId: string, contractId: string) => {
     setWizardCtx({ initiativeId, supplierId, contractId });
@@ -85,7 +102,16 @@ const IndexV3 = () => {
     <V3Shell
       title="ClauseIQ"
       subtitle="AI tool for detailed contract analyses"
-      headerRight={undefined}
+      headerRight={
+        showDesignSwitcher ? (
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+              Design
+            </span>
+            <DesignOptionSwitcher value={designOption} onChange={setDesignOption} />
+          </div>
+        ) : undefined
+      }
     >
       {view.name === "initiatives" && (
         <InitiativesList onSelect={(id) => setView({ name: "initiative", initiativeId: id })} />

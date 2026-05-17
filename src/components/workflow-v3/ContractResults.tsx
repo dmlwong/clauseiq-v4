@@ -93,6 +93,12 @@ import {
   type VersionPanelData,
   buildHistoryRow,
 } from "@/lib/clauseiq-v3-comparison";
+import {
+  ComparisonDesignOptions,
+  type ComparisonDesignOption,
+  type EvidenceMetricCounts,
+  type EvidenceMetricKey,
+} from "./ComparisonDesignOptions";
 
 interface Props {
   initiativeId: string;
@@ -108,7 +114,7 @@ interface Props {
 
 type TabKey = "review" | ComparisonTab;
 type FilterKey = "all" | "open" | "new-issues" | "closed" | "unmarked";
-type QuickFilterKey = "high" | "medium" | "low" | "need-action" | "changes";
+type QuickFilterKey = "high" | "medium" | "low" | "need-action" | "changes" | "open-items" | "met" | "closed";
 type CategorySortKey = "risk" | "az" | "count";
 export type ScoringOptionKey = "issue-score" | "hybrid";
 type ScoreBand = "A" | "B" | "C" | "D" | "F";
@@ -205,6 +211,10 @@ const historyFilterLabels: Record<HistoryFilter, string> = {
 
 function normalizeMode(value: string | null): ClauseIqMode {
   return value === "history" ? "history" : "comparison";
+}
+
+function normalizeComparisonDesignOption(value: string | null | undefined): ComparisonDesignOption {
+  return value === "side-by-side" || value === "document" || value === "evolved" ? value : "evolved";
 }
 
 function normalizeComparisonTab(value: string | null): ComparisonTab {
@@ -574,6 +584,7 @@ export function ContractResults({
   const contract = getContract(initiativeId, supplierId, contractId);
   const decisions = useClauseDecisions({}, { storageKey: "ciq-v3-clause-decisions" });
   const mode = normalizeMode(searchParams.get("mode"));
+  const designOption = normalizeComparisonDesignOption(searchParams.get("design"));
 
   // Local mutable copy of versions so the user can simulate uploading a new
   // round or deleting an existing one without touching shared seed data.
@@ -612,6 +623,15 @@ export function ContractResults({
     next.set("to", comparisonPair.to);
     setSearchParams(next, { replace: true });
   }, [comparisonPair.from, comparisonPair.to, mode, searchParams, setSearchParams, versions.length]);
+
+  useEffect(() => {
+    if (mode !== "comparison" || versions.length < 2) return;
+    if (searchParams.get("design") === designOption) return;
+    const next = new URLSearchParams(searchParams);
+    next.set("mode", "comparison");
+    next.set("design", designOption);
+    setSearchParams(next, { replace: true });
+  }, [designOption, mode, searchParams, setSearchParams, versions.length]);
 
   const setComparisonPair = (nextPair: VersionComparisonPair) => {
     const normalized = normalizeVersionComparisonPair(versions, nextPair);
@@ -971,6 +991,28 @@ export function ContractResults({
       setTab("changes");
       setFilter(isClearing ? "all" : "new-issues");
     }
+    if (next === "open-items") {
+      setTab("changes");
+      setFilter(isClearing ? "all" : "open");
+    }
+    if (next === "met") {
+      setTab("changes");
+      setFilter(isClearing ? "all" : "open");
+    }
+    if (next === "closed") {
+      setTab("changes");
+      setFilter(isClearing ? "all" : "closed");
+    }
+  };
+  const selectEvidenceMetric = (metric: EvidenceMetricKey) => {
+    if (metric === "total") {
+      setQuickFilter(null);
+      setFilter("all");
+      setTab("changes");
+      setActiveCategory(null);
+      return;
+    }
+    toggleQuickFilter(metric);
   };
   const showMoreChanges = () => {
     setTab("changes");
@@ -983,19 +1025,23 @@ export function ContractResults({
 
   const matchesQuickSeverity = (clause?: ClauseResult) =>
     !severityQuickFilter || clause?.severity === severityQuickFilter;
-  const filterRowsByQuickSeverity = <T extends { id: string; prev?: ClauseResult; curr?: ClauseResult }>(rows: T[]) =>
-    severityQuickFilter ? rows.filter((row) => matchesQuickSeverity(row.curr ?? row.prev)) : rows;
+  const filterRowsByQuickState = <T extends { id: string; prev?: ClauseResult; curr?: ClauseResult; pill?: ChangePillResult }>(rows: T[]) =>
+    rows.filter((row) => {
+      if (severityQuickFilter && !matchesQuickSeverity(row.curr ?? row.prev)) return false;
+      if (quickFilter === "met" && row.pill?.status !== "met") return false;
+      return true;
+    });
 
-  const openRows = filterRowsByQuickSeverity(
+  const openRows = filterRowsByQuickState(
     comparisonSections.open.filter((r) => matchesSearch(r.id) && matchesCategory(r.id)),
   );
-  const newIssueRows = filterRowsByQuickSeverity(
+  const newIssueRows = filterRowsByQuickState(
     comparisonSections.newIssues.filter((r) => matchesSearch(r.id) && matchesCategory(r.id)),
   );
-  const closedRows = filterRowsByQuickSeverity(
+  const closedRows = filterRowsByQuickState(
     comparisonSections.closed.filter((r) => matchesSearch(r.id) && matchesCategory(r.id)),
   );
-  const unmarkedRows = filterRowsByQuickSeverity(
+  const unmarkedRows = filterRowsByQuickState(
     comparisonSections.unmarked.filter((r) => matchesSearch(r.id) && matchesCategory(r.id)),
   );
   const showOpenSection = (filter === "all" || filter === "open") && quickFilter !== "changes";
@@ -1003,15 +1049,24 @@ export function ContractResults({
     (filter === "all" || filter === "new-issues") &&
     (quickFilter === null || quickFilter === "need-action" || quickFilter === "changes" || !!severityQuickFilter);
   const showClosedSection =
-    (filter === "all" || filter === "closed") && quickFilter !== "need-action" && quickFilter !== "changes";
+    (filter === "all" || filter === "closed") &&
+    quickFilter !== "need-action" &&
+    quickFilter !== "changes" &&
+    quickFilter !== "open-items" &&
+    quickFilter !== "met";
   const showUnmarkedSection =
-    (filter === "all" || filter === "unmarked") && quickFilter !== "need-action" && quickFilter !== "changes";
+    (filter === "all" || filter === "unmarked") &&
+    quickFilter !== "need-action" &&
+    quickFilter !== "changes" &&
+    quickFilter !== "open-items" &&
+    quickFilter !== "met";
   const compactBackLabel = backLabel ?? `Back to ${supplier.name}`;
   const switchMode = (nextMode: ClauseIqMode) => {
     const params = new URLSearchParams(searchParams);
     params.set("mode", nextMode);
     if (nextMode === "comparison" && versions.length >= 2) {
       params.set("tab", normalizeComparisonTab(params.get("tab") ?? storedComparisonTab));
+      params.set("design", normalizeComparisonDesignOption(params.get("design")));
     }
     if (nextMode === "history") {
       params.set("filter", historyFilter);
@@ -1037,6 +1092,247 @@ export function ContractResults({
   };
 
   const hasVersionComparison = comparisonModel.hasComparison;
+  const comparisonCategoryTotal = comparisonCategoryItems.reduce((sum, category) => sum + category.count, 0);
+  const categoryPanel = (
+    <CategorySidebar
+      categories={comparisonCategoryItems}
+      total={comparisonCategoryTotal}
+      activeCategory={activeCategory}
+      sort={categorySort}
+      onSortChange={setCategorySort}
+      onSelectCategory={setActiveCategory}
+      variant="panel"
+    />
+  );
+  const categoryRail = (
+    <CategorySidebar
+      categories={comparisonCategoryItems}
+      total={comparisonCategoryTotal}
+      activeCategory={activeCategory}
+      sort={categorySort}
+      onSortChange={setCategorySort}
+      onSelectCategory={setActiveCategory}
+      variant="panel"
+    />
+  );
+  const categoryStrip = (
+    <CategoryStrip
+      categories={comparisonCategoryItems}
+      total={comparisonCategoryTotal}
+      activeCategory={activeCategory}
+      onSelectCategory={setActiveCategory}
+      categoryPanel={categoryPanel}
+    />
+  );
+  const categoryOpenRows = comparisonSections.open.filter((row) => matchesCategory(row.id));
+  const categoryNewIssueRows = comparisonSections.newIssues.filter((row) => matchesCategory(row.id));
+  const categoryClosedRows = comparisonSections.closed.filter((row) => matchesCategory(row.id));
+  const categoryUnmarkedRows = comparisonSections.unmarked.filter((row) => matchesCategory(row.id));
+  const categoryAllRows = [
+    ...categoryOpenRows,
+    ...categoryNewIssueRows,
+    ...categoryClosedRows,
+    ...categoryUnmarkedRows,
+  ];
+  const categoryOpenStats = summariseComparisonRows(categoryOpenRows);
+  const categoryNewIssueStats = summariseComparisonRows(categoryNewIssueRows);
+  const evidenceMetrics: EvidenceMetricCounts = {
+    openItems: categoryOpenRows.length,
+    met: categoryOpenRows.filter((row) => row.pill.status === "met").length,
+    closed: categoryClosedRows.length,
+    supplierChanges: categoryNewIssueRows.length,
+    needReview: categoryOpenStats.pendingReview + categoryNewIssueStats.pendingReview,
+    high: categoryAllRows.filter((row) => {
+      const clause = row.curr ?? row.prev;
+      return clause?.severity === "high" && !clause.resolved;
+    }).length,
+    medium: categoryAllRows.filter((row) => {
+      const clause = row.curr ?? row.prev;
+      return clause?.severity === "medium" && !clause.resolved;
+    }).length,
+    low: categoryAllRows.filter((row) => {
+      const clause = row.curr ?? row.prev;
+      return clause?.severity === "low" && !clause.resolved;
+    }).length,
+    totalClauses: stripStats.contract.total,
+  };
+  const designOpenRows = filterRowsByQuickState(
+    categoryOpenRows,
+  );
+  const designNewIssueRows = filterRowsByQuickState(
+    categoryNewIssueRows,
+  );
+  const designClosedRows = filterRowsByQuickState(
+    categoryClosedRows,
+  );
+  const designUnmarkedRows = filterRowsByQuickState(
+    categoryUnmarkedRows,
+  );
+  const activeEvidenceMetric: EvidenceMetricKey | null =
+    quickFilter === "open-items" ||
+    quickFilter === "met" ||
+    quickFilter === "closed" ||
+    quickFilter === "changes" ||
+    quickFilter === "need-action" ||
+    quickFilter === "high" ||
+    quickFilter === "medium" ||
+    quickFilter === "low"
+      ? quickFilter
+      : quickFilter === null
+        ? "total"
+        : null;
+  const showDesignOpenSection =
+    quickFilter === null ||
+    quickFilter === "open-items" ||
+    quickFilter === "met" ||
+    quickFilter === "need-action" ||
+    Boolean(severityQuickFilter);
+  const showDesignNewIssueSection =
+    quickFilter === null || quickFilter === "changes" || quickFilter === "need-action" || Boolean(severityQuickFilter);
+  const showDesignClosedSection =
+    quickFilter === null ||
+    quickFilter === "closed" ||
+    quickFilter === "open-items" ||
+    quickFilter === "met" ||
+    Boolean(severityQuickFilter);
+  const showDesignUnmarkedSection = quickFilter === null || Boolean(severityQuickFilter);
+  const comparisonDesignContent = leftVersion && rightVersion && hasVersionComparison ? (
+    <ComparisonDesignOptions
+      option={designOption}
+      comparisonControl={<PairSelector versions={versions} pair={pair} onChange={setPair} compact />}
+      stripStats={stripStats}
+      panel={comparisonModel.panel}
+      contractName={contract.name}
+      supplierName={supplier.name}
+      leftLabel={leftVersion.version}
+      rightLabel={rightVersion.version}
+      categoryRail={categoryRail}
+      categoryPanel={categoryPanel}
+      categoryStrip={categoryStrip}
+      activeCategoryLabel={activeCategory}
+      onClearCategory={() => setActiveCategory(null)}
+      activeEvidenceMetric={activeEvidenceMetric}
+      onEvidenceMetricSelect={selectEvidenceMetric}
+      evidenceMetrics={evidenceMetrics}
+      openItems={
+        <ComparisonSection
+          title="Open Items"
+          description="Clauses you previously asked the supplier to change."
+          accent="primary"
+          rows={designOpenRows}
+          leftLabel={leftVersion.version}
+          rightLabel={rightVersion.version}
+          visible={showDesignOpenSection}
+          bucket="open"
+          stats={comparisonModel.bucketStats.open_items}
+          closureOf={(id) => stateOf(id).closures[rightVersion.version]}
+          requestOf={(id) => {
+            const latest = getLatestRequest(stateOf(id), leftVersion.version);
+            return latest ? { ...latest.request, fromVersion: latest.version } : {};
+          }}
+          basketRequestOf={(id) => stateOf(id).requests[rightVersion.version]}
+          draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
+          onClose={(id) => {
+            const display = leftVersion.clauses.find((c) => c.id === id) ?? rightVersion.clauses.find((c) => c.id === id);
+            const prev = stateOf(id).closures[rightVersion.version];
+            closeWithUndo(id, display?.title ?? id.toUpperCase(), prev);
+          }}
+          onKeepOpen={(id) => decisions.setClosure(supplierId, contractId, id, rightVersion.version, "keep-open")}
+          onFollowUp={(id) =>
+            decisions.startDraftRequest(supplierId, contractId, id, rightVersion.version, {
+              requestedChange: "",
+              rationale: "",
+            })
+          }
+          onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, contractId, id, rightVersion.version, patch)}
+          onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, contractId, id, rightVersion.version)}
+          onSubmitDraft={(id) => {
+            decisions.submitDraftRequest(supplierId, contractId, id, rightVersion.version);
+            decisions.setClosure(supplierId, contractId, id, rightVersion.version, "follow-up");
+          }}
+          onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, contractId, id, rightVersion.version)}
+          onOpenDetail={setDetailClauseId}
+          pinnedIds={pinnedClauseIds}
+          onTogglePin={togglePin}
+          recentlyClosed={recentlyClosed}
+          onUndoClose={undoClose}
+          layout="plain"
+        />
+      }
+      newChanges={
+        <ComparisonSection
+          title="New Changes"
+          description="Material changes the supplier made without being asked, plus clauses that didn't exist before."
+          accent="destructive"
+          rows={designNewIssueRows}
+          leftLabel={leftVersion.version}
+          rightLabel={rightVersion.version}
+          visible={showDesignNewIssueSection}
+          bucket="new"
+          stats={comparisonModel.bucketStats.new_changes}
+          closureOf={() => undefined}
+          requestOf={(id) => stateOf(id).requests[rightVersion.version] ?? {}}
+          basketRequestOf={(id) => stateOf(id).requests[rightVersion.version]}
+          draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
+          onClose={(id) => decisions.setRoundDecision(supplierId, contractId, id, rightVersion.version, "no-action")}
+          onKeepOpen={(id) => decisions.startDraftRequest(supplierId, contractId, id, rightVersion.version)}
+          onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, contractId, id, rightVersion.version, patch)}
+          onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, contractId, id, rightVersion.version)}
+          onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, contractId, id, rightVersion.version)}
+          onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, contractId, id, rightVersion.version)}
+          onOpenDetail={setDetailClauseId}
+          pinnedIds={pinnedClauseIds}
+          onTogglePin={togglePin}
+          layout="plain"
+        />
+      }
+      closedItems={
+        <ComparisonSection
+          title="Closed"
+          description="Clauses you marked as resolved for this round."
+          accent="success"
+          rows={designClosedRows}
+          leftLabel={leftVersion.version}
+          rightLabel={rightVersion.version}
+          visible={showDesignClosedSection}
+          bucket="closed"
+          stats={comparisonModel.bucketStats.closed}
+          closureOf={(id) => stateOf(id).closures[rightVersion.version]}
+          requestOf={(id) => {
+            const latest = getLatestRequest(stateOf(id), leftVersion.version);
+            return latest ? { ...latest.request, fromVersion: latest.version } : {};
+          }}
+          onClose={(id) => decisions.setClosure(supplierId, contractId, id, rightVersion.version, "closed")}
+          onKeepOpen={(id) => decisions.setClosure(supplierId, contractId, id, rightVersion.version, "keep-open")}
+          onOpenDetail={setDetailClauseId}
+          pinnedIds={pinnedClauseIds}
+          onTogglePin={togglePin}
+          layout="plain"
+        />
+      }
+      unmarkedClauses={
+        <UnmarkedSection
+          rows={designUnmarkedRows}
+          leftLabel={leftVersion.version}
+          rightLabel={rightVersion.version}
+          visible={showDesignUnmarkedSection}
+          defaultOpen={false}
+          requestOf={(id) => stateOf(id).requests[rightVersion.version] ?? {}}
+          draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
+          isRequested={(id) => stateOf(id).roundDecisions[rightVersion.version] === "request-update"}
+          decisionOf={(id) => stateOf(id).roundDecisions[rightVersion.version]}
+          isDrafting={(id) => Boolean(stateOf(id).draftRequests?.[rightVersion.version])}
+          onRequestChange={(id) => decisions.startDraftRequest(supplierId, contractId, id, rightVersion.version)}
+          onSetNoAction={(id) => decisions.changeDecision(supplierId, contractId, id, rightVersion.version, "no-action")}
+          onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, contractId, id, rightVersion.version, patch)}
+          onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, contractId, id, rightVersion.version)}
+          onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, contractId, id, rightVersion.version)}
+          onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, contractId, id, rightVersion.version)}
+          onOpenDetail={setDetailClauseId}
+        />
+      }
+    />
+  ) : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -1062,7 +1358,7 @@ export function ContractResults({
             exportDisabled={versions.length < 2}
             onRunAnalysis={onRunAnalysisAgain ?? (() => setUploadOpen(true))}
           />
-          {mode === "comparison" ? (
+          {mode === "comparison" && versions.length < 2 ? (
             <ComparisonHeader
               versions={versions}
               pair={pair}
@@ -1074,7 +1370,7 @@ export function ContractResults({
               onMoverSelect={setDetailClauseId}
               onSeeMoreChanges={showMoreChanges}
             />
-          ) : (
+          ) : mode === "history" ? (
             <HistoryHeader
               versions={versions}
               model={historyModel}
@@ -1083,7 +1379,7 @@ export function ContractResults({
               onFilterChange={(next) => updateHistoryState({ filter: next })}
               onSortChange={(next) => updateHistoryState({ sort: next })}
             />
-          )}
+          ) : null}
         </div>
       ) : (
         <>
@@ -1225,6 +1521,8 @@ export function ContractResults({
             highlightedId={highlightClauseId}
           />
         </div>
+      ) : comparisonDesignContent ? (
+        comparisonDesignContent
       ) : (
         <div className="mx-auto grid max-w-[1600px] grid-cols-[240px_minmax(0,1fr)] gap-6 px-6 py-6">
           <CategorySidebar
@@ -1324,13 +1622,27 @@ export function ContractResults({
                     const latest = getLatestRequest(stateOf(id), leftVersion.version);
                     return latest ? { ...latest.request, fromVersion: latest.version } : {};
                   }}
+                  basketRequestOf={(id) => stateOf(id).requests[rightVersion.version]}
+                  draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
                   onClose={(id) => {
                     const display = leftVersion.clauses.find((c) => c.id === id) ?? rightVersion.clauses.find((c) => c.id === id);
                     const prev = stateOf(id).closures[rightVersion.version];
                     closeWithUndo(id, display?.title ?? id.toUpperCase(), prev);
                   }}
                   onKeepOpen={(id) => decisions.setClosure(supplierId, contractId, id, rightVersion.version, "keep-open")}
-                  onFollowUp={(id) => decisions.setClosure(supplierId, contractId, id, rightVersion.version, "follow-up")}
+                  onFollowUp={(id) =>
+                    decisions.startDraftRequest(supplierId, contractId, id, rightVersion.version, {
+                      requestedChange: "",
+                      rationale: "",
+                    })
+                  }
+                  onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, contractId, id, rightVersion.version, patch)}
+                  onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, contractId, id, rightVersion.version)}
+                  onSubmitDraft={(id) => {
+                    decisions.submitDraftRequest(supplierId, contractId, id, rightVersion.version);
+                    decisions.setClosure(supplierId, contractId, id, rightVersion.version, "follow-up");
+                  }}
+                  onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, contractId, id, rightVersion.version)}
                   onOpenDetail={setDetailClauseId}
                   pinnedIds={pinnedClauseIds}
                   onTogglePin={togglePin}
@@ -1349,12 +1661,14 @@ export function ContractResults({
                   stats={comparisonModel.bucketStats.new_changes}
                   closureOf={() => undefined}
                   requestOf={(id) => stateOf(id).requests[rightVersion.version] ?? {}}
+                  basketRequestOf={(id) => stateOf(id).requests[rightVersion.version]}
                   draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
                   onClose={(id) => decisions.setRoundDecision(supplierId, contractId, id, rightVersion.version, "no-action")}
                   onKeepOpen={(id) => decisions.startDraftRequest(supplierId, contractId, id, rightVersion.version)}
                   onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, contractId, id, rightVersion.version, patch)}
                   onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, contractId, id, rightVersion.version)}
                   onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, contractId, id, rightVersion.version)}
+                  onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, contractId, id, rightVersion.version)}
                   onOpenDetail={setDetailClauseId}
                   pinnedIds={pinnedClauseIds}
                   onTogglePin={togglePin}
@@ -1396,6 +1710,7 @@ export function ContractResults({
                   onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, contractId, id, rightVersion.version, patch)}
                   onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, contractId, id, rightVersion.version)}
                   onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, contractId, id, rightVersion.version)}
+                  onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, contractId, id, rightVersion.version)}
                   onOpenDetail={setDetailClauseId}
                 />
               </div>
@@ -1731,7 +2046,7 @@ function ModeSwitcher({
   onRunAnalysis: () => void;
 }) {
   return (
-    <div className="flex items-center border-b border-[rgba(0,0,0,0.08)] bg-white px-3 py-1.5">
+    <div className="flex min-w-0 items-center gap-3 border-b border-[rgba(0,0,0,0.08)] bg-white px-3 py-1.5">
       <div className="inline-flex overflow-hidden rounded-md border border-border">
         {([
           ["comparison", <IconArrowsDiff key="comparison-icon" size={13} stroke={1.8} />, "Comparison"],
@@ -2075,6 +2390,28 @@ function DecisionBadge({ decision }: { decision: RoundDecision }) {
       No Action
     </span>
   );
+}
+
+function RequestLifecycleBadge({ request }: { request?: ClauseRequest }) {
+  if (request?.state === "pending") {
+    return (
+      <span className="inline-flex cursor-default items-center gap-1 rounded-full border border-[#185FA5]/25 bg-[#E6F1FB] px-2 py-1 text-[10px] font-medium text-[#0C447C]">
+        <ShoppingBag className="h-3 w-3" />
+        In request basket
+      </span>
+    );
+  }
+
+  if (request?.state === "submitted") {
+    return (
+      <span className="inline-flex cursor-default items-center gap-1 rounded-full bg-primary px-2 py-1 text-[10px] font-medium text-primary-foreground">
+        <Send className="h-3 w-3" />
+        Submitted
+      </span>
+    );
+  }
+
+  return <DecisionBadge decision="request-update" />;
 }
 
 function OverviewSectionLabel({ children }: { children: ReactNode }) {
@@ -3051,6 +3388,7 @@ function CategorySidebar({
   sort,
   onSortChange,
   onSelectCategory,
+  variant = "rail",
 }: {
   categories: CategorySidebarItem[];
   total: number;
@@ -3058,6 +3396,7 @@ function CategorySidebar({
   sort: CategorySortKey;
   onSortChange: (sort: CategorySortKey) => void;
   onSelectCategory: (category: string | null) => void;
+  variant?: "rail" | "panel";
 }) {
   const rowRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const sortedCategories = useMemo(() => sortCategorySidebarItems(categories, sort), [categories, sort]);
@@ -3072,7 +3411,12 @@ function CategorySidebar({
 
   return (
     <aside
-      className="sticky top-[178px] max-h-[calc(100vh-190px)] w-60 shrink-0 self-start overflow-y-auto rounded-lg border border-border bg-card p-2"
+      className={cn(
+        "overflow-y-auto rounded-lg border border-border bg-card p-2",
+        variant === "rail"
+          ? "sticky top-[178px] max-h-[calc(100vh-190px)] w-60 shrink-0 self-start"
+          : "max-h-[540px] w-full",
+      )}
     >
       <p
         tabIndex={0}
@@ -3160,6 +3504,85 @@ function CategorySidebar({
         })}
       </div>
     </aside>
+  );
+}
+
+function CategoryStrip({
+  categories,
+  total,
+  activeCategory,
+  onSelectCategory,
+  categoryPanel,
+}: {
+  categories: CategorySidebarItem[];
+  total: number;
+  activeCategory: string | null;
+  onSelectCategory: (category: string | null) => void;
+  categoryPanel: ReactNode;
+}) {
+  const topCategories = useMemo(() => sortCategorySidebarItems(categories, "risk").slice(0, 6), [categories]);
+  return (
+    <div className="rounded-lg border border-border bg-card px-3 py-2">
+      <div className="flex min-w-0 items-start gap-2">
+        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+          Categories
+        </span>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+          <CategoryStripChip active={!activeCategory} onClick={() => onSelectCategory(null)}>
+            All <span className="text-muted-foreground">{total}</span>
+          </CategoryStripChip>
+          {topCategories.map((category) => (
+            <CategoryStripChip
+              key={category.name}
+              active={activeCategory === category.name}
+              onClick={() => onSelectCategory(category.name)}
+            >
+              <span className="max-w-[170px] truncate">{category.name}</span>
+              <span className="text-muted-foreground">{category.count}</span>
+            </CategoryStripChip>
+          ))}
+        </div>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-border bg-white px-2.5 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+            >
+              <IconList size={12} stroke={1.8} />
+              More
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-[284px] border-none bg-transparent p-0 shadow-none">
+            {categoryPanel}
+          </PopoverContent>
+        </Popover>
+      </div>
+    </div>
+  );
+}
+
+function CategoryStripChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[10px] font-medium transition-colors",
+        active
+          ? "border-[#185FA5]/30 bg-[#E6F1FB] text-[#0C447C]"
+          : "border-border bg-white text-muted-foreground hover:bg-muted hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -3385,6 +3808,7 @@ function ClauseDecisionCard({
   onUpdateDraft,
   onCancelDraft,
   onSubmitDraft,
+  onRemoveRequest,
   onOpenDetail,
 }: {
   id: string;
@@ -3414,12 +3838,18 @@ function ClauseDecisionCard({
   onUpdateDraft?: (patch: { requestedChange?: string; rationale?: string }) => void;
   onCancelDraft?: () => void;
   onSubmitDraft?: () => void;
+  onRemoveRequest?: () => void;
   onOpenDetail: () => void;
 }) {
+  const [queuedExpanded, setQueuedExpanded] = useState(false);
+  const pendingBasketRequest = request?.state === "pending" && Boolean(request.requestedChange?.trim());
+  const showQueuedCompact = pendingBasketRequest && !isDrafting;
+  const showDecisionBody = !showQueuedCompact || queuedExpanded;
+  const requestPreview = request?.requestedChange?.trim() ?? "";
   const settled = decision === "request-update" || decision === "no-action";
   const requestIsPrimary = clause.severity === "high";
   const noActionIsPrimary = clause.severity === "low";
-  const showRequestActions = !settled && !actions;
+  const showRequestActions = !settled && !actions && !pendingBasketRequest;
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -3438,6 +3868,7 @@ function ClauseDecisionCard({
       className={cn(
         "group relative cursor-pointer rounded-lg border border-border bg-card px-3.5 py-3 transition-colors hover:border-primary/30 hover:bg-[#E6F1FB]/30",
         decision === "request-update" && "border-l-[3px] border-l-[#185FA5] pl-[11px]",
+        pendingBasketRequest && "border-l-[3px] border-l-[#185FA5] bg-[#E6F1FB]/20 pl-[11px]",
         highlighted && "ring-2 ring-primary/40 bg-primary/5",
       )}
     >
@@ -3466,12 +3897,13 @@ function ClauseDecisionCard({
           {clause.severity}
         </Badge>
         {stateBadge}
-        {settled && (
+        {pendingBasketRequest && <RequestLifecycleBadge request={request} />}
+        {settled && !pendingBasketRequest && (
           <>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span>
-                  <DecisionBadge decision={decision} />
+                  {decision === "request-update" ? <RequestLifecycleBadge request={request} /> : <DecisionBadge decision={decision} />}
                 </span>
               </TooltipTrigger>
               {decision === "request-update" && requestLifecycleLabel(request) && (
@@ -3499,18 +3931,47 @@ function ClauseDecisionCard({
         <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-60" />
       </div>
 
-      {description && (
+      {showQueuedCompact && (
+        <div className="mt-2 space-y-2 pl-[30px]" onClick={(event) => event.stopPropagation()}>
+          <div className="flex flex-wrap items-center gap-2 rounded-md border border-[#185FA5]/20 bg-[#E6F1FB]/45 px-3 py-2">
+            <p className="min-w-[180px] flex-1 truncate text-[11px] text-[#0C447C]">
+              <span className="font-semibold">Request:</span> {requestPreview}
+            </p>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <Button size="sm" variant="outline" className="h-7 px-2.5 text-[10px]" onClick={onEditRequest}>
+                Edit request
+              </Button>
+              {onRemoveRequest && (
+                <Button size="sm" variant="outline" className="h-7 px-2.5 text-[10px] text-muted-foreground" onClick={onRemoveRequest}>
+                  Remove
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 gap-1 px-2.5 text-[10px] text-primary hover:bg-white/70"
+                onClick={() => setQueuedExpanded((current) => !current)}
+              >
+                {queuedExpanded ? "Hide detail" : "View detail"}
+                <ChevronDown className={cn("h-3 w-3 transition-transform", queuedExpanded && "rotate-180")} />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDecisionBody && description && (
         <p className="mt-1.5 pl-[30px] text-[11px] leading-5 text-muted-foreground">
           {description}
         </p>
       )}
-      {actionability && (
+      {showDecisionBody && actionability && (
         <p className="mt-1 pl-[30px] text-[11px] leading-5 text-muted-foreground">
           <Lightbulb className="mr-1 inline h-3 w-3 text-primary" />
           <span className="font-semibold text-foreground">Actionability:</span> {actionability}
         </p>
       )}
-      {extraContent && <div className="mt-2 pl-[30px]">{extraContent}</div>}
+      {showDecisionBody && extraContent && <div className="mt-2 pl-[30px]">{extraContent}</div>}
 
       {showRequestActions && (
         <div className="mt-2 flex items-center gap-1.5 pl-[30px]" onClick={(event) => event.stopPropagation()}>
@@ -3533,7 +3994,20 @@ function ClauseDecisionCard({
         </div>
       )}
 
-      {actions && <div className="mt-2 flex items-center gap-1.5 pl-[30px]" onClick={(event) => event.stopPropagation()}>{actions}</div>}
+      {actions && !pendingBasketRequest && (
+        <div className="mt-2 flex items-center gap-1.5 pl-[30px]" onClick={(event) => event.stopPropagation()}>
+          {actions}
+        </div>
+      )}
+
+      {showQueuedCompact && queuedExpanded && (
+        <div className="mt-2 pl-[30px]" onClick={(event) => event.stopPropagation()}>
+          <div className="rounded-md border border-[#185FA5]/20 bg-[#E6F1FB]/55 px-3 py-2 text-[11px] text-[#0C447C]">
+            <p className="font-medium">Added to request basket.</p>
+            <p className="mt-0.5 text-[#0C447C]/80">Submit all requests when ready.</p>
+          </div>
+        </div>
+      )}
 
       {isDrafting && onUpdateDraft && onCancelDraft && onSubmitDraft && (
         <div className="pl-[30px]">
@@ -3818,9 +4292,9 @@ function ReviewScreen({
 
 function ComparisonSection({
   title, description, accent, rows, leftLabel, rightLabel, visible, bucket, stats,
-  closureOf, requestOf, onClose, onKeepOpen, onFollowUp, onOpenDetail,
+  closureOf, requestOf, basketRequestOf, onClose, onKeepOpen, onFollowUp, onRemoveRequest, onOpenDetail,
   pinnedIds, onTogglePin, recentlyClosed, onUndoClose, draftOf,
-  onUpdateText, onCancelDraft, onSubmitDraft,
+  onUpdateText, onCancelDraft, onSubmitDraft, layout = "collapsible",
 }: {
   title: string;
   description: string;
@@ -3833,10 +4307,12 @@ function ComparisonSection({
   stats: ComparisonBucketStats;
   closureOf: (id: string) => ClosureDecision | undefined;
   requestOf: (id: string) => { requestedChange?: string; rationale?: string; fromVersion?: string };
+  basketRequestOf?: (id: string) => ClauseRequest | undefined;
   draftOf?: (id: string) => { requestedChange?: string; rationale?: string };
   onClose: (id: string) => void;
   onKeepOpen: (id: string) => void;
   onFollowUp?: (id: string) => void;
+  onRemoveRequest?: (id: string) => void;
   onOpenDetail: (id: string) => void;
   pinnedIds?: Set<string>;
   onTogglePin?: (id: string) => void;
@@ -3845,6 +4321,7 @@ function ComparisonSection({
   onUpdateText?: (id: string, patch: { requestedChange?: string; rationale?: string }) => void;
   onCancelDraft?: (id: string) => void;
   onSubmitDraft?: (id: string) => void;
+  layout?: "collapsible" | "plain";
 }) {
   const [open, setOpen] = useState(false);
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
@@ -3874,10 +4351,11 @@ function ComparisonSection({
       : bucket === "closed" ? "No clauses have been closed for this round yet."
       : "No new material changes identified.";
   const visibleStats = summariseComparisonRows(rows);
+  const displayedStats = layout === "plain" ? visibleStats : stats;
   const bucketSummary = [
-    stats.pendingReview > 0 ? `${stats.pendingReview} need review` : null,
-    stats.actioned > 0 ? `${stats.actioned} actioned` : null,
-    rows.length !== stats.total ? `${visibleStats.visible} shown` : null,
+    displayedStats.pendingReview > 0 ? `${displayedStats.pendingReview} need review` : null,
+    displayedStats.actioned > 0 ? `${displayedStats.actioned} actioned` : null,
+    rows.length !== displayedStats.total ? `${visibleStats.visible} shown` : null,
   ].filter(Boolean).join(" · ");
   const sortedRows = [...rows].sort((a, b) => {
     if (bucket === "new") {
@@ -3895,6 +4373,178 @@ function ComparisonSection({
     return aTitle.localeCompare(bTitle);
   });
 
+  const rowsContent = rows.length === 0 ? (
+    <div className="border-t border-border p-6 text-center text-xs text-muted-foreground">{emptyMsg}</div>
+  ) : (
+    <div className="space-y-2 border-t border-border p-3">
+      {sortedRows.map((r) => {
+        const display = r.curr ?? r.prev!;
+        const req = requestOf(r.id);
+        const basketRequest = basketRequestOf?.(r.id) ?? req;
+        const closure = closureOf(r.id);
+        const isPinned = pinnedIds?.has(r.id) ?? false;
+        const undoExpiresAt = recentlyClosed?.[r.id];
+        const showRowUndo = !!undoExpiresAt && undoExpiresAt > Date.now();
+        const requested = bucket === "new" && (r.actionState === "requested" || r.actionState === "submitted_request");
+        const pendingBasketRequest = basketRequest?.state === "pending" && Boolean(basketRequest.requestedChange?.trim());
+        const noAction = bucket === "new" && r.actionState === "no_action";
+        const supportsInlineRequest = Boolean(draftOf && onUpdateText && onCancelDraft && onSubmitDraft);
+        const drafting =
+          supportsInlineRequest &&
+          (r.actionState === "drafting" || expandedRequestId === r.id);
+        const draft = draftOf?.(r.id) ?? {};
+        const cancelDraft = () => {
+          if ((draft.requestedChange?.trim() || draft.rationale?.trim()) && !window.confirm("Discard this draft request?")) return;
+          onCancelDraft?.(r.id);
+          setExpandedRequestId(null);
+        };
+        const comparisonDetails = (
+          <div className="grid gap-2 text-[11px] md:grid-cols-2">
+            {bucket !== "new" && (
+              <div className="rounded-md border-l-2 border-primary bg-primary/5 px-2.5 py-2 md:col-span-2">
+                <p className="text-[9px] font-semibold uppercase tracking-wide text-primary">
+                  Requested{req.fromVersion ? ` · from ${req.fromVersion}` : ""}
+                </p>
+                <p className="mt-1 leading-snug text-foreground">{req.requestedChange ?? "No request captured"}</p>
+                {req.rationale && <p className="mt-1 italic leading-snug text-muted-foreground">{req.rationale}</p>}
+              </div>
+            )}
+            <div className={cn("rounded-md bg-[#f8f7f5] px-2.5 py-2", bucket === "new" && "md:col-span-1")}>
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{leftLabel}</p>
+              <p className="mt-1 leading-snug text-muted-foreground">{r.prev?.deviation ?? "Clause did not exist."}</p>
+            </div>
+            <div className="rounded-md bg-[#E6F1FB]/45 px-2.5 py-2">
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-[#185FA5]">{rightLabel}</p>
+              <p className="mt-1 leading-snug text-foreground">{r.curr?.deviation ?? "Clause no longer present."}</p>
+            </div>
+          </div>
+        );
+        const rowActions =
+          bucket === "new" ? undefined :
+            bucket === "closed" ? (
+              <Button size="sm" variant="outline" className="h-8 text-[11px]" onClick={() => onKeepOpen(r.id)}>
+                Reopen
+              </Button>
+            ) : (
+              <>
+                <Button
+                  size="sm"
+                  variant={closure === "closed" ? "default" : "outline"}
+                  className="h-8 text-[11px]"
+                  onClick={() => onClose(r.id)}
+                >
+                  {classifyChange(r.prev, r.curr) === "material" ? "Close" : "Close anyway"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant={closure === "follow-up" ? "secondary" : "outline"}
+                  className="h-8 text-[11px]"
+                  onClick={() => {
+                    onFollowUp?.(r.id);
+                    if (supportsInlineRequest) setExpandedRequestId(r.id);
+                  }}
+                >
+                  Follow-up
+                </Button>
+                <Button
+                  size="sm"
+                  variant={closure === "keep-open" ? "secondary" : "outline"}
+                  className="h-8 text-[11px]"
+                  onClick={() => onKeepOpen(r.id)}
+                >
+                  Keep Open
+                </Button>
+              </>
+            );
+
+        return (
+          <ClauseDecisionCard
+            key={r.id}
+            id={r.id}
+            clause={display}
+            versionLabel={rightLabel}
+            description={display.deviation}
+            decision={bucket === "new" ? (requested ? "request-update" : noAction ? "no-action" : undefined) : undefined}
+            request={basketRequest}
+            draft={draft}
+            isDrafting={drafting}
+            changePill={r.pill}
+            metaPrefix={r.pill.status === "new" ? <span className="mr-1 text-[#0C447C]">+</span> : null}
+            extraContent={
+              <>
+                {comparisonDetails}
+                {showRowUndo && onUndoClose && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onUndoClose(r.id);
+                    }}
+                    className="mt-2 inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
+                  >
+                    <RotateCcw className="h-3 w-3" /> Undo close
+                  </button>
+                )}
+              </>
+            }
+            actions={rowActions}
+            pinned={isPinned}
+            onTogglePin={onTogglePin ? () => onTogglePin(r.id) : undefined}
+            primaryActionLabel="Request Change"
+            requestPlaceholder={
+              bucket === "open"
+                ? "Describe the follow-up action you want from the supplier"
+                : "Describe the update you want from the supplier"
+            }
+            onRequest={() => {
+              onKeepOpen(r.id);
+              setExpandedRequestId(r.id);
+            }}
+            onNoAction={() => onClose(r.id)}
+            onEditRequest={() => {
+              if (!pendingBasketRequest) onKeepOpen(r.id);
+              setExpandedRequestId(r.id);
+            }}
+            onChangeNoAction={() => {
+              if (!pendingBasketRequest) onKeepOpen(r.id);
+              setExpandedRequestId(r.id);
+            }}
+            onUpdateDraft={onUpdateText ? (patch) => onUpdateText(r.id, patch) : undefined}
+            onCancelDraft={cancelDraft}
+            onSubmitDraft={onSubmitDraft ? () => {
+              onSubmitDraft(r.id);
+              setExpandedRequestId(null);
+            } : undefined}
+            onRemoveRequest={onRemoveRequest ? () => onRemoveRequest(r.id) : undefined}
+            onOpenDetail={() => onOpenDetail(r.id)}
+          />
+        );
+      })}
+    </div>
+  );
+
+  if (layout === "plain") {
+    return (
+      <section className={`overflow-hidden rounded-lg border ${accentBorder} bg-card`}>
+        <div className={`flex items-start gap-3 p-4 ${accentBg}`}>
+          <span className={`w-1 self-stretch rounded ${accentBar}`} />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className={`text-sm font-semibold ${accentText}`}>
+                {title} · <span className="font-mono text-foreground">{displayedStats.total}</span>
+              </h3>
+              {bucketSummary && (
+                <span className="text-[11px] font-medium text-muted-foreground">{bucketSummary}</span>
+              )}
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+          </div>
+        </div>
+        {rowsContent}
+      </section>
+    );
+  }
+
   return (
     <Collapsible open={open} onOpenChange={setOpen} className={`bg-card border ${accentBorder} rounded-lg overflow-hidden`}>
       <CollapsibleTrigger asChild>
@@ -3906,7 +4556,7 @@ function ComparisonSection({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className={`text-sm font-semibold ${accentText}`}>
-                {title} · <span className="font-mono text-foreground">{stats.total}</span>
+                {title} · <span className="font-mono text-foreground">{displayedStats.total}</span>
               </h3>
               {bucketSummary && (
                 <span className="text-[11px] text-muted-foreground font-medium">{bucketSummary}</span>
@@ -3918,142 +4568,7 @@ function ComparisonSection({
         </button>
       </CollapsibleTrigger>
       <CollapsibleContent>
-        {rows.length === 0 ? (
-          <div className="border-t border-border p-6 text-center text-xs text-muted-foreground">{emptyMsg}</div>
-        ) : (
-          <div className="space-y-2 border-t border-border p-3">
-            {sortedRows.map((r) => {
-              const display = r.curr ?? r.prev!;
-              const req = requestOf(r.id);
-              const closure = closureOf(r.id);
-              const isPinned = pinnedIds?.has(r.id) ?? false;
-              const undoExpiresAt = recentlyClosed?.[r.id];
-              const showRowUndo = !!undoExpiresAt && undoExpiresAt > Date.now();
-              const requested = bucket === "new" && (r.actionState === "requested" || r.actionState === "submitted_request");
-              const noAction = bucket === "new" && r.actionState === "no_action";
-              const drafting = bucket === "new" && (r.actionState === "drafting" || expandedRequestId === r.id);
-              const draft = draftOf?.(r.id) ?? {};
-              const cancelDraft = () => {
-                if ((draft.requestedChange?.trim() || draft.rationale?.trim()) && !window.confirm("Discard this draft request?")) return;
-                onCancelDraft?.(r.id);
-                setExpandedRequestId(null);
-              };
-              const comparisonDetails = (
-                <div className="grid gap-2 text-[11px] md:grid-cols-2">
-                  {bucket !== "new" && (
-                    <div className="rounded-md border-l-2 border-primary bg-primary/5 px-2.5 py-2 md:col-span-2">
-                      <p className="text-[9px] font-semibold uppercase tracking-wide text-primary">
-                        Requested{req.fromVersion ? ` · from ${req.fromVersion}` : ""}
-                      </p>
-                      <p className="mt-1 leading-snug text-foreground">{req.requestedChange ?? "No request captured"}</p>
-                      {req.rationale && <p className="mt-1 italic leading-snug text-muted-foreground">{req.rationale}</p>}
-                    </div>
-                  )}
-                  <div className={cn("rounded-md bg-[#f8f7f5] px-2.5 py-2", bucket === "new" && "md:col-span-1")}>
-                    <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{leftLabel}</p>
-                    <p className="mt-1 leading-snug text-muted-foreground">{r.prev?.deviation ?? "Clause did not exist."}</p>
-                  </div>
-                  <div className="rounded-md bg-[#E6F1FB]/45 px-2.5 py-2">
-                    <p className="text-[9px] font-semibold uppercase tracking-wide text-[#185FA5]">{rightLabel}</p>
-                    <p className="mt-1 leading-snug text-foreground">{r.curr?.deviation ?? "Clause no longer present."}</p>
-                  </div>
-                </div>
-              );
-              const rowActions =
-                bucket === "new" ? undefined :
-                  bucket === "closed" ? (
-                    <Button size="sm" variant="outline" className="h-8 text-[11px]" onClick={() => onKeepOpen(r.id)}>
-                      Reopen
-                    </Button>
-                  ) : (
-                    <>
-                      <Button
-                        size="sm"
-                        variant={closure === "closed" ? "default" : "outline"}
-                        className="h-8 text-[11px]"
-                        onClick={() => onClose(r.id)}
-                      >
-                        {classifyChange(r.prev, r.curr) === "material" ? "Close" : "Close anyway"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={closure === "follow-up" ? "secondary" : "outline"}
-                        className="h-8 text-[11px]"
-                        onClick={() => onFollowUp?.(r.id)}
-                      >
-                        Follow-up
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={closure === "keep-open" ? "secondary" : "outline"}
-                        className="h-8 text-[11px]"
-                        onClick={() => onKeepOpen(r.id)}
-                      >
-                        Keep Open
-                      </Button>
-                    </>
-                  );
-
-              return (
-                <ClauseDecisionCard
-                  key={r.id}
-                  id={r.id}
-                  clause={display}
-                  versionLabel={rightLabel}
-                  description={display.deviation}
-                  decision={bucket === "new" ? (requested ? "request-update" : noAction ? "no-action" : undefined) : undefined}
-                  request={req}
-                  draft={draft}
-                  isDrafting={drafting}
-                  changePill={r.pill}
-                  metaPrefix={r.pill.status === "new" ? <span className="mr-1 text-[#0C447C]">+</span> : null}
-                  extraContent={
-                    <>
-                      {comparisonDetails}
-                      {showRowUndo && onUndoClose && (
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onUndoClose(r.id);
-                          }}
-                          className="mt-2 inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
-                        >
-                          <RotateCcw className="h-3 w-3" /> Undo close
-                        </button>
-                      )}
-                    </>
-                  }
-                  actions={rowActions}
-                  pinned={isPinned}
-                  onTogglePin={onTogglePin ? () => onTogglePin(r.id) : undefined}
-                  primaryActionLabel="Request Change"
-                  requestPlaceholder="Describe the update you want from the supplier"
-                  onRequest={() => {
-                    onKeepOpen(r.id);
-                    setExpandedRequestId(r.id);
-                  }}
-                  onNoAction={() => onClose(r.id)}
-                  onEditRequest={() => {
-                    onKeepOpen(r.id);
-                    setExpandedRequestId(r.id);
-                  }}
-                  onChangeNoAction={() => {
-                    onKeepOpen(r.id);
-                    setExpandedRequestId(r.id);
-                  }}
-                  onUpdateDraft={onUpdateText ? (patch) => onUpdateText(r.id, patch) : undefined}
-                  onCancelDraft={cancelDraft}
-                  onSubmitDraft={onSubmitDraft ? () => {
-                    onSubmitDraft(r.id);
-                    setExpandedRequestId(null);
-                  } : undefined}
-                  onOpenDetail={() => onOpenDetail(r.id)}
-                />
-              );
-            })}
-          </div>
-        )}
+        {rowsContent}
       </CollapsibleContent>
     </Collapsible>
   );
@@ -4063,7 +4578,7 @@ function ComparisonSection({
 
 function UnmarkedSection({
   rows, leftLabel, rightLabel, visible, defaultOpen,
-  requestOf, draftOf, isRequested, decisionOf, isDrafting, onRequestChange, onSetNoAction, onUpdateText, onCancelDraft, onSubmitDraft, onOpenDetail,
+  requestOf, draftOf, isRequested, decisionOf, isDrafting, onRequestChange, onSetNoAction, onUpdateText, onCancelDraft, onSubmitDraft, onRemoveRequest, onOpenDetail,
 }: {
   rows: { id: string; prev?: ClauseResult; curr?: ClauseResult }[];
   leftLabel: string;
@@ -4080,6 +4595,7 @@ function UnmarkedSection({
   onUpdateText: (id: string, patch: { requestedChange?: string; rationale?: string }) => void;
   onCancelDraft: (id: string) => void;
   onSubmitDraft: (id: string) => void;
+  onRemoveRequest?: (id: string) => void;
   onOpenDetail: (id: string) => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -4197,6 +4713,7 @@ function UnmarkedSection({
                           onSubmitDraft(r.id);
                           setExpandedId(null);
                         }}
+                        onRemoveRequest={onRemoveRequest ? () => onRemoveRequest(r.id) : undefined}
                         onOpenDetail={() => onOpenDetail(r.id)}
                       />
                     );

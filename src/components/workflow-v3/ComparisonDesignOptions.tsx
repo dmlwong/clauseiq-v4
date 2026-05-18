@@ -32,7 +32,7 @@ export interface EvidenceMetricCounts {
 const designOptions: Array<{ value: ComparisonDesignOption; label: string; icon: ReactNode }> = [
   { value: "evolved", label: "Option 1 · Evolved", icon: <LayoutTemplate className="h-3.5 w-3.5" /> },
   { value: "side-by-side", label: "Option 2 · Side-by-side", icon: <Columns3 className="h-3.5 w-3.5" /> },
-  { value: "document", label: "Option 3 · Document", icon: <FileText className="h-3.5 w-3.5" /> },
+  { value: "document", label: "Option 3 · Readout", icon: <FileText className="h-3.5 w-3.5" /> },
 ];
 
 const distributionColours: Record<keyof DeviationDistribution, string> = {
@@ -90,6 +90,8 @@ export function ComparisonDesignOptions({
   categoryStrip,
   activeCategoryLabel,
   onClearCategory,
+  activeMetricLabel,
+  onClearMetric,
   activeEvidenceMetric,
   onEvidenceMetricSelect,
   evidenceMetrics,
@@ -111,11 +113,21 @@ export function ComparisonDesignOptions({
   categoryStrip: ReactNode;
   activeCategoryLabel?: string | null;
   onClearCategory: () => void;
+  activeMetricLabel?: string | null;
+  onClearMetric: () => void;
   activeEvidenceMetric?: EvidenceMetricKey | null;
   onEvidenceMetricSelect?: (metric: EvidenceMetricKey) => void;
   evidenceMetrics?: EvidenceMetricCounts;
 }) {
-  const [rightRailTab, setRightRailTab] = useState<"evidence" | "categories">("evidence");
+  const [rightRailTab, setRightRailTab] = useState<"summary" | "categories">("summary");
+  const activeFilterBar = (
+    <ActiveFilterBar
+      activeMetricLabel={activeMetricLabel}
+      onClearMetric={onClearMetric}
+      activeCategoryLabel={activeCategoryLabel}
+      onClearCategory={onClearCategory}
+    />
+  );
 
   if (option === "side-by-side") {
     return (
@@ -124,7 +136,7 @@ export function ComparisonDesignOptions({
           <section className="overflow-hidden rounded-lg border border-border bg-card">
             <RightRailTabs active={rightRailTab} onChange={setRightRailTab} />
             <div className="p-3">
-              {rightRailTab === "evidence" ? (
+              {rightRailTab === "summary" ? (
                 <EvidencePanel
                   panel={panel}
                   stripStats={stripStats}
@@ -135,7 +147,6 @@ export function ComparisonDesignOptions({
                   activeMetric={activeEvidenceMetric}
                   onMetricSelect={onEvidenceMetricSelect}
                   metrics={evidenceMetrics}
-                  embedded
                 />
               ) : (
                 categoryPanel
@@ -145,12 +156,10 @@ export function ComparisonDesignOptions({
         </aside>
         <div id="comparison-work-column" className="min-w-0 space-y-4">
           <DesignTopContext
-            title="Decision list"
-            subtitle="Review requested clauses and supplier-initiated changes using the same request workflow."
+            title="Contract comparison"
             comparisonControl={comparisonControl}
             stripStats={stripStats}
-            activeCategoryLabel={activeCategoryLabel}
-            onClearCategory={onClearCategory}
+            activeFilterBar={activeFilterBar}
           />
           <WorkflowStack
             openItems={openItems}
@@ -172,13 +181,13 @@ export function ComparisonDesignOptions({
               <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Contract comparison</p>
               <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground">{contractName}</h2>
               <p className="mt-1 text-xs text-muted-foreground">{supplierName} · {leftLabel} to {rightLabel}</p>
-              <ActiveCategoryIndicator label={activeCategoryLabel} onClear={onClearCategory} className="mt-2" />
+              <div className="mt-2">{activeFilterBar}</div>
             </div>
             <div className="shrink-0">{comparisonControl}</div>
           </div>
           <div className="mt-5 grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-stretch">
-            <ScoreHero stripStats={stripStats} className="h-full" />
-            <VersionDistributionPair panel={panel} leftLabel={leftLabel} rightLabel={rightLabel} large contained className="h-full" />
+            <ScoreHero stripStats={stripStats} className="h-full" showDelta={false} showSentence={false} />
+            <VersionDistributionPair panel={panel} leftLabel={leftLabel} rightLabel={rightLabel} layout="hero" className="h-full" />
           </div>
           <NarrativeSummary
             stripStats={stripStats}
@@ -200,34 +209,30 @@ export function ComparisonDesignOptions({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] px-6 py-4">
-      <div className="mb-4 min-[900px]:hidden">{categoryStrip}</div>
+    <div className="mx-auto w-full max-w-[1500px] space-y-4 px-6 py-4">
+      <section className="grid items-stretch gap-4 rounded-lg border border-border bg-card p-4 xl:grid-cols-2">
+        <NarrativeSummary
+          stripStats={stripStats}
+          activeMetric={activeEvidenceMetric}
+          onMetricSelect={onEvidenceMetricSelect}
+          metrics={evidenceMetrics}
+          grouped
+        />
+        <VersionMovementCard
+          panel={panel}
+          leftLabel={leftLabel}
+          rightLabel={rightLabel}
+          comparisonControl={comparisonControl}
+        />
+      </section>
+
       <div className="min-[900px]:flex min-[900px]:items-start min-[900px]:gap-4">
         <div className="hidden w-60 shrink-0 min-[900px]:block">
           {categoryRail}
         </div>
         <div id="comparison-work-column" className="min-w-0 flex-1 space-y-4">
-          <ActiveCategoryIndicator label={activeCategoryLabel} onClear={onClearCategory} />
-          <section className="grid items-stretch gap-4 rounded-lg border border-border bg-card p-4 xl:grid-cols-2">
-            <NarrativeSummary
-              stripStats={stripStats}
-              activeMetric={activeEvidenceMetric}
-              onMetricSelect={onEvidenceMetricSelect}
-              metrics={evidenceMetrics}
-            />
-            <div className="min-h-[204px] rounded-lg border border-border bg-white p-3">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Version movement
-                </p>
-                <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-                  {comparisonControl}
-                  <ScoreMovementBadge panel={panel} />
-                </div>
-              </div>
-              <VersionDistributionPair panel={panel} leftLabel={leftLabel} rightLabel={rightLabel} stacked hideScore />
-            </div>
-          </section>
+          <div className="min-[900px]:hidden">{categoryStrip}</div>
+          {activeFilterBar}
           <WorkflowStack
             openItems={openItems}
             newChanges={newChanges}
@@ -242,18 +247,14 @@ export function ComparisonDesignOptions({
 
 function DesignTopContext({
   title,
-  subtitle,
   comparisonControl,
   stripStats,
-  activeCategoryLabel,
-  onClearCategory,
+  activeFilterBar,
 }: {
   title: string;
-  subtitle: string;
   comparisonControl: ReactNode;
   stripStats: ComparisonStripStats;
-  activeCategoryLabel?: string | null;
-  onClearCategory: () => void;
+  activeFilterBar: ReactNode;
 }) {
   return (
     <section className="flex min-h-[66px] flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -263,34 +264,45 @@ function DesignTopContext({
           <h2 className="text-sm font-semibold text-foreground">{title}</h2>
           <ProgressPill stripStats={stripStats} />
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
-        <ActiveCategoryIndicator label={activeCategoryLabel} onClear={onClearCategory} className="mt-2" />
+        <div className="mt-2">{activeFilterBar}</div>
       </div>
       <div className="shrink-0 sm:ml-auto">{comparisonControl}</div>
     </section>
   );
 }
 
-function ActiveCategoryIndicator({
-  label,
-  onClear,
-  className,
+function ActiveFilterBar({
+  activeMetricLabel,
+  onClearMetric,
+  activeCategoryLabel,
+  onClearCategory,
 }: {
-  label?: string | null;
-  onClear: () => void;
-  className?: string;
+  activeMetricLabel?: string | null;
+  onClearMetric: () => void;
+  activeCategoryLabel?: string | null;
+  onClearCategory: () => void;
 }) {
-  if (!label) return null;
+  if (!activeMetricLabel && !activeCategoryLabel) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {activeMetricLabel && (
+        <FilterChip label={`Filter: ${activeMetricLabel}`} onClear={onClearMetric} />
+      )}
+      {activeCategoryLabel && (
+        <FilterChip label={`Category: ${activeCategoryLabel}`} onClear={onClearCategory} />
+      )}
+    </div>
+  );
+}
+
+function FilterChip({ label, onClear }: { label: string; onClear: () => void }) {
   return (
     <button
       type="button"
       onClick={onClear}
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border border-[#185FA5]/20 bg-[#E6F1FB] px-2 py-0.5 text-[10px] font-medium text-[#0C447C] hover:bg-[#D7E9F8]",
-        className,
-      )}
+      className="inline-flex items-center gap-1.5 rounded-full border border-[#185FA5]/20 bg-[#E6F1FB] px-2 py-0.5 text-[10px] font-medium text-[#0C447C] hover:bg-[#D7E9F8]"
     >
-      Category: {label}
+      {label}
       <span aria-hidden className="text-[#0C447C]/70">×</span>
     </button>
   );
@@ -300,12 +312,12 @@ function RightRailTabs({
   active,
   onChange,
 }: {
-  active: "evidence" | "categories";
-  onChange: (value: "evidence" | "categories") => void;
+  active: "summary" | "categories";
+  onChange: (value: "summary" | "categories") => void;
 }) {
   return (
     <div className="grid grid-cols-2 gap-1 border-b border-border bg-[#f8f7f5] p-1">
-      {(["evidence", "categories"] as const).map((value) => (
+      {(["summary", "categories"] as const).map((value) => (
         <button
           key={value}
           type="button"
@@ -327,20 +339,18 @@ function WorkflowStack({
   newChanges,
   closedItems,
   unmarkedClauses,
-  twoColumn = false,
 }: {
   openItems: ReactNode;
   newChanges: ReactNode;
   closedItems: ReactNode;
   unmarkedClauses: ReactNode;
-  twoColumn?: boolean;
 }) {
   return (
-    <div className={cn("grid gap-4", twoColumn && "xl:grid-cols-2")}>
+    <div className="grid gap-4">
       {openItems}
       {closedItems}
       {newChanges}
-      <div className={cn(twoColumn && "xl:col-span-2")}>{unmarkedClauses}</div>
+      {unmarkedClauses}
     </div>
   );
 }
@@ -352,7 +362,6 @@ function EvidencePanel({
   supplierName,
   leftLabel,
   rightLabel,
-  embedded = false,
   activeMetric,
   onMetricSelect,
   metrics,
@@ -363,7 +372,6 @@ function EvidencePanel({
   supplierName: string;
   leftLabel: string;
   rightLabel: string;
-  embedded?: boolean;
   activeMetric?: EvidenceMetricKey | null;
   onMetricSelect?: (metric: EvidenceMetricKey) => void;
   metrics?: EvidenceMetricCounts;
@@ -381,10 +389,10 @@ function EvidencePanel({
     totalClauses: contract.total,
   };
   return (
-    <section className={cn("rounded-lg border border-border bg-card p-4", embedded && "rounded-none border-0 p-0")}>
+    <section className="rounded-none border-0 bg-card p-0">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Evidence</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Summary</p>
           <h3 className="mt-1 text-sm font-semibold text-foreground">{contractName}</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">{supplierName}</p>
         </div>
@@ -393,70 +401,14 @@ function EvidencePanel({
       <div className="mt-4">
         <ScoreHero stripStats={stripStats} compact />
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-2 text-[11px]">
-        <MetricCell
-          label="Open items"
-          value={metricCounts.openItems}
-          active={activeMetric === "open-items"}
-          onClick={onMetricSelect ? () => onMetricSelect("open-items") : undefined}
-        />
-        <MetricCell
-          label="Met"
-          value={metricCounts.met}
-          tone="success"
-          active={activeMetric === "met"}
-          onClick={onMetricSelect ? () => onMetricSelect("met") : undefined}
-        />
-        <MetricCell
-          label="Closed"
-          value={metricCounts.closed}
-          tone="success"
-          active={activeMetric === "closed"}
-          onClick={onMetricSelect ? () => onMetricSelect("closed") : undefined}
-        />
-        <MetricCell
-          label="Supplier changes"
-          value={metricCounts.supplierChanges}
-          tone="warning"
-          active={activeMetric === "changes"}
-          onClick={onMetricSelect ? () => onMetricSelect("changes") : undefined}
-        />
-        <MetricCell
-          label="Need review"
-          value={metricCounts.needReview}
-          tone="destructive"
-          active={activeMetric === "need-action"}
-          onClick={onMetricSelect ? () => onMetricSelect("need-action") : undefined}
-        />
-        <MetricCell
-          label="High"
-          value={metricCounts.high}
-          tone="destructive"
-          active={activeMetric === "high"}
-          onClick={onMetricSelect ? () => onMetricSelect("high") : undefined}
-        />
-        <MetricCell
-          label="Medium"
-          value={metricCounts.medium}
-          tone="warning"
-          active={activeMetric === "medium"}
-          onClick={onMetricSelect ? () => onMetricSelect("medium") : undefined}
-        />
-        <MetricCell
-          label="Low"
-          value={metricCounts.low}
-          active={activeMetric === "low"}
-          onClick={onMetricSelect ? () => onMetricSelect("low") : undefined}
-        />
-        <MetricCell
-          label="Total clauses"
-          value={metricCounts.totalClauses}
-          active={activeMetric === "total" || !activeMetric}
-          onClick={onMetricSelect ? () => onMetricSelect("total") : undefined}
-        />
-      </div>
+      <MetricGrid
+        metrics={metricCounts}
+        activeMetric={activeMetric}
+        onMetricSelect={onMetricSelect}
+        density="rail"
+      />
       <div className="mt-4">
-        <VersionDistributionPair panel={panel} leftLabel={leftLabel} rightLabel={rightLabel} stacked hideDelta />
+        <VersionDistributionPair panel={panel} leftLabel={leftLabel} rightLabel={rightLabel} layout="rail" />
       </div>
     </section>
   );
@@ -466,10 +418,14 @@ function ScoreHero({
   stripStats,
   compact = false,
   className,
+  showDelta = true,
+  showSentence = true,
 }: {
   stripStats: ComparisonStripStats;
   compact?: boolean;
   className?: string;
+  showDelta?: boolean;
+  showSentence?: boolean;
 }) {
   const { contract, comparison } = stripStats;
   return (
@@ -478,14 +434,18 @@ function ScoreHero({
       <div className="mt-1 flex items-end gap-2">
         <span className={cn("font-semibold leading-none text-foreground", compact ? "text-3xl" : "text-5xl")}>{contract.score}</span>
         <span className="pb-1 text-sm font-medium text-muted-foreground">{contract.band}</span>
-        <span className={cn("mb-1 rounded-full px-2 py-0.5 text-[10px] font-medium", comparison.scoreDelta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
-          {comparison.scoreDelta >= 0 ? "+" : ""}
-          {comparison.scoreDelta} pts
-        </span>
+        {showDelta && (
+          <span className={cn("mb-1 rounded-full px-2 py-0.5 text-[10px] font-medium", comparison.scoreDelta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
+            vs prior {comparison.scoreDelta >= 0 ? "+" : ""}
+            {comparison.scoreDelta} pts
+          </span>
+        )}
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">
-        {comparison.met} of {comparison.requestedTotal} requested changes met.
-      </p>
+      {showSentence && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {comparison.met} of {comparison.requestedTotal} requested changes met.
+        </p>
+      )}
     </div>
   );
 }
@@ -496,6 +456,7 @@ function ScoreMovementBadge({ panel }: { panel: VersionPanelData }) {
       <span className="text-muted-foreground">Score</span>
       <span>{panel.current.score}</span>
       <span className={cn(panel.delta >= 0 ? "text-success" : "text-destructive")}>
+        vs prior{" "}
         {panel.delta >= 0 ? "+" : ""}
         {panel.delta} pts
       </span>
@@ -503,26 +464,45 @@ function ScoreMovementBadge({ panel }: { panel: VersionPanelData }) {
   );
 }
 
-function VersionDistributionPair({
+function VersionMovementCard({
   panel,
   leftLabel,
   rightLabel,
-  large = false,
-  stacked = false,
-  className,
-  hideScore = false,
-  hideDelta = false,
-  contained = false,
+  comparisonControl,
 }: {
   panel: VersionPanelData;
   leftLabel: string;
   rightLabel: string;
-  large?: boolean;
-  stacked?: boolean;
+  comparisonControl: ReactNode;
+}) {
+  return (
+    <div className="min-h-[204px] rounded-lg border border-border bg-white p-3">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          Version movement
+        </p>
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+          {comparisonControl}
+          <ScoreMovementBadge panel={panel} />
+        </div>
+      </div>
+      <VersionDistributionPair panel={panel} leftLabel={leftLabel} rightLabel={rightLabel} layout="movement" />
+    </div>
+  );
+}
+
+function VersionDistributionPair({
+  panel,
+  leftLabel,
+  rightLabel,
+  className,
+  layout,
+}: {
+  panel: VersionPanelData;
+  leftLabel: string;
+  rightLabel: string;
   className?: string;
-  hideScore?: boolean;
-  hideDelta?: boolean;
-  contained?: boolean;
+  layout: "movement" | "rail" | "hero";
 }) {
   const previous = panel.previous ?? {
     version: leftLabel,
@@ -530,17 +510,22 @@ function VersionDistributionPair({
     band: panel.current.band,
     distribution: panel.current.distribution,
   };
+  const isHero = layout === "hero";
+  const isStacked = layout === "movement" || layout === "rail";
+  const hideScore = layout === "movement" || layout === "rail";
+  const showDelta = layout === "hero";
+  const large = layout === "hero";
 
-  if (contained && !stacked) {
+  if (isHero) {
     return (
       <div className={cn("grid w-full rounded-lg border border-border bg-white p-3 lg:grid-cols-[minmax(0,1fr)_44px_minmax(0,1fr)] lg:items-stretch", className)}>
         <DistributionSide label={leftLabel} score={previous.score} distribution={previous.distribution} large={large} hideScore={hideScore} unframed />
         <div className="hidden h-full flex-col items-center justify-center gap-1 text-muted-foreground lg:flex">
           <ArrowRight className="h-4 w-4" />
-          {!hideDelta && (
+          {showDelta && (
             <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
-              {panel.delta >= 0 ? "+" : ""}
-              {panel.delta}
+              vs prior {panel.delta >= 0 ? "+" : ""}
+              {panel.delta} pts
             </span>
           )}
         </div>
@@ -550,24 +535,21 @@ function VersionDistributionPair({
   }
 
   return (
-    <div className={cn("grid w-full gap-3", stacked ? "grid-cols-1" : "lg:grid-cols-[minmax(0,1fr)_40px_minmax(0,1fr)] lg:items-stretch", className)}>
+    <div className={cn("grid w-full gap-3", isStacked ? "grid-cols-1" : "lg:grid-cols-[minmax(0,1fr)_40px_minmax(0,1fr)] lg:items-stretch", className)}>
       <DistributionSide label={leftLabel} score={previous.score} distribution={previous.distribution} large={large} hideScore={hideScore} />
-      {!stacked && (
+      {!isStacked && (
         <div className="hidden h-full flex-col items-center justify-center gap-1 text-muted-foreground lg:flex">
           <ArrowRight className="h-4 w-4" />
-          <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
-            {panel.delta >= 0 ? "+" : ""}
-            {panel.delta}
-          </span>
+          {showDelta && (
+            <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
+              vs prior{" "}
+              {panel.delta >= 0 ? "+" : ""}
+              {panel.delta} pts
+            </span>
+          )}
         </div>
       )}
       <DistributionSide label={rightLabel} score={panel.current.score} distribution={panel.current.distribution} current large={large} hideScore={hideScore} />
-      {stacked && !hideScore && !hideDelta && (
-        <div className={cn("rounded-md px-2 py-1 text-center text-[10px] font-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
-          Score delta {panel.delta >= 0 ? "+" : ""}
-          {panel.delta} pts
-        </div>
-      )}
     </div>
   );
 }
@@ -641,12 +623,14 @@ function NarrativeSummary({
   activeMetric,
   onMetricSelect,
   metrics,
+  grouped = false,
 }: {
   stripStats: ComparisonStripStats;
   className?: string;
   activeMetric?: EvidenceMetricKey | null;
   onMetricSelect?: (metric: EvidenceMetricKey) => void;
   metrics?: EvidenceMetricCounts;
+  grouped?: boolean;
 }) {
   const { contract, comparison, actions } = stripStats;
   const metricCounts = metrics ?? {
@@ -669,61 +653,13 @@ function NarrativeSummary({
       <p className="mt-2 text-sm leading-6 text-foreground">
         {comparison.supplierChanges} supplier changes were detected between versions. {comparison.met} of {comparison.requestedTotal} requested changes are met, with {actions.pendingReview} clause{actions.pendingReview === 1 ? "" : "s"} still needing review.
       </p>
-      <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
-        <MetricCell
-          label="Open items"
-          value={metricCounts.openItems}
-          active={activeMetric === "open-items"}
-          onClick={onMetricSelect ? () => onMetricSelect("open-items") : undefined}
-        />
-        <MetricCell
-          label="Met"
-          value={metricCounts.met}
-          tone="success"
-          active={activeMetric === "met"}
-          onClick={onMetricSelect ? () => onMetricSelect("met") : undefined}
-        />
-        <MetricCell
-          label="Supplier changes"
-          value={metricCounts.supplierChanges}
-          tone="warning"
-          active={activeMetric === "changes"}
-          onClick={onMetricSelect ? () => onMetricSelect("changes") : undefined}
-        />
-        <MetricCell
-          label="Need review"
-          value={metricCounts.needReview}
-          tone="destructive"
-          active={activeMetric === "need-action"}
-          onClick={onMetricSelect ? () => onMetricSelect("need-action") : undefined}
-        />
-        <MetricCell
-          label="High"
-          value={metricCounts.high}
-          tone="destructive"
-          active={activeMetric === "high"}
-          onClick={onMetricSelect ? () => onMetricSelect("high") : undefined}
-        />
-        <MetricCell
-          label="Medium"
-          value={metricCounts.medium}
-          tone="warning"
-          active={activeMetric === "medium"}
-          onClick={onMetricSelect ? () => onMetricSelect("medium") : undefined}
-        />
-        <MetricCell
-          label="Low"
-          value={metricCounts.low}
-          active={activeMetric === "low"}
-          onClick={onMetricSelect ? () => onMetricSelect("low") : undefined}
-        />
-        <MetricCell
-          label="Total"
-          value={metricCounts.totalClauses}
-          active={activeMetric === "total" || !activeMetric}
-          onClick={onMetricSelect ? () => onMetricSelect("total") : undefined}
-        />
-      </div>
+      <MetricGrid
+        metrics={metricCounts}
+        activeMetric={activeMetric}
+        onMetricSelect={onMetricSelect}
+        density="inline"
+        grouped={grouped}
+      />
     </div>
   );
 }
@@ -736,6 +672,76 @@ function ProgressPill({ stripStats }: { stripStats: ComparisonStripStats }) {
     <Badge variant="outline" className="rounded-full bg-white text-[10px]">
       {done} of {total} reviewed
     </Badge>
+  );
+}
+
+const metricDefinitions: Array<{
+  key: EvidenceMetricKey;
+  label: string;
+  value: keyof EvidenceMetricCounts;
+  tone?: "success" | "warning" | "destructive";
+  group: "workflow" | "risk";
+}> = [
+  { key: "open-items", label: "Open items", value: "openItems", group: "workflow" },
+  { key: "met", label: "Met", value: "met", tone: "success", group: "workflow" },
+  { key: "changes", label: "Supplier changes", value: "supplierChanges", tone: "warning", group: "workflow" },
+  { key: "need-action", label: "Need review", value: "needReview", tone: "destructive", group: "workflow" },
+  { key: "high", label: "High", value: "high", tone: "destructive", group: "risk" },
+  { key: "medium", label: "Medium", value: "medium", tone: "warning", group: "risk" },
+  { key: "low", label: "Low", value: "low", group: "risk" },
+  { key: "total", label: "Total clauses", value: "totalClauses", group: "risk" },
+];
+
+function MetricGrid({
+  metrics,
+  activeMetric,
+  onMetricSelect,
+  density,
+  grouped = false,
+}: {
+  metrics: EvidenceMetricCounts;
+  activeMetric?: EvidenceMetricKey | null;
+  onMetricSelect?: (metric: EvidenceMetricKey) => void;
+  density: "inline" | "rail";
+  grouped?: boolean;
+}) {
+  const renderMetric = (definition: (typeof metricDefinitions)[number]) => (
+    <MetricCell
+      key={definition.key}
+      label={definition.label}
+      value={metrics[definition.value]}
+      tone={definition.tone}
+      active={activeMetric === definition.key || (definition.key === "total" && !activeMetric)}
+      onClick={onMetricSelect ? () => onMetricSelect(definition.key) : undefined}
+    />
+  );
+
+  if (grouped) {
+    return (
+      <div className="mt-3 grid gap-3 lg:grid-cols-[1.25fr_1fr]">
+        {(["workflow", "risk"] as const).map((group) => (
+          <div key={group} className="rounded-lg border border-border/70 bg-white/60 p-2">
+            <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              {group === "workflow" ? "Workflow" : "Risk"}
+            </p>
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              {metricDefinitions.filter((definition) => definition.group === group).map(renderMetric)}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "mt-4 grid gap-2 text-[11px]",
+        density === "rail" ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5",
+      )}
+    >
+      {metricDefinitions.map(renderMetric)}
+    </div>
   );
 }
 

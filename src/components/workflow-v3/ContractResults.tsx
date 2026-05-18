@@ -846,6 +846,18 @@ export function ContractResults({
     }),
     [comparisonModel],
   );
+  const closedBasketItems = useMemo<ClosedBasketItem[]>(() => {
+    if (mode !== "comparison" || versions.length < 2 || !rightVersion) return [];
+    return comparisonSections.closed.map((row) => {
+      const clause = row.curr ?? row.prev;
+      const def = CLAUSE_FRAMEWORK.find((candidate) => candidate.id === row.id);
+      return {
+        clauseId: row.id,
+        clauseTitle: clause?.title ?? def?.title ?? row.id.toUpperCase(),
+        version: rightVersion.version,
+      };
+    });
+  }, [comparisonSections.closed, mode, rightVersion, versions.length]);
 
   const stripStats = comparisonModel.stripStats;
   const comparisonMovers = useMemo(
@@ -1181,6 +1193,24 @@ export function ContractResults({
       : quickFilter === null
         ? "total"
         : null;
+  const activeMetricLabel =
+    activeEvidenceMetric && activeEvidenceMetric !== "total"
+      ? ({
+          "open-items": "Open items",
+          met: "Met",
+          closed: "Closed",
+          changes: "Supplier changes",
+          "need-action": "Need review",
+          high: "High",
+          medium: "Medium",
+          low: "Low",
+        } satisfies Record<Exclude<EvidenceMetricKey, "total">, string>)[activeEvidenceMetric]
+      : null;
+  const clearEvidenceMetric = () => {
+    setQuickFilter(null);
+    setFilter("all");
+    setTab("changes");
+  };
   const showDesignOpenSection =
     quickFilter === null ||
     quickFilter === "open-items" ||
@@ -1211,6 +1241,8 @@ export function ContractResults({
       categoryStrip={categoryStrip}
       activeCategoryLabel={activeCategory}
       onClearCategory={() => setActiveCategory(null)}
+      activeMetricLabel={activeMetricLabel}
+      onClearMetric={clearEvidenceMetric}
       activeEvidenceMetric={activeEvidenceMetric}
       onEvidenceMetricSelect={selectEvidenceMetric}
       evidenceMetrics={evidenceMetrics}
@@ -1344,10 +1376,6 @@ export function ContractResults({
             contractName={contract.name}
             contractType={contract.type}
             viewingVersion={mode === "comparison" ? (rightVersion?.version ?? latest?.version ?? "v1") : undefined}
-            stats={mode === "comparison" ? stripStats : undefined}
-            quickFilter={quickFilter}
-            onToggleQuickFilter={toggleQuickFilter}
-            onClearQuickFilter={() => setQuickFilter(null)}
             supplierId={supplierId}
             supplierName={supplier.name}
           />
@@ -1763,9 +1791,24 @@ export function ContractResults({
 
       <RequestsBasket
         requests={pendingRequestItems}
+        closedItems={closedBasketItems}
         supplierName={supplier.name}
         onEdit={(id) => setDetailClauseId(id)}
         onRemove={(id) => rightVersion && decisions.removePendingRequest(supplierId, contractId, id, rightVersion.version)}
+        onViewClosed={(id) => setDetailClauseId(id)}
+        onReopenClosed={(id) => {
+          if (!rightVersion) return;
+          decisions.setClosure(supplierId, contractId, id, rightVersion.version, "keep-open");
+          setRecentlyClosed((current) => {
+            const next = { ...current };
+            delete next[id];
+            return next;
+          });
+          toast({
+            title: "Clause reopened",
+            description: "The clause has moved back into Open Items.",
+          });
+        }}
         onSubmit={() => {
           if (!rightVersion) return;
           decisions.submitPendingRequests(supplierId, contractId, rightVersion.version);
@@ -1924,10 +1967,6 @@ function CompactContractTopbar({
   contractName,
   contractType,
   viewingVersion,
-  stats,
-  quickFilter,
-  onToggleQuickFilter,
-  onClearQuickFilter,
   supplierId,
   supplierName,
 }: {
@@ -1936,10 +1975,6 @@ function CompactContractTopbar({
   contractName: string;
   contractType: string;
   viewingVersion?: string;
-  stats?: ReturnType<typeof deriveComparisonModel>["stripStats"];
-  quickFilter?: QuickFilterKey | null;
-  onToggleQuickFilter?: (key: QuickFilterKey) => void;
-  onClearQuickFilter?: () => void;
   supplierId: string;
   supplierName: string;
 }) {
@@ -1958,14 +1993,6 @@ function CompactContractTopbar({
           {contractType}
         </Badge>
         {viewingVersion && <ViewingVersionChip version={viewingVersion} />}
-        {stats && onToggleQuickFilter && onClearQuickFilter && (
-          <TopbarStatsCluster
-            stats={stats}
-            quickFilter={quickFilter ?? null}
-            onToggleQuickFilter={onToggleQuickFilter}
-            onClearQuickFilter={onClearQuickFilter}
-          />
-        )}
         <SupplierGroupingLink supplierId={supplierId} supplierName={supplierName} />
       </div>
     </div>
@@ -1978,57 +2005,6 @@ function ViewingVersionChip({ version }: { version: string }) {
       <IconEye size={11} stroke={1.8} aria-hidden />
       Viewing {version} · Current
     </span>
-  );
-}
-
-function TopbarStatsCluster({
-  stats,
-  quickFilter,
-  onToggleQuickFilter,
-  onClearQuickFilter,
-}: {
-  stats: ReturnType<typeof deriveComparisonModel>["stripStats"];
-  quickFilter: QuickFilterKey | null;
-  onToggleQuickFilter: (key: QuickFilterKey) => void;
-  onClearQuickFilter: () => void;
-}) {
-  const { contract, comparison, actions } = stats;
-  return (
-    <div className="hidden shrink-0 items-center gap-1.5 text-[10px] text-muted-foreground xl:flex">
-      <TopbarStatButton active={quickFilter === "changes"} onClick={() => onToggleQuickFilter("changes")}>
-        <strong>{comparison.supplierChanges}</strong> changes
-      </TopbarStatButton>
-      <span className="text-border">·</span>
-      <TopbarStatButton active={quickFilter === "need-action"} onClick={() => onToggleQuickFilter("need-action")}>
-        <strong>{actions.pendingReview}</strong> need review
-      </TopbarStatButton>
-    </div>
-  );
-}
-
-function TopbarStatButton({
-  active,
-  color,
-  onClick,
-  children,
-}: {
-  active?: boolean;
-  color?: string;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "rounded px-1 py-0.5 transition-colors hover:bg-[#E6F1FB]/60 hover:text-foreground",
-        active && "bg-[#E6F1FB] text-[#0C447C]",
-      )}
-      style={color ? { color } : undefined}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -3549,7 +3525,7 @@ function CategoryStrip({
               className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-border bg-white px-2.5 text-[10px] font-medium text-muted-foreground hover:text-foreground"
             >
               <IconList size={12} stroke={1.8} />
-              More
+              Categories
             </button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-[284px] border-none bg-transparent p-0 shadow-none">
@@ -4033,30 +4009,50 @@ interface BasketRequestItem {
   request: ClauseRequest;
 }
 
+interface ClosedBasketItem {
+  clauseId: string;
+  clauseTitle: string;
+  version: string;
+}
+
 function RequestsBasket({
   requests,
+  closedItems,
   supplierName,
   onEdit,
   onRemove,
+  onViewClosed,
+  onReopenClosed,
   onSubmit,
 }: {
   requests: BasketRequestItem[];
+  closedItems: ClosedBasketItem[];
   supplierName: string;
   onEdit: (clauseId: string) => void;
   onRemove: (clauseId: string) => void;
+  onViewClosed: (clauseId: string) => void;
+  onReopenClosed: (clauseId: string) => void;
   onSubmit: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [activeView, setActiveView] = useState<"requests" | "closed">("requests");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [basketBounds, setBasketBounds] = useState<{ left: number; right: number } | null>(null);
-  const count = requests.length;
+  const requestCount = requests.length;
+  const closedCount = closedItems.length;
+  const totalCount = requestCount + closedCount;
 
   useEffect(() => {
-    if (count === 0) setExpanded(false);
-  }, [count]);
+    if (totalCount === 0) setExpanded(false);
+  }, [totalCount]);
 
   useEffect(() => {
-    if (count === 0) return;
+    if (requestCount === 0 && closedCount > 0) setActiveView("closed");
+    if (closedCount === 0 && requestCount > 0) setActiveView("requests");
+  }, [closedCount, requestCount]);
+
+  useEffect(() => {
+    if (totalCount === 0) return;
     const measure = () => {
       const column = document.getElementById("comparison-work-column");
       if (!column) {
@@ -4073,12 +4069,18 @@ function RequestsBasket({
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [count]);
+  }, [totalCount]);
+
+  const summary = [
+    requestCount > 0 ? `${requestCount} request${requestCount === 1 ? "" : "s"}` : null,
+    closedCount > 0 ? `${closedCount} closed` : null,
+  ].filter(Boolean).join(" · ");
+  const reviewingRequests = activeView === "requests";
 
   return (
     <>
       <AnimatePresence>
-        {count > 0 && (
+        {totalCount > 0 && (
           <motion.div
             initial={{ y: 90, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -4092,45 +4094,89 @@ function RequestsBasket({
           >
             {expanded && (
               <div className="max-h-[240px] overflow-y-auto rounded-t-lg border border-b-0 border-border bg-card shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
+                <div className="flex items-center gap-1 border-b border-border bg-muted/30 p-1.5">
+                  <BasketTab
+                    active={activeView === "requests"}
+                    disabled={requestCount === 0}
+                    onClick={() => setActiveView("requests")}
+                  >
+                    Requests <span className="font-mono">{requestCount}</span>
+                  </BasketTab>
+                  <BasketTab
+                    active={activeView === "closed"}
+                    disabled={closedCount === 0}
+                    onClick={() => setActiveView("closed")}
+                  >
+                    Closed <span className="font-mono">{closedCount}</span>
+                  </BasketTab>
+                </div>
                 <div className="divide-y divide-border p-2">
-                  {requests.map((item) => (
-                    <div key={item.clauseId} className="flex items-center gap-2 rounded-[5px] px-2 py-1.5 text-[10px] hover:bg-muted">
-                      <span className="w-[26px] shrink-0 font-mono text-[9px] text-muted-foreground">{item.clauseId.toUpperCase()}</span>
-                      <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-foreground">{item.clauseTitle}</span>
-                      <span className="hidden min-w-0 flex-[1.5] truncate italic text-muted-foreground sm:block">
-                        {item.request.requestedChange}
-                      </span>
-                      <button
-                        type="button"
-                        className="shrink-0 text-[10px] font-medium text-primary hover:underline"
-                        onClick={() => onEdit(item.clauseId)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="shrink-0 rounded px-1 text-[11px] text-muted-foreground hover:bg-background hover:text-foreground"
-                        aria-label={`Remove request for ${item.clauseTitle}`}
-                        onClick={() => {
-                          if (window.confirm(`Remove request for ${item.clauseTitle}?`)) onRemove(item.clauseId);
-                        }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
+                  {reviewingRequests ? (
+                    requests.map((item) => (
+                      <div key={item.clauseId} className="flex items-center gap-2 rounded-[5px] px-2 py-1.5 text-[10px] hover:bg-muted">
+                        <span className="w-[26px] shrink-0 font-mono text-[9px] text-muted-foreground">{item.clauseId.toUpperCase()}</span>
+                        <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-foreground">{item.clauseTitle}</span>
+                        <span className="hidden min-w-0 flex-[1.5] truncate italic text-muted-foreground sm:block">
+                          {item.request.requestedChange}
+                        </span>
+                        <button
+                          type="button"
+                          className="shrink-0 text-[10px] font-medium text-primary hover:underline"
+                          onClick={() => onEdit(item.clauseId)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="shrink-0 rounded px-1 text-[11px] text-muted-foreground hover:bg-background hover:text-foreground"
+                          aria-label={`Remove request for ${item.clauseTitle}`}
+                          onClick={() => {
+                            if (window.confirm(`Remove request for ${item.clauseTitle}?`)) onRemove(item.clauseId);
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    closedItems.map((item) => (
+                      <div key={item.clauseId} className="flex items-center gap-2 rounded-[5px] px-2 py-1.5 text-[10px] hover:bg-muted">
+                        <span className="w-[26px] shrink-0 font-mono text-[9px] text-muted-foreground">{item.clauseId.toUpperCase()}</span>
+                        <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-foreground">{item.clauseTitle}</span>
+                        <span className="hidden shrink-0 text-[10px] text-muted-foreground sm:inline">Closed for {item.version}</span>
+                        <button
+                          type="button"
+                          className="shrink-0 text-[10px] font-medium text-primary hover:underline"
+                          onClick={() => onViewClosed(item.clauseId)}
+                        >
+                          View
+                        </button>
+                        <button
+                          type="button"
+                          className="shrink-0 text-[10px] font-medium text-success hover:underline"
+                          onClick={() => onReopenClosed(item.clauseId)}
+                        >
+                          Reopen
+                        </button>
+                      </div>
+                    ))
+                  )}
                 </div>
                 <div className="flex items-center justify-between gap-3 border-t border-border bg-muted/30 px-3.5 py-2.5">
                   <p className="text-[10px] text-muted-foreground">
-                    {count} request{count === 1 ? "" : "s"} will be sent to the supplier in the next round
+                    {reviewingRequests
+                      ? `${requestCount} request${requestCount === 1 ? "" : "s"} will be sent to the supplier in the next round`
+                      : `${closedCount} closed clause${closedCount === 1 ? "" : "s"} can be reviewed or reopened before you continue`}
                   </p>
-                  <Button
-                    size="sm"
-                    className="h-8 gap-1.5 rounded-[5px] bg-[#1a2744] px-3 text-[11px] font-medium text-white hover:bg-[#243454]"
-                    onClick={() => setConfirmOpen(true)}
-                  >
-                    <Send className="h-3 w-3" /> Submit
-                  </Button>
+                  {requestCount > 0 && (
+                    <Button
+                      size="sm"
+                      className="h-8 gap-1.5 rounded-[5px] bg-[#1a2744] px-3 text-[11px] font-medium text-white hover:bg-[#243454]"
+                      onClick={() => setConfirmOpen(true)}
+                    >
+                      <Send className="h-3 w-3" /> Submit
+                    </Button>
+                  )}
                 </div>
               </div>
             )}
@@ -4142,11 +4188,11 @@ function RequestsBasket({
                 <ShoppingBag className="h-3.5 w-3.5" />
               </span>
               <p className="flex-1 text-[11px] font-medium text-foreground">
-                {expanded ? "Requests to submit" : `${count} request${count === 1 ? "" : "s"}`}
+                {expanded ? (reviewingRequests ? "Requests to submit" : "Closed clauses") : summary}
               </p>
               {expanded && (
                 <Badge variant="outline" className="h-5 rounded-full px-2 text-[10px]">
-                  {count}
+                  {reviewingRequests ? requestCount : closedCount}
                 </Badge>
               )}
               <button
@@ -4156,13 +4202,15 @@ function RequestsBasket({
               >
                 {expanded ? "Close" : "Review"}
               </button>
-              <Button
-                size="sm"
-                className="h-8 gap-1.5 rounded-[5px] bg-[#1a2744] px-3 text-[11px] font-medium text-white hover:bg-[#243454]"
-                onClick={() => setConfirmOpen(true)}
-              >
-                <Send className="h-3 w-3" /> Submit
-              </Button>
+              {requestCount > 0 && (
+                <Button
+                  size="sm"
+                  className="h-8 gap-1.5 rounded-[5px] bg-[#1a2744] px-3 text-[11px] font-medium text-white hover:bg-[#243454]"
+                  onClick={() => setConfirmOpen(true)}
+                >
+                  <Send className="h-3 w-3" /> Submit
+                </Button>
+              )}
             </div>
           </motion.div>
         )}
@@ -4171,7 +4219,7 @@ function RequestsBasket({
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Submit {count} request{count === 1 ? "" : "s"} to supplier?</AlertDialogTitle>
+            <AlertDialogTitle>Submit {requestCount} request{requestCount === 1 ? "" : "s"} to supplier?</AlertDialogTitle>
             <AlertDialogDescription>
               These requests will be sent to {supplierName}. You won't be able to edit them once submitted.
             </AlertDialogDescription>
@@ -4191,6 +4239,7 @@ function RequestsBasket({
                 onSubmit();
                 setConfirmOpen(false);
               }}
+              disabled={requestCount === 0}
             >
               Submit
             </AlertDialogAction>
@@ -4198,6 +4247,33 @@ function RequestsBasket({
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+function BasketTab({
+  active,
+  disabled,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  disabled: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "inline-flex h-7 items-center gap-1.5 rounded-[5px] px-2.5 text-[10px] font-medium transition-colors",
+        active ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/70 hover:text-foreground",
+        disabled && "cursor-not-allowed opacity-40 hover:bg-transparent hover:text-muted-foreground",
+      )}
+    >
+      {children}
+    </button>
   );
 }
 

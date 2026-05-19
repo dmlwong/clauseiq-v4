@@ -45,8 +45,15 @@ export function isPrototypeV3(version: PrototypeVersion) {
   return version.versionNumber === 3 || title === "prototype v3" || title.includes("v3");
 }
 
+export function isPrototypeV4(version: PrototypeVersion) {
+  const title = version.title.trim().toLowerCase();
+  return version.versionNumber === 4 || title === "prototype v4" || title.includes("v4");
+}
+
 export function prototypePreviewUrl(version: PrototypeVersion) {
-  return isPrototypeV3(version) ? "/clauseiq-v3" : version.previewUrl;
+  if (isPrototypeV4(version)) return "/clauseiq-v4";
+  if (isPrototypeV3(version)) return "/clauseiq-v3";
+  return version.previewUrl;
 }
 
 function seed(): Prototype {
@@ -106,7 +113,8 @@ function seed(): Prototype {
     ],
   };
   const v3 = createV3Version(protoId, 3);
-  return { id: protoId, name: "ClauseIQ Prototype", versions: [v1, v2, v3] };
+  const v4 = createV4Version(protoId, 4);
+  return { id: protoId, name: "ClauseIQ Prototype", versions: [v1, v2, v3, v4] };
 }
 
 function createV3Version(protoId: string, versionNumber: number): PrototypeVersion {
@@ -115,9 +123,24 @@ function createV3Version(protoId: string, versionNumber: number): PrototypeVersi
     prototypeId: protoId,
     versionNumber,
     title: "Prototype v3",
-    goal: "Create an isolated v3 branch for continuing ClauseIQ iteration without affecting v2.",
-    notes: "Duplicated from the current v2 state with separate /clauseiq-v3 and /initiatives-v3 routes.",
+    goal: "Preserve the completed v3 comparison design branch as an earlier version.",
+    notes: "Prototype v3 remains available through /clauseiq-v3 and /initiatives-v3 for reference and regression checks.",
     previewUrl: "/clauseiq-v3",
+    status: "Complete",
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
+    feedback: [],
+  };
+}
+
+function createV4Version(protoId: string, versionNumber: number): PrototypeVersion {
+  return {
+    id: uid(),
+    prototypeId: protoId,
+    versionNumber,
+    title: "Prototype v4",
+    goal: "Continue ClauseIQ iteration from prototype v3 in a clean isolated route.",
+    notes: "Duplicated from prototype v3 with separate /clauseiq-v4 and /initiatives-v4 routes so v4 changes no longer affect v3.",
+    previewUrl: "/clauseiq-v4",
     status: "In progress",
     createdAt: new Date().toISOString(),
     feedback: [],
@@ -127,28 +150,45 @@ function createV3Version(protoId: string, versionNumber: number): PrototypeVersi
 function ensureCurrentVersions(prototype: Prototype): Prototype {
   let changed = false;
   const versions = prototype.versions.map((version) => {
+    if (isPrototypeV4(version)) {
+      const next = {
+        ...version,
+        versionNumber: 4,
+        title: "Prototype v4",
+        goal: "Continue ClauseIQ iteration from prototype v3 in a clean isolated route.",
+        notes: "Duplicated from prototype v3 with separate /clauseiq-v4 and /initiatives-v4 routes so v4 changes no longer affect v3.",
+        previewUrl: "/clauseiq-v4",
+        status: version.status === "Complete" ? "In progress" as VersionStatus : version.status,
+      };
+      changed = changed || JSON.stringify(next) !== JSON.stringify(version);
+      return next;
+    }
     if (!isPrototypeV3(version)) return version;
     const next = {
       ...version,
+      versionNumber: 3,
       title: "Prototype v3",
-      goal: "Create an isolated v3 branch for continuing ClauseIQ iteration without affecting v2.",
-      notes: "Duplicated from the current v2 state with separate /clauseiq-v3 and /initiatives-v3 routes.",
+      goal: "Preserve the completed v3 comparison design branch as an earlier version.",
+      notes: "Prototype v3 remains available through /clauseiq-v3 and /initiatives-v3 for reference and regression checks.",
       previewUrl: "/clauseiq-v3",
-      status: version.status === "Awaiting feedback" ? "In progress" as VersionStatus : version.status,
+      status: version.status === "In progress" || version.status === "Awaiting feedback"
+        ? "Complete" as VersionStatus
+        : version.status,
     };
     changed = changed || JSON.stringify(next) !== JSON.stringify(version);
     return next;
   });
-  if (versions.some((version) => version.previewUrl === "/clauseiq-v3")) {
-    return changed ? { ...prototype, versions } : prototype;
+  let nextVersions = versions;
+  if (!nextVersions.some((version) => isPrototypeV3(version))) {
+    nextVersions = [...nextVersions, createV3Version(prototype.id, 3)];
+    changed = true;
   }
-  const nextVersionNumber = prototype.versions.some((version) => version.versionNumber === 3)
-    ? Math.max(...versions.map((version) => version.versionNumber), 0) + 1
-    : 3;
-  return {
-    ...prototype,
-    versions: [...versions, createV3Version(prototype.id, nextVersionNumber)],
-  };
+  if (!nextVersions.some((version) => isPrototypeV4(version))) {
+    nextVersions = [...nextVersions, createV4Version(prototype.id, 4)];
+    changed = true;
+  }
+  if (!changed) return prototype;
+  return { ...prototype, versions: nextVersions };
 }
 
 function load(): Prototype {
@@ -210,7 +250,12 @@ export function usePrototypeStore() {
         if (!src) return prev;
         const nextNumber = Math.max(...prev.versions.map((v) => v.versionNumber)) + 1;
         const title = `Prototype v${nextNumber}`;
-        const previewUrl = nextNumber === 3 || isPrototypeV3(src) ? "/clauseiq-v3" : prototypePreviewUrl(src);
+        const previewUrl =
+          nextNumber >= 4 || isPrototypeV4(src)
+            ? "/clauseiq-v4"
+            : nextNumber === 3 || isPrototypeV3(src)
+              ? "/clauseiq-v3"
+              : prototypePreviewUrl(src);
         const id = uid();
         newId = id;
         const newVersion: PrototypeVersion = {

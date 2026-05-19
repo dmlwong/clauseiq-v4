@@ -1,22 +1,18 @@
-// Prototype v3 — duplicated from v2 so changes here don't affect v2.
-// Edit freely without touching src/pages/IndexV2.tsx.
+// Prototype v4 — duplicated from v3 so changes here don't affect v3.
+// Edit freely without touching src/pages/IndexV3.tsx.
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { InitiativesList } from "@/components/workflow-v3/InitiativesList";
-import { InitiativeOverview } from "@/components/workflow-v3/InitiativeOverview";
-import { SupplierPage } from "@/components/workflow-v3/SupplierPage";
-import { ContractResults } from "@/components/workflow-v3/ContractResults";
-import { CrossSupplierComparison } from "@/components/workflow-v3/CrossSupplierComparison";
-import { WizardModal } from "@/components/wizard-v3/WizardModal";
+import { InitiativesList } from "@/components/workflow-v4/InitiativesList";
+import { InitiativeOverview } from "@/components/workflow-v4/InitiativeOverview";
+import { SupplierPage } from "@/components/workflow-v4/SupplierPage";
+import { ContractResults } from "@/components/workflow-v4/ContractResults";
+import { CrossSupplierComparison } from "@/components/workflow-v4/CrossSupplierComparison";
+import { WizardModal } from "@/components/wizard-v4/WizardModal";
 import { useWizardState } from "@/hooks/use-wizard-state";
 import { useContractStatus } from "@/hooks/use-contract-status";
 import { auditLog } from "@/lib/mock-api";
 import { getInitiative, getSupplier, getContract } from "@/lib/workflow-data";
-import { V3Shell } from "@/components/clauseiq-v3/V3Shell";
-import {
-  DesignOptionSwitcher,
-  type ComparisonDesignOption,
-} from "@/components/workflow-v3/ComparisonDesignOptions";
+import { V4Shell } from "@/components/clauseiq-v4/V4Shell";
 
 type View =
   | { name: "initiatives" }
@@ -25,7 +21,7 @@ type View =
   | { name: "supplier"; initiativeId: string; supplierId: string }
   | { name: "results"; initiativeId: string; supplierId: string; contractId: string };
 
-const IndexV3 = () => {
+const IndexV4 = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialView: View = (() => {
@@ -60,17 +56,6 @@ const IndexV3 = () => {
   const isDeliveryEngineResultRoute = routeSource === "delivery-engine";
   const isExternalResultRoute = isClauseIQResultRoute || isDeliveryEngineResultRoute;
   const deliveryEngineReturnPath = searchParams.get("return") ?? "/delivery-engine/YRK18-1043";
-  const designOption: ComparisonDesignOption =
-    searchParams.get("design") === "side-by-side" || searchParams.get("design") === "document"
-      ? (searchParams.get("design") as ComparisonDesignOption)
-      : "evolved";
-  const showDesignSwitcher = view.name === "results";
-
-  const setDesignOption = (nextDesign: ComparisonDesignOption) => {
-    const next = new URLSearchParams(searchParams);
-    next.set("design", nextDesign);
-    setSearchParams(next, { replace: false });
-  };
 
   const launchClauseIQ = (initiativeId: string, supplierId: string, contractId: string) => {
     setWizardCtx({ initiativeId, supplierId, contractId });
@@ -97,19 +82,9 @@ const IndexV3 = () => {
   }
 
   return (
-    <V3Shell
+    <V4Shell
       title="ClauseIQ"
       subtitle="AI tool for detailed contract analyses"
-      headerRight={
-        showDesignSwitcher ? (
-          <div className="flex items-center gap-2">
-            <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
-              Design
-            </span>
-            <DesignOptionSwitcher value={designOption} onChange={setDesignOption} />
-          </div>
-        ) : undefined
-      }
     >
       {view.name === "initiatives" && (
         <InitiativesList onSelect={(id) => setView({ name: "initiative", initiativeId: id })} />
@@ -162,7 +137,7 @@ const IndexV3 = () => {
             isExternalResultRoute
               ? () =>
                   navigate(
-                    `/clauseiq-v3?view=results&rerun=upload&source=${routeSource ?? "clauseiq"}${
+                    `/clauseiq-v4?view=results&rerun=upload&source=${routeSource ?? "clauseiq"}${
                       isDeliveryEngineResultRoute ? "&initiativeId=YRK18-1043" : ""
                     }`,
                   )
@@ -174,7 +149,7 @@ const IndexV3 = () => {
               return;
             }
             if (isClauseIQResultRoute) {
-              navigate("/clauseiq-v3?view=results");
+              navigate("/clauseiq-v4?view=results");
               return;
             }
             setView({ name: "supplier", initiativeId: view.initiativeId, supplierId: view.supplierId });
@@ -191,8 +166,8 @@ const IndexV3 = () => {
         closeWizard={wizard.closeWizard}
         context={context}
       />
-    </V3Shell>
+    </V4Shell>
   );
 };
 
-export default IndexV3;
+export default IndexV4;

@@ -92,12 +92,16 @@ import {
   type RoundStatus,
   type VersionPanelData,
   buildHistoryRow,
-} from "@/lib/clauseiq-v3-comparison";
+} from "@/lib/clauseiq-v4-comparison";
 import {
   ComparisonDesignOptions,
+  ComparisonSummaryRail,
+  FirstAnalysisDesignOptions,
   type ComparisonDesignOption,
   type EvidenceMetricCounts,
   type EvidenceMetricKey,
+  type FirstAnalysisMetricKey,
+  type FirstAnalysisMetrics,
 } from "./ComparisonDesignOptions";
 
 interface Props {
@@ -214,7 +218,7 @@ function normalizeMode(value: string | null): ClauseIqMode {
 }
 
 function normalizeComparisonDesignOption(value: string | null | undefined): ComparisonDesignOption {
-  return value === "side-by-side" || value === "document" || value === "evolved" ? value : "evolved";
+  return value === "side-by-side" ? value : "side-by-side";
 }
 
 function normalizeComparisonTab(value: string | null): ComparisonTab {
@@ -582,21 +586,24 @@ export function ContractResults({
   const initiative = getInitiative(initiativeId);
   const supplier = getSupplier(initiativeId, supplierId);
   const contract = getContract(initiativeId, supplierId, contractId);
-  const decisions = useClauseDecisions({}, { storageKey: "ciq-v3-clause-decisions" });
+  const decisions = useClauseDecisions({}, { storageKey: "ciq-v4-clause-decisions" });
   const mode = normalizeMode(searchParams.get("mode"));
   const designOption = normalizeComparisonDesignOption(searchParams.get("design"));
+  const firstAnalysisDemo = searchParams.get("scenario") === "first-analysis";
+  const decisionContractId = firstAnalysisDemo ? `${contractId}:first-analysis-demo` : contractId;
 
   // Local mutable copy of versions so the user can simulate uploading a new
   // round or deleting an existing one without touching shared seed data.
-  const [versions, setVersions] = useState<ContractVersion[]>(contract?.versions ?? []);
+  const [availableVersions, setAvailableVersions] = useState<ContractVersion[]>(contract?.versions ?? []);
+  const versions = firstAnalysisDemo ? availableVersions.slice(0, 1) : availableVersions;
   const v1 = versions[0] ?? null;
   const latest = versions.at(-1) ?? null;
 
   // Seed plausible round-1 request decisions for the demo focus clauses.
   useEffect(() => {
-    if (!contract || versions.length === 0) return;
-    decisions.seedDefaults(supplierId, contractId, ACME_DEFAULT_FOCUS_IDS, ACME_DEFAULT_REQUEST_TEXTS);
-  }, [supplierId, contractId, contract, versions.length, decisions]);
+    if (!contract || versions.length < 2) return;
+    decisions.seedDefaults(supplierId, decisionContractId, ACME_DEFAULT_FOCUS_IDS, ACME_DEFAULT_REQUEST_TEXTS);
+  }, [supplierId, decisionContractId, contract, versions.length, decisions]);
 
   const comparisonPair = useMemo(
     () =>
@@ -658,7 +665,7 @@ export function ContractResults({
   const [reviewVersionLabel, setReviewVersionLabel] = useState<string>(() => versions[0]?.version ?? "v1");
   const reviewVersion = versions.find((v) => v.version === reviewVersionLabel) ?? v1;
 
-  const tabStorageKey = `ciq-v3-tab:${supplierId}:${contractId}`;
+  const tabStorageKey = `ciq-v4-tab:${supplierId}:${contractId}`;
   const storedComparisonTab = (() => {
     try {
       return sessionStorage.getItem(tabStorageKey);
@@ -690,7 +697,7 @@ export function ContractResults({
     setSearchParams(params, { replace: true });
   }, [mode, searchParams, setSearchParams, storedComparisonTab, versions.length]);
 
-  const historyStorageKey = `ciq-v3-history:${supplierId}:${contractId}`;
+  const historyStorageKey = `ciq-v4-history:${supplierId}:${contractId}`;
   const storedHistoryState = (() => {
     try {
       return JSON.parse(localStorage.getItem(historyStorageKey) ?? "{}") as { filter?: string; sort?: string };
@@ -774,17 +781,24 @@ export function ContractResults({
   const [decisions_, setDecisions_] = useState<Record<string, "accepted" | "changes-requested" | null>>({});
   const [acceptConfirmOpen, setAcceptConfirmOpen] = useState(false);
   const [quickFilter, setQuickFilter] = useState<QuickFilterKey | null>(() =>
-    mode === "comparison" ? "open-items" : null,
+    mode === "comparison" && versions.length >= 2 ? "open-items" : null,
   );
+  useEffect(() => {
+    if (mode !== "comparison" || versions.length >= 2) return;
+    if (quickFilter === "open-items" || quickFilter === "met" || quickFilter === "closed" || quickFilter === "changes") {
+      setQuickFilter(null);
+    }
+  }, [mode, quickFilter, versions.length]);
 
-  const allDecisions = decisions.getAll(supplierId, contractId);
+  const allDecisions = decisions.getAll(supplierId, decisionContractId);
   const stateOf = (id: string): ClauseDecisionState =>
     allDecisions[id] ?? { roundDecisions: {}, closures: {}, requests: {}, updatedAt: "" };
+  const activeRequestVersion = mode === "comparison" ? (rightVersion ?? reviewVersion ?? latest ?? v1) : null;
   const pendingRequestItems = useMemo<BasketRequestItem[]>(() => {
-    if (mode !== "comparison" || versions.length < 2 || !rightVersion) return [];
-    return decisions.getPendingRequests(supplierId, contractId, rightVersion.version).map((item) => {
+    if (mode !== "comparison" || !activeRequestVersion) return [];
+    return decisions.getPendingRequests(supplierId, decisionContractId, activeRequestVersion.version).map((item) => {
       const clause =
-        rightVersion.clauses.find((candidate) => candidate.id === item.clauseId) ??
+        activeRequestVersion.clauses.find((candidate) => candidate.id === item.clauseId) ??
         leftVersion?.clauses.find((candidate) => candidate.id === item.clauseId);
       const def = CLAUSE_FRAMEWORK.find((candidate) => candidate.id === item.clauseId);
       return {
@@ -793,15 +807,15 @@ export function ContractResults({
         request: item.request,
       };
     });
-  }, [contractId, decisions, leftVersion, mode, rightVersion, supplierId, versions.length]);
+  }, [activeRequestVersion, decisionContractId, decisions, leftVersion, mode, supplierId]);
 
   const onUploadVersion = (file: File | null, label: string) => {
     if (!file) return;
-    const prevLabel = versions.at(-1)?.version ?? null;
+    const prevLabel = availableVersions.at(-1)?.version ?? null;
     const today = new Date().toISOString().slice(0, 10);
     const newVersion = makeSyntheticVersion(label, prevLabel, today);
-    const next = [...versions, newVersion];
-    setVersions(next);
+    const next = [...availableVersions, newVersion];
+    setAvailableVersions(next);
     setPair({ left: prevLabel ?? label, right: label });
     setUploadOpen(false);
     toast({
@@ -811,8 +825,8 @@ export function ContractResults({
   };
 
   const onDeleteVersion = (label: string) => {
-    const next = versions.filter((v) => v.version !== label);
-    setVersions(next);
+    const next = availableVersions.filter((v) => v.version !== label);
+    setAvailableVersions(next);
     // Re-anchor pair on remaining versions.
     if (next.length >= 2) {
       setPair({ left: next.at(-2)!.version, right: next.at(-1)!.version });
@@ -886,7 +900,7 @@ export function ContractResults({
   const [recentlyClosed, setRecentlyClosed] = useState<Record<string, number>>({});
   const closeWithUndo = (id: string, label: string, prev: ClosureDecision | undefined) => {
     if (!rightVersion) return;
-    decisions.setClosure(supplierId, contractId, id, rightVersion.version, "closed");
+    decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "closed");
     setRecentlyClosed((m) => ({ ...m, [id]: Date.now() + 30_000 }));
     sonnerToast(`Closed "${label}" for ${rightVersion.version}`, {
       description: "You can undo for 30 seconds.",
@@ -894,7 +908,7 @@ export function ContractResults({
       action: {
         label: "Undo",
         onClick: () => {
-          decisions.setClosure(supplierId, contractId, id, rightVersion.version, prev ?? "keep-open");
+          decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, prev ?? "keep-open");
           setRecentlyClosed((m) => { const n = { ...m }; delete n[id]; return n; });
         },
       },
@@ -908,7 +922,7 @@ export function ContractResults({
   };
   const undoClose = (id: string) => {
     if (!rightVersion) return;
-    decisions.setClosure(supplierId, contractId, id, rightVersion.version, "keep-open");
+    decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open");
     setRecentlyClosed((m) => { const n = { ...m }; delete n[id]; return n; });
   };
 
@@ -1088,6 +1102,30 @@ export function ContractResults({
     }
     setSearchParams(params, { replace: false });
   };
+  const toggleFirstAnalysisDemo = (enabled: boolean) => {
+    const params = new URLSearchParams(searchParams);
+    if (enabled) {
+      params.set("scenario", "first-analysis");
+      params.set("mode", "comparison");
+      params.delete("from");
+      params.delete("to");
+      params.delete("filter");
+      setFilter("all");
+      setQuickFilter(null);
+    } else {
+      params.delete("scenario");
+      if (availableVersions.length >= 2) {
+        const normalized = normalizeVersionComparisonPair(availableVersions, null);
+        params.set("mode", "comparison");
+        params.set("from", normalized.from);
+        params.set("to", normalized.to);
+        params.set("filter", "all");
+      }
+      setFilter("all");
+      setQuickFilter("open-items");
+    }
+    setSearchParams(params, { replace: false });
+  };
   const exportCurrentComparison = () => {
     if (!leftVersion || !rightVersion) return;
     const csv = exportContractCsv(
@@ -1138,6 +1176,55 @@ export function ContractResults({
       categoryPanel={categoryPanel}
     />
   );
+  const firstAnalysisVersion = latest ?? reviewVersion ?? v1;
+  const firstAnalysisVersionLabel = firstAnalysisVersion?.version ?? "v1";
+  const hasFirstAnalysisAction = (id: string) => {
+    const state = stateOf(id);
+    const decision = state.roundDecisions[firstAnalysisVersionLabel];
+    const request = state.requests[firstAnalysisVersionLabel];
+    const draft = state.draftRequests?.[firstAnalysisVersionLabel];
+    return Boolean(
+      decision === "no-action" ||
+        decision === "request-update" ||
+        request?.requestedChange?.trim() ||
+        draft?.requestedChange?.trim(),
+    );
+  };
+  const firstAnalysisCategoryClauses = firstAnalysisVersion
+    ? firstAnalysisVersion.clauses.filter((clause) => !activeCategory || clause.category === activeCategory)
+    : [];
+  const firstAnalysisVisibleClauses = firstAnalysisCategoryClauses.filter((clause) => {
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      if (
+        !clause.title.toLowerCase().includes(q) &&
+        !clause.category.toLowerCase().includes(q) &&
+        !clause.id.includes(q)
+      ) {
+        return false;
+      }
+    }
+    if (quickFilter === "need-action" && hasFirstAnalysisAction(clause.id)) return false;
+    if (severityQuickFilter && clause.severity !== severityQuickFilter) return false;
+    return true;
+  });
+  const firstAnalysisDistribution: DeviationDistribution = {
+    high: firstAnalysisCategoryClauses.filter((clause) => clause.severity === "high" && !clause.resolved).length,
+    medium: firstAnalysisCategoryClauses.filter((clause) => clause.severity === "medium" && !clause.resolved).length,
+    low: firstAnalysisCategoryClauses.filter((clause) => clause.severity === "low" && !clause.resolved).length,
+    clean: firstAnalysisCategoryClauses.filter((clause) => clause.resolved).length,
+  };
+  const firstAnalysisMetrics: FirstAnalysisMetrics = {
+    needReview: firstAnalysisCategoryClauses.filter((clause) => !hasFirstAnalysisAction(clause.id)).length,
+    requested: firstAnalysisCategoryClauses.filter((clause) => stateOf(clause.id).roundDecisions[firstAnalysisVersionLabel] === "request-update").length,
+    high: firstAnalysisDistribution.high,
+    medium: firstAnalysisDistribution.medium,
+    low: firstAnalysisDistribution.low,
+    totalClauses: firstAnalysisCategoryClauses.length,
+    score: firstAnalysisVersion?.overallScore ?? 0,
+    distribution: firstAnalysisDistribution,
+    versionLabel: firstAnalysisVersionLabel,
+  };
   const historyCategoryTotal = historyCategoryItems.reduce((sum, category) => sum + category.count, 0);
   const historyCategoryPanel = (
     <CategorySidebar
@@ -1177,6 +1264,19 @@ export function ContractResults({
       categoryRail={historyCategoryRail}
       categoryPanel={historyCategoryPanel}
       categoryStrip={historyCategoryStrip}
+      summaryRail={
+        leftVersion && rightVersion ? (
+          <ComparisonSummaryRail
+            panel={comparisonModel.panel}
+            stripStats={stripStats}
+            contractName={contract.name}
+            supplierName={supplier.name}
+            leftLabel={leftVersion.version}
+            rightLabel={rightVersion.version}
+            comparisonControl={<PairSelector versions={versions} pair={pair} onChange={setPair} compact />}
+          />
+        ) : null
+      }
       onOpenDetail={setDetailClauseId}
       highlightedId={highlightClauseId}
     />
@@ -1271,6 +1371,67 @@ export function ContractResults({
     quickFilter === "met" ||
     Boolean(severityQuickFilter);
   const showDesignUnmarkedSection = quickFilter === null || Boolean(severityQuickFilter);
+  const firstAnalysisActiveMetric: FirstAnalysisMetricKey | null =
+    quickFilter === "need-action" ||
+    quickFilter === "high" ||
+    quickFilter === "medium" ||
+    quickFilter === "low"
+      ? quickFilter
+      : quickFilter === null
+        ? "total"
+        : null;
+  const selectFirstAnalysisMetric = (metric: FirstAnalysisMetricKey) => {
+    if (metric === "total") {
+      setQuickFilter(null);
+      setFilter("all");
+      return;
+    }
+    toggleQuickFilter(metric);
+  };
+  const firstAnalysisReviewList = firstAnalysisVersion ? (
+    <ReviewScreen
+      version={firstAnalysisVersion}
+      stateOf={stateOf}
+      activeCategory={activeCategory}
+      search={search}
+      quickSeverityFilter={severityQuickFilter}
+      quickReviewFilter={quickFilter === "need-action" ? "need-review" : null}
+      onSetNoAction={(id) =>
+        decisions.changeDecision(supplierId, decisionContractId, id, firstAnalysisVersion.version, "no-action")
+      }
+      onStartDraft={(id, initialDraft) =>
+        decisions.startDraftRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version, initialDraft)
+      }
+      onUpdateDraft={(id, patch) =>
+        decisions.updateDraftRequestText(supplierId, decisionContractId, id, firstAnalysisVersion.version, patch)
+      }
+      onCancelDraft={(id) =>
+        decisions.cancelDraftRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version)
+      }
+      onSubmitDraft={(id) =>
+        decisions.submitDraftRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version)
+      }
+      onOpenDetail={(id) => setDetailClauseId(id)}
+      highlightedId={highlightClauseId}
+    />
+  ) : null;
+  const firstAnalysisDesignContent = firstAnalysisVersion && mode === "comparison" && versions.length < 2 ? (
+    <FirstAnalysisDesignOptions
+      option={designOption}
+      metrics={firstAnalysisMetrics}
+      clausesToReview={firstAnalysisReviewList}
+      visibleCount={firstAnalysisVisibleClauses.length}
+      categoryRail={categoryRail}
+      categoryPanel={categoryPanel}
+      categoryStrip={categoryStrip}
+      activeCategoryLabel={activeCategory}
+      onClearCategory={() => setActiveCategory(null)}
+      activeMetricLabel={activeMetricLabel}
+      onClearMetric={clearEvidenceMetric}
+      activeMetric={firstAnalysisActiveMetric}
+      onMetricSelect={selectFirstAnalysisMetric}
+    />
+  ) : null;
   const comparisonDesignContent = leftVersion && rightVersion && hasVersionComparison ? (
     <ComparisonDesignOptions
       option={designOption}
@@ -1314,20 +1475,20 @@ export function ContractResults({
             const prev = stateOf(id).closures[rightVersion.version];
             closeWithUndo(id, display?.title ?? id.toUpperCase(), prev);
           }}
-          onKeepOpen={(id) => decisions.setClosure(supplierId, contractId, id, rightVersion.version, "keep-open")}
+          onKeepOpen={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open")}
           onFollowUp={(id) =>
-            decisions.startDraftRequest(supplierId, contractId, id, rightVersion.version, {
+            decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version, {
               requestedChange: "",
               rationale: "",
             })
           }
-          onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, contractId, id, rightVersion.version, patch)}
-          onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, contractId, id, rightVersion.version)}
+          onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
+          onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
           onSubmitDraft={(id) => {
-            decisions.submitDraftRequest(supplierId, contractId, id, rightVersion.version);
-            decisions.setClosure(supplierId, contractId, id, rightVersion.version, "follow-up");
+            decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version);
+            decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "follow-up");
           }}
-          onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, contractId, id, rightVersion.version)}
+          onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
           onOpenDetail={setDetailClauseId}
           pinnedIds={pinnedClauseIds}
           onTogglePin={togglePin}
@@ -1351,12 +1512,12 @@ export function ContractResults({
           requestOf={(id) => stateOf(id).requests[rightVersion.version] ?? {}}
           basketRequestOf={(id) => stateOf(id).requests[rightVersion.version]}
           draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
-          onClose={(id) => decisions.setRoundDecision(supplierId, contractId, id, rightVersion.version, "no-action")}
-          onKeepOpen={(id) => decisions.startDraftRequest(supplierId, contractId, id, rightVersion.version)}
-          onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, contractId, id, rightVersion.version, patch)}
-          onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, contractId, id, rightVersion.version)}
-          onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, contractId, id, rightVersion.version)}
-          onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, contractId, id, rightVersion.version)}
+          onClose={(id) => decisions.setRoundDecision(supplierId, decisionContractId, id, rightVersion.version, "no-action")}
+          onKeepOpen={(id) => decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+          onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
+          onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+          onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+          onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
           onOpenDetail={setDetailClauseId}
           pinnedIds={pinnedClauseIds}
           onTogglePin={togglePin}
@@ -1379,8 +1540,8 @@ export function ContractResults({
             const latest = getLatestRequest(stateOf(id), leftVersion.version);
             return latest ? { ...latest.request, fromVersion: latest.version } : {};
           }}
-          onClose={(id) => decisions.setClosure(supplierId, contractId, id, rightVersion.version, "closed")}
-          onKeepOpen={(id) => decisions.setClosure(supplierId, contractId, id, rightVersion.version, "keep-open")}
+          onClose={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "closed")}
+          onKeepOpen={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open")}
           onOpenDetail={setDetailClauseId}
           pinnedIds={pinnedClauseIds}
           onTogglePin={togglePin}
@@ -1399,12 +1560,12 @@ export function ContractResults({
           isRequested={(id) => stateOf(id).roundDecisions[rightVersion.version] === "request-update"}
           decisionOf={(id) => stateOf(id).roundDecisions[rightVersion.version]}
           isDrafting={(id) => Boolean(stateOf(id).draftRequests?.[rightVersion.version])}
-          onRequestChange={(id) => decisions.startDraftRequest(supplierId, contractId, id, rightVersion.version)}
-          onSetNoAction={(id) => decisions.changeDecision(supplierId, contractId, id, rightVersion.version, "no-action")}
-          onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, contractId, id, rightVersion.version, patch)}
-          onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, contractId, id, rightVersion.version)}
-          onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, contractId, id, rightVersion.version)}
-          onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, contractId, id, rightVersion.version)}
+          onRequestChange={(id) => decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+          onSetNoAction={(id) => decisions.changeDecision(supplierId, decisionContractId, id, rightVersion.version, "no-action")}
+          onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
+          onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+          onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+          onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
           onOpenDetail={setDetailClauseId}
         />
       }
@@ -1430,29 +1591,10 @@ export function ContractResults({
             onExport={exportCurrentComparison}
             exportDisabled={versions.length < 2}
             onRunAnalysis={onRunAnalysisAgain ?? (() => setUploadOpen(true))}
+            firstAnalysisDemo={firstAnalysisDemo}
+            demoAvailable={availableVersions.length >= 2}
+            onFirstAnalysisDemoChange={toggleFirstAnalysisDemo}
           />
-          {mode === "comparison" && versions.length < 2 ? (
-            <ComparisonHeader
-              versions={versions}
-              pair={pair}
-              onPairChange={setPair}
-              hasVersionComparison={hasVersionComparison}
-              stripStats={stripStats}
-              panel={comparisonModel.panel}
-              movers={comparisonMovers}
-              onMoverSelect={setDetailClauseId}
-              onSeeMoreChanges={showMoreChanges}
-            />
-          ) : mode === "history" ? (
-            <HistoryHeader
-              versions={versions}
-              model={historyModel}
-              activeFilter={historyFilter}
-              activeSort={historySort}
-              onFilterChange={(next) => updateHistoryState({ filter: next })}
-              onSortChange={(next) => updateHistoryState({ sort: next })}
-            />
-          ) : null}
         </div>
       ) : (
         <>
@@ -1581,6 +1723,8 @@ export function ContractResults({
         historyDesignContent
       ) : comparisonDesignContent ? (
         comparisonDesignContent
+      ) : firstAnalysisDesignContent ? (
+        firstAnalysisDesignContent
       ) : (
         <div className="mx-auto grid max-w-[1600px] grid-cols-[240px_minmax(0,1fr)] gap-6 px-6 py-6">
           <CategorySidebar
@@ -1645,20 +1789,21 @@ export function ContractResults({
                 activeCategory={activeCategory}
                 search={search}
                 quickSeverityFilter={severityQuickFilter}
+                quickReviewFilter={quickFilter === "need-action" ? "need-review" : null}
                 onSetNoAction={(id) =>
-                  decisions.changeDecision(supplierId, contractId, id, (rightVersion ?? reviewVersion ?? v1).version, "no-action")
+                  decisions.changeDecision(supplierId, decisionContractId, id, (rightVersion ?? reviewVersion ?? v1).version, "no-action")
                 }
                 onStartDraft={(id, initialDraft) =>
-                  decisions.startDraftRequest(supplierId, contractId, id, (rightVersion ?? reviewVersion ?? v1).version, initialDraft)
+                  decisions.startDraftRequest(supplierId, decisionContractId, id, (rightVersion ?? reviewVersion ?? v1).version, initialDraft)
                 }
                 onUpdateDraft={(id, patch) =>
-                  decisions.updateDraftRequestText(supplierId, contractId, id, (rightVersion ?? reviewVersion ?? v1).version, patch)
+                  decisions.updateDraftRequestText(supplierId, decisionContractId, id, (rightVersion ?? reviewVersion ?? v1).version, patch)
                 }
                 onCancelDraft={(id) =>
-                  decisions.cancelDraftRequest(supplierId, contractId, id, (rightVersion ?? reviewVersion ?? v1).version)
+                  decisions.cancelDraftRequest(supplierId, decisionContractId, id, (rightVersion ?? reviewVersion ?? v1).version)
                 }
                 onSubmitDraft={(id) =>
-                  decisions.submitDraftRequest(supplierId, contractId, id, (rightVersion ?? reviewVersion ?? v1).version)
+                  decisions.submitDraftRequest(supplierId, decisionContractId, id, (rightVersion ?? reviewVersion ?? v1).version)
                 }
                 onOpenDetail={(id) => setDetailClauseId(id)}
                 highlightedId={highlightClauseId}
@@ -1687,20 +1832,20 @@ export function ContractResults({
                     const prev = stateOf(id).closures[rightVersion.version];
                     closeWithUndo(id, display?.title ?? id.toUpperCase(), prev);
                   }}
-                  onKeepOpen={(id) => decisions.setClosure(supplierId, contractId, id, rightVersion.version, "keep-open")}
+                  onKeepOpen={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open")}
                   onFollowUp={(id) =>
-                    decisions.startDraftRequest(supplierId, contractId, id, rightVersion.version, {
+                    decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version, {
                       requestedChange: "",
                       rationale: "",
                     })
                   }
-                  onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, contractId, id, rightVersion.version, patch)}
-                  onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, contractId, id, rightVersion.version)}
+                  onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
+                  onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
                   onSubmitDraft={(id) => {
-                    decisions.submitDraftRequest(supplierId, contractId, id, rightVersion.version);
-                    decisions.setClosure(supplierId, contractId, id, rightVersion.version, "follow-up");
+                    decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version);
+                    decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "follow-up");
                   }}
-                  onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, contractId, id, rightVersion.version)}
+                  onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
                   onOpenDetail={setDetailClauseId}
                   pinnedIds={pinnedClauseIds}
                   onTogglePin={togglePin}
@@ -1721,12 +1866,12 @@ export function ContractResults({
                   requestOf={(id) => stateOf(id).requests[rightVersion.version] ?? {}}
                   basketRequestOf={(id) => stateOf(id).requests[rightVersion.version]}
                   draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
-                  onClose={(id) => decisions.setRoundDecision(supplierId, contractId, id, rightVersion.version, "no-action")}
-                  onKeepOpen={(id) => decisions.startDraftRequest(supplierId, contractId, id, rightVersion.version)}
-                  onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, contractId, id, rightVersion.version, patch)}
-                  onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, contractId, id, rightVersion.version)}
-                  onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, contractId, id, rightVersion.version)}
-                  onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, contractId, id, rightVersion.version)}
+                  onClose={(id) => decisions.setRoundDecision(supplierId, decisionContractId, id, rightVersion.version, "no-action")}
+                  onKeepOpen={(id) => decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+                  onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
+                  onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+                  onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+                  onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
                   onOpenDetail={setDetailClauseId}
                   pinnedIds={pinnedClauseIds}
                   onTogglePin={togglePin}
@@ -1746,8 +1891,8 @@ export function ContractResults({
                     const latest = getLatestRequest(stateOf(id), leftVersion.version);
                     return latest ? { ...latest.request, fromVersion: latest.version } : {};
                   }}
-                  onClose={(id) => decisions.setClosure(supplierId, contractId, id, rightVersion.version, "closed")}
-                  onKeepOpen={(id) => decisions.setClosure(supplierId, contractId, id, rightVersion.version, "keep-open")}
+                  onClose={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "closed")}
+                  onKeepOpen={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open")}
                   onOpenDetail={setDetailClauseId}
                   pinnedIds={pinnedClauseIds}
                   onTogglePin={togglePin}
@@ -1763,12 +1908,12 @@ export function ContractResults({
                   isRequested={(id) => stateOf(id).roundDecisions[rightVersion.version] === "request-update"}
                   decisionOf={(id) => stateOf(id).roundDecisions[rightVersion.version]}
                   isDrafting={(id) => Boolean(stateOf(id).draftRequests?.[rightVersion.version])}
-                  onRequestChange={(id) => decisions.startDraftRequest(supplierId, contractId, id, rightVersion.version)}
-                  onSetNoAction={(id) => decisions.changeDecision(supplierId, contractId, id, rightVersion.version, "no-action")}
-                  onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, contractId, id, rightVersion.version, patch)}
-                  onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, contractId, id, rightVersion.version)}
-                  onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, contractId, id, rightVersion.version)}
-                  onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, contractId, id, rightVersion.version)}
+                  onRequestChange={(id) => decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+                  onSetNoAction={(id) => decisions.changeDecision(supplierId, decisionContractId, id, rightVersion.version, "no-action")}
+                  onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
+                  onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+                  onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+                  onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
                   onOpenDetail={setDetailClauseId}
                 />
               </div>
@@ -1807,14 +1952,14 @@ export function ContractResults({
             window.setTimeout(() => setHighlightClauseId((current) => (current === id ? null : current)), 2200);
           }}
           onCloseClause={(id) => {
-            decisions.setClosure(supplierId, contractId, id, rightVersion?.version ?? "v1", "closed");
+            decisions.setClosure(supplierId, decisionContractId, id, rightVersion?.version ?? "v1", "closed");
             setDetailClauseId(null);
           }}
           onKeepOpen={(id) =>
-            decisions.setClosure(supplierId, contractId, id, rightVersion?.version ?? "v1", "keep-open")
+            decisions.setClosure(supplierId, decisionContractId, id, rightVersion?.version ?? "v1", "keep-open")
           }
           onMarkNewIssue={(id) =>
-            decisions.setRoundDecision(supplierId, contractId, id, rightVersion?.version ?? "v1", "request-update")
+            decisions.setRoundDecision(supplierId, decisionContractId, id, rightVersion?.version ?? "v1", "request-update")
           }
         />
       )}
@@ -1824,11 +1969,11 @@ export function ContractResults({
         closedItems={closedBasketItems}
         supplierName={supplier.name}
         onEdit={(id) => setDetailClauseId(id)}
-        onRemove={(id) => rightVersion && decisions.removePendingRequest(supplierId, contractId, id, rightVersion.version)}
+        onRemove={(id) => activeRequestVersion && decisions.removePendingRequest(supplierId, decisionContractId, id, activeRequestVersion.version)}
         onViewClosed={(id) => setDetailClauseId(id)}
         onReopenClosed={(id) => {
           if (!rightVersion) return;
-          decisions.setClosure(supplierId, contractId, id, rightVersion.version, "keep-open");
+          decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open");
           setRecentlyClosed((current) => {
             const next = { ...current };
             delete next[id];
@@ -1840,8 +1985,8 @@ export function ContractResults({
           });
         }}
         onSubmit={() => {
-          if (!rightVersion) return;
-          decisions.submitPendingRequests(supplierId, contractId, rightVersion.version);
+          if (!activeRequestVersion) return;
+          decisions.submitPendingRequests(supplierId, decisionContractId, activeRequestVersion.version);
           toast({
             title: "Requests submitted",
             description: `${pendingRequestItems.length} request${pendingRequestItems.length === 1 ? "" : "s"} sent to ${supplier.name}.`,
@@ -1857,7 +2002,7 @@ export function ContractResults({
         initiativeRef={initiative.reference}
         supplierName={supplier.name}
         contractName={contract.name}
-        nextVersionLabel={`v${versions.length + 1}`}
+        nextVersionLabel={`v${availableVersions.length + 1}`}
         onConfirm={onUploadVersion}
       />
 
@@ -2044,18 +2189,24 @@ function ModeSwitcher({
   onExport,
   exportDisabled,
   onRunAnalysis,
+  firstAnalysisDemo,
+  demoAvailable,
+  onFirstAnalysisDemoChange,
 }: {
   mode: ClauseIqMode;
   onChange: (mode: ClauseIqMode) => void;
   onExport: () => void;
   exportDisabled: boolean;
   onRunAnalysis: () => void;
+  firstAnalysisDemo: boolean;
+  demoAvailable: boolean;
+  onFirstAnalysisDemoChange: (enabled: boolean) => void;
 }) {
   return (
     <div className="flex min-w-0 items-center gap-3 border-b border-[rgba(0,0,0,0.08)] bg-white px-3 py-1.5">
       <div className="inline-flex overflow-hidden rounded-md border border-border">
         {([
-          ["comparison", <IconArrowsDiff key="comparison-icon" size={13} stroke={1.8} />, "Comparison"],
+          ["comparison", <IconArrowsDiff key="comparison-icon" size={13} stroke={1.8} />, "Review"],
           ["history", <IconTimeline key="history-icon" size={13} stroke={1.8} />, "History"],
         ] as const).map(([value, icon, label]) => {
           const active = mode === value;
@@ -2074,6 +2225,28 @@ function ModeSwitcher({
           );
         })}
       </div>
+      {demoAvailable && (
+        <button
+          type="button"
+          aria-pressed={firstAnalysisDemo}
+          onClick={() => onFirstAnalysisDemoChange(!firstAnalysisDemo)}
+          className={cn(
+            "inline-flex h-7 shrink-0 items-center gap-2 rounded-md border px-2.5 text-[11px] font-medium transition-colors",
+            firstAnalysisDemo
+              ? "border-[#185FA5]/35 bg-[#E6F1FB] text-[#0C447C]"
+              : "border-border bg-white text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <span
+            className={cn(
+              "h-2 w-2 rounded-full",
+              firstAnalysisDemo ? "bg-[#185FA5]" : "bg-muted-foreground/40",
+            )}
+            aria-hidden
+          />
+          V1 analysis view
+        </button>
+      )}
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <Button size="sm" variant="outline" className="h-7 gap-1.5 px-3 text-xs" disabled={exportDisabled} onClick={onExport}>
           <Download className="h-3.5 w-3.5" /> Export
@@ -3418,18 +3591,20 @@ function CategorySidebar({
   return (
     <aside
       className={cn(
-        "overflow-y-auto rounded-lg border border-border bg-card p-2",
+        "overflow-y-auto",
         variant === "rail"
-          ? "sticky top-[178px] max-h-[calc(100vh-190px)] w-60 shrink-0 self-start"
+          ? "sticky top-[178px] max-h-[calc(100vh-190px)] w-60 shrink-0 self-start rounded-lg border border-border bg-card p-2"
           : "max-h-[540px] w-full",
       )}
     >
-      <p
-        tabIndex={0}
-        className="mb-1.5 rounded-md px-2 py-1 text-[9px] font-medium uppercase tracking-[0.04em] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-      >
-        Categories
-      </p>
+      {variant === "rail" && (
+        <p
+          tabIndex={0}
+          className="mb-1.5 rounded-md px-2 py-1 text-[9px] font-medium uppercase tracking-[0.04em] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+        >
+          Categories
+        </p>
+      )}
 
       <div
         role="radiogroup"
@@ -4313,6 +4488,7 @@ function ReviewScreen({
   activeCategory,
   search,
   quickSeverityFilter,
+  quickReviewFilter,
   onSetNoAction,
   onStartDraft,
   onUpdateDraft,
@@ -4326,6 +4502,7 @@ function ReviewScreen({
   activeCategory: string | null;
   search: string;
   quickSeverityFilter: "high" | "medium" | "low" | null;
+  quickReviewFilter?: "need-review" | null;
   onSetNoAction: (id: string) => void;
   onStartDraft: (id: string, initialDraft?: { requestedChange?: string; rationale?: string }) => void;
   onUpdateDraft: (id: string, patch: { requestedChange?: string; rationale?: string }) => void;
@@ -4335,13 +4512,22 @@ function ReviewScreen({
   highlightedId?: string | null;
 }) {
   const q = search.trim().toLowerCase();
+  const versionLabel = version.version;
   const rows = version.clauses.filter((c) => {
     if (activeCategory && c.category !== activeCategory) return false;
     if (quickSeverityFilter && c.severity !== quickSeverityFilter) return false;
     if (q && !c.title.toLowerCase().includes(q) && !c.category.toLowerCase().includes(q) && !c.id.includes(q)) return false;
+    if (quickReviewFilter === "need-review") {
+      const state = stateOf(c.id);
+      const decision = state.roundDecisions[versionLabel];
+      const request = state.requests[versionLabel];
+      const draft = state.draftRequests?.[versionLabel];
+      if (decision === "no-action" || decision === "request-update" || request?.requestedChange?.trim() || draft?.requestedChange?.trim()) {
+        return false;
+      }
+    }
     return true;
   });
-  const versionLabel = version.version;
   return (
     <div className="space-y-3">
       {rows.map((c) => {
@@ -5460,6 +5646,7 @@ function HistoryDesignContent({
   categoryRail,
   categoryPanel,
   categoryStrip,
+  summaryRail,
   onOpenDetail,
   highlightedId,
 }: {
@@ -5469,6 +5656,7 @@ function HistoryDesignContent({
   categoryRail: ReactNode;
   categoryPanel: ReactNode;
   categoryStrip: ReactNode;
+  summaryRail: ReactNode;
   onOpenDetail: (id: string) => void;
   highlightedId: string | null;
 }) {
@@ -5477,12 +5665,12 @@ function HistoryDesignContent({
   if (option === "side-by-side") {
     return (
       <div className="mx-auto grid w-full max-w-[1500px] gap-4 px-6 py-4 xl:grid-cols-[360px_minmax(0,1fr)] xl:items-start">
-        <aside className="xl:sticky xl:top-[160px] xl:max-h-[calc(100vh-180px)] xl:self-start xl:overflow-y-auto">
+        <aside className="self-start xl:sticky xl:top-[104px] xl:max-h-[calc(100vh-128px)] xl:overflow-y-auto">
           <section className="overflow-hidden rounded-lg border border-border bg-card">
             <HistoryRailTabs active={railTab} onChange={setRailTab} />
             <div className="p-3">
               {railTab === "summary" ? (
-                <HistorySummaryPanel versions={versions} model={model} compact />
+                summaryRail
               ) : (
                 categoryPanel
               )}
@@ -5497,35 +5685,6 @@ function HistoryDesignContent({
             highlightedId={highlightedId}
           />
         </div>
-      </div>
-    );
-  }
-
-  if (option === "document") {
-    return (
-      <div className="mx-auto w-full max-w-[1080px] space-y-4 px-6 py-4">
-        <section className="rounded-lg border border-border bg-card p-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">History readout</p>
-              <h2 className="mt-1 text-lg font-semibold tracking-tight text-foreground">Negotiation arc</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {versions.length} rounds · {versions[0]?.version ?? "v1"} through {versions.at(-1)?.version ?? "v1"}
-              </p>
-            </div>
-            <Badge variant="outline" className="rounded-full bg-white text-[10px]">
-              {model.filteredRows.length} visible
-            </Badge>
-          </div>
-          <HistorySummaryPanel versions={versions} model={model} />
-        </section>
-        {categoryStrip}
-        <HistoryReadoutCards
-          versions={versions}
-          rows={model.filteredRows}
-          onOpenDetail={onOpenDetail}
-          highlightedId={highlightedId}
-        />
       </div>
     );
   }
@@ -5602,74 +5761,6 @@ function HistorySummaryPanel({
           tone={model.stats.settledByRound3Pct >= 65 ? "success" : "danger"}
         />
       </div>
-    </div>
-  );
-}
-
-function HistoryReadoutCards({
-  versions,
-  rows,
-  onOpenDetail,
-  highlightedId,
-}: {
-  versions: ContractVersion[];
-  rows: HistoryRow[];
-  onOpenDetail: (id: string) => void;
-  highlightedId: string | null;
-}) {
-  if (rows.length === 0) {
-    return (
-      <div className="rounded-lg border border-border bg-card py-16 text-center text-[11px] italic text-muted-foreground">
-        No clauses match the current filters.
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      {rows.map((row) => (
-        <button
-          id={`history-row-${row.id}`}
-          key={row.id}
-          type="button"
-          onClick={() => onOpenDetail(row.id)}
-          className={cn(
-            "w-full rounded-lg border border-border bg-card p-4 text-left transition-colors hover:bg-[#f8f7f5]",
-            highlightedId === row.id && "border-[#185FA5]/40 bg-[#E6F1FB]/45",
-          )}
-        >
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-foreground">{row.title}</p>
-              <p className="mt-0.5 text-[10px] uppercase tracking-[0.04em] text-muted-foreground">
-                {row.id.toUpperCase()} · {row.category}
-              </p>
-            </div>
-            <div className="shrink-0">
-              {row.currentPill.status ? (
-                <ChangePillBadge result={row.currentPill} />
-              ) : (
-                <RoundStatusPill status={row.currentStatus}>{roundStatusLabel(row.currentStatus)}</RoundStatusPill>
-              )}
-            </div>
-          </div>
-          <div
-            className="mt-4 grid gap-2"
-            style={{ gridTemplateColumns: `repeat(${Math.max(1, versions.length)}, minmax(0, 1fr))` }}
-          >
-            {row.cells.map((cell, index) => (
-              <div key={`${row.id}-${cell.version}`} className="rounded-md border border-border bg-[#f8f7f5] p-2">
-                <p className="text-[9px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
-                  R{index + 1} · {cell.version}
-                </p>
-                <div className="mt-1">
-                  <RoundStatusPill status={cell.status}>{cell.label}</RoundStatusPill>
-                </div>
-              </div>
-            ))}
-          </div>
-        </button>
-      ))}
     </div>
   );
 }

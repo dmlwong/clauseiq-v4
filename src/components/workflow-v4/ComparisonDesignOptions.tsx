@@ -1,11 +1,11 @@
 import { useState, type ReactNode } from "react";
-import { ArrowRight, Columns3, FileText, LayoutTemplate } from "lucide-react";
+import { ArrowRight, Columns3 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { ComparisonStripStats, DeviationDistribution, VersionPanelData } from "@/lib/clauseiq-v3-comparison";
+import type { ComparisonStripStats, DeviationDistribution, VersionPanelData } from "@/lib/clauseiq-v4-comparison";
 
-export type ComparisonDesignOption = "evolved" | "side-by-side" | "document";
+export type ComparisonDesignOption = "evolved" | "side-by-side";
 export type EvidenceMetricKey =
   | "open-items"
   | "met"
@@ -16,6 +16,7 @@ export type EvidenceMetricKey =
   | "medium"
   | "low"
   | "total";
+export type FirstAnalysisMetricKey = Extract<EvidenceMetricKey, "need-action" | "high" | "medium" | "low" | "total">;
 
 export interface EvidenceMetricCounts {
   openItems: number;
@@ -29,10 +30,20 @@ export interface EvidenceMetricCounts {
   totalClauses: number;
 }
 
+export interface FirstAnalysisMetrics {
+  needReview: number;
+  requested: number;
+  high: number;
+  medium: number;
+  low: number;
+  totalClauses: number;
+  score: number;
+  distribution: DeviationDistribution;
+  versionLabel: string;
+}
+
 const designOptions: Array<{ value: ComparisonDesignOption; label: string; icon: ReactNode }> = [
-  { value: "evolved", label: "Option 1 · Evolved", icon: <LayoutTemplate className="h-3.5 w-3.5" /> },
   { value: "side-by-side", label: "Option 2 · Side-by-side", icon: <Columns3 className="h-3.5 w-3.5" /> },
-  { value: "document", label: "Option 3 · Readout", icon: <FileText className="h-3.5 w-3.5" /> },
 ];
 
 const distributionColours: Record<keyof DeviationDistribution, string> = {
@@ -137,7 +148,7 @@ export function ComparisonDesignOptions({
             <RightRailTabs active={rightRailTab} onChange={setRightRailTab} />
             <div className="p-3">
               {rightRailTab === "summary" ? (
-                <EvidencePanel
+                <ComparisonSummaryRail
                   panel={panel}
                   stripStats={stripStats}
                   contractName={contractName}
@@ -164,40 +175,6 @@ export function ComparisonDesignOptions({
             unmarkedClauses={unmarkedClauses}
           />
         </div>
-      </div>
-    );
-  }
-
-  if (option === "document") {
-    return (
-      <div id="comparison-work-column" className="mx-auto w-full max-w-[1080px] space-y-4 px-6 py-4">
-        <section className="rounded-lg border border-border bg-card p-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Contract comparison</p>
-              <div className="mt-2">{activeFilterBar}</div>
-            </div>
-            <div className="shrink-0">{comparisonControl}</div>
-          </div>
-          <div className="mt-5 grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-stretch">
-            <ScoreHero stripStats={stripStats} className="h-full" showDelta={false} showSentence={false} />
-            <VersionDistributionPair panel={panel} leftLabel={leftLabel} rightLabel={rightLabel} layout="hero" className="h-full" />
-          </div>
-          <NarrativeSummary
-            stripStats={stripStats}
-            className="mt-4"
-            activeMetric={activeEvidenceMetric}
-            onMetricSelect={onEvidenceMetricSelect}
-            metrics={evidenceMetrics}
-          />
-        </section>
-        {categoryStrip}
-        <WorkflowStack
-          openItems={openItems}
-          newChanges={newChanges}
-          closedItems={closedItems}
-          unmarkedClauses={unmarkedClauses}
-        />
       </div>
     );
   }
@@ -239,6 +216,98 @@ export function ComparisonDesignOptions({
   );
 }
 
+export function FirstAnalysisDesignOptions({
+  option,
+  metrics,
+  clausesToReview,
+  visibleCount,
+  categoryRail,
+  categoryPanel,
+  categoryStrip,
+  activeCategoryLabel,
+  onClearCategory,
+  activeMetricLabel,
+  onClearMetric,
+  activeMetric,
+  onMetricSelect,
+}: {
+  option: ComparisonDesignOption;
+  metrics: FirstAnalysisMetrics;
+  clausesToReview: ReactNode;
+  visibleCount: number;
+  categoryRail: ReactNode;
+  categoryPanel: ReactNode;
+  categoryStrip: ReactNode;
+  activeCategoryLabel?: string | null;
+  onClearCategory: () => void;
+  activeMetricLabel?: string | null;
+  onClearMetric: () => void;
+  activeMetric?: FirstAnalysisMetricKey | null;
+  onMetricSelect?: (metric: FirstAnalysisMetricKey) => void;
+}) {
+  const [rightRailTab, setRightRailTab] = useState<"summary" | "categories">("summary");
+  const activeFilterBar = (
+    <ActiveFilterBar
+      activeMetricLabel={activeMetricLabel}
+      onClearMetric={onClearMetric}
+      activeCategoryLabel={activeCategoryLabel}
+      onClearCategory={onClearCategory}
+    />
+  );
+
+  if (option === "side-by-side") {
+    return (
+      <div className="mx-auto grid w-full max-w-[1500px] gap-4 px-6 py-4 xl:grid-cols-[360px_minmax(0,1fr)] xl:items-start">
+        <aside className="xl:sticky xl:top-[100px] xl:max-h-[calc(100vh-180px)] xl:self-start xl:overflow-y-auto">
+          <section className="overflow-hidden rounded-lg border border-border bg-card">
+            <RightRailTabs active={rightRailTab} onChange={setRightRailTab} />
+            <div className="p-3">
+              {rightRailTab === "summary" ? (
+                <FirstAnalysisSummaryPanel
+                  metrics={metrics}
+                  activeMetric={activeMetric}
+                  onMetricSelect={onMetricSelect}
+                  compact
+                />
+              ) : (
+                categoryPanel
+              )}
+            </div>
+          </section>
+        </aside>
+        <div id="comparison-work-column" className="min-w-0 space-y-4">
+          {activeFilterBar}
+          <FirstAnalysisReviewShell visibleCount={visibleCount}>{clausesToReview}</FirstAnalysisReviewShell>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-[1500px] space-y-4 px-6 py-4">
+      <section className="grid items-stretch gap-4 xl:grid-cols-2">
+        <InitialAnalysisSummaryCard
+          metrics={metrics}
+          activeMetric={activeMetric}
+          onMetricSelect={onMetricSelect}
+        />
+        <CurrentRiskProfileCard metrics={metrics} />
+      </section>
+
+      <div className="min-[900px]:flex min-[900px]:items-start min-[900px]:gap-4">
+        <div className="hidden w-60 shrink-0 min-[900px]:block">
+          {categoryRail}
+        </div>
+        <div id="comparison-work-column" className="flex min-w-0 flex-1 flex-col gap-4">
+          <div className="min-[900px]:hidden">{categoryStrip}</div>
+          {activeFilterBar}
+          <FirstAnalysisReviewShell visibleCount={visibleCount}>{clausesToReview}</FirstAnalysisReviewShell>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ActiveFilterBar({
   activeMetricLabel,
   onClearMetric,
@@ -260,6 +329,128 @@ function ActiveFilterBar({
         <FilterChip label={`Category: ${activeCategoryLabel}`} onClear={onClearCategory} />
       )}
     </div>
+  );
+}
+
+function InitialAnalysisSummaryCard({
+  metrics,
+  activeMetric,
+  onMetricSelect,
+}: {
+  metrics: FirstAnalysisMetrics;
+  activeMetric?: FirstAnalysisMetricKey | null;
+  onMetricSelect?: (metric: FirstAnalysisMetricKey) => void;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-white p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          Initial analysis summary
+        </p>
+        {metrics.requested > 0 && (
+          <Badge variant="outline" className="rounded-full bg-white text-[10px]">
+            {metrics.requested} requested
+          </Badge>
+        )}
+      </div>
+      <p className="mt-2 text-sm leading-6 text-foreground">
+        ClauseIQ reviewed this contract for the first time. Review flagged clauses and add any requested changes to the basket.
+      </p>
+      <FirstAnalysisMetricGrid
+        metrics={metrics}
+        activeMetric={activeMetric}
+        onMetricSelect={onMetricSelect}
+        grouped
+      />
+    </div>
+  );
+}
+
+function CurrentRiskProfileCard({ metrics }: { metrics: FirstAnalysisMetrics }) {
+  return (
+    <div className="rounded-lg border border-border bg-white p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Current risk profile
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">Current analysis</p>
+        </div>
+        <Badge variant="outline" className="rounded-full bg-[#E6F1FB] text-[10px] text-[#185FA5]">
+          {metrics.versionLabel}
+        </Badge>
+      </div>
+      <DistributionSide
+        label="Current analysis"
+        score={metrics.score}
+        distribution={metrics.distribution}
+        current
+        large
+      />
+    </div>
+  );
+}
+
+function FirstAnalysisSummaryPanel({
+  metrics,
+  activeMetric,
+  onMetricSelect,
+  compact = false,
+}: {
+  metrics: FirstAnalysisMetrics;
+  activeMetric?: FirstAnalysisMetricKey | null;
+  onMetricSelect?: (metric: FirstAnalysisMetricKey) => void;
+  compact?: boolean;
+}) {
+  return (
+    <section className="rounded-none border-0 bg-card p-0">
+      <div className={cn("rounded-lg border border-border bg-[#f8f7f5] p-4", compact && "p-3")}>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Current analysis
+          </p>
+          <Badge variant="outline" className="rounded-full bg-white text-[10px]">
+            {metrics.versionLabel}
+          </Badge>
+        </div>
+        <div className="mt-1 flex items-end gap-2">
+          <span className="text-3xl font-semibold leading-none text-foreground">{metrics.score}</span>
+          <span className="pb-1 text-sm font-medium text-muted-foreground">score</span>
+        </div>
+        <DistributionBar distribution={metrics.distribution} className="mt-3" />
+      </div>
+      <FirstAnalysisMetricGrid
+        metrics={metrics}
+        activeMetric={activeMetric}
+        onMetricSelect={onMetricSelect}
+        density="rail"
+      />
+    </section>
+  );
+}
+
+function FirstAnalysisReviewShell({
+  visibleCount,
+  children,
+}: {
+  visibleCount: number;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-lg border border-border bg-white">
+      <div className="border-b border-border bg-[#f8f7f5] px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-semibold text-foreground">Clauses to review</p>
+          <Badge variant="outline" className="rounded-full bg-white text-[10px]">
+            {visibleCount}
+          </Badge>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Decide whether each flagged clause needs a requested change or no action.
+        </p>
+      </div>
+      <div className="p-3">{children}</div>
+    </section>
   );
 }
 
@@ -323,7 +514,7 @@ function WorkflowStack({
   );
 }
 
-function EvidencePanel({
+export function ComparisonSummaryRail({
   panel,
   stripStats,
   contractName: _contractName,
@@ -659,6 +850,79 @@ const metricDefinitions: Array<{
   { key: "low", label: "Low", value: "low", group: "risk" },
   { key: "total", label: "Total clauses", value: "totalClauses", group: "risk" },
 ];
+
+const firstAnalysisMetricDefinitions: Array<{
+  key: FirstAnalysisMetricKey;
+  label: string;
+  value: keyof Pick<FirstAnalysisMetrics, "needReview" | "high" | "medium" | "low" | "totalClauses">;
+  tone?: "success" | "warning" | "destructive";
+  group: "workflow" | "risk";
+}> = [
+  { key: "need-action", label: "Need review", value: "needReview", tone: "destructive", group: "workflow" },
+  { key: "high", label: "High", value: "high", tone: "destructive", group: "risk" },
+  { key: "medium", label: "Medium", value: "medium", tone: "warning", group: "risk" },
+  { key: "low", label: "Low", value: "low", group: "risk" },
+  { key: "total", label: "Total clauses", value: "totalClauses", group: "risk" },
+];
+
+function FirstAnalysisMetricGrid({
+  metrics,
+  activeMetric,
+  onMetricSelect,
+  density = "inline",
+  grouped = false,
+}: {
+  metrics: FirstAnalysisMetrics;
+  activeMetric?: FirstAnalysisMetricKey | null;
+  onMetricSelect?: (metric: FirstAnalysisMetricKey) => void;
+  density?: "inline" | "rail";
+  grouped?: boolean;
+}) {
+  const renderMetric = (definition: (typeof firstAnalysisMetricDefinitions)[number]) => (
+    <MetricCell
+      key={definition.key}
+      label={definition.label}
+      value={metrics[definition.value]}
+      tone={definition.tone}
+      active={activeMetric === definition.key || (definition.key === "total" && !activeMetric)}
+      onClick={onMetricSelect ? () => onMetricSelect(definition.key) : undefined}
+    />
+  );
+
+  if (grouped) {
+    return (
+      <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]">
+        <div className="rounded-lg border border-border/70 bg-white/60 p-2">
+          <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Workflow
+          </p>
+          <div className="grid gap-2 text-[11px]">
+            {firstAnalysisMetricDefinitions.filter((definition) => definition.group === "workflow").map(renderMetric)}
+          </div>
+        </div>
+        <div className="rounded-lg border border-border/70 bg-white/60 p-2">
+          <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Risk
+          </p>
+          <div className="grid grid-cols-2 gap-2 text-[11px]">
+            {firstAnalysisMetricDefinitions.filter((definition) => definition.group === "risk").map(renderMetric)}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "mt-4 grid gap-2 text-[11px]",
+        density === "rail" ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-5",
+      )}
+    >
+      {firstAnalysisMetricDefinitions.map(renderMetric)}
+    </div>
+  );
+}
 
 function MetricGrid({
   metrics,

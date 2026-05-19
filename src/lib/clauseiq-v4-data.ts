@@ -9,6 +9,19 @@ export interface CiqInitiative {
   scope: "mine" | "team";
 }
 
+export type CiqParameterKind = "Playbook" | "Category" | "Country";
+
+export interface CiqSelectedParameter {
+  kind: CiqParameterKind;
+  label: string;
+}
+
+export interface CiqParameterOption {
+  kind: CiqParameterKind;
+  label: string;
+  options: string[];
+}
+
 export const CIQ_INITIATIVES: CiqInitiative[] = [
   { id: "i1", name: "Fleet Telematics Refresh", sector: "Logistics", owner: "Sarah Chen", scope: "mine" },
   { id: "i2", name: "Field Engineer PPE Programme", sector: "Health & Safety", owner: "Sarah Chen", scope: "mine" },
@@ -19,6 +32,44 @@ export const CIQ_INITIATIVES: CiqInitiative[] = [
   { id: "i7", name: "Smart Meter Roll-out Phase 3", sector: "Metering", owner: "Aisha Rahman", scope: "team" },
   { id: "i8", name: "Highways Surfacing Framework", sector: "Civil Works", owner: "Tom Becker", scope: "team" },
   { id: "i9", name: "Cybersecurity Managed Services", sector: "Security", owner: "Sarah Chen", scope: "mine" },
+];
+
+export const CIQ_DEFAULT_PLAYBOOK = "Procurement_Playbook_Yorkshire_Water .pdf";
+
+export const CIQ_PARAMETER_OPTIONS: CiqParameterOption[] = [
+  {
+    kind: "Playbook",
+    label: "Playbook",
+    options: [
+      CIQ_DEFAULT_PLAYBOOK,
+      "Procurement_Playbook_Standard_v3.pdf",
+      "IT_Services_Playbook_2025.pdf",
+      "Construction_Contracts_Playbook.pdf",
+      "Professional_Services_Playbook.pdf",
+    ],
+  },
+  {
+    kind: "Category",
+    label: "Category",
+    options: [
+      "Goods",
+      "Services",
+      "Construction",
+      "Professional Services",
+      "IT & Technology",
+    ],
+  },
+  {
+    kind: "Country",
+    label: "Country",
+    options: [
+      "United Kingdom",
+      "United States",
+      "Germany",
+      "France",
+      "Singapore",
+    ],
+  },
 ];
 
 export const PLAYBOOK_SCOPE_DISCLAIMER =

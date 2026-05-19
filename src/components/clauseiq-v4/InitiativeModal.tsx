@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Search, X } from "lucide-react";
+import { Search } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -29,9 +29,6 @@ export function InitiativeModal({ open, onClose, onSelect }: Props) {
       <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-4 flex-row items-center justify-between space-y-0">
           <DialogTitle className="text-lg font-semibold">Select An Initiative</DialogTitle>
-          <button onClick={onClose} aria-label="Close" className="text-muted-foreground hover:text-foreground transition-colors">
-            <X className="h-4 w-4" />
-          </button>
         </DialogHeader>
         <div className="px-6 pb-2">
           <Tabs value={tab} onValueChange={(v) => setTab(v as "mine" | "team")}>

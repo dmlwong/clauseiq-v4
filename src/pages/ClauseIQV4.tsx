@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Sparkles, Search, Check, Pencil, UploadCloud, FileText, Loader2,
@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import { V4Shell } from "@/components/clauseiq-v4/V4Shell";
+import { V4InitiativeLinkButton } from "@/components/clauseiq-v4/V4InitiativeLinkButton";
 import { StateCard, type CardState } from "@/components/clauseiq-v4/StateCard";
 import { InitiativeModal } from "@/components/clauseiq-v4/InitiativeModal";
 import {
@@ -22,6 +23,7 @@ import {
 } from "@/lib/clauseiq-v4-data";
 import { cn } from "@/lib/utils";
 import { mockInitiative } from "@/data/mock-clauseiq";
+import { V4_DELIVERY_INITIATIVE_ID } from "@/data/mock-delivery-engine-v4";
 import {
   ResultsContent,
 } from "@/components/clauseiq-v4/supplier-results";
@@ -36,6 +38,7 @@ export default function ClauseIQV4() {
   const [searchParams] = useSearchParams();
   const resultsFromRoute = searchParams.get("view") === "results";
   const rerunUploadFromRoute = resultsFromRoute && searchParams.get("rerun") === "upload";
+  const currentRoute = `${window.location.pathname}${window.location.search}`;
   const defaultCompletedInitiative =
     CIQ_INITIATIVES.find((item) => item.name === "Network Edge Hardware") ?? CIQ_INITIATIVES[0];
   const [step, setStep] = useState<Step>(resultsFromRoute ? "results" : "welcome");
@@ -58,6 +61,13 @@ export default function ClauseIQV4() {
   const rerunUploadRef = useRef<HTMLDivElement>(null);
   const processingRef = useRef<HTMLDivElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
+  const latestOutputRef = useRef<HTMLDivElement>(null);
+
+  const scrollLatestOutputIntoView = useCallback((delay = 120) => {
+    window.setTimeout(() => {
+      latestOutputRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }, delay);
+  }, []);
 
   useEffect(() => {
     if (!resultsFromRoute) return;
@@ -66,18 +76,27 @@ export default function ClauseIQV4() {
     setStep("results");
     if (rerunUploadFromRoute) {
       setRerunUploadVisible(true);
-      setTimeout(() => rerunUploadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+      scrollLatestOutputIntoView(160);
     }
-  }, [defaultCompletedInitiative, rerunUploadFromRoute, resultsFromRoute]);
+  }, [defaultCompletedInitiative, rerunUploadFromRoute, resultsFromRoute, scrollLatestOutputIntoView]);
 
   // Auto-scroll the active card into view
   useEffect(() => {
     const map: Partial<Record<Step, RefObject<HTMLDivElement>>> = {
       select: selectRef, parameters: parametersRef, upload: uploadRef, processing: processingRef, results: resultRef,
     };
+    if (step === "results") {
+      scrollLatestOutputIntoView(140);
+      return;
+    }
     const el = map[step]?.current;
     if (el) setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
-  }, [step]);
+  }, [scrollLatestOutputIntoView, step]);
+
+  useEffect(() => {
+    if (step !== "results") return;
+    scrollLatestOutputIntoView(140);
+  }, [rerunProcessing, rerunUploadVisible, scrollLatestOutputIntoView, step]);
 
   // Simulated processing
   useEffect(() => {
@@ -175,11 +194,17 @@ export default function ClauseIQV4() {
       title="ClauseIQ"
       subtitle="AI tool for detailed contract analyses"
       headerRight={
-        !resultsVisible ? (
+        resultsVisible ? (
+          <V4InitiativeLinkButton
+            onClick={() => {
+              navigate(`/delivery-engine-v4/${V4_DELIVERY_INITIATIVE_ID}?return=${encodeURIComponent(currentRoute)}`);
+            }}
+          />
+        ) : (
           <div className="h-9 w-9 rounded-lg bg-primary text-primary-foreground grid place-items-center">
             <Sparkles className="h-4 w-4" />
           </div>
-        ) : undefined
+        )
       }
     >
       <div
@@ -410,6 +435,7 @@ export default function ClauseIQV4() {
                     </p>
                   </StateCard>
                 )}
+                <div ref={latestOutputRef} aria-hidden="true" />
               </div>
             )}
           </div>

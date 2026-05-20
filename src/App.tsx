@@ -18,6 +18,7 @@ import PrototypeTimeline from "./pages/PrototypeTimeline.tsx";
 import PrototypeDetail from "./pages/PrototypeDetail.tsx";
 import DeliveryEnginePage from "./pages/delivery-engine/DeliveryEnginePage.tsx";
 import InitiativeDetailPage from "./pages/delivery-engine/InitiativeDetailPage.tsx";
+import InitiativeDetailPageV4 from "./pages/delivery-engine-v4/InitiativeDetailPageV4.tsx";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
           <Route path="/initiatives-v4" element={<IndexV4 />} />
           <Route path="/delivery-engine" element={<DeliveryEnginePage />} />
           <Route path="/delivery-engine/:id" element={<InitiativeDetailPage />} />
+          <Route path="/delivery-engine-v4/:id" element={<InitiativeDetailPageV4 />} />
           <Route path="/clauseiq-v2" element={<ClauseIQV2 />} />
           <Route path="/clauseiq-v3" element={<ClauseIQV3 />} />
           <Route path="/clauseiq-v4" element={<ClauseIQV4 />} />

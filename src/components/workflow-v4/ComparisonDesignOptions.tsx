@@ -16,7 +16,7 @@ export type EvidenceMetricKey =
   | "medium"
   | "low"
   | "total";
-export type FirstAnalysisMetricKey = Extract<EvidenceMetricKey, "need-action" | "high" | "medium" | "low" | "total">;
+export type FirstAnalysisMetricKey = "high" | "medium" | "low" | "missing";
 
 export interface EvidenceMetricCounts {
   openItems: number;
@@ -36,7 +36,7 @@ export interface FirstAnalysisMetrics {
   high: number;
   medium: number;
   low: number;
-  totalClauses: number;
+  missingClauses: number;
   score: number;
   distribution: DeviationDistribution;
   versionLabel: string;
@@ -100,7 +100,9 @@ export function ComparisonDesignOptions({
   categoryPanel,
   categoryStrip,
   activeCategoryLabel,
+  activeCategoryLabels,
   onClearCategory,
+  onClearCategoryFilter,
   activeMetricLabel,
   onClearMetric,
   activeEvidenceMetric,
@@ -123,22 +125,27 @@ export function ComparisonDesignOptions({
   categoryPanel: ReactNode;
   categoryStrip: ReactNode;
   activeCategoryLabel?: string | null;
+  activeCategoryLabels?: string[];
   onClearCategory: () => void;
+  onClearCategoryFilter?: (category: string) => void;
   activeMetricLabel?: string | null;
-  onClearMetric: () => void;
+  onClearMetric?: () => void;
   activeEvidenceMetric?: EvidenceMetricKey | null;
   onEvidenceMetricSelect?: (metric: EvidenceMetricKey) => void;
   evidenceMetrics?: EvidenceMetricCounts;
 }) {
   const [rightRailTab, setRightRailTab] = useState<"summary" | "categories">("summary");
-  const activeFilterBar = (
+  const categoryLabels = activeCategoryLabels ?? (activeCategoryLabel ? [activeCategoryLabel] : []);
+  const hasActiveFilters = Boolean(activeMetricLabel || categoryLabels.length > 0);
+  const activeFilterChips = hasActiveFilters ? (
     <ActiveFilterBar
       activeMetricLabel={activeMetricLabel}
       onClearMetric={onClearMetric}
-      activeCategoryLabel={activeCategoryLabel}
+      activeCategoryLabels={categoryLabels}
       onClearCategory={onClearCategory}
+      onClearCategoryFilter={onClearCategoryFilter}
     />
-  );
+  ) : null;
 
   if (option === "side-by-side") {
     return (
@@ -159,15 +166,15 @@ export function ComparisonDesignOptions({
                   activeMetric={activeEvidenceMetric}
                   onMetricSelect={onEvidenceMetricSelect}
                   metrics={evidenceMetrics}
+                  activeFilterChips={activeFilterChips}
                 />
               ) : (
-                categoryPanel
+                <SidebarFiltersPanel activeFilterChips={activeFilterChips}>{categoryPanel}</SidebarFiltersPanel>
               )}
             </div>
           </section>
         </aside>
         <div id="comparison-work-column" className="min-w-0 space-y-4">
-          {activeFilterBar}
           <WorkflowStack
             openItems={openItems}
             newChanges={newChanges}
@@ -188,6 +195,7 @@ export function ComparisonDesignOptions({
           onMetricSelect={onEvidenceMetricSelect}
           metrics={evidenceMetrics}
           grouped
+          activeFilterChips={activeFilterChips}
         />
         <VersionMovementCard
           panel={panel}
@@ -199,11 +207,10 @@ export function ComparisonDesignOptions({
 
       <div className="min-[900px]:flex min-[900px]:items-start min-[900px]:gap-4">
         <div className="hidden w-60 shrink-0 min-[900px]:block">
-          {categoryRail}
+          <SidebarFiltersPanel activeFilterChips={activeFilterChips}>{categoryRail}</SidebarFiltersPanel>
         </div>
         <div id="comparison-work-column" className="flex min-w-0 flex-1 flex-col gap-4">
           <div className="min-[900px]:hidden">{categoryStrip}</div>
-          {activeFilterBar}
           <WorkflowStack
             openItems={openItems}
             newChanges={newChanges}
@@ -225,10 +232,13 @@ export function FirstAnalysisDesignOptions({
   categoryPanel,
   categoryStrip,
   activeCategoryLabel,
+  activeCategoryLabels,
   onClearCategory,
-  activeMetricLabel,
+  onClearCategoryFilter,
+  activeMetricLabels,
   onClearMetric,
-  activeMetric,
+  onClearAllMetrics,
+  activeMetrics,
   onMetricSelect,
 }: {
   option: ComparisonDesignOption;
@@ -239,21 +249,32 @@ export function FirstAnalysisDesignOptions({
   categoryPanel: ReactNode;
   categoryStrip: ReactNode;
   activeCategoryLabel?: string | null;
+  activeCategoryLabels?: string[];
   onClearCategory: () => void;
-  activeMetricLabel?: string | null;
-  onClearMetric: () => void;
-  activeMetric?: FirstAnalysisMetricKey | null;
+  onClearCategoryFilter?: (category: string) => void;
+  activeMetricLabels?: Array<{ key: FirstAnalysisMetricKey; label: string }>;
+  onClearMetric: (metric: FirstAnalysisMetricKey) => void;
+  onClearAllMetrics: () => void;
+  activeMetrics?: FirstAnalysisMetricKey[];
   onMetricSelect?: (metric: FirstAnalysisMetricKey) => void;
 }) {
   const [rightRailTab, setRightRailTab] = useState<"summary" | "categories">("summary");
-  const activeFilterBar = (
+  const categoryLabels = activeCategoryLabels ?? (activeCategoryLabel ? [activeCategoryLabel] : []);
+  const hasActiveFilters = Boolean(categoryLabels.length > 0 || (activeMetricLabels?.length ?? 0) > 0);
+  const clearAllActiveFilters = () => {
+    onClearAllMetrics();
+    if (categoryLabels.length > 0) onClearCategory();
+  };
+  const activeFilterChips = hasActiveFilters ? (
     <ActiveFilterBar
-      activeMetricLabel={activeMetricLabel}
-      onClearMetric={onClearMetric}
-      activeCategoryLabel={activeCategoryLabel}
+      metricFilters={activeMetricLabels ?? []}
+      onClearMetricFilter={onClearMetric}
+      onClearAllMetrics={clearAllActiveFilters}
+      activeCategoryLabels={categoryLabels}
       onClearCategory={onClearCategory}
+      onClearCategoryFilter={onClearCategoryFilter}
     />
-  );
+  ) : null;
 
   if (option === "side-by-side") {
     return (
@@ -265,18 +286,18 @@ export function FirstAnalysisDesignOptions({
               {rightRailTab === "summary" ? (
                 <FirstAnalysisSummaryPanel
                   metrics={metrics}
-                  activeMetric={activeMetric}
+                  activeMetrics={activeMetrics}
                   onMetricSelect={onMetricSelect}
+                  activeFilterChips={activeFilterChips}
                   compact
                 />
               ) : (
-                categoryPanel
+                <SidebarFiltersPanel activeFilterChips={activeFilterChips}>{categoryPanel}</SidebarFiltersPanel>
               )}
             </div>
           </section>
         </aside>
         <div id="comparison-work-column" className="min-w-0 space-y-4">
-          {activeFilterBar}
           <FirstAnalysisReviewShell visibleCount={visibleCount}>{clausesToReview}</FirstAnalysisReviewShell>
         </div>
       </div>
@@ -288,19 +309,19 @@ export function FirstAnalysisDesignOptions({
       <section className="grid items-stretch gap-4 xl:grid-cols-2">
         <InitialAnalysisSummaryCard
           metrics={metrics}
-          activeMetric={activeMetric}
+          activeMetrics={activeMetrics}
           onMetricSelect={onMetricSelect}
+          activeFilterChips={activeFilterChips}
         />
         <CurrentRiskProfileCard metrics={metrics} />
       </section>
 
       <div className="min-[900px]:flex min-[900px]:items-start min-[900px]:gap-4">
         <div className="hidden w-60 shrink-0 min-[900px]:block">
-          {categoryRail}
+          <SidebarFiltersPanel activeFilterChips={activeFilterChips}>{categoryRail}</SidebarFiltersPanel>
         </div>
         <div id="comparison-work-column" className="flex min-w-0 flex-1 flex-col gap-4">
           <div className="min-[900px]:hidden">{categoryStrip}</div>
-          {activeFilterBar}
           <FirstAnalysisReviewShell visibleCount={visibleCount}>{clausesToReview}</FirstAnalysisReviewShell>
         </div>
       </div>
@@ -311,41 +332,104 @@ export function FirstAnalysisDesignOptions({
 function ActiveFilterBar({
   activeMetricLabel,
   onClearMetric,
+  metricFilters = [],
+  onClearMetricFilter,
+  onClearAllMetrics,
   activeCategoryLabel,
+  activeCategoryLabels,
   onClearCategory,
+  onClearCategoryFilter,
 }: {
   activeMetricLabel?: string | null;
-  onClearMetric: () => void;
+  onClearMetric?: () => void;
+  metricFilters?: Array<{ key: FirstAnalysisMetricKey; label: string }>;
+  onClearMetricFilter?: (metric: FirstAnalysisMetricKey) => void;
+  onClearAllMetrics?: () => void;
   activeCategoryLabel?: string | null;
+  activeCategoryLabels?: string[];
   onClearCategory: () => void;
+  onClearCategoryFilter?: (category: string) => void;
 }) {
-  if (!activeMetricLabel && !activeCategoryLabel) return null;
+  const categoryLabels = activeCategoryLabels ?? (activeCategoryLabel ? [activeCategoryLabel] : []);
+  const filterCount = (activeMetricLabel ? 1 : 0) + metricFilters.length + categoryLabels.length;
+  if (filterCount === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {activeMetricLabel && (
+      {activeMetricLabel && onClearMetric && (
         <FilterChip label={`Filter: ${activeMetricLabel}`} onClear={onClearMetric} />
       )}
-      {activeCategoryLabel && (
-        <FilterChip label={`Category: ${activeCategoryLabel}`} onClear={onClearCategory} />
+      {metricFilters.map((filter) => (
+        <FilterChip
+          key={filter.key}
+          label={`Filter: ${filter.label}`}
+          onClear={() => onClearMetricFilter?.(filter.key)}
+        />
+      ))}
+      {categoryLabels.map((label) => (
+        <FilterChip
+          key={label}
+          label={`Category: ${label}`}
+          onClear={() => (onClearCategoryFilter ? onClearCategoryFilter(label) : onClearCategory())}
+        />
+      ))}
+      {filterCount > 1 && onClearAllMetrics && (
+        <button
+          type="button"
+          onClick={onClearAllMetrics}
+          className="rounded-full border border-border bg-white px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:border-[#185FA5]/40 hover:bg-[#E6F1FB] hover:text-[#185FA5]"
+        >
+          Clear All
+        </button>
       )}
+    </div>
+  );
+}
+
+function SidebarFiltersPanel({
+  children,
+  activeFilterChips,
+}: {
+  children: ReactNode;
+  activeFilterChips?: ReactNode;
+}) {
+  return (
+    <div className="space-y-3">
+      {children}
+      <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>
+    </div>
+  );
+}
+
+function ActiveFiltersSection({ children }: { children?: ReactNode }) {
+  if (!children) return null;
+  return (
+    <div className="border-t border-border pt-3">
+      <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        Active filters
+      </p>
+      {children}
     </div>
   );
 }
 
 function InitialAnalysisSummaryCard({
   metrics,
-  activeMetric,
+  activeMetrics,
   onMetricSelect,
+  activeFilterChips,
 }: {
   metrics: FirstAnalysisMetrics;
-  activeMetric?: FirstAnalysisMetricKey | null;
+  activeMetrics?: FirstAnalysisMetricKey[];
   onMetricSelect?: (metric: FirstAnalysisMetricKey) => void;
+  activeFilterChips?: ReactNode;
 }) {
+  const analysisLabel = `${metrics.versionLabel.toUpperCase()} Analysis`;
+
   return (
     <div className="rounded-lg border border-border bg-white p-4">
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-          Initial analysis summary
+          {analysisLabel} summary
         </p>
         {metrics.requested > 0 && (
           <Badge variant="outline" className="rounded-full bg-white text-[10px]">
@@ -358,15 +442,18 @@ function InitialAnalysisSummaryCard({
       </p>
       <FirstAnalysisMetricGrid
         metrics={metrics}
-        activeMetric={activeMetric}
+        activeMetrics={activeMetrics}
         onMetricSelect={onMetricSelect}
         grouped
       />
+      <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>
     </div>
   );
 }
 
 function CurrentRiskProfileCard({ metrics }: { metrics: FirstAnalysisMetrics }) {
+  const analysisLabel = `${metrics.versionLabel.toUpperCase()} Analysis`;
+
   return (
     <div className="rounded-lg border border-border bg-white p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
@@ -374,14 +461,14 @@ function CurrentRiskProfileCard({ metrics }: { metrics: FirstAnalysisMetrics }) 
           <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Current risk profile
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">Current analysis</p>
+          <p className="mt-1 text-xs text-muted-foreground">{analysisLabel}</p>
         </div>
         <Badge variant="outline" className="rounded-full bg-[#E6F1FB] text-[10px] text-[#185FA5]">
           {metrics.versionLabel}
         </Badge>
       </div>
       <DistributionSide
-        label="Current analysis"
+        label={analysisLabel}
         score={metrics.score}
         distribution={metrics.distribution}
         current
@@ -393,21 +480,25 @@ function CurrentRiskProfileCard({ metrics }: { metrics: FirstAnalysisMetrics }) 
 
 function FirstAnalysisSummaryPanel({
   metrics,
-  activeMetric,
+  activeMetrics,
   onMetricSelect,
+  activeFilterChips,
   compact = false,
 }: {
   metrics: FirstAnalysisMetrics;
-  activeMetric?: FirstAnalysisMetricKey | null;
+  activeMetrics?: FirstAnalysisMetricKey[];
   onMetricSelect?: (metric: FirstAnalysisMetricKey) => void;
+  activeFilterChips?: ReactNode;
   compact?: boolean;
 }) {
+  const analysisLabel = `${metrics.versionLabel.toUpperCase()} Analysis`;
+
   return (
     <section className="rounded-none border-0 bg-card p-0">
       <div className={cn("rounded-lg border border-border bg-[#f8f7f5] p-4", compact && "p-3")}>
         <div className="flex items-center justify-between gap-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Current analysis
+            {analysisLabel}
           </p>
           <Badge variant="outline" className="rounded-full bg-white text-[10px]">
             {metrics.versionLabel}
@@ -421,10 +512,11 @@ function FirstAnalysisSummaryPanel({
       </div>
       <FirstAnalysisMetricGrid
         metrics={metrics}
-        activeMetric={activeMetric}
+        activeMetrics={activeMetrics}
         onMetricSelect={onMetricSelect}
         density="rail"
       />
+      <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>
     </section>
   );
 }
@@ -525,6 +617,7 @@ export function ComparisonSummaryRail({
   activeMetric,
   onMetricSelect,
   metrics,
+  activeFilterChips,
 }: {
   panel: VersionPanelData;
   stripStats: ComparisonStripStats;
@@ -536,6 +629,7 @@ export function ComparisonSummaryRail({
   activeMetric?: EvidenceMetricKey | null;
   onMetricSelect?: (metric: EvidenceMetricKey) => void;
   metrics?: EvidenceMetricCounts;
+  activeFilterChips?: ReactNode;
 }) {
   const { contract, comparison, actions } = stripStats;
   const metricCounts = metrics ?? {
@@ -552,7 +646,13 @@ export function ComparisonSummaryRail({
   return (
     <section className="rounded-none border-0 bg-card p-0">
       <div>
-        <ScoreHero stripStats={stripStats} compact currentLabel={`Current ${rightLabel}`} />
+        <ScoreHero
+          stripStats={stripStats}
+          panel={panel}
+          leftLabel={leftLabel}
+          rightLabel={rightLabel}
+          compact
+        />
       </div>
       <MetricGrid
         metrics={metricCounts}
@@ -560,6 +660,7 @@ export function ComparisonSummaryRail({
         onMetricSelect={onMetricSelect}
         density="rail"
       />
+      <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>
       <div className="mt-4">
         {comparisonControl && <div className="mb-3">{comparisonControl}</div>}
         <VersionDistributionPair panel={panel} leftLabel={leftLabel} rightLabel={rightLabel} layout="rail" />
@@ -570,41 +671,81 @@ export function ComparisonSummaryRail({
 
 function ScoreHero({
   stripStats,
+  panel,
+  leftLabel,
+  rightLabel,
   compact = false,
   className,
-  showDelta = true,
   showSentence = true,
-  currentLabel,
 }: {
   stripStats: ComparisonStripStats;
+  panel: VersionPanelData;
+  leftLabel: string;
+  rightLabel: string;
   compact?: boolean;
   className?: string;
-  showDelta?: boolean;
   showSentence?: boolean;
-  currentLabel?: string;
 }) {
-  const { contract, comparison } = stripStats;
+  const { comparison } = stripStats;
+  const previous = panel.previous ?? {
+    version: leftLabel,
+    score: panel.current.score - panel.delta,
+    band: panel.current.band,
+  };
   return (
     <div className={cn("rounded-lg border border-border bg-[#f8f7f5] p-4", compact && "p-3", className)}>
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Current score</p>
-        {currentLabel && <Badge variant="outline" className="rounded-full bg-white text-[10px]">{currentLabel}</Badge>}
+        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Score movement</p>
+        <Badge variant="outline" className="rounded-full bg-white text-[10px]">Current {rightLabel}</Badge>
       </div>
-      <div className="mt-1 flex items-end gap-2">
-        <span className={cn("font-semibold leading-none text-foreground", compact ? "text-3xl" : "text-5xl")}>{contract.score}</span>
-        <span className="pb-1 text-sm font-medium text-muted-foreground">{contract.band}</span>
-        {showDelta && (
-          <span className={cn("mb-1 rounded-full px-2 py-0.5 text-[10px] font-medium", comparison.scoreDelta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
-            vs prior {comparison.scoreDelta >= 0 ? "+" : ""}
-            {comparison.scoreDelta} pts
+      <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-2">
+        <ScoreSnapshot label={leftLabel} score={previous.score} band={previous.band} />
+        <div className="flex min-w-10 flex-col items-center justify-center gap-1 text-muted-foreground">
+          <ArrowRight className="h-4 w-4" />
+          <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
+            {panel.delta >= 0 ? "+" : ""}
+            {panel.delta} pts
           </span>
-        )}
+        </div>
+        <ScoreSnapshot label={rightLabel} score={panel.current.score} band={panel.current.band} current />
       </div>
       {showSentence && (
         <p className="mt-2 text-xs text-muted-foreground">
           {comparison.met} of {comparison.requestedTotal} requested changes met.
         </p>
       )}
+    </div>
+  );
+}
+
+function ScoreSnapshot({
+  label,
+  score,
+  band,
+  current = false,
+}: {
+  label: string;
+  score: number;
+  band: string;
+  current?: boolean;
+}) {
+  return (
+    <div className={cn(
+      "min-w-0 rounded-md border border-border bg-white p-2",
+      current && "border-[#185FA5]/30 bg-[#E6F1FB]/55",
+    )}>
+      <div className="flex items-center gap-1.5">
+        <span className="truncate text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
+        {current && (
+          <span className="rounded-full bg-[#185FA5] px-1.5 py-0.5 text-[8px] font-semibold uppercase text-white">
+            Current
+          </span>
+        )}
+      </div>
+      <div className="mt-1 flex items-end gap-1.5">
+        <span className="text-2xl font-semibold leading-none text-foreground">{score}</span>
+        <span className="pb-0.5 text-xs font-medium text-muted-foreground">{band}</span>
+      </div>
     </div>
   );
 }
@@ -782,6 +923,7 @@ function NarrativeSummary({
   activeMetric,
   onMetricSelect,
   metrics,
+  activeFilterChips,
   grouped = false,
 }: {
   stripStats: ComparisonStripStats;
@@ -789,6 +931,7 @@ function NarrativeSummary({
   activeMetric?: EvidenceMetricKey | null;
   onMetricSelect?: (metric: EvidenceMetricKey) => void;
   metrics?: EvidenceMetricCounts;
+  activeFilterChips?: ReactNode;
   grouped?: boolean;
 }) {
   const { contract, comparison, actions } = stripStats;
@@ -819,6 +962,7 @@ function NarrativeSummary({
         density="inline"
         grouped={grouped}
       />
+      <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>
     </div>
   );
 }
@@ -854,42 +998,56 @@ const metricDefinitions: Array<{
 const firstAnalysisMetricDefinitions: Array<{
   key: FirstAnalysisMetricKey;
   label: string;
-  value: keyof Pick<FirstAnalysisMetrics, "needReview" | "high" | "medium" | "low" | "totalClauses">;
+  value: keyof Pick<FirstAnalysisMetrics, "high" | "medium" | "low" | "missingClauses">;
   tone?: "success" | "warning" | "destructive";
   group: "workflow" | "risk";
 }> = [
-  { key: "need-action", label: "Need review", value: "needReview", tone: "destructive", group: "workflow" },
   { key: "high", label: "High", value: "high", tone: "destructive", group: "risk" },
   { key: "medium", label: "Medium", value: "medium", tone: "warning", group: "risk" },
   { key: "low", label: "Low", value: "low", group: "risk" },
-  { key: "total", label: "Total clauses", value: "totalClauses", group: "risk" },
+  { key: "missing", label: "Missing clauses", value: "missingClauses", tone: "destructive", group: "risk" },
 ];
 
 function FirstAnalysisMetricGrid({
   metrics,
-  activeMetric,
+  activeMetrics,
   onMetricSelect,
   density = "inline",
   grouped = false,
 }: {
   metrics: FirstAnalysisMetrics;
-  activeMetric?: FirstAnalysisMetricKey | null;
+  activeMetrics?: FirstAnalysisMetricKey[];
   onMetricSelect?: (metric: FirstAnalysisMetricKey) => void;
   density?: "inline" | "rail";
   grouped?: boolean;
 }) {
+  const activeMetricSet = new Set(activeMetrics ?? []);
   const renderMetric = (definition: (typeof firstAnalysisMetricDefinitions)[number]) => (
     <MetricCell
       key={definition.key}
       label={definition.label}
       value={metrics[definition.value]}
       tone={definition.tone}
-      active={activeMetric === definition.key || (definition.key === "total" && !activeMetric)}
+      active={activeMetricSet.has(definition.key)}
       onClick={onMetricSelect ? () => onMetricSelect(definition.key) : undefined}
     />
   );
 
   if (grouped) {
+    const workflowMetrics = firstAnalysisMetricDefinitions.filter((definition) => definition.group === "workflow");
+    const riskMetrics = firstAnalysisMetricDefinitions.filter((definition) => definition.group === "risk");
+    if (workflowMetrics.length === 0) {
+      return (
+        <div className="mt-3 rounded-lg border border-border/70 bg-white/60 p-2">
+          <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Risk
+          </p>
+          <div className="grid grid-cols-2 gap-2 text-[11px]">
+            {riskMetrics.map(renderMetric)}
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]">
         <div className="rounded-lg border border-border/70 bg-white/60 p-2">
@@ -897,7 +1055,7 @@ function FirstAnalysisMetricGrid({
             Workflow
           </p>
           <div className="grid gap-2 text-[11px]">
-            {firstAnalysisMetricDefinitions.filter((definition) => definition.group === "workflow").map(renderMetric)}
+            {workflowMetrics.map(renderMetric)}
           </div>
         </div>
         <div className="rounded-lg border border-border/70 bg-white/60 p-2">
@@ -905,7 +1063,7 @@ function FirstAnalysisMetricGrid({
             Risk
           </p>
           <div className="grid grid-cols-2 gap-2 text-[11px]">
-            {firstAnalysisMetricDefinitions.filter((definition) => definition.group === "risk").map(renderMetric)}
+            {riskMetrics.map(renderMetric)}
           </div>
         </div>
       </div>

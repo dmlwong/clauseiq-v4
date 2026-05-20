@@ -470,9 +470,17 @@ export function deriveHistoryModel(
   versions: ContractVersion[],
   decisions: Record<string, ClauseDecisionState>,
   activeFilter: HistoryFilter = "all",
-  activeCategory: string | null = null,
+  activeCategory: string | string[] | Set<string> | null = null,
   sort: HistorySort = "contentious",
 ): ClauseIqHistoryModel {
+  const activeCategorySet =
+    activeCategory instanceof Set
+      ? activeCategory
+      : Array.isArray(activeCategory)
+        ? new Set(activeCategory)
+        : activeCategory
+          ? new Set([activeCategory])
+          : new Set<string>();
   const rows = CLAUSE_FRAMEWORK.map((def) => buildHistoryRow(def.id, versions, decisions[def.id])).filter(
     (row): row is HistoryRow => Boolean(row),
   );
@@ -483,7 +491,7 @@ export function deriveHistoryModel(
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const latestRows = activeCategory ? rows.filter((row) => row.category === activeCategory) : rows;
+  const latestRows = activeCategorySet.size > 0 ? rows.filter((row) => activeCategorySet.has(row.category)) : rows;
   const filterCounts: Record<HistoryFilter, number> = {
     all: latestRows.length,
     still_open: latestRows.filter(isStillOpenHistoryRow).length,
@@ -494,7 +502,7 @@ export function deriveHistoryModel(
 
   const filteredRows = sortHistoryRows(
     rows.filter((row) => {
-      if (activeCategory && row.category !== activeCategory) return false;
+      if (activeCategorySet.size > 0 && !activeCategorySet.has(row.category)) return false;
       if (activeFilter === "still_open") return isStillOpenHistoryRow(row);
       if (activeFilter === "regressed_last_round") return row.currentStatus === "regressed";
       if (activeFilter === "met") return row.currentStatus === "met";

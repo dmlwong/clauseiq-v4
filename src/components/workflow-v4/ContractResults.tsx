@@ -118,7 +118,7 @@ interface Props {
 
 type TabKey = "review" | ComparisonTab;
 type FilterKey = "all" | "open" | "new-issues" | "closed" | "unmarked";
-type QuickFilterKey = "high" | "medium" | "low" | "need-action" | "changes" | "open-items" | "met" | "closed";
+type QuickFilterKey = "high" | "medium" | "low" | "missing" | "need-action" | "changes" | "open-items" | "met" | "closed";
 type CategorySortKey = "risk" | "az" | "count";
 export type ScoringOptionKey = "issue-score" | "hybrid";
 type ScoreBand = "A" | "B" | "C" | "D" | "F";
@@ -188,6 +188,9 @@ const severityTone = (s: ClauseResult["severity"] | undefined) =>
     : s === "medium" ? "bg-warning/15 text-warning-foreground border-warning/30"
     : s === "low" ? "bg-success/10 text-success border-success/20"
     : "bg-muted text-muted-foreground border-border";
+
+const firstAnalysisDeviationBadgeClass =
+  "shrink-0 rounded-full border-[#F3B4B4] bg-[#FFF1F2] px-1.5 py-0.5 text-[9px] font-medium text-[#A32D2D]";
 
 const SEVERITY_WEIGHTS: Record<"high" | "medium" | "low", number> = {
   high: 9,
@@ -263,10 +266,24 @@ function categorySlug(name: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-function categoryFromParam(value: string | null, categories: CategorySidebarItem[]) {
-  if (!value || value === "all") return null;
-  const decoded = decodeURIComponent(value);
-  return categories.find((category) => category.name === decoded || categorySlug(category.name) === decoded)?.name ?? null;
+function categoriesFromParam(value: string | null, categories: CategorySidebarItem[]) {
+  if (!value || value === "all") return [];
+  const tokens = value
+    .split(",")
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .map((token) => {
+      try {
+        return decodeURIComponent(token);
+      } catch {
+        return token;
+      }
+    });
+  if (tokens.length === 0) return [];
+  const tokenSet = new Set(tokens);
+  return categories
+    .filter((category) => tokenSet.has(category.name) || tokenSet.has(categorySlug(category.name)))
+    .map((category) => category.name);
 }
 
 function deriveCategorySidebarItems(version: ContractVersion | null | undefined): CategorySidebarItem[] {
@@ -587,10 +604,11 @@ export function ContractResults({
   const supplier = getSupplier(initiativeId, supplierId);
   const contract = getContract(initiativeId, supplierId, contractId);
   const decisions = useClauseDecisions({}, { storageKey: "ciq-v4-clause-decisions" });
-  const mode = normalizeMode(searchParams.get("mode"));
-  const designOption = normalizeComparisonDesignOption(searchParams.get("design"));
   const firstAnalysisDemo = searchParams.get("scenario") === "first-analysis";
+  const mode = firstAnalysisDemo ? "comparison" : normalizeMode(searchParams.get("mode"));
+  const designOption = normalizeComparisonDesignOption(searchParams.get("design"));
   const decisionContractId = firstAnalysisDemo ? `${contractId}:first-analysis-demo` : contractId;
+  const firstAnalysisResetKeyRef = useRef<string | null>(null);
 
   // Local mutable copy of versions so the user can simulate uploading a new
   // round or deleting an existing one without touching shared seed data.
@@ -598,6 +616,17 @@ export function ContractResults({
   const versions = firstAnalysisDemo ? availableVersions.slice(0, 1) : availableVersions;
   const v1 = versions[0] ?? null;
   const latest = versions.at(-1) ?? null;
+
+  useEffect(() => {
+    if (!firstAnalysisDemo) {
+      firstAnalysisResetKeyRef.current = null;
+      return;
+    }
+    const resetKey = `${supplierId}:${decisionContractId}`;
+    if (firstAnalysisResetKeyRef.current === resetKey) return;
+    decisions.resetContract(supplierId, decisionContractId);
+    firstAnalysisResetKeyRef.current = resetKey;
+  }, [decisionContractId, decisions, firstAnalysisDemo, supplierId]);
 
   // Seed plausible round-1 request decisions for the demo focus clauses.
   useEffect(() => {
@@ -710,20 +739,35 @@ export function ContractResults({
   const categorySort = normalizeCategorySort(searchParams.get("catSort"));
   const comparisonCategoryItems = useMemo(() => deriveCategorySidebarItems(rightVersion), [rightVersion]);
   const historyCategoryItems = useMemo(() => deriveCategorySidebarItems(latest), [latest]);
-  const activeCategory = categoryFromParam(
+  const activeCategories = categoriesFromParam(
     searchParams.get("cat"),
     mode === "history" ? historyCategoryItems : comparisonCategoryItems,
   );
+  const activeCategorySet = useMemo(() => new Set(activeCategories), [activeCategories]);
   const categoryTotal = (mode === "history" ? historyCategoryItems : comparisonCategoryItems).reduce(
     (sum, category) => sum + category.count,
     0,
   );
-  const setActiveCategory = (category: string | null) => {
+  const setActiveCategories = (categories: string[]) => {
     const params = new URLSearchParams(searchParams);
-    if (category) params.set("cat", categorySlug(category));
+    if (categories.length > 0) params.set("cat", categories.map(categorySlug).join(","));
     else params.delete("cat");
     setSearchParams(params, { replace: false });
   };
+  const toggleActiveCategory = (category: string | null) => {
+    if (!category) {
+      setActiveCategories([]);
+      return;
+    }
+    const next = activeCategorySet.has(category)
+      ? activeCategories.filter((active) => active !== category)
+      : [...activeCategories, category];
+    setActiveCategories(next);
+  };
+  const clearActiveCategory = (category: string) => {
+    setActiveCategories(activeCategories.filter((active) => active !== category));
+  };
+  const clearActiveCategories = () => setActiveCategories([]);
   const setCategorySort = (sort: CategorySortKey) => {
     const params = new URLSearchParams(searchParams);
     params.set("catSort", sort);
@@ -783,6 +827,7 @@ export function ContractResults({
   const [quickFilter, setQuickFilter] = useState<QuickFilterKey | null>(() =>
     mode === "comparison" && versions.length >= 2 ? "open-items" : null,
   );
+  const [firstAnalysisMetricFilters, setFirstAnalysisMetricFilters] = useState<Set<FirstAnalysisMetricKey>>(() => new Set());
   useEffect(() => {
     if (mode !== "comparison" || versions.length >= 2) return;
     if (quickFilter === "open-items" || quickFilter === "met" || quickFilter === "closed" || quickFilter === "changes") {
@@ -845,8 +890,8 @@ export function ContractResults({
     [allDecisions, comparisonPair, versions],
   );
   const historyModel = useMemo(
-    () => deriveHistoryModel(versions, allDecisions, historyFilter, activeCategory, historySort),
-    [activeCategory, allDecisions, historyFilter, historySort, versions],
+    () => deriveHistoryModel(versions, allDecisions, historyFilter, activeCategories, historySort),
+    [activeCategories, allDecisions, historyFilter, historySort, versions],
   );
 
   // Open Items = previously requested clauses; New Changes = supplier-initiated
@@ -955,7 +1000,7 @@ export function ContractResults({
     );
   };
   const matchesCategory = (id: string) =>
-    !activeCategory || clauseCategory(id) === activeCategory;
+    activeCategorySet.size === 0 || activeCategorySet.has(clauseCategory(id));
 
   const detail = detailClauseId
     ? {
@@ -1036,7 +1081,7 @@ export function ContractResults({
       setQuickFilter(null);
       setFilter("all");
       setTab("changes");
-      setActiveCategory(null);
+      clearActiveCategories();
       return;
     }
     toggleQuickFilter(metric);
@@ -1112,6 +1157,7 @@ export function ContractResults({
       params.delete("filter");
       setFilter("all");
       setQuickFilter(null);
+      setFirstAnalysisMetricFilters(new Set());
     } else {
       params.delete("scenario");
       if (availableVersions.length >= 2) {
@@ -1123,6 +1169,7 @@ export function ContractResults({
       }
       setFilter("all");
       setQuickFilter("open-items");
+      setFirstAnalysisMetricFilters(new Set());
     }
     setSearchParams(params, { replace: false });
   };
@@ -1149,10 +1196,10 @@ export function ContractResults({
     <CategorySidebar
       categories={comparisonCategoryItems}
       total={comparisonCategoryTotal}
-      activeCategory={activeCategory}
+      activeCategories={activeCategories}
       sort={categorySort}
       onSortChange={setCategorySort}
-      onSelectCategory={setActiveCategory}
+      onSelectCategory={toggleActiveCategory}
       variant="panel"
     />
   );
@@ -1160,10 +1207,10 @@ export function ContractResults({
     <CategorySidebar
       categories={comparisonCategoryItems}
       total={comparisonCategoryTotal}
-      activeCategory={activeCategory}
+      activeCategories={activeCategories}
       sort={categorySort}
       onSortChange={setCategorySort}
-      onSelectCategory={setActiveCategory}
+      onSelectCategory={toggleActiveCategory}
       variant="panel"
     />
   );
@@ -1171,8 +1218,8 @@ export function ContractResults({
     <CategoryStrip
       categories={comparisonCategoryItems}
       total={comparisonCategoryTotal}
-      activeCategory={activeCategory}
-      onSelectCategory={setActiveCategory}
+      activeCategories={activeCategories}
+      onSelectCategory={toggleActiveCategory}
       categoryPanel={categoryPanel}
     />
   );
@@ -1182,17 +1229,30 @@ export function ContractResults({
     const state = stateOf(id);
     const decision = state.roundDecisions[firstAnalysisVersionLabel];
     const request = state.requests[firstAnalysisVersionLabel];
-    const draft = state.draftRequests?.[firstAnalysisVersionLabel];
     return Boolean(
       decision === "no-action" ||
         decision === "request-update" ||
-        request?.requestedChange?.trim() ||
-        draft?.requestedChange?.trim(),
+        request?.requestedChange?.trim(),
     );
   };
   const firstAnalysisCategoryClauses = firstAnalysisVersion
-    ? firstAnalysisVersion.clauses.filter((clause) => !activeCategory || clause.category === activeCategory)
+    ? firstAnalysisVersion.clauses.filter((clause) =>
+        activeCategorySet.size === 0 || activeCategorySet.has(clause.category),
+      )
     : [];
+  const isFirstAnalysisReviewClause = (clause: ClauseResult) => !clause.resolved;
+  const firstAnalysisAllClauses = firstAnalysisVersion?.clauses ?? [];
+  const explicitMissingClauses = firstAnalysisAllClauses.filter((clause) => clause.change === "new");
+  const fallbackMissingClauses = firstAnalysisAllClauses.filter((_, index) => (index + 1) % 5 === 0);
+  const firstAnalysisMissingClauseIds = new Set(
+    (explicitMissingClauses.length > 0 ? explicitMissingClauses : fallbackMissingClauses).map((clause) => clause.id),
+  );
+  const firstAnalysisSelectedSeverities = new Set(
+    Array.from(firstAnalysisMetricFilters).filter((metric): metric is "high" | "medium" | "low" =>
+      metric === "high" || metric === "medium" || metric === "low",
+    ),
+  );
+  const firstAnalysisMissingSelected = firstAnalysisMetricFilters.has("missing");
   const firstAnalysisVisibleClauses = firstAnalysisCategoryClauses.filter((clause) => {
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -1204,8 +1264,10 @@ export function ContractResults({
         return false;
       }
     }
-    if (quickFilter === "need-action" && hasFirstAnalysisAction(clause.id)) return false;
-    if (severityQuickFilter && clause.severity !== severityQuickFilter) return false;
+    if (firstAnalysisMissingSelected && !firstAnalysisMissingClauseIds.has(clause.id)) return false;
+    if (!isFirstAnalysisReviewClause(clause)) return false;
+    if (hasFirstAnalysisAction(clause.id)) return false;
+    if (firstAnalysisSelectedSeverities.size > 0 && !firstAnalysisSelectedSeverities.has(clause.severity)) return false;
     return true;
   });
   const firstAnalysisDistribution: DeviationDistribution = {
@@ -1215,12 +1277,14 @@ export function ContractResults({
     clean: firstAnalysisCategoryClauses.filter((clause) => clause.resolved).length,
   };
   const firstAnalysisMetrics: FirstAnalysisMetrics = {
-    needReview: firstAnalysisCategoryClauses.filter((clause) => !hasFirstAnalysisAction(clause.id)).length,
+    needReview: firstAnalysisCategoryClauses.filter(
+      (clause) => isFirstAnalysisReviewClause(clause) && !hasFirstAnalysisAction(clause.id),
+    ).length,
     requested: firstAnalysisCategoryClauses.filter((clause) => stateOf(clause.id).roundDecisions[firstAnalysisVersionLabel] === "request-update").length,
     high: firstAnalysisDistribution.high,
     medium: firstAnalysisDistribution.medium,
     low: firstAnalysisDistribution.low,
-    totalClauses: firstAnalysisCategoryClauses.length,
+    missingClauses: firstAnalysisCategoryClauses.filter((clause) => firstAnalysisMissingClauseIds.has(clause.id)).length,
     score: firstAnalysisVersion?.overallScore ?? 0,
     distribution: firstAnalysisDistribution,
     versionLabel: firstAnalysisVersionLabel,
@@ -1230,10 +1294,10 @@ export function ContractResults({
     <CategorySidebar
       categories={historyCategoryItems}
       total={historyCategoryTotal}
-      activeCategory={activeCategory}
+      activeCategories={activeCategories}
       sort={categorySort}
       onSortChange={setCategorySort}
-      onSelectCategory={setActiveCategory}
+      onSelectCategory={toggleActiveCategory}
       variant="panel"
     />
   );
@@ -1241,18 +1305,18 @@ export function ContractResults({
     <CategorySidebar
       categories={historyCategoryItems}
       total={historyCategoryTotal}
-      activeCategory={activeCategory}
+      activeCategories={activeCategories}
       sort={categorySort}
       onSortChange={setCategorySort}
-      onSelectCategory={setActiveCategory}
+      onSelectCategory={toggleActiveCategory}
     />
   );
   const historyCategoryStrip = (
     <CategoryStrip
       categories={historyCategoryItems}
       total={historyCategoryTotal}
-      activeCategory={activeCategory}
-      onSelectCategory={setActiveCategory}
+      activeCategories={activeCategories}
+      onSelectCategory={toggleActiveCategory}
       categoryPanel={historyCategoryPanel}
     />
   );
@@ -1371,31 +1435,44 @@ export function ContractResults({
     quickFilter === "met" ||
     Boolean(severityQuickFilter);
   const showDesignUnmarkedSection = quickFilter === null || Boolean(severityQuickFilter);
-  const firstAnalysisActiveMetric: FirstAnalysisMetricKey | null =
-    quickFilter === "need-action" ||
-    quickFilter === "high" ||
-    quickFilter === "medium" ||
-    quickFilter === "low"
-      ? quickFilter
-      : quickFilter === null
-        ? "total"
-        : null;
+  const firstAnalysisActiveMetrics = Array.from(firstAnalysisMetricFilters);
   const selectFirstAnalysisMetric = (metric: FirstAnalysisMetricKey) => {
-    if (metric === "total") {
-      setQuickFilter(null);
-      setFilter("all");
-      return;
-    }
-    toggleQuickFilter(metric);
+    setFirstAnalysisMetricFilters((current) => {
+      const next = new Set(current);
+      if (next.has(metric)) next.delete(metric);
+      else next.add(metric);
+      return next;
+    });
   };
+  const firstAnalysisMetricLabels = firstAnalysisActiveMetrics.map((metric) => ({
+    key: metric,
+    label: ({
+      high: "High",
+      medium: "Medium",
+      low: "Low",
+      missing: "Missing clauses",
+    } satisfies Record<FirstAnalysisMetricKey, string>)[metric],
+  }));
+  const clearFirstAnalysisMetric = (metric: FirstAnalysisMetricKey) => {
+    setFirstAnalysisMetricFilters((current) => {
+      const next = new Set(current);
+      next.delete(metric);
+      return next;
+    });
+  };
+  const clearAllFirstAnalysisMetrics = () => setFirstAnalysisMetricFilters(new Set());
   const firstAnalysisReviewList = firstAnalysisVersion ? (
     <ReviewScreen
       version={firstAnalysisVersion}
       stateOf={stateOf}
-      activeCategory={activeCategory}
+      activeCategories={activeCategories}
       search={search}
-      quickSeverityFilter={severityQuickFilter}
-      quickReviewFilter={quickFilter === "need-action" ? "need-review" : null}
+      quickSeverityFilters={firstAnalysisSelectedSeverities}
+      quickReviewFilter="need-review"
+      missingClauseIds={firstAnalysisMissingClauseIds}
+      quickMissingClauseIds={firstAnalysisMissingSelected ? firstAnalysisMissingClauseIds : null}
+      neutralActions
+      hideSubclauseReference
       onSetNoAction={(id) =>
         decisions.changeDecision(supplierId, decisionContractId, id, firstAnalysisVersion.version, "no-action")
       }
@@ -1424,11 +1501,13 @@ export function ContractResults({
       categoryRail={categoryRail}
       categoryPanel={categoryPanel}
       categoryStrip={categoryStrip}
-      activeCategoryLabel={activeCategory}
-      onClearCategory={() => setActiveCategory(null)}
-      activeMetricLabel={activeMetricLabel}
-      onClearMetric={clearEvidenceMetric}
-      activeMetric={firstAnalysisActiveMetric}
+      activeCategoryLabels={activeCategories}
+      onClearCategory={clearActiveCategories}
+      onClearCategoryFilter={clearActiveCategory}
+      activeMetricLabels={firstAnalysisMetricLabels}
+      onClearMetric={clearFirstAnalysisMetric}
+      onClearAllMetrics={clearAllFirstAnalysisMetrics}
+      activeMetrics={firstAnalysisActiveMetrics}
       onMetricSelect={selectFirstAnalysisMetric}
     />
   ) : null;
@@ -1445,8 +1524,9 @@ export function ContractResults({
       categoryRail={categoryRail}
       categoryPanel={categoryPanel}
       categoryStrip={categoryStrip}
-      activeCategoryLabel={activeCategory}
-      onClearCategory={() => setActiveCategory(null)}
+      activeCategoryLabels={activeCategories}
+      onClearCategory={clearActiveCategories}
+      onClearCategoryFilter={clearActiveCategory}
       activeMetricLabel={activeMetricLabel}
       onClearMetric={clearEvidenceMetric}
       activeEvidenceMetric={activeEvidenceMetric}
@@ -1584,16 +1664,18 @@ export function ContractResults({
             viewingVersion={mode === "comparison" ? (rightVersion?.version ?? latest?.version ?? "v1") : undefined}
             supplierId={supplierId}
             supplierName={supplier.name}
+            firstAnalysisDemo={firstAnalysisDemo}
+            demoAvailable={availableVersions.length >= 2}
+            onFirstAnalysisDemoChange={toggleFirstAnalysisDemo}
           />
           <ModeSwitcher
             mode={mode}
             onChange={switchMode}
+            comparisonLabel={firstAnalysisDemo ? "V1 Analysis" : "Review"}
+            historyDisabled={firstAnalysisDemo || versions.length < 2}
             onExport={exportCurrentComparison}
             exportDisabled={versions.length < 2}
             onRunAnalysis={onRunAnalysisAgain ?? (() => setUploadOpen(true))}
-            firstAnalysisDemo={firstAnalysisDemo}
-            demoAvailable={availableVersions.length >= 2}
-            onFirstAnalysisDemoChange={toggleFirstAnalysisDemo}
           />
         </div>
       ) : (
@@ -1719,21 +1801,21 @@ export function ContractResults({
         </div>
       )}
 
-      {mode === "history" ? (
+      {mode === "history" && !firstAnalysisDemo ? (
         historyDesignContent
-      ) : comparisonDesignContent ? (
-        comparisonDesignContent
       ) : firstAnalysisDesignContent ? (
         firstAnalysisDesignContent
+      ) : comparisonDesignContent ? (
+        comparisonDesignContent
       ) : (
         <div className="mx-auto grid max-w-[1600px] grid-cols-[240px_minmax(0,1fr)] gap-6 px-6 py-6">
           <CategorySidebar
             categories={comparisonCategoryItems}
             total={categoryTotal}
-            activeCategory={activeCategory}
+            activeCategories={activeCategories}
             sort={categorySort}
             onSortChange={setCategorySort}
-            onSelectCategory={setActiveCategory}
+            onSelectCategory={toggleActiveCategory}
           />
 
           <div id="comparison-work-column" className="min-w-0 space-y-4">
@@ -1786,7 +1868,7 @@ export function ContractResults({
               <ReviewScreen
                 version={tab === "all" ? (rightVersion ?? reviewVersion ?? v1) : (reviewVersion ?? v1)}
                 stateOf={stateOf}
-                activeCategory={activeCategory}
+                activeCategories={activeCategories}
                 search={search}
                 quickSeverityFilter={severityQuickFilter}
                 quickReviewFilter={quickFilter === "need-action" ? "need-review" : null}
@@ -1986,10 +2068,24 @@ export function ContractResults({
         }}
         onSubmit={() => {
           if (!activeRequestVersion) return;
+          const csv = exportRequestChangeCsv(
+            {
+              initiativeName: initiative.name,
+              supplierName: supplier.name,
+              contractName: contract.name,
+              versionLabel: activeRequestVersion.version,
+            },
+            activeRequestVersion,
+            pendingRequestItems,
+          );
+          downloadCsv(
+            `${supplier.name}-${contract.name}-${activeRequestVersion.version}-requested-changes.csv`,
+            csv,
+          );
           decisions.submitPendingRequests(supplierId, decisionContractId, activeRequestVersion.version);
           toast({
-            title: "Requests submitted",
-            description: `${pendingRequestItems.length} request${pendingRequestItems.length === 1 ? "" : "s"} sent to ${supplier.name}.`,
+            title: "CSV generated",
+            description: `${pendingRequestItems.length} requested change${pendingRequestItems.length === 1 ? "" : "s"} exported for supplier negotiation.`,
           });
         }}
       />
@@ -2144,6 +2240,9 @@ function CompactContractTopbar({
   viewingVersion,
   supplierId,
   supplierName,
+  firstAnalysisDemo,
+  demoAvailable,
+  onFirstAnalysisDemoChange,
 }: {
   backLabel: string;
   onBack: () => void;
@@ -2152,6 +2251,9 @@ function CompactContractTopbar({
   viewingVersion?: string;
   supplierId: string;
   supplierName: string;
+  firstAnalysisDemo: boolean;
+  demoAvailable: boolean;
+  onFirstAnalysisDemoChange: (enabled: boolean) => void;
 }) {
   return (
     <div className="flex h-10 items-center gap-3 border-b border-[rgba(0,0,0,0.08)] px-3">
@@ -2170,6 +2272,12 @@ function CompactContractTopbar({
         {viewingVersion && <ViewingVersionChip version={viewingVersion} />}
         <SupplierGroupingLink supplierId={supplierId} supplierName={supplierName} />
       </div>
+      {demoAvailable && (
+        <FirstAnalysisDemoToggle
+          active={firstAnalysisDemo}
+          onChange={() => onFirstAnalysisDemoChange(!firstAnalysisDemo)}
+        />
+      )}
     </div>
   );
 }
@@ -2183,41 +2291,77 @@ function ViewingVersionChip({ version }: { version: string }) {
   );
 }
 
+function FirstAnalysisDemoToggle({
+  active,
+  onChange,
+}: {
+  active: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onChange}
+      className={cn(
+        "ml-auto inline-flex h-7 shrink-0 items-center gap-2 rounded-md border px-2.5 text-[11px] font-medium transition-colors",
+        active
+          ? "border-[#185FA5]/35 bg-[#E6F1FB] text-[#0C447C]"
+          : "border-border bg-white text-muted-foreground hover:text-foreground",
+      )}
+    >
+      <span
+        className={cn(
+          "h-2 w-2 rounded-full",
+          active ? "bg-[#185FA5]" : "bg-muted-foreground/40",
+        )}
+        aria-hidden
+      />
+      V1 Analysis
+    </button>
+  );
+}
+
 function ModeSwitcher({
   mode,
   onChange,
+  comparisonLabel = "Review",
+  historyDisabled = false,
   onExport,
   exportDisabled,
   onRunAnalysis,
-  firstAnalysisDemo,
-  demoAvailable,
-  onFirstAnalysisDemoChange,
 }: {
   mode: ClauseIqMode;
   onChange: (mode: ClauseIqMode) => void;
+  comparisonLabel?: string;
+  historyDisabled?: boolean;
   onExport: () => void;
   exportDisabled: boolean;
   onRunAnalysis: () => void;
-  firstAnalysisDemo: boolean;
-  demoAvailable: boolean;
-  onFirstAnalysisDemoChange: (enabled: boolean) => void;
 }) {
   return (
     <div className="flex min-w-0 items-center gap-3 border-b border-[rgba(0,0,0,0.08)] bg-white px-3 py-1.5">
       <div className="inline-flex overflow-hidden rounded-md border border-border">
         {([
-          ["comparison", <IconArrowsDiff key="comparison-icon" size={13} stroke={1.8} />, "Review"],
+          ["comparison", <IconArrowsDiff key="comparison-icon" size={13} stroke={1.8} />, comparisonLabel],
           ["history", <IconTimeline key="history-icon" size={13} stroke={1.8} />, "History"],
         ] as const).map(([value, icon, label]) => {
           const active = mode === value;
+          const disabled = value === "history" && historyDisabled;
           return (
             <button
               key={value}
               type="button"
-              onClick={() => onChange(value)}
-              className={`inline-flex h-7 items-center gap-1.5 border-r border-border px-3 text-[11px] font-medium last:border-r-0 ${
-                active ? "bg-[#1a2744] text-white" : "bg-white text-muted-foreground hover:text-foreground"
-              }`}
+              disabled={disabled}
+              title={disabled ? "History is available after another analysis version is added." : undefined}
+              onClick={() => {
+                if (!disabled) onChange(value);
+              }}
+              className={cn(
+                "inline-flex h-7 items-center gap-1.5 border-r border-border px-3 text-[11px] font-medium last:border-r-0",
+                active ? "bg-[#1a2744] text-white" : "bg-white text-muted-foreground hover:text-foreground",
+                disabled && "cursor-not-allowed bg-muted/40 text-muted-foreground/45 hover:text-muted-foreground/45",
+              )}
             >
               {icon}
               {label}
@@ -2225,28 +2369,6 @@ function ModeSwitcher({
           );
         })}
       </div>
-      {demoAvailable && (
-        <button
-          type="button"
-          aria-pressed={firstAnalysisDemo}
-          onClick={() => onFirstAnalysisDemoChange(!firstAnalysisDemo)}
-          className={cn(
-            "inline-flex h-7 shrink-0 items-center gap-2 rounded-md border px-2.5 text-[11px] font-medium transition-colors",
-            firstAnalysisDemo
-              ? "border-[#185FA5]/35 bg-[#E6F1FB] text-[#0C447C]"
-              : "border-border bg-white text-muted-foreground hover:text-foreground",
-          )}
-        >
-          <span
-            className={cn(
-              "h-2 w-2 rounded-full",
-              firstAnalysisDemo ? "bg-[#185FA5]" : "bg-muted-foreground/40",
-            )}
-            aria-hidden
-          />
-          V1 analysis view
-        </button>
-      )}
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <Button size="sm" variant="outline" className="h-7 gap-1.5 px-3 text-xs" disabled={exportDisabled} onClick={onExport}>
           <Download className="h-3.5 w-3.5" /> Export
@@ -3497,16 +3619,19 @@ function PairSelector({
   const leftVersion = versions.find((version) => version.version === pair.left);
   const rightVersion = versions.find((version) => version.version === pair.right);
   const staticOnly = versions.length <= 2;
-  const triggerClass = compact ? "h-6 w-[116px] rounded-md bg-white px-2 text-[11px]" : "h-9 w-[164px] text-sm";
+  const selectorClass = compact
+    ? "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 text-[11px]"
+    : "inline-flex items-center gap-1.5 text-sm";
+  const triggerClass = compact ? "h-6 w-full min-w-0 rounded-md bg-white px-2 text-[11px]" : "h-9 w-[164px] text-sm";
   const formatVersion = (version?: ContractVersion) =>
     version ? `${version.version} · ${new Date(version.uploadedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : "Version";
 
   if (staticOnly) {
     return (
-      <div className={`inline-flex items-center gap-1.5 text-muted-foreground ${compact ? "text-[11px]" : "text-sm"}`}>
-        <span className="rounded border border-border bg-white px-2 py-0.5">{formatVersion(leftVersion)}</span>
-        <ArrowRight className="h-3.5 w-3.5" />
-        <span className="rounded border border-border bg-white px-2 py-0.5">{formatVersion(rightVersion)}</span>
+      <div className={cn(selectorClass, "text-muted-foreground")}>
+        <span className="min-w-0 truncate rounded border border-border bg-white px-2 py-0.5">{formatVersion(leftVersion)}</span>
+        <ArrowRight className="h-3.5 w-3.5 shrink-0" />
+        <span className="min-w-0 truncate rounded border border-border bg-white px-2 py-0.5">{formatVersion(rightVersion)}</span>
       </div>
     );
   }
@@ -3522,7 +3647,7 @@ function PairSelector({
   };
 
   return (
-    <div className={`inline-flex items-center gap-1.5 ${compact ? "text-[11px]" : "text-sm"}`}>
+    <div className={selectorClass}>
       <Select value={pair.left} onValueChange={updateLeft}>
         <SelectTrigger className={triggerClass} aria-label="Compare from version">
           <SelectValue />
@@ -3563,7 +3688,7 @@ function PairSelector({
 function CategorySidebar({
   categories,
   total,
-  activeCategory,
+  activeCategories,
   sort,
   onSortChange,
   onSelectCategory,
@@ -3571,7 +3696,7 @@ function CategorySidebar({
 }: {
   categories: CategorySidebarItem[];
   total: number;
-  activeCategory: string | null;
+  activeCategories: string[];
   sort: CategorySortKey;
   onSortChange: (sort: CategorySortKey) => void;
   onSelectCategory: (category: string | null) => void;
@@ -3579,6 +3704,7 @@ function CategorySidebar({
 }) {
   const rowRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const sortedCategories = useMemo(() => sortCategorySidebarItems(categories, sort), [categories, sort]);
+  const activeCategorySet = useMemo(() => new Set(activeCategories), [activeCategories]);
 
   const handleRowKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
@@ -3630,11 +3756,11 @@ function CategorySidebar({
           }}
           type="button"
           role="button"
-          aria-label={`Filter by all categories, ${total} clauses`}
+          aria-label={`Clear category filters, ${total} clauses`}
           onClick={() => onSelectCategory(null)}
           onKeyDown={(event) => handleRowKeyDown(event, 0)}
           className={`flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-left text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
-            !activeCategory
+            activeCategories.length === 0
               ? "bg-[#E6F1FB]/50 font-medium text-foreground"
               : "text-muted-foreground hover:bg-[#f8f7f5]"
           }`}
@@ -3642,7 +3768,7 @@ function CategorySidebar({
           <span>All</span>
           <span
             className={`rounded-full px-1.5 py-px text-[9px] font-medium ${
-              !activeCategory ? "bg-card text-muted-foreground" : "bg-muted text-muted-foreground"
+              activeCategories.length === 0 ? "bg-card text-muted-foreground" : "bg-muted text-muted-foreground"
             }`}
           >
             {total}
@@ -3650,7 +3776,7 @@ function CategorySidebar({
         </button>
 
         {sortedCategories.map((category, index) => {
-          const active = activeCategory === category.name;
+          const active = activeCategorySet.has(category.name);
           const rowIndex = index + 1;
           return (
             <button
@@ -3660,7 +3786,8 @@ function CategorySidebar({
               }}
               type="button"
               role="button"
-              aria-label={`Filter by ${category.name}, ${category.count} clauses`}
+              aria-pressed={active}
+              aria-label={`${active ? "Remove" : "Add"} ${category.name} category filter, ${category.count} clauses`}
               onClick={() => onSelectCategory(category.name)}
               onKeyDown={(event) => handleRowKeyDown(event, rowIndex)}
               className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
@@ -3691,17 +3818,18 @@ function CategorySidebar({
 function CategoryStrip({
   categories,
   total,
-  activeCategory,
+  activeCategories,
   onSelectCategory,
   categoryPanel,
 }: {
   categories: CategorySidebarItem[];
   total: number;
-  activeCategory: string | null;
+  activeCategories: string[];
   onSelectCategory: (category: string | null) => void;
   categoryPanel: ReactNode;
 }) {
   const topCategories = useMemo(() => sortCategorySidebarItems(categories, "risk").slice(0, 6), [categories]);
+  const activeCategorySet = useMemo(() => new Set(activeCategories), [activeCategories]);
   return (
     <div className="rounded-lg border border-border bg-card px-3 py-2">
       <div className="flex min-w-0 items-start gap-2">
@@ -3709,13 +3837,13 @@ function CategoryStrip({
           Categories
         </span>
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-          <CategoryStripChip active={!activeCategory} onClick={() => onSelectCategory(null)}>
+          <CategoryStripChip active={activeCategories.length === 0} onClick={() => onSelectCategory(null)}>
             All <span className="text-muted-foreground">{total}</span>
           </CategoryStripChip>
           {topCategories.map((category) => (
             <CategoryStripChip
               key={category.name}
-              active={activeCategory === category.name}
+              active={activeCategorySet.has(category.name)}
               onClick={() => onSelectCategory(category.name)}
             >
               <span className="max-w-[170px] truncate">{category.name}</span>
@@ -3904,7 +4032,11 @@ function ClauseRequestForm({
   const rationaleValue = draft?.rationale ?? request?.rationale ?? "";
 
   return (
-    <div className="mt-3 space-y-3 border-t border-border pt-3" onClick={(event) => event.stopPropagation()}>
+    <div
+      className="mt-3 space-y-3 border-t border-border pt-3"
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+    >
       {inherited && !draft?.requestedChange && !draft?.rationale && (
         <div className="space-y-1 rounded-md border-l-2 border-primary bg-primary/5 px-3 py-2 text-xs">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">
@@ -3975,6 +4107,8 @@ function ClauseDecisionCard({
   changePill,
   stateBadge,
   metaPrefix,
+  missingClause,
+  hideSubclauseReference,
   primaryActionLabel = "Request Change",
   requestPlaceholder,
   versionLabel,
@@ -3991,6 +4125,7 @@ function ClauseDecisionCard({
   onSubmitDraft,
   onRemoveRequest,
   onOpenDetail,
+  neutralActions = false,
 }: {
   id: string;
   clause: ClauseResult;
@@ -4005,6 +4140,8 @@ function ClauseDecisionCard({
   changePill?: ChangePillResult;
   stateBadge?: ReactNode;
   metaPrefix?: ReactNode;
+  missingClause?: boolean;
+  hideSubclauseReference?: boolean;
   primaryActionLabel?: string;
   requestPlaceholder?: string;
   versionLabel: string;
@@ -4021,6 +4158,7 @@ function ClauseDecisionCard({
   onSubmitDraft?: () => void;
   onRemoveRequest?: () => void;
   onOpenDetail: () => void;
+  neutralActions?: boolean;
 }) {
   const [queuedExpanded, setQueuedExpanded] = useState(false);
   const pendingBasketRequest = request?.state === "pending" && Boolean(request.requestedChange?.trim());
@@ -4028,11 +4166,21 @@ function ClauseDecisionCard({
   const showDecisionBody = !showQueuedCompact || queuedExpanded;
   const requestPreview = request?.requestedChange?.trim() ?? "";
   const settled = decision === "request-update" || decision === "no-action";
-  const requestIsPrimary = clause.severity === "high";
-  const noActionIsPrimary = clause.severity === "low";
+  const requestIsPrimary = !neutralActions && clause.severity === "high";
+  const noActionIsPrimary = !neutralActions && clause.severity === "low";
   const showRequestActions = !settled && !actions && !pendingBasketRequest;
+  const useFirstAnalysisDeviationStyle = neutralActions && hideSubclauseReference && clause.severity === "high";
+  const severityBadgeLabel = useFirstAnalysisDeviationStyle ? "High Deviation" : clause.severity;
+  const severityBadgeClass = useFirstAnalysisDeviationStyle
+    ? firstAnalysisDeviationBadgeClass
+    : `${severityTone(clause.severity)} shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium`;
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (target.closest("button, a, input, textarea, select, [contenteditable='true']")) {
+      return;
+    }
+
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       onOpenDetail();
@@ -4071,11 +4219,19 @@ function ClauseDecisionCard({
         )}
         <h3 className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">{clause.title}</h3>
         <span className="hidden shrink-0 text-[10px] text-muted-foreground md:inline">
-          {metaPrefix}{clause.subclause} · {clause.category}
+          {metaPrefix}{hideSubclauseReference ? clause.category : `${clause.subclause} · ${clause.category}`}
         </span>
         {changePill?.status && <ChangePillBadge result={changePill} />}
-        <Badge variant="outline" className={`${severityTone(clause.severity)} rounded-full px-1.5 py-0.5 text-[9px] font-medium`}>
-          {clause.severity}
+        {missingClause && (
+          <Badge
+            variant="outline"
+            className={firstAnalysisDeviationBadgeClass}
+          >
+            Missing Clause
+          </Badge>
+        )}
+        <Badge variant="outline" className={severityBadgeClass}>
+          {severityBadgeLabel}
         </Badge>
         {stateBadge}
         {pendingBasketRequest && <RequestLifecycleBadge request={request} />}
@@ -4218,6 +4374,61 @@ interface ClosedBasketItem {
   clauseId: string;
   clauseTitle: string;
   version: string;
+}
+
+function requestCsvEscape(value: string | number | undefined | null) {
+  if (value === undefined || value === null) return "";
+  const text = String(value).replace(/"/g, '""');
+  return /[",\n]/.test(text) ? `"${text}"` : text;
+}
+
+function exportRequestChangeCsv(
+  meta: {
+    initiativeName: string;
+    supplierName: string;
+    contractName: string;
+    versionLabel: string;
+  },
+  version: ContractVersion,
+  requests: BasketRequestItem[],
+) {
+  const exportedAt = new Date().toISOString();
+  const rows = [
+    [
+      "Initiative",
+      "Supplier",
+      "Contract",
+      "Analysis version",
+      "Exported at",
+      "Clause ID",
+      "Clause",
+      "Category",
+      "Severity",
+      "Clause summary",
+      "Requested change",
+      "Rationale",
+    ],
+  ];
+
+  for (const item of requests) {
+    const clause = version.clauses.find((candidate) => candidate.id === item.clauseId);
+    rows.push([
+      meta.initiativeName,
+      meta.supplierName,
+      meta.contractName,
+      meta.versionLabel,
+      exportedAt,
+      item.clauseId.toUpperCase(),
+      item.clauseTitle,
+      clause?.category ?? "",
+      clause?.severity ?? "",
+      clause?.deviation ?? "",
+      item.request.requestedChange ?? "",
+      item.request.rationale ?? "",
+    ]);
+  }
+
+  return rows.map((row) => row.map(requestCsvEscape).join(",")).join("\n");
 }
 
 function RequestsBasket({
@@ -4370,18 +4581,9 @@ function RequestsBasket({
                 <div className="flex items-center justify-between gap-3 border-t border-border bg-muted/30 px-3.5 py-2.5">
                   <p className="text-[10px] text-muted-foreground">
                     {reviewingRequests
-                      ? `${requestCount} request${requestCount === 1 ? "" : "s"} will be sent to the supplier in the next round`
+                      ? `${requestCount} requested change${requestCount === 1 ? "" : "s"} will be included in the CSV negotiation log`
                       : `${closedCount} closed clause${closedCount === 1 ? "" : "s"} can be reviewed or reopened before you continue`}
                   </p>
-                  {requestCount > 0 && (
-                    <Button
-                      size="sm"
-                      className="h-8 gap-1.5 rounded-[5px] bg-[#1a2744] px-3 text-[11px] font-medium text-white hover:bg-[#243454]"
-                      onClick={() => setConfirmOpen(true)}
-                    >
-                      <Send className="h-3 w-3" /> Submit
-                    </Button>
-                  )}
                 </div>
               </div>
             )}
@@ -4422,22 +4624,35 @@ function RequestsBasket({
       </AnimatePresence>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[540px]">
           <AlertDialogHeader>
-            <AlertDialogTitle>Submit {requestCount} request{requestCount === 1 ? "" : "s"} to supplier?</AlertDialogTitle>
+            <div className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg bg-[#E6F1FB] text-[#0C447C]">
+              <FileText className="h-4 w-4" />
+            </div>
+            <AlertDialogTitle>Generate requested-changes CSV?</AlertDialogTitle>
             <AlertDialogDescription>
-              These requests will be sent to {supplierName}. You won't be able to edit them once submitted.
+              This will create a CSV negotiation log for {supplierName}. It includes every clause you requested changes on, so you can take the file back to the supplier for the next contract negotiation round.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="rounded-lg border border-[#185FA5]/20 bg-[#E6F1FB]/45 px-3 py-2.5 text-xs text-[#0C447C]">
+            <p className="font-medium">The CSV acts as your supplier change log.</p>
+            <p className="mt-1 text-[#0C447C]/80">
+              It captures clause IDs, titles, categories, severity, ClauseIQ summary, requested changes, and rationale.
+            </p>
+          </div>
           <div className="max-h-48 overflow-y-auto rounded-md border border-border bg-muted/20 p-2">
+            <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              {requestCount} requested change{requestCount === 1 ? "" : "s"} in this export
+            </p>
             {requests.map((item) => (
-              <p key={item.clauseId} className="truncate py-1 text-xs text-foreground">
-                {item.clauseId.toUpperCase()} · {item.clauseTitle}
-              </p>
+              <div key={item.clauseId} className="rounded px-1 py-1.5 text-xs text-foreground">
+                <p className="truncate font-medium">{item.clauseId.toUpperCase()} · {item.clauseTitle}</p>
+                <p className="mt-0.5 truncate text-muted-foreground">{item.request.requestedChange}</p>
+              </div>
             ))}
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Keep editing</AlertDialogCancel>
             <AlertDialogAction
               className="bg-[#1a2744] text-white hover:bg-[#243454]"
               onClick={() => {
@@ -4446,7 +4661,8 @@ function RequestsBasket({
               }}
               disabled={requestCount === 0}
             >
-              Submit
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+              Generate CSV
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -4485,10 +4701,15 @@ function BasketTab({
 function ReviewScreen({
   version,
   stateOf,
-  activeCategory,
+  activeCategories,
   search,
   quickSeverityFilter,
+  quickSeverityFilters,
   quickReviewFilter,
+  missingClauseIds,
+  quickMissingClauseIds,
+  neutralActions = false,
+  hideSubclauseReference = false,
   onSetNoAction,
   onStartDraft,
   onUpdateDraft,
@@ -4499,10 +4720,15 @@ function ReviewScreen({
 }: {
   version: ContractVersion;
   stateOf: (id: string) => ClauseDecisionState;
-  activeCategory: string | null;
+  activeCategories: string[];
   search: string;
-  quickSeverityFilter: "high" | "medium" | "low" | null;
+  quickSeverityFilter?: "high" | "medium" | "low" | null;
+  quickSeverityFilters?: Set<"high" | "medium" | "low"> | null;
   quickReviewFilter?: "need-review" | null;
+  missingClauseIds?: Set<string> | null;
+  quickMissingClauseIds?: Set<string> | null;
+  neutralActions?: boolean;
+  hideSubclauseReference?: boolean;
   onSetNoAction: (id: string) => void;
   onStartDraft: (id: string, initialDraft?: { requestedChange?: string; rationale?: string }) => void;
   onUpdateDraft: (id: string, patch: { requestedChange?: string; rationale?: string }) => void;
@@ -4513,21 +4739,28 @@ function ReviewScreen({
 }) {
   const q = search.trim().toLowerCase();
   const versionLabel = version.version;
-  const rows = version.clauses.filter((c) => {
-    if (activeCategory && c.category !== activeCategory) return false;
-    if (quickSeverityFilter && c.severity !== quickSeverityFilter) return false;
-    if (q && !c.title.toLowerCase().includes(q) && !c.category.toLowerCase().includes(q) && !c.id.includes(q)) return false;
-    if (quickReviewFilter === "need-review") {
-      const state = stateOf(c.id);
-      const decision = state.roundDecisions[versionLabel];
-      const request = state.requests[versionLabel];
-      const draft = state.draftRequests?.[versionLabel];
-      if (decision === "no-action" || decision === "request-update" || request?.requestedChange?.trim() || draft?.requestedChange?.trim()) {
-        return false;
+  const activeCategorySet = new Set(activeCategories);
+  const rows = version.clauses
+    .map((clause, index) => ({ clause, index }))
+    .filter(({ clause: c }) => {
+      if (activeCategorySet.size > 0 && !activeCategorySet.has(c.category)) return false;
+      if (quickMissingClauseIds && !quickMissingClauseIds.has(c.id)) return false;
+      if (quickSeverityFilters && quickSeverityFilters.size > 0 && !quickSeverityFilters.has(c.severity)) return false;
+      if (!quickSeverityFilters && quickSeverityFilter && (c.severity !== quickSeverityFilter || c.resolved)) return false;
+      if (q && !c.title.toLowerCase().includes(q) && !c.category.toLowerCase().includes(q) && !c.id.includes(q)) return false;
+      if (quickReviewFilter === "need-review") {
+        if (!quickMissingClauseIds && c.resolved) return false;
+        const state = stateOf(c.id);
+        const decision = state.roundDecisions[versionLabel];
+        const request = state.requests[versionLabel];
+        if (decision === "no-action" || decision === "request-update" || request?.requestedChange?.trim()) {
+          return false;
+        }
       }
-    }
-    return true;
-  });
+      return true;
+    })
+    .sort((a, b) => severityRank(b.clause.severity) - severityRank(a.clause.severity) || a.index - b.index)
+    .map(({ clause }) => clause);
   return (
     <div className="space-y-3">
       {rows.map((c) => {
@@ -4539,6 +4772,9 @@ function ReviewScreen({
         const inherited = getLatestRequest(state, versionLabel);
         const inheritedFromOlder = inherited && inherited.version !== versionLabel ? inherited : undefined;
         const draftHasText = Boolean(draft?.requestedChange?.trim() || draft?.rationale?.trim());
+        const actionabilityDraft = c.actionability?.trim()
+          ? { ...own, requestedChange: own.requestedChange?.trim() || c.actionability.trim() }
+          : own;
         const cancelDraft = () => {
           if (draftHasText && !window.confirm("Discard this draft request?")) return;
           onCancelDraft(c.id);
@@ -4558,14 +4794,17 @@ function ReviewScreen({
             inherited={inheritedFromOlder}
             isDrafting={isDrafting}
             highlighted={highlightedId === c.id}
-            onRequest={() => onStartDraft(c.id, own)}
+            missingClause={Boolean(missingClauseIds?.has(c.id))}
+            hideSubclauseReference={hideSubclauseReference}
+            onRequest={() => onStartDraft(c.id, actionabilityDraft)}
             onNoAction={() => onSetNoAction(c.id)}
             onEditRequest={() => onStartDraft(c.id, own)}
-            onChangeNoAction={() => onStartDraft(c.id)}
+            onChangeNoAction={() => onStartDraft(c.id, actionabilityDraft)}
             onUpdateDraft={(patch) => onUpdateDraft(c.id, patch)}
             onCancelDraft={cancelDraft}
             onSubmitDraft={() => onSubmitDraft(c.id)}
             onOpenDetail={() => onOpenDetail(c.id)}
+            neutralActions={neutralActions}
           />
         );
       })}
@@ -5023,16 +5262,17 @@ function UnmarkedSection({
 // ---- Round Tracker ----------------------------------------------------------
 
 function RoundTracker({
-  versions, stateOf, search, activeCategory, onOpenDetail,
+  versions, stateOf, search, activeCategories, onOpenDetail,
 }: {
   versions: ContractVersion[];
   stateOf: (id: string) => ClauseDecisionState;
   search: string;
-  activeCategory: string | null;
+  activeCategories: string[];
   onOpenDetail: (id: string) => void;
 }) {
+  const activeCategorySet = new Set(activeCategories);
   const rows = CLAUSE_FRAMEWORK.filter((d) => {
-    if (activeCategory && d.category !== activeCategory) return false;
+    if (activeCategorySet.size > 0 && !activeCategorySet.has(d.category)) return false;
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       if (!d.title.toLowerCase().includes(q) && !d.category.toLowerCase().includes(q) && !d.id.includes(q)) return false;

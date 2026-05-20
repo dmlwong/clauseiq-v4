@@ -1,6 +1,6 @@
 // Prototype v4 — duplicated from v3 so changes here don't affect v3.
 // Edit freely without touching src/pages/IndexV3.tsx.
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { InitiativesList } from "@/components/workflow-v4/InitiativesList";
 import { InitiativeOverview } from "@/components/workflow-v4/InitiativeOverview";
@@ -13,6 +13,8 @@ import { useContractStatus } from "@/hooks/use-contract-status";
 import { auditLog } from "@/lib/mock-api";
 import { getInitiative, getSupplier, getContract } from "@/lib/workflow-data";
 import { V4Shell } from "@/components/clauseiq-v4/V4Shell";
+import { V4InitiativeLinkButton } from "@/components/clauseiq-v4/V4InitiativeLinkButton";
+import { V4_DELIVERY_INITIATIVE_ID } from "@/data/mock-delivery-engine-v4";
 
 type View =
   | { name: "initiatives" }
@@ -56,6 +58,33 @@ const IndexV4 = () => {
   const isDeliveryEngineResultRoute = routeSource === "delivery-engine";
   const isExternalResultRoute = isClauseIQResultRoute || isDeliveryEngineResultRoute;
   const deliveryEngineReturnPath = searchParams.get("return") ?? "/delivery-engine/YRK18-1043";
+  const currentRoute = `${window.location.pathname}${window.location.search}`;
+  const firstAnalysisDefaultAppliedRef = useRef(false);
+
+  useEffect(() => {
+    if (firstAnalysisDefaultAppliedRef.current) return;
+    if (searchParams.get("view") !== "results" || searchParams.get("source") !== "clauseiq") return;
+
+    firstAnalysisDefaultAppliedRef.current = true;
+    if (
+      searchParams.get("scenario") === "first-analysis" &&
+      searchParams.get("mode") === "comparison" &&
+      searchParams.get("design") === "side-by-side" &&
+      searchParams.get("catSort") === "risk"
+    ) {
+      return;
+    }
+
+    const params = new URLSearchParams(searchParams);
+    params.set("scenario", "first-analysis");
+    params.set("mode", "comparison");
+    params.set("design", "side-by-side");
+    params.set("catSort", "risk");
+    if (!params.has("tab")) params.set("tab", "changes");
+    params.delete("from");
+    params.delete("to");
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const launchClauseIQ = (initiativeId: string, supplierId: string, contractId: string) => {
     setWizardCtx({ initiativeId, supplierId, contractId });
@@ -85,6 +114,15 @@ const IndexV4 = () => {
     <V4Shell
       title="ClauseIQ"
       subtitle="AI tool for detailed contract analyses"
+      headerRight={
+        "initiativeId" in view ? (
+          <V4InitiativeLinkButton
+            onClick={() => {
+              navigate(`/delivery-engine-v4/${V4_DELIVERY_INITIATIVE_ID}?return=${encodeURIComponent(currentRoute)}`);
+            }}
+          />
+        ) : undefined
+      }
     >
       {view.name === "initiatives" && (
         <InitiativesList onSelect={(id) => setView({ name: "initiative", initiativeId: id })} />

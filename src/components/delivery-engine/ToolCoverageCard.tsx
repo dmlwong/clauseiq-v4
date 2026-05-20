@@ -11,12 +11,13 @@ export function ToolCoverageCard({ tool, index, onAction }: { tool: ToolCoverage
   const hasActivity = Boolean(tool.lastRunBy || tool.lastRunAt);
   const actionLabel = tool.ctaLabel ?? (tool.isUsed ? "Open Analysis" : "Run Tool");
   const ActionIcon = actionLabel.toLowerCase().startsWith("open") ? ExternalLink : Play;
+  const disableHover = tool.toolName === "RFP Builder" || tool.toolName === "RFP Analytics";
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ scale: 1.01, boxShadow: "0 10px 24px rgba(15, 23, 42, 0.10)" }}
+      whileHover={disableHover ? undefined : { scale: 1.01, boxShadow: "0 10px 24px rgba(15, 23, 42, 0.10)" }}
       transition={{ duration: 0.18, delay: index * 0.08 }}
       className={cn(
         "flex min-h-[216px] flex-col rounded-lg border bg-white p-3",

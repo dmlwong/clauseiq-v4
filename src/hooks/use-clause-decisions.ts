@@ -141,6 +141,20 @@ export function useClauseDecisions(initial: Store = {}, options: ClauseDecisionO
     [store],
   );
 
+  const resetContract = useCallback(
+    (supplierId: string, contractId: string) => {
+      setStore((prev) => {
+        const key = `${supplierId}:${contractId}`;
+        if (!prev[key]) return prev;
+        const nextStore = { ...prev };
+        delete nextStore[key];
+        saveStored(options.storageKey, nextStore);
+        return nextStore;
+      });
+    },
+    [options.storageKey],
+  );
+
   const mutate = useCallback(
     (
       supplierId: string,
@@ -433,6 +447,7 @@ export function useClauseDecisions(initial: Store = {}, options: ClauseDecisionO
     () => ({
       getState,
       getAll,
+      resetContract,
       setRoundDecision,
       setClosure,
       setFollowUpNote,
@@ -450,6 +465,7 @@ export function useClauseDecisions(initial: Store = {}, options: ClauseDecisionO
     [
       getState,
       getAll,
+      resetContract,
       setRoundDecision,
       setClosure,
       setFollowUpNote,

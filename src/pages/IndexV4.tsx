@@ -69,7 +69,7 @@ const IndexV4 = () => {
     if (
       searchParams.get("scenario") === "first-analysis" &&
       searchParams.get("mode") === "comparison" &&
-      searchParams.get("design") === "side-by-side" &&
+      (searchParams.get("design") === "side-by-side" || searchParams.get("design") === "row-scale") &&
       searchParams.get("catSort") === "risk"
     ) {
       return;
@@ -78,7 +78,7 @@ const IndexV4 = () => {
     const params = new URLSearchParams(searchParams);
     params.set("scenario", "first-analysis");
     params.set("mode", "comparison");
-    params.set("design", "side-by-side");
+    if (params.get("design") !== "row-scale") params.set("design", "side-by-side");
     params.set("catSort", "risk");
     if (!params.has("tab")) params.set("tab", "changes");
     params.delete("from");

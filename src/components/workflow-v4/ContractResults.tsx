@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useState, useMemo, useEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, Search, MapPin, Lightbulb,
@@ -96,6 +96,7 @@ import {
 import {
   ComparisonDesignOptions,
   ComparisonSummaryRail,
+  DesignOptionSwitcher,
   FirstAnalysisDesignOptions,
   type ComparisonDesignOption,
   type EvidenceMetricCounts,
@@ -221,7 +222,7 @@ function normalizeMode(value: string | null): ClauseIqMode {
 }
 
 function normalizeComparisonDesignOption(value: string | null | undefined): ComparisonDesignOption {
-  return value === "side-by-side" ? value : "side-by-side";
+  return value === "row-scale" || value === "side-by-side" ? value : "side-by-side";
 }
 
 function normalizeComparisonTab(value: string | null): ComparisonTab {
@@ -1147,6 +1148,12 @@ export function ContractResults({
     }
     setSearchParams(params, { replace: false });
   };
+  const setDesignOption = (nextDesignOption: ComparisonDesignOption) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("mode", "comparison");
+    params.set("design", nextDesignOption);
+    setSearchParams(params, { replace: false });
+  };
   const toggleFirstAnalysisDemo = (enabled: boolean) => {
     const params = new URLSearchParams(searchParams);
     if (enabled) {
@@ -1450,7 +1457,7 @@ export function ContractResults({
       high: "High",
       medium: "Medium",
       low: "Low",
-      missing: "Missing clauses",
+      missing: "Missing Clauses",
     } satisfies Record<FirstAnalysisMetricKey, string>)[metric],
   }));
   const clearFirstAnalysisMetric = (metric: FirstAnalysisMetricKey) => {
@@ -1473,6 +1480,7 @@ export function ContractResults({
       quickMissingClauseIds={firstAnalysisMissingSelected ? firstAnalysisMissingClauseIds : null}
       neutralActions
       hideSubclauseReference
+      displayMode={designOption === "row-scale" ? "row-scale" : "default"}
       onSetNoAction={(id) =>
         decisions.changeDecision(supplierId, decisionContractId, id, firstAnalysisVersion.version, "no-action")
       }
@@ -1673,6 +1681,9 @@ export function ContractResults({
             onChange={switchMode}
             comparisonLabel={firstAnalysisDemo ? "V1 Analysis" : "Review"}
             historyDisabled={firstAnalysisDemo || versions.length < 2}
+            designOption={designOption}
+            onDesignOptionChange={setDesignOption}
+            showDesignOptions={firstAnalysisDemo && mode === "comparison"}
             onExport={exportCurrentComparison}
             exportDisabled={versions.length < 2}
             onRunAnalysis={onRunAnalysisAgain ?? (() => setUploadOpen(true))}
@@ -2327,6 +2338,9 @@ function ModeSwitcher({
   onChange,
   comparisonLabel = "Review",
   historyDisabled = false,
+  designOption,
+  onDesignOptionChange,
+  showDesignOptions = false,
   onExport,
   exportDisabled,
   onRunAnalysis,
@@ -2335,6 +2349,9 @@ function ModeSwitcher({
   onChange: (mode: ClauseIqMode) => void;
   comparisonLabel?: string;
   historyDisabled?: boolean;
+  designOption?: ComparisonDesignOption;
+  onDesignOptionChange?: (value: ComparisonDesignOption) => void;
+  showDesignOptions?: boolean;
   onExport: () => void;
   exportDisabled: boolean;
   onRunAnalysis: () => void;
@@ -2369,6 +2386,9 @@ function ModeSwitcher({
           );
         })}
       </div>
+      {showDesignOptions && designOption && onDesignOptionChange && (
+        <DesignOptionSwitcher value={designOption} onChange={onDesignOptionChange} />
+      )}
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <Button size="sm" variant="outline" className="h-7 gap-1.5 px-3 text-xs" disabled={exportDisabled} onClick={onExport}>
           <Download className="h-3.5 w-3.5" /> Export
@@ -3799,7 +3819,6 @@ function CategorySidebar({
               }`}
             >
               <span className="min-w-0 flex-1 truncate">{category.name}</span>
-              {category.count > 0 && <CategorySeverityBar severity={category.severity} />}
               <span
                 className={`shrink-0 rounded-full px-1.5 py-px text-[9px] font-medium ${
                   active ? "bg-card text-muted-foreground" : "bg-muted text-muted-foreground"
@@ -3919,60 +3938,6 @@ function CategorySortChip({
     >
       {children}
     </button>
-  );
-}
-
-function CategorySeverityBar({ severity }: { severity: CategorySidebarItem["severity"] }) {
-  const [hoveredSegment, setHoveredSegment] = useState<string | null>(null);
-  const [activeSegment, setActiveSegment] = useState<string | null>(null);
-  const segments = [
-    { key: "high", value: severity.high, color: "#A32D2D", label: "high severity" },
-    { key: "medium", value: severity.medium, color: "#BA7517", label: "medium severity" },
-    { key: "low", value: severity.low, color: "#B4B2A9", label: "low severity" },
-    { key: "clean", value: severity.clean, color: "#3B6D11", label: "clean" },
-  ].filter((segment) => segment.value > 0);
-  const ariaLabel = `${severity.high} high, ${severity.medium} medium, ${severity.low} low, ${severity.clean} clean severity`;
-
-  useEffect(() => {
-    if (!activeSegment) return undefined;
-    const dismiss = () => setActiveSegment(null);
-    document.addEventListener("pointerdown", dismiss);
-    return () => document.removeEventListener("pointerdown", dismiss);
-  }, [activeSegment]);
-
-  const showTooltip = (key: string) => hoveredSegment === key || activeSegment === key;
-  const anySegmentActive = Boolean(hoveredSegment || activeSegment);
-
-  return (
-    <span
-      className="flex h-2 w-10 shrink-0 cursor-pointer gap-px rounded-sm bg-card"
-      role="img"
-      aria-label={ariaLabel}
-    >
-      {segments.map((segment, index) => (
-        <span
-          key={segment.key}
-          className={`relative min-w-px transition-opacity ${
-            index === 0 ? "rounded-l-sm" : ""
-          } ${
-            index === segments.length - 1 ? "rounded-r-sm" : ""
-          } ${anySegmentActive && !showTooltip(segment.key) ? "opacity-80" : "opacity-100"}`}
-          onMouseEnter={() => setHoveredSegment(segment.key)}
-          onMouseLeave={() => setHoveredSegment(null)}
-          onClick={() => {
-            setActiveSegment(segment.key);
-          }}
-          style={{ flexGrow: segment.value, backgroundColor: segment.color }}
-        >
-          {showTooltip(segment.key) && (
-            <span className="pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded bg-[#1a1a1a] px-2 py-1 text-[10px] leading-none text-white shadow-sm">
-              {segment.value} {segment.label} clause{segment.value === 1 ? "" : "s"}
-              <span className="absolute left-1/2 top-full h-0 w-0 -translate-x-1/2 border-x-4 border-t-4 border-x-transparent border-t-[#1a1a1a]" />
-            </span>
-          )}
-        </span>
-      ))}
-    </span>
   );
 }
 
@@ -4109,6 +4074,7 @@ function ClauseDecisionCard({
   metaPrefix,
   missingClause,
   hideSubclauseReference,
+  displayMode = "default",
   primaryActionLabel = "Request Change",
   requestPlaceholder,
   versionLabel,
@@ -4142,6 +4108,7 @@ function ClauseDecisionCard({
   metaPrefix?: ReactNode;
   missingClause?: boolean;
   hideSubclauseReference?: boolean;
+  displayMode?: "default" | "row-scale";
   primaryActionLabel?: string;
   requestPlaceholder?: string;
   versionLabel: string;
@@ -4186,6 +4153,24 @@ function ClauseDecisionCard({
       onOpenDetail();
     }
   };
+
+  if (displayMode === "row-scale" && !isDrafting && !settled && !pendingBasketRequest && !actions) {
+    return (
+      <ClauseRowScaleCard
+        id={id}
+        clause={clause}
+        description={description}
+        actionability={actionability}
+        missingClause={missingClause}
+        hideSubclauseReference={hideSubclauseReference}
+        highlighted={highlighted}
+        primaryActionLabel={primaryActionLabel}
+        onRequest={onRequest}
+        onNoAction={onNoAction}
+        onOpenDetail={onOpenDetail}
+      />
+    );
+  }
 
   return (
     <div
@@ -4362,6 +4347,193 @@ function ClauseDecisionCard({
       )}
     </div>
   );
+}
+
+function ClauseRowScaleCard({
+  id,
+  clause,
+  description,
+  actionability,
+  missingClause,
+  hideSubclauseReference,
+  highlighted,
+  primaryActionLabel,
+  onRequest,
+  onNoAction,
+  onOpenDetail,
+}: {
+  id: string;
+  clause: ClauseResult;
+  description?: string;
+  actionability?: string;
+  missingClause?: boolean;
+  hideSubclauseReference?: boolean;
+  highlighted?: boolean;
+  primaryActionLabel: string;
+  onRequest?: () => void;
+  onNoAction?: () => void;
+  onOpenDetail: () => void;
+}) {
+  const tier = clause.severity;
+  const colour = tier === "high" ? "#A32D2D" : tier === "medium" ? "#BA7517" : "#888780";
+  const isHigh = tier === "high";
+  const isMedium = tier === "medium";
+  const isLow = tier === "low";
+  const severityLabel = hideSubclauseReference && isHigh ? "High Deviation" : titleCaseSeverity(tier);
+  const metadata = hideSubclauseReference ? clause.category : `${clause.subclause} · ${clause.category}`;
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (target.closest("button, a, input, textarea, select, [contenteditable='true']")) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onOpenDetail();
+    }
+  };
+
+  const runAction = (event: MouseEvent<HTMLButtonElement>, action?: () => void) => {
+    event.stopPropagation();
+    action?.();
+  };
+
+  if (isHigh) {
+    return (
+      <div
+        id={`clause-row-${id}`}
+        role="button"
+        tabIndex={0}
+        onClick={onOpenDetail}
+        onKeyDown={handleKeyDown}
+        className={cn(
+          "group relative min-h-[104px] cursor-pointer overflow-hidden rounded-lg border border-border bg-card px-4 py-4 pl-5 transition-colors hover:border-[#A32D2D]/35",
+          highlighted && "ring-2 ring-primary/40",
+        )}
+        style={{ backgroundColor: "rgba(163, 45, 45, 0.04)" }}
+      >
+        <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: colour }} />
+        <div className="flex flex-wrap items-center gap-2">
+          {missingClause && (
+            <Badge variant="outline" className={firstAnalysisDeviationBadgeClass}>
+              Missing Clause
+            </Badge>
+          )}
+          <Badge variant="outline" className={firstAnalysisDeviationBadgeClass}>
+            {severityLabel}
+          </Badge>
+          <p className="text-[11px] text-muted-foreground">
+            {id.toUpperCase()} · {metadata}
+          </p>
+        </div>
+        <h3 className="mt-2 text-[15px] font-medium text-foreground">{clause.title}</h3>
+        {description && <p className="mt-1 text-[13px] leading-5 text-muted-foreground">{description}</p>}
+        {actionability && (
+          <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
+            <Lightbulb className="mr-1 inline h-3 w-3 text-[#A32D2D]" />
+            <span className="font-semibold text-foreground">Actionability:</span> {actionability}
+          </p>
+        )}
+        <div className="mt-3 flex flex-wrap items-center gap-2" onClick={(event) => event.stopPropagation()}>
+          <Button
+            size="sm"
+            className="h-8 rounded-[5px] bg-[#A32D2D] px-3 text-[11px] font-medium text-white hover:bg-[#8F2727]"
+            onClick={(event) => runAction(event, onRequest)}
+          >
+            <Sparkles className="h-3 w-3" /> Request change
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 rounded-[5px] bg-white px-3 text-[11px]"
+            onClick={(event) => runAction(event, onNoAction)}
+          >
+            <CheckCircle2 className="h-3 w-3" /> No Action
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 rounded-[5px] bg-white px-3 text-[11px]"
+            onClick={(event) => runAction(event, onOpenDetail)}
+          >
+            View clause
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      id={`clause-row-${id}`}
+      role="button"
+      tabIndex={0}
+      onClick={onOpenDetail}
+      onKeyDown={handleKeyDown}
+      className={cn(
+        "group relative cursor-pointer overflow-hidden rounded-lg border border-border bg-card pl-5 transition-colors hover:border-primary/30 hover:bg-[#E6F1FB]/25",
+        isMedium ? "min-h-[58px] px-3.5 py-3" : "min-h-[40px] px-3 py-2",
+        highlighted && "ring-2 ring-primary/40 bg-primary/5",
+      )}
+    >
+      <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: colour }} />
+      <div className="flex min-w-0 items-center gap-2">
+        <Badge
+          variant="outline"
+          className={cn(
+            "shrink-0 rounded-[4px] px-2 py-[3px] text-[11px] font-medium leading-none",
+            isMedium ? "border-[#BA7517]/20 bg-[#BA7517] text-[#251607]" : "border-[#D3D1C7] bg-[#F1EFE8] text-[#4F4D48]",
+          )}
+        >
+          {severityLabel}
+        </Badge>
+        <span className="shrink-0 text-[11px] text-muted-foreground">
+          {id.toUpperCase()} · {hideSubclauseReference ? clause.category : clause.subclause}
+        </span>
+        <span className={cn("min-w-0 truncate font-medium text-foreground", isMedium ? "text-[13px]" : "text-[12px]")}>
+          {clause.title}
+        </span>
+        {isMedium && description && (
+          <span className="hidden min-w-0 flex-1 truncate text-[12px] text-muted-foreground lg:inline">
+            {description}
+          </span>
+        )}
+        <div className="ml-auto flex shrink-0 items-center gap-1.5" onClick={(event) => event.stopPropagation()}>
+          {isMedium && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 rounded-[5px] bg-white px-2.5 text-[11px]"
+              onClick={(event) => runAction(event, onRequest)}
+            >
+              Request change
+            </Button>
+          )}
+          {isLow && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 rounded-[5px] px-2.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={(event) => runAction(event, onNoAction)}
+            >
+              No Action
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant={isLow ? "ghost" : "outline"}
+            className={cn("h-7 rounded-[5px] px-2.5 text-[11px]", !isLow && "bg-white")}
+            onClick={(event) => runAction(event, isLow ? onOpenDetail : onNoAction)}
+          >
+            {isLow ? "View" : "No Action"}
+          </Button>
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-60" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function titleCaseSeverity(severity: ClauseResult["severity"]) {
+  return severity.charAt(0).toUpperCase() + severity.slice(1);
 }
 
 interface BasketRequestItem {
@@ -4710,6 +4882,7 @@ function ReviewScreen({
   quickMissingClauseIds,
   neutralActions = false,
   hideSubclauseReference = false,
+  displayMode = "default",
   onSetNoAction,
   onStartDraft,
   onUpdateDraft,
@@ -4729,6 +4902,7 @@ function ReviewScreen({
   quickMissingClauseIds?: Set<string> | null;
   neutralActions?: boolean;
   hideSubclauseReference?: boolean;
+  displayMode?: "default" | "row-scale";
   onSetNoAction: (id: string) => void;
   onStartDraft: (id: string, initialDraft?: { requestedChange?: string; rationale?: string }) => void;
   onUpdateDraft: (id: string, patch: { requestedChange?: string; rationale?: string }) => void;
@@ -4796,6 +4970,7 @@ function ReviewScreen({
             highlighted={highlightedId === c.id}
             missingClause={Boolean(missingClauseIds?.has(c.id))}
             hideSubclauseReference={hideSubclauseReference}
+            displayMode={displayMode}
             onRequest={() => onStartDraft(c.id, actionabilityDraft)}
             onNoAction={() => onSetNoAction(c.id)}
             onEditRequest={() => onStartDraft(c.id, own)}

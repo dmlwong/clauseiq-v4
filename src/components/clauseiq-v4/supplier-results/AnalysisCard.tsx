@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { motion } from "framer-motion";
 import { BarChart2, Check, Download, FileText, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ interface Props {
   onRunAgain?: () => void;
   onDownload?: () => void;
   onViewResult?: () => void;
+  viewResultPrimary?: boolean;
+  isLatestOutput?: boolean;
 }
 
 export function AnalysisCard({
@@ -25,16 +27,21 @@ export function AnalysisCard({
   onRunAgain,
   onDownload,
   onViewResult,
+  viewResultPrimary = true,
+  isLatestOutput = false,
 }: Props) {
   const [saveToDocuments, setSaveToDocuments] = useState(false);
+  const deviationSummaryId = useId();
   const status = statusCopy[analysis.status];
 
   return (
     <motion.article
       layout
-      whileHover={{ boxShadow: "0 12px 32px rgba(15, 23, 42, 0.08)" }}
       transition={{ type: "spring", stiffness: 320, damping: 28 }}
-      className="rounded-xl border border-border bg-card p-5"
+      className={cn(
+        "rounded-xl border bg-card p-5",
+        isLatestOutput ? "border-primary/40 ring-2 ring-primary/15 shadow-sm" : "border-border",
+      )}
     >
       {showSupplier && supplier && (
         <div className="mb-4 flex items-center gap-2 border-b border-border/70 pb-3">
@@ -50,10 +57,17 @@ export function AnalysisCard({
 
       <div className="space-y-5">
         <div className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <Badge variant="outline" className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground">
-              Analysis Result
-            </Badge>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <Badge variant="outline" className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground">
+                Analysis Result
+              </Badge>
+              {isLatestOutput && (
+                <Badge variant="outline" className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground">
+                  Latest output
+                </Badge>
+              )}
+            </div>
             <span className="shrink-0 text-sm text-muted-foreground">{formatAnalysisTimestamp(analysis.analysedAt)}</span>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -82,17 +96,37 @@ export function AnalysisCard({
 
         <div className="space-y-3">
           <p className="text-base text-foreground">Summary shown below. Download the report for full details.</p>
-          <div className="flex flex-wrap gap-2">
-            <DeviationChip label="Missing clauses" value={analysis.deviations.missing} tone="missing" />
-            <DeviationChip label="High deviation" value={analysis.deviations.high} tone="high" />
-            <DeviationChip label="Medium deviation" value={analysis.deviations.medium} tone="medium" />
-            <DeviationChip label="Low deviation" value={analysis.deviations.low} tone="low" />
+          <div className="space-y-2" role="group" aria-labelledby={deviationSummaryId}>
+            <p id={deviationSummaryId} className="text-sm font-medium text-muted-foreground">
+              Missing Clauses and deviation levels
+            </p>
+            <div className="flex flex-nowrap items-center gap-1 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <DeviationChip
+                label="Missing"
+                wideLabel="Missing Clauses"
+                fullLabel="Missing Clauses"
+                value={analysis.deviations.missing}
+                tone="missing"
+              />
+              <DeviationChip label="High" fullLabel="High deviation" value={analysis.deviations.high} tone="high" />
+              <DeviationChip
+                label="Medium"
+                fullLabel="Medium deviation"
+                value={analysis.deviations.medium}
+                tone="medium"
+              />
+              <DeviationChip label="Low" fullLabel="Low deviation" value={analysis.deviations.low} tone="low" />
+            </div>
           </div>
         </div>
 
         <div className="space-y-2">
           {onViewResult && (
-            <Button className="h-10 w-full gap-2" onClick={onViewResult}>
+            <Button
+              variant={viewResultPrimary ? "default" : "outline"}
+              className="h-10 w-full gap-2"
+              onClick={onViewResult}
+            >
               <BarChart2 className="h-4 w-4" />
               View Result
             </Button>
@@ -149,25 +183,38 @@ function StatusLine({
 
 function DeviationChip({
   label,
+  wideLabel,
+  fullLabel = label,
   value,
   tone,
 }: {
   label: string;
+  wideLabel?: string;
+  fullLabel?: string;
   value: number;
   tone: "missing" | "high" | "medium" | "low";
 }) {
   return (
     <Badge
       variant="outline"
+      aria-label={`${fullLabel}: ${value}`}
       className={cn(
-        "rounded-md px-3 py-1 text-sm font-medium",
+        "shrink-0 gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-xs font-medium leading-5",
         tone === "missing" && "border-slate-400 bg-muted/50 text-foreground",
         tone === "high" && "border-destructive bg-destructive/10 text-destructive",
         tone === "medium" && "border-warning bg-warning/10 text-warning-foreground",
         tone === "low" && "border-success bg-success/10 text-success",
       )}
     >
-      {label}: {value}
+      {wideLabel ? (
+        <>
+          <span className="sm:hidden">{label}</span>
+          <span className="hidden sm:inline">{wideLabel}</span>
+        </>
+      ) : (
+        <span>{label}</span>
+      )}
+      <span className="tabular-nums">{value}</span>
     </Badge>
   );
 }

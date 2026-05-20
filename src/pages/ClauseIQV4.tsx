@@ -110,7 +110,7 @@ export default function ClauseIQV4() {
     const t = setTimeout(() => {
       setRerunProcessing(false);
       setFile(null);
-      toast.success("New analysis completed and added to the current history.");
+      toast.success("New analysis added as latest output.");
     }, PROCESSING_MS);
     return () => clearTimeout(t);
   }, [rerunProcessing]);
@@ -186,7 +186,7 @@ export default function ClauseIQV4() {
     setFile(null);
     setRerunProcessing(false);
     setRerunUploadVisible(true);
-    setTimeout(() => rerunUploadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    scrollLatestOutputIntoView(120);
   };
 
   return (
@@ -209,7 +209,8 @@ export default function ClauseIQV4() {
     >
       <div
         className={cn(
-          "mx-auto px-4 py-10 space-y-5 transition-[max-width] duration-300",
+          "mx-auto px-4 pt-10 space-y-5 transition-[max-width] duration-300",
+          "pb-10",
           "max-w-[640px]",
         )}
       >
@@ -435,7 +436,7 @@ export default function ClauseIQV4() {
                     </p>
                   </StateCard>
                 )}
-                <div ref={latestOutputRef} aria-hidden="true" />
+                <div ref={latestOutputRef} className="h-[304px]" aria-hidden="true" />
               </div>
             )}
           </div>

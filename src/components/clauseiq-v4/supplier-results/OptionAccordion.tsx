@@ -3,13 +3,14 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { newestFirst, supplierSeverity } from "@/lib/clauseiq-utils";
+import { newestFirst, oldestFirst, supplierSeverity } from "@/lib/clauseiq-utils";
 import { AnalysisCard } from "./AnalysisCard";
 import { SupplierAvatar } from "./SupplierAvatar";
 import type { ResultsViewProps } from "./types";
 
 export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResult }: ResultsViewProps) {
   const suppliers = useMemo(() => sortByLatestChange(initiative.suppliers), [initiative.suppliers]);
+  const latestAnalysisId = useMemo(() => latestAnalysis(initiative.suppliers)?.id, [initiative.suppliers]);
   const [openIds, setOpenIds] = useState<string[]>(() => {
     const latestSupplier = suppliers.at(-1);
     return latestSupplier ? [latestSupplier.id] : [];
@@ -33,6 +34,7 @@ export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResu
           const open = openIds.includes(supplier.id);
           const severity = supplierSeverity(supplier.analyses);
           const latestChange = latestChangeTimestamp(supplier.analyses);
+          const containsLatestOutput = supplier.analyses.some((analysis) => analysis.id === latestAnalysisId);
 
           return (
             <motion.section
@@ -51,8 +53,9 @@ export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResu
                   <SupplierAvatar name={supplier.name} shortCode={supplier.shortCode} severity={severity} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium text-foreground">{supplier.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      Total Contract Runs: {supplier.analyses.length}
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      <span>Total Contract Runs: {supplier.analyses.length}</span>
+                      {containsLatestOutput && <span className="font-medium">- Contains latest output</span>}
                     </div>
                   </div>
                   <div className="ml-auto flex shrink-0 items-center gap-2 pt-0.5">
@@ -75,13 +78,15 @@ export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResu
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                   >
                     <div className="space-y-3 border-t border-border/70 bg-muted/20 p-3">
-                      {newestFirst(supplier.analyses).map((analysis) => (
+                      {oldestFirst(supplier.analyses).map((analysis) => (
                         <AnalysisCard
                           key={analysis.id}
                           analysis={analysis}
                           onRunAgain={onRunAgain}
                           onDownload={onDownload}
                           onViewResult={onViewResult}
+                          viewResultPrimary={analysis.id === latestAnalysisId}
+                          isLatestOutput={analysis.id === latestAnalysisId}
                         />
                       ))}
                     </div>
@@ -94,6 +99,12 @@ export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResu
       </div>
     </motion.div>
   );
+}
+
+function latestAnalysis(suppliers: ResultsViewProps["initiative"]["suppliers"]) {
+  return suppliers
+    .flatMap((supplier) => supplier.analyses)
+    .sort((a, b) => Date.parse(b.analysedAt) - Date.parse(a.analysedAt))[0];
 }
 
 function sortByLatestChange(suppliers: ResultsViewProps["initiative"]["suppliers"]) {

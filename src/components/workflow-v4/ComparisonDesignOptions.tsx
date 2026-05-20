@@ -1,11 +1,11 @@
 import { useState, type ReactNode } from "react";
-import { ArrowRight, Columns3 } from "lucide-react";
+import { ArrowRight, Columns3, List } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { ComparisonStripStats, DeviationDistribution, VersionPanelData } from "@/lib/clauseiq-v4-comparison";
 
-export type ComparisonDesignOption = "evolved" | "side-by-side";
+export type ComparisonDesignOption = "evolved" | "side-by-side" | "row-scale";
 export type EvidenceMetricKey =
   | "open-items"
   | "met"
@@ -43,7 +43,8 @@ export interface FirstAnalysisMetrics {
 }
 
 const designOptions: Array<{ value: ComparisonDesignOption; label: string; icon: ReactNode }> = [
-  { value: "side-by-side", label: "Option 2 · Side-by-side", icon: <Columns3 className="h-3.5 w-3.5" /> },
+  { value: "row-scale", label: "A · Row scale", icon: <List className="h-3.5 w-3.5" /> },
+  { value: "side-by-side", label: "Current · Side-by-side", icon: <Columns3 className="h-3.5 w-3.5" /> },
 ];
 
 const distributionColours: Record<keyof DeviationDistribution, string> = {
@@ -147,7 +148,7 @@ export function ComparisonDesignOptions({
     />
   ) : null;
 
-  if (option === "side-by-side") {
+  if (option === "side-by-side" || option === "row-scale") {
     return (
       <div className="mx-auto grid w-full max-w-[1500px] gap-4 px-6 py-4 xl:grid-cols-[360px_minmax(0,1fr)] xl:items-start">
         <aside className="xl:sticky xl:top-[100px] xl:max-h-[calc(100vh-180px)] xl:self-start xl:overflow-y-auto">
@@ -276,7 +277,7 @@ export function FirstAnalysisDesignOptions({
     />
   ) : null;
 
-  if (option === "side-by-side") {
+  if (option === "side-by-side" || option === "row-scale") {
     return (
       <div className="mx-auto grid w-full max-w-[1500px] gap-4 px-6 py-4 xl:grid-cols-[360px_minmax(0,1fr)] xl:items-start">
         <aside className="xl:sticky xl:top-[100px] xl:max-h-[calc(100vh-180px)] xl:self-start xl:overflow-y-auto">
@@ -1005,7 +1006,7 @@ const firstAnalysisMetricDefinitions: Array<{
   { key: "high", label: "High", value: "high", tone: "destructive", group: "risk" },
   { key: "medium", label: "Medium", value: "medium", tone: "warning", group: "risk" },
   { key: "low", label: "Low", value: "low", group: "risk" },
-  { key: "missing", label: "Missing clauses", value: "missingClauses", tone: "destructive", group: "risk" },
+  { key: "missing", label: "Missing Clauses", value: "missingClauses", tone: "destructive", group: "risk" },
 ];
 
 function FirstAnalysisMetricGrid({

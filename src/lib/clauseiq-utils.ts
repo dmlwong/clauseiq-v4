@@ -55,6 +55,10 @@ export function newestFirst(analyses: ClauseAnalysis[]): ClauseAnalysis[] {
   return [...analyses].sort((a, b) => Date.parse(b.analysedAt) - Date.parse(a.analysedAt));
 }
 
+export function oldestFirst(analyses: ClauseAnalysis[]): ClauseAnalysis[] {
+  return [...analyses].sort((a, b) => Date.parse(a.analysedAt) - Date.parse(b.analysedAt));
+}
+
 export function formatAnalysisDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short",

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { ArrowRight, Columns3, List } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -135,7 +135,6 @@ export function ComparisonDesignOptions({
   onEvidenceMetricSelect?: (metric: EvidenceMetricKey) => void;
   evidenceMetrics?: EvidenceMetricCounts;
 }) {
-  const [rightRailTab, setRightRailTab] = useState<"summary" | "categories">("summary");
   const categoryLabels = activeCategoryLabels ?? (activeCategoryLabel ? [activeCategoryLabel] : []);
   const hasActiveFilters = Boolean(activeMetricLabel || categoryLabels.length > 0);
   const activeFilterChips = hasActiveFilters ? (
@@ -150,29 +149,22 @@ export function ComparisonDesignOptions({
 
   if (option === "side-by-side" || option === "row-scale") {
     return (
-      <div className="mx-auto grid w-full max-w-[1500px] gap-4 px-6 py-4 xl:grid-cols-[360px_minmax(0,1fr)] xl:items-start">
+      <div className="mx-auto grid w-full max-w-[1500px] gap-4 px-6 py-4 xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
         <aside className="xl:sticky xl:top-[100px] xl:max-h-[calc(100vh-180px)] xl:self-start xl:overflow-y-auto">
-          <section className="overflow-hidden rounded-lg border border-border bg-card">
-            <RightRailTabs active={rightRailTab} onChange={setRightRailTab} />
-            <div className="p-3">
-              {rightRailTab === "summary" ? (
-                <ComparisonSummaryRail
-                  panel={panel}
-                  stripStats={stripStats}
-                  contractName={contractName}
-                  supplierName={supplierName}
-                  leftLabel={leftLabel}
-                  rightLabel={rightLabel}
-                  comparisonControl={comparisonControl}
-                  activeMetric={activeEvidenceMetric}
-                  onMetricSelect={onEvidenceMetricSelect}
-                  metrics={evidenceMetrics}
-                  activeFilterChips={activeFilterChips}
-                />
-              ) : (
-                <SidebarFiltersPanel activeFilterChips={activeFilterChips}>{categoryPanel}</SidebarFiltersPanel>
-              )}
-            </div>
+          <section className="overflow-hidden rounded-lg border border-border bg-card p-3">
+            <ComparisonSummaryRail
+              panel={panel}
+              stripStats={stripStats}
+              contractName={contractName}
+              supplierName={supplierName}
+              leftLabel={leftLabel}
+              rightLabel={rightLabel}
+              comparisonControl={comparisonControl}
+              activeMetric={activeEvidenceMetric}
+              onMetricSelect={onEvidenceMetricSelect}
+              metrics={evidenceMetrics}
+            />
+            <CategoryFiltersSection activeFilterChips={activeFilterChips}>{categoryPanel}</CategoryFiltersSection>
           </section>
         </aside>
         <div id="comparison-work-column" className="min-w-0 space-y-4">
@@ -259,7 +251,6 @@ export function FirstAnalysisDesignOptions({
   activeMetrics?: FirstAnalysisMetricKey[];
   onMetricSelect?: (metric: FirstAnalysisMetricKey) => void;
 }) {
-  const [rightRailTab, setRightRailTab] = useState<"summary" | "categories">("summary");
   const categoryLabels = activeCategoryLabels ?? (activeCategoryLabel ? [activeCategoryLabel] : []);
   const hasActiveFilters = Boolean(categoryLabels.length > 0 || (activeMetricLabels?.length ?? 0) > 0);
   const clearAllActiveFilters = () => {
@@ -279,23 +270,16 @@ export function FirstAnalysisDesignOptions({
 
   if (option === "side-by-side" || option === "row-scale") {
     return (
-      <div className="mx-auto grid w-full max-w-[1500px] gap-4 px-6 py-4 xl:grid-cols-[360px_minmax(0,1fr)] xl:items-start">
+      <div className="mx-auto grid w-full max-w-[1500px] gap-4 px-6 py-4 xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
         <aside className="xl:sticky xl:top-[100px] xl:max-h-[calc(100vh-180px)] xl:self-start xl:overflow-y-auto">
-          <section className="overflow-hidden rounded-lg border border-border bg-card">
-            <RightRailTabs active={rightRailTab} onChange={setRightRailTab} />
-            <div className="p-3">
-              {rightRailTab === "summary" ? (
-                <FirstAnalysisSummaryPanel
-                  metrics={metrics}
-                  activeMetrics={activeMetrics}
-                  onMetricSelect={onMetricSelect}
-                  activeFilterChips={activeFilterChips}
-                  compact
-                />
-              ) : (
-                <SidebarFiltersPanel activeFilterChips={activeFilterChips}>{categoryPanel}</SidebarFiltersPanel>
-              )}
-            </div>
+          <section className="overflow-hidden rounded-lg border border-border bg-card p-3">
+            <FirstAnalysisSummaryPanel
+              metrics={metrics}
+              activeMetrics={activeMetrics}
+              onMetricSelect={onMetricSelect}
+              compact
+            />
+            <CategoryFiltersSection activeFilterChips={activeFilterChips}>{categoryPanel}</CategoryFiltersSection>
           </section>
         </aside>
         <div id="comparison-work-column" className="min-w-0 space-y-4">
@@ -401,6 +385,23 @@ function SidebarFiltersPanel({
   );
 }
 
+function CategoryFiltersSection({
+  children,
+  activeFilterChips,
+}: {
+  children: ReactNode;
+  activeFilterChips?: ReactNode;
+}) {
+  return (
+    <div className="mt-4 border-t border-border pt-3">
+      <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        Categories
+      </p>
+      <SidebarFiltersPanel activeFilterChips={activeFilterChips}>{children}</SidebarFiltersPanel>
+    </div>
+  );
+}
+
 function ActiveFiltersSection({ children }: { children?: ReactNode }) {
   if (!children) return null;
   return (
@@ -439,7 +440,7 @@ function InitialAnalysisSummaryCard({
         )}
       </div>
       <p className="mt-2 text-sm leading-6 text-foreground">
-        ClauseIQ reviewed this contract for the first time. Review flagged clauses and add any requested changes to the basket.
+        ClauseIQ reviewed this contract for the first time. Review flagged clauses and add requested changes to the supplier CSV.
       </p>
       <FirstAnalysisMetricGrid
         metrics={metrics}
@@ -557,32 +558,6 @@ function FilterChip({ label, onClear }: { label: string; onClear: () => void }) 
       {label}
       <span aria-hidden className="text-[#0C447C]/70">×</span>
     </button>
-  );
-}
-
-function RightRailTabs({
-  active,
-  onChange,
-}: {
-  active: "summary" | "categories";
-  onChange: (value: "summary" | "categories") => void;
-}) {
-  return (
-    <div className="grid grid-cols-2 gap-1 border-b border-border bg-[#f8f7f5] p-1">
-      {(["summary", "categories"] as const).map((value) => (
-        <button
-          key={value}
-          type="button"
-          onClick={() => onChange(value)}
-          className={cn(
-            "h-7 rounded-md text-[11px] font-medium capitalize transition-colors",
-            active === value ? "bg-[#1a2744] text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground",
-          )}
-        >
-          {value}
-        </button>
-      ))}
-    </div>
   );
 }
 

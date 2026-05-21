@@ -3,6 +3,7 @@ export type ContractStatus = "Not Reviewed" | "In Review" | "In Negotiation" | "
 export type SupplierAction = "Changed by supplier" | "No change" | "Supplier rejected request" | "—";
 export type ClauseSeverity = "high" | "medium" | "low";
 export type ClauseChange = "improved" | "worsened" | "unchanged" | "new";
+export type ClauseSourceDeviationLevel = "High" | "Medium" | "Low" | "None";
 export type ClausePriority = "Critical" | "Important" | "Watchlist";
 export type ClauseLifecycleStatus = "Open" | "In negotiation" | "Resolved";
 
@@ -15,6 +16,10 @@ export interface ClauseResult {
   deviation: string;
   resolved: boolean;
   change?: ClauseChange;
+  /** Source workbook says the provision is missing from the supplied contract. */
+  missingClause?: boolean;
+  /** Original workbook deviation level before UI-level severity coercion. */
+  sourceDeviationLevel?: ClauseSourceDeviationLevel;
   excerpt: string;
   improvementReason?: string;
   /** Other places in the contract where this clause is referenced or duplicated. */

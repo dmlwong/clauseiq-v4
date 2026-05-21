@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Sparkles, Search, Check, Pencil, UploadCloud, FileText, Loader2,
-  ChevronRight, ListChecks, FilePlus2, Building2, Lock, Info,
+  ChevronRight, ListChecks, FilePlus2, Building2, Info,
   BookOpen, Tag, MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -262,7 +262,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
         )
       }
       rightPanel={
-        <div className="p-4">
+        <div className="h-full p-4">
           <SupplierOutputsPanel
             initiative={supplierOutputInitiative}
             outputState={supplierOutputPanelState}
@@ -332,29 +332,12 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
                     className={resultsVisible ? "mx-auto w-full max-w-[640px]" : undefined}
                   >
                     <h2 className="text-base font-semibold mb-3">Initiative Selected</h2>
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="h-6 w-6 rounded-full bg-success/15 text-success grid place-items-center shrink-0">
-                          <Check className="h-3.5 w-3.5" />
-                        </div>
-                        <div className="truncate">
-                          <div className="font-medium text-sm truncate">{initiative.name}</div>
-                          <div className="text-xs text-muted-foreground truncate">{initiative.sector} · {initiative.owner}</div>
-                        </div>
-                      </div>
-                      {initiativeLocked ? (
-                        <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-                          <Lock className="h-3.5 w-3.5" /> Locked
-                        </span>
-                      ) : (
-                        <button
-                          className="text-sm text-ciq hover:underline inline-flex items-center gap-1"
-                          onClick={() => setModalOpen(true)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" /> Edit
-                        </button>
-                      )}
-                    </div>
+                    <SelectedSummaryRow
+                      label={initiative.name}
+                      disabled={initiativeLocked}
+                      actionLabel="Edit"
+                      onAction={() => setModalOpen(true)}
+                    />
                   </StateCard>
                 )}
               </div>
@@ -384,29 +367,12 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
                     className={resultsVisible ? "mx-auto w-full max-w-[640px]" : undefined}
                   >
                     <h2 className="text-base font-semibold mb-3">Contract Analysis Parameters</h2>
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="h-6 w-6 rounded-full bg-success/15 text-success grid place-items-center shrink-0">
-                          <Check className="h-3.5 w-3.5" />
-                        </div>
-                        <div className="truncate">
-                          <div className="font-medium text-sm truncate">{selectedParameter.label}</div>
-                          <div className="text-xs text-muted-foreground truncate">{selectedParameter.kind}</div>
-                        </div>
-                      </div>
-                      {parameterLocked ? (
-                        <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-                          <Lock className="h-3.5 w-3.5" /> Locked
-                        </span>
-                      ) : (
-                        <button
-                          className="text-sm text-ciq hover:underline inline-flex items-center gap-1"
-                          onClick={handleParameterEdit}
-                        >
-                          <Pencil className="h-3.5 w-3.5" /> Change {selectedParameter.kind}
-                        </button>
-                      )}
-                    </div>
+                    <SelectedSummaryRow
+                      label={selectedParameter.label}
+                      disabled={parameterLocked}
+                      actionLabel={`Change ${selectedParameter.kind}`}
+                      onAction={handleParameterEdit}
+                    />
                   </StateCard>
                 )}
               </div>
@@ -546,6 +512,44 @@ function NewAnalysisDivider() {
   );
 }
 
+function SelectedSummaryRow({
+  label,
+  disabled,
+  actionLabel,
+  onAction,
+}: {
+  label: string;
+  disabled: boolean;
+  actionLabel: string;
+  onAction: () => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex min-h-11 items-center justify-between gap-4 rounded-md border px-4 py-2",
+        disabled ? "border-border bg-muted/50 text-muted-foreground" : "border-border bg-card text-foreground",
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <Check className={cn("h-4 w-4 shrink-0", disabled ? "text-muted-foreground" : "text-success")} />
+        <span className={cn("truncate text-sm font-medium", disabled ? "text-muted-foreground" : "text-foreground")}>
+          {label}
+        </span>
+      </div>
+      {!disabled && (
+        <button
+          type="button"
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-ciq transition-colors hover:bg-ciq-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={onAction}
+        >
+          <Pencil className="h-3.5 w-3.5" />
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function ParameterSelection({
   options,
   expandedKind,
@@ -655,7 +659,7 @@ function ParameterSelection({
 
 function ParameterIcon({ kind }: { kind: CiqParameterKind }) {
   if (kind === "Category") return <Tag className="h-4 w-4" />;
-  if (kind === "Country") return <MapPin className="h-4 w-4" />;
+  if (kind === "Governing Law") return <MapPin className="h-4 w-4" />;
   return <BookOpen className="h-4 w-4" />;
 }
 

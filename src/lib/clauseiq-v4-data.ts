@@ -9,7 +9,7 @@ export interface CiqInitiative {
   scope: "mine" | "team";
 }
 
-export type CiqParameterKind = "Playbook" | "Category" | "Country";
+export type CiqParameterKind = "Playbook" | "Category" | "Governing Law";
 
 export interface CiqSelectedParameter {
   kind: CiqParameterKind;
@@ -60,8 +60,8 @@ export const CIQ_PARAMETER_OPTIONS: CiqParameterOption[] = [
     ],
   },
   {
-    kind: "Country",
-    label: "Country",
+    kind: "Governing Law",
+    label: "Governing Law",
     options: [
       "United Kingdom",
       "United States",

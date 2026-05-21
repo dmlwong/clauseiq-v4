@@ -1,12 +1,11 @@
 import { useState, useMemo, useEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
-  ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, Search, MapPin, Lightbulb,
+  ChevronLeft, AlertTriangle, CheckCircle2, Search, MapPin, Lightbulb,
   GitCompare, History, X, ArrowRight, Sparkles, Upload, Trash2, FileText, Loader2,
   Download, Info, ShieldCheck, ExternalLink, Sigma, Pin, RotateCcw,
-  Clock, ShieldX, ShoppingBag, Send,
+  Clock, ShieldX, Send, Pencil,
 } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
 
 import { toast } from "@/components/ui/use-toast";
 import { toast as sonnerToast } from "sonner";
@@ -49,6 +48,7 @@ import {
   type ClauseResult, type ContractVersion,
 } from "@/lib/workflow-data";
 import { ACME_DEFAULT_FOCUS_IDS, ACME_DEFAULT_REQUEST_TEXTS, makeSyntheticVersion } from "@/lib/clauses-data";
+import { SWITCHED_ON_FIRST_ANALYSIS_VERSION } from "@/lib/switched-on-analysis-data";
 import {
   useClauseDecisions,
   getLatestRequest,
@@ -74,7 +74,7 @@ import { TextDiff } from "./TextDiff";
 import { NegotiationTrendStrip } from "./NegotiationTrendStrip";
 import { getClauseAudit, confidenceLabel } from "@/lib/audit-trail";
 import { getSupplierGrouping } from "@/lib/supplier-grouping";
-import { exportContractCsv, downloadCsv } from "@/lib/csv-export";
+import { downloadCsv } from "@/lib/csv-export";
 import {
   deriveComparisonModel,
   deriveHistoryModel,
@@ -96,7 +96,6 @@ import {
 import {
   ComparisonDesignOptions,
   ComparisonSummaryRail,
-  DesignOptionSwitcher,
   FirstAnalysisDesignOptions,
   type ComparisonDesignOption,
   type EvidenceMetricCounts,
@@ -112,7 +111,6 @@ interface Props {
   onBack: () => void;
   backLabel?: string;
   compactHeader?: boolean;
-  onRunAnalysisAgain?: () => void;
   scoringOption?: ScoringOptionKey;
   onScoringOptionChange?: (value: ScoringOptionKey) => void;
 }
@@ -403,6 +401,18 @@ function severityRank(severity: "high" | "medium" | "low") {
   return 1;
 }
 
+function isMissingClause(clause: ClauseResult) {
+  return Boolean(clause.missingClause || clause.change === "new");
+}
+
+function isPureMissingClause(clause: ClauseResult) {
+  return Boolean(clause.missingClause && clause.sourceDeviationLevel === "None");
+}
+
+function countsTowardDeviationMetric(clause: ClauseResult) {
+  return !isPureMissingClause(clause);
+}
+
 function deriveScoreBand(score: number, open: Record<"high" | "medium" | "low", number>, dealBreakerPresent: boolean): ScoreBand {
   if (dealBreakerPresent || open.high >= 3) return "F";
   if (open.high === 2) return "D";
@@ -598,7 +608,6 @@ export function ContractResults({
   onBack,
   backLabel,
   compactHeader = false,
-  onRunAnalysisAgain,
 }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
   const initiative = getInitiative(initiativeId);
@@ -613,10 +622,15 @@ export function ContractResults({
 
   // Local mutable copy of versions so the user can simulate uploading a new
   // round or deleting an existing one without touching shared seed data.
-  const [availableVersions, setAvailableVersions] = useState<ContractVersion[]>(contract?.versions ?? []);
+  const firstAnalysisSeedVersions = firstAnalysisDemo ? [SWITCHED_ON_FIRST_ANALYSIS_VERSION] : contract?.versions ?? [];
+  const [availableVersions, setAvailableVersions] = useState<ContractVersion[]>(firstAnalysisSeedVersions);
   const versions = firstAnalysisDemo ? availableVersions.slice(0, 1) : availableVersions;
   const v1 = versions[0] ?? null;
   const latest = versions.at(-1) ?? null;
+
+  useEffect(() => {
+    setAvailableVersions(firstAnalysisDemo ? [SWITCHED_ON_FIRST_ANALYSIS_VERSION] : contract?.versions ?? []);
+  }, [contract?.id, firstAnalysisDemo]);
 
   useEffect(() => {
     if (!firstAnalysisDemo) {
@@ -825,6 +839,8 @@ export function ContractResults({
   // Decision per-version: accept / request changes (state only — no side effects).
   const [decisions_, setDecisions_] = useState<Record<string, "accepted" | "changes-requested" | null>>({});
   const [acceptConfirmOpen, setAcceptConfirmOpen] = useState(false);
+  const [requestReviewOpen, setRequestReviewOpen] = useState(false);
+  const [applyAllConfirmOpen, setApplyAllConfirmOpen] = useState(false);
   const [quickFilter, setQuickFilter] = useState<QuickFilterKey | null>(() =>
     mode === "comparison" && versions.length >= 2 ? "open-items" : null,
   );
@@ -850,10 +866,36 @@ export function ContractResults({
       return {
         clauseId: item.clauseId,
         clauseTitle: clause?.title ?? def?.title ?? item.clauseId.toUpperCase(),
+        category: clause?.category,
+        severity: clause?.severity,
+        missingClause: clause?.missingClause,
+        sourceDeviationLevel: clause?.sourceDeviationLevel,
         request: item.request,
       };
     });
   }, [activeRequestVersion, decisionContractId, decisions, leftVersion, mode, supplierId]);
+  const generateRequestedChangesCsv = () => {
+    if (!activeRequestVersion || pendingRequestItems.length === 0) return;
+    const csv = exportRequestChangeCsv(
+      {
+        initiativeName: initiative.name,
+        supplierName: supplier.name,
+        contractName: contract.name,
+        versionLabel: activeRequestVersion.version,
+      },
+      activeRequestVersion,
+      pendingRequestItems,
+    );
+    downloadCsv(
+      `${supplier.name}-${contract.name}-${activeRequestVersion.version}-requested-changes.csv`,
+      csv,
+    );
+    decisions.submitPendingRequests(supplierId, decisionContractId, activeRequestVersion.version);
+    toast({
+      title: "CSV generated",
+      description: `${pendingRequestItems.length} requested change${pendingRequestItems.length === 1 ? "" : "s"} exported for supplier negotiation.`,
+    });
+  };
 
   const onUploadVersion = (file: File | null, label: string) => {
     if (!file) return;
@@ -1180,23 +1222,6 @@ export function ContractResults({
     }
     setSearchParams(params, { replace: false });
   };
-  const exportCurrentComparison = () => {
-    if (!leftVersion || !rightVersion) return;
-    const csv = exportContractCsv(
-      {
-        initiativeName: initiative.name,
-        supplierName: supplier.name,
-        contractName: contract.name,
-        leftLabel: leftVersion.version,
-        rightLabel: rightVersion.version,
-      },
-      versions,
-      stateOf,
-    );
-    downloadCsv(`${supplier.name}-${contract.name}-${leftVersion.version}-${rightVersion.version}.csv`, csv);
-    toast({ title: "Export ready", description: "Verification CSV downloaded." });
-  };
-
   const hasVersionComparison = comparisonModel.hasComparison;
   const comparisonCategoryTotal = comparisonCategoryItems.reduce((sum, category) => sum + category.count, 0);
   const categoryPanel = (
@@ -1242,6 +1267,10 @@ export function ContractResults({
         request?.requestedChange?.trim(),
     );
   };
+  const hasFirstAnalysisDraft = (id: string) => {
+    const draft = stateOf(id).draftRequests?.[firstAnalysisVersionLabel];
+    return Boolean(draft?.requestedChange?.trim() || draft?.rationale?.trim());
+  };
   const firstAnalysisCategoryClauses = firstAnalysisVersion
     ? firstAnalysisVersion.clauses.filter((clause) =>
         activeCategorySet.size === 0 || activeCategorySet.has(clause.category),
@@ -1249,7 +1278,7 @@ export function ContractResults({
     : [];
   const isFirstAnalysisReviewClause = (clause: ClauseResult) => !clause.resolved;
   const firstAnalysisAllClauses = firstAnalysisVersion?.clauses ?? [];
-  const explicitMissingClauses = firstAnalysisAllClauses.filter((clause) => clause.change === "new");
+  const explicitMissingClauses = firstAnalysisAllClauses.filter(isMissingClause);
   const fallbackMissingClauses = firstAnalysisAllClauses.filter((_, index) => (index + 1) % 5 === 0);
   const firstAnalysisMissingClauseIds = new Set(
     (explicitMissingClauses.length > 0 ? explicitMissingClauses : fallbackMissingClauses).map((clause) => clause.id),
@@ -1273,14 +1302,17 @@ export function ContractResults({
     }
     if (firstAnalysisMissingSelected && !firstAnalysisMissingClauseIds.has(clause.id)) return false;
     if (!isFirstAnalysisReviewClause(clause)) return false;
-    if (hasFirstAnalysisAction(clause.id)) return false;
-    if (firstAnalysisSelectedSeverities.size > 0 && !firstAnalysisSelectedSeverities.has(clause.severity)) return false;
+    if (designOption !== "row-scale" && hasFirstAnalysisAction(clause.id)) return false;
+    if (
+      firstAnalysisSelectedSeverities.size > 0 &&
+      (!countsTowardDeviationMetric(clause) || !firstAnalysisSelectedSeverities.has(clause.severity))
+    ) return false;
     return true;
   });
   const firstAnalysisDistribution: DeviationDistribution = {
-    high: firstAnalysisCategoryClauses.filter((clause) => clause.severity === "high" && !clause.resolved).length,
-    medium: firstAnalysisCategoryClauses.filter((clause) => clause.severity === "medium" && !clause.resolved).length,
-    low: firstAnalysisCategoryClauses.filter((clause) => clause.severity === "low" && !clause.resolved).length,
+    high: firstAnalysisCategoryClauses.filter((clause) => clause.severity === "high" && !clause.resolved && countsTowardDeviationMetric(clause)).length,
+    medium: firstAnalysisCategoryClauses.filter((clause) => clause.severity === "medium" && !clause.resolved && countsTowardDeviationMetric(clause)).length,
+    low: firstAnalysisCategoryClauses.filter((clause) => clause.severity === "low" && !clause.resolved && countsTowardDeviationMetric(clause)).length,
     clean: firstAnalysisCategoryClauses.filter((clause) => clause.resolved).length,
   };
   const firstAnalysisMetrics: FirstAnalysisMetrics = {
@@ -1468,6 +1500,35 @@ export function ContractResults({
     });
   };
   const clearAllFirstAnalysisMetrics = () => setFirstAnalysisMetricFilters(new Set());
+  const firstAnalysisRecommendationTargets = firstAnalysisVersion
+    ? firstAnalysisVersion.clauses
+        .filter((clause) =>
+          isFirstAnalysisReviewClause(clause) &&
+          Boolean(clause.actionability?.trim()) &&
+          !hasFirstAnalysisAction(clause.id) &&
+          !hasFirstAnalysisDraft(clause.id),
+        )
+        .map((clause) => ({
+          id: clause.id,
+          clauseTitle: clause.title,
+          category: clause.category,
+          severity: clause.severity,
+          missingClause: clause.missingClause,
+          sourceDeviationLevel: clause.sourceDeviationLevel,
+          request: { requestedChange: clause.actionability?.trim() },
+        }))
+    : [];
+  const applyAllRecommendations = (targets: RecommendationTargetItem[]) => {
+    if (!firstAnalysisVersion || targets.length === 0) return;
+    targets.forEach(({ id, request }) => {
+      decisions.acceptRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version, request);
+    });
+    setApplyAllConfirmOpen(false);
+    toast({
+      title: "Recommendations applied",
+      description: `${targets.length} recommendation${targets.length === 1 ? "" : "s"} added to CSV review.`,
+    });
+  };
   const firstAnalysisReviewList = firstAnalysisVersion ? (
     <ReviewScreen
       version={firstAnalysisVersion}
@@ -1486,6 +1547,12 @@ export function ContractResults({
       }
       onStartDraft={(id, initialDraft) =>
         decisions.startDraftRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version, initialDraft)
+      }
+      onUseRecommendation={(id, request) =>
+        decisions.acceptRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version, request)
+      }
+      onUndoDecision={(id) =>
+        decisions.clearRoundDecision(supplierId, decisionContractId, id, firstAnalysisVersion.version)
       }
       onUpdateDraft={(id, patch) =>
         decisions.updateDraftRequestText(supplierId, decisionContractId, id, firstAnalysisVersion.version, patch)
@@ -1681,12 +1748,12 @@ export function ContractResults({
             onChange={switchMode}
             comparisonLabel={firstAnalysisDemo ? "V1 Analysis" : "Review"}
             historyDisabled={firstAnalysisDemo || versions.length < 2}
-            designOption={designOption}
-            onDesignOptionChange={setDesignOption}
-            showDesignOptions={firstAnalysisDemo && mode === "comparison"}
-            onExport={exportCurrentComparison}
-            exportDisabled={versions.length < 2}
-            onRunAnalysis={onRunAnalysisAgain ?? (() => setUploadOpen(true))}
+            onApplyAllRecommendations={() => setApplyAllConfirmOpen(true)}
+            applyAllRecommendationsDisabled={!firstAnalysisDemo || firstAnalysisRecommendationTargets.length === 0}
+            recommendationCount={firstAnalysisRecommendationTargets.length}
+            onReviewGenerate={() => setRequestReviewOpen(true)}
+            reviewGenerateDisabled={!activeRequestVersion || pendingRequestItems.length === 0}
+            requestCount={pendingRequestItems.length}
           />
         </div>
       ) : (
@@ -1700,14 +1767,26 @@ export function ContractResults({
                 </button>
                 <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
                   <SupplierGroupingPopover supplierId={supplierId} supplierName={supplier.name} />
+                  {firstAnalysisDemo && mode === "comparison" && (
+                    <Button
+                      size="sm"
+                      className="h-9 gap-1.5 bg-[#1a2744] text-white hover:bg-[#243454]"
+                      disabled={firstAnalysisRecommendationTargets.length === 0}
+                      onClick={() => setApplyAllConfirmOpen(true)}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Apply all recommendations{firstAnalysisRecommendationTargets.length > 0 ? ` (${firstAnalysisRecommendationTargets.length})` : ""}
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="outline"
                     className="h-9 gap-1.5"
-                    disabled={versions.length < 2}
-                    onClick={exportCurrentComparison}
+                    disabled={!activeRequestVersion || pendingRequestItems.length === 0}
+                    onClick={() => setRequestReviewOpen(true)}
                   >
-                    <Download className="w-3.5 h-3.5" /> Export
+                    <Download className="w-3.5 h-3.5" />
+                    Review &amp; Generate{pendingRequestItems.length > 0 ? ` (${pendingRequestItems.length})` : ""}
                   </Button>
                   <Button size="sm" variant="default" className="h-9 gap-1.5" onClick={() => setUploadOpen(true)}>
                     <Upload className="w-3.5 h-3.5" /> Upload New Version
@@ -1768,6 +1847,8 @@ export function ContractResults({
           </div>
         </>
       )}
+
+      {compactHeader && firstAnalysisDemo && <FirstAnalysisContextBanner />}
 
       {/* Verdict banner — only when at least 2 versions exist */}
       {!compactHeader && versions.length >= 2 && leftVersion && rightVersion && leftVersion.version !== rightVersion.version && (
@@ -2057,11 +2138,16 @@ export function ContractResults({
         />
       )}
 
-      <RequestsBasket
+      <RequestReviewDialog
+        open={requestReviewOpen}
+        onOpenChange={setRequestReviewOpen}
         requests={pendingRequestItems}
         closedItems={closedBasketItems}
         supplierName={supplier.name}
-        onEdit={(id) => setDetailClauseId(id)}
+        onUpdate={(id, request) =>
+          activeRequestVersion &&
+          decisions.acceptRequest(supplierId, decisionContractId, id, activeRequestVersion.version, request)
+        }
         onRemove={(id) => activeRequestVersion && decisions.removePendingRequest(supplierId, decisionContractId, id, activeRequestVersion.version)}
         onViewClosed={(id) => setDetailClauseId(id)}
         onReopenClosed={(id) => {
@@ -2078,27 +2164,15 @@ export function ContractResults({
           });
         }}
         onSubmit={() => {
-          if (!activeRequestVersion) return;
-          const csv = exportRequestChangeCsv(
-            {
-              initiativeName: initiative.name,
-              supplierName: supplier.name,
-              contractName: contract.name,
-              versionLabel: activeRequestVersion.version,
-            },
-            activeRequestVersion,
-            pendingRequestItems,
-          );
-          downloadCsv(
-            `${supplier.name}-${contract.name}-${activeRequestVersion.version}-requested-changes.csv`,
-            csv,
-          );
-          decisions.submitPendingRequests(supplierId, decisionContractId, activeRequestVersion.version);
-          toast({
-            title: "CSV generated",
-            description: `${pendingRequestItems.length} requested change${pendingRequestItems.length === 1 ? "" : "s"} exported for supplier negotiation.`,
-          });
+          generateRequestedChangesCsv();
         }}
+      />
+
+      <ApplyRecommendationsDialog
+        open={applyAllConfirmOpen}
+        onOpenChange={setApplyAllConfirmOpen}
+        recommendations={firstAnalysisRecommendationTargets}
+        onApply={applyAllRecommendations}
       />
 
       {/* Upload new version */}
@@ -2119,7 +2193,7 @@ export function ContractResults({
           <AlertDialogHeader>
             <AlertDialogTitle>Accept {rightVersion?.version.toUpperCase() ?? "this version"}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This marks the current supplier version as accepted for this prototype review. You can undo the status from the expanded overview panel.
+              This marks the current supplier version as accepted for this prototype review. You can undo the status from the review modal.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -2272,7 +2346,7 @@ function CompactContractTopbar({
         onClick={onBack}
         className="inline-flex shrink-0 items-center gap-1 text-[13px] font-medium text-primary hover:underline"
       >
-        <ChevronLeft className="h-3.5 w-3.5" /> {backLabel.replace(/^Back to /, "Back")}
+        <ChevronLeft className="h-3.5 w-3.5" /> {backLabel}
       </button>
       <div className="h-3.5 w-px bg-border" aria-hidden />
       <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -2333,28 +2407,53 @@ function FirstAnalysisDemoToggle({
   );
 }
 
+function FirstAnalysisContextBanner() {
+  return (
+    <section className="bg-background">
+      <div className="mx-auto w-full max-w-[1500px] px-6 pt-4 pb-0">
+        <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-base font-semibold text-foreground">
+                Validate ClauseIQ recommendations before supplier negotiation
+              </h2>
+              <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-[#185FA5]/20 bg-white px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#0C447C]">
+                <Info className="h-3 w-3" />
+                V1 Analysis review
+              </span>
+            </div>
+            <p className="mt-1 max-w-4xl text-xs leading-5 text-muted-foreground">
+              Review each clause, decide whether to use the recommended actionability, edit your own requested change, or mark no action. Requested changes are collected for review and generated as a CSV negotiation log.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ModeSwitcher({
   mode,
   onChange,
   comparisonLabel = "Review",
   historyDisabled = false,
-  designOption,
-  onDesignOptionChange,
-  showDesignOptions = false,
-  onExport,
-  exportDisabled,
-  onRunAnalysis,
+  onApplyAllRecommendations,
+  applyAllRecommendationsDisabled = true,
+  recommendationCount = 0,
+  onReviewGenerate,
+  reviewGenerateDisabled,
+  requestCount,
 }: {
   mode: ClauseIqMode;
   onChange: (mode: ClauseIqMode) => void;
   comparisonLabel?: string;
   historyDisabled?: boolean;
-  designOption?: ComparisonDesignOption;
-  onDesignOptionChange?: (value: ComparisonDesignOption) => void;
-  showDesignOptions?: boolean;
-  onExport: () => void;
-  exportDisabled: boolean;
-  onRunAnalysis: () => void;
+  onApplyAllRecommendations?: () => void;
+  applyAllRecommendationsDisabled?: boolean;
+  recommendationCount?: number;
+  onReviewGenerate: () => void;
+  reviewGenerateDisabled: boolean;
+  requestCount: number;
 }) {
   return (
     <div className="flex min-w-0 items-center gap-3 border-b border-[rgba(0,0,0,0.08)] bg-white px-3 py-1.5">
@@ -2386,15 +2485,27 @@ function ModeSwitcher({
           );
         })}
       </div>
-      {showDesignOptions && designOption && onDesignOptionChange && (
-        <DesignOptionSwitcher value={designOption} onChange={onDesignOptionChange} />
-      )}
       <div className="ml-auto flex shrink-0 items-center gap-2">
-        <Button size="sm" variant="outline" className="h-7 gap-1.5 px-3 text-xs" disabled={exportDisabled} onClick={onExport}>
-          <Download className="h-3.5 w-3.5" /> Export
-        </Button>
-        <Button size="sm" className="h-7 gap-1.5 bg-[#1a2744] px-3 text-xs text-white hover:bg-[#243454]" onClick={onRunAnalysis}>
-          <RotateCcw className="h-3.5 w-3.5" /> Run Analysis
+        {onApplyAllRecommendations && (
+          <Button
+            size="sm"
+            className="h-7 gap-1.5 bg-[#1a2744] px-3 text-xs text-white hover:bg-[#243454]"
+            disabled={applyAllRecommendationsDisabled}
+            onClick={onApplyAllRecommendations}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Apply all recommendations{recommendationCount > 0 ? ` (${recommendationCount})` : ""}
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 gap-1.5 px-3 text-xs"
+          disabled={reviewGenerateDisabled}
+          onClick={onReviewGenerate}
+        >
+          <Download className="h-3.5 w-3.5" />
+          Review &amp; Generate{requestCount > 0 ? ` (${requestCount})` : ""}
         </Button>
       </div>
     </div>
@@ -2717,8 +2828,8 @@ function RequestLifecycleBadge({ request }: { request?: ClauseRequest }) {
   if (request?.state === "pending") {
     return (
       <span className="inline-flex cursor-default items-center gap-1 rounded-full border border-[#185FA5]/25 bg-[#E6F1FB] px-2 py-1 text-[10px] font-medium text-[#0C447C]">
-        <ShoppingBag className="h-3 w-3" />
-        In request basket
+        <FileText className="h-3 w-3" />
+        Added to Review
       </span>
     );
   }
@@ -3969,7 +4080,7 @@ function requestLifecycleLabel(request?: ClauseRequest) {
     ? `Submitted to supplier on ${formatShortDate(request.submittedAt)}`
     : request.state === "submitted"
       ? "Submitted to supplier"
-      : "Pending in request basket";
+      : "Added to Review";
 }
 
 function ClauseRequestForm({
@@ -3979,6 +4090,7 @@ function ClauseRequestForm({
   inherited,
   submitLabel = "Add to requests",
   requestPlaceholder = "Describe the change you want from the supplier",
+  compact = false,
   onUpdate,
   onCancel,
   onSubmit,
@@ -3989,6 +4101,7 @@ function ClauseRequestForm({
   inherited?: { request: ClauseRequest; version: string };
   submitLabel?: string;
   requestPlaceholder?: string;
+  compact?: boolean;
   onUpdate: (patch: { requestedChange?: string; rationale?: string }) => void;
   onCancel: () => void;
   onSubmit: () => void;
@@ -3998,7 +4111,7 @@ function ClauseRequestForm({
 
   return (
     <div
-      className="mt-3 space-y-3 border-t border-border pt-3"
+      className={cn("mt-3 border-t border-border pt-3", compact ? "space-y-2" : "space-y-3")}
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
@@ -4023,7 +4136,7 @@ function ClauseRequestForm({
             value={requestValue}
             onChange={(event) => onUpdate({ requestedChange: event.target.value })}
             placeholder={requestPlaceholder}
-            className="min-h-[64px] text-sm"
+            className={cn("min-h-[64px] text-sm", compact && "min-h-[58px] text-xs")}
           />
         </div>
         <div className="space-y-1">
@@ -4032,21 +4145,21 @@ function ClauseRequestForm({
             value={rationaleValue}
             onChange={(event) => onUpdate({ rationale: event.target.value })}
             placeholder="Why is this change required?"
-            className="min-h-[64px] text-sm"
+            className={cn("min-h-[64px] text-sm", compact && "min-h-[58px] text-xs")}
           />
         </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-[11px] text-muted-foreground">
-          Request will stay editable in the basket until submitted to the supplier.
+          Request will stay editable in review until submitted to the supplier.
         </p>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={onCancel}>
+          <Button size="sm" variant="outline" className={cn("h-8 text-xs", compact && "h-7 text-[11px]")} onClick={onCancel}>
             Cancel
           </Button>
           <Button
             size="sm"
-            className="h-8 gap-1.5 bg-[#1a2744] text-xs text-white hover:bg-[#243454]"
+            className={cn("h-8 gap-1.5 bg-[#1a2744] text-xs text-white hover:bg-[#243454]", compact && "h-7 text-[11px]")}
             disabled={!requestValue.trim()}
             onClick={onSubmit}
           >
@@ -4083,9 +4196,11 @@ function ClauseDecisionCard({
   pinned,
   onTogglePin,
   onRequest,
+  onUseRecommendation,
   onNoAction,
   onEditRequest,
   onChangeNoAction,
+  onUndoDecision,
   onUpdateDraft,
   onCancelDraft,
   onSubmitDraft,
@@ -4117,9 +4232,11 @@ function ClauseDecisionCard({
   pinned?: boolean;
   onTogglePin?: () => void;
   onRequest?: () => void;
+  onUseRecommendation?: () => void;
   onNoAction?: () => void;
   onEditRequest?: () => void;
   onChangeNoAction?: () => void;
+  onUndoDecision?: () => void;
   onUpdateDraft?: (patch: { requestedChange?: string; rationale?: string }) => void;
   onCancelDraft?: () => void;
   onSubmitDraft?: () => void;
@@ -4133,7 +4250,6 @@ function ClauseDecisionCard({
   const showDecisionBody = !showQueuedCompact || queuedExpanded;
   const requestPreview = request?.requestedChange?.trim() ?? "";
   const settled = decision === "request-update" || decision === "no-action";
-  const requestIsPrimary = !neutralActions && clause.severity === "high";
   const noActionIsPrimary = !neutralActions && clause.severity === "low";
   const showRequestActions = !settled && !actions && !pendingBasketRequest;
   const useFirstAnalysisDeviationStyle = neutralActions && hideSubclauseReference && clause.severity === "high";
@@ -4141,20 +4257,9 @@ function ClauseDecisionCard({
   const severityBadgeClass = useFirstAnalysisDeviationStyle
     ? firstAnalysisDeviationBadgeClass
     : `${severityTone(clause.severity)} shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium`;
+  const showSeverityBadge = !isPureMissingClause(clause);
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const target = event.target as HTMLElement;
-    if (target.closest("button, a, input, textarea, select, [contenteditable='true']")) {
-      return;
-    }
-
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      onOpenDetail();
-    }
-  };
-
-  if (displayMode === "row-scale" && !isDrafting && !settled && !pendingBasketRequest && !actions) {
+  if (displayMode === "row-scale" && !actions) {
     return (
       <ClauseRowScaleCard
         id={id}
@@ -4164,10 +4269,23 @@ function ClauseDecisionCard({
         missingClause={missingClause}
         hideSubclauseReference={hideSubclauseReference}
         highlighted={highlighted}
-        primaryActionLabel={primaryActionLabel}
+        decision={decision}
+        isDrafting={isDrafting}
+        versionLabel={versionLabel}
+        draft={draft}
+        request={request}
+        inherited={inherited}
+        requestPlaceholder={requestPlaceholder}
+        onUpdateDraft={onUpdateDraft}
+        onCancelDraft={onCancelDraft}
+        onSubmitDraft={onSubmitDraft}
+        onUseRecommendation={onUseRecommendation}
         onRequest={onRequest}
         onNoAction={onNoAction}
-        onOpenDetail={onOpenDetail}
+        onEditRequest={
+          decision === "request-update" ? onEditRequest : decision === "no-action" ? onChangeNoAction : onRequest
+        }
+        onUndoDecision={onUndoDecision}
       />
     );
   }
@@ -4175,12 +4293,8 @@ function ClauseDecisionCard({
   return (
     <div
       id={`clause-row-${id}`}
-      role="button"
-      tabIndex={0}
-      onClick={onOpenDetail}
-      onKeyDown={handleKeyDown}
       className={cn(
-        "group relative cursor-pointer rounded-lg border border-border bg-card px-3.5 py-3 transition-colors hover:border-primary/30 hover:bg-[#E6F1FB]/30",
+        "relative rounded-lg border border-border bg-card px-3.5 py-3 transition-colors",
         decision === "request-update" && "border-l-[3px] border-l-[#185FA5] pl-[11px]",
         pendingBasketRequest && "border-l-[3px] border-l-[#185FA5] bg-[#E6F1FB]/20 pl-[11px]",
         highlighted && "ring-2 ring-primary/40 bg-primary/5",
@@ -4215,9 +4329,11 @@ function ClauseDecisionCard({
             Missing Clause
           </Badge>
         )}
-        <Badge variant="outline" className={severityBadgeClass}>
-          {severityBadgeLabel}
-        </Badge>
+        {showSeverityBadge && (
+          <Badge variant="outline" className={severityBadgeClass}>
+            {severityBadgeLabel}
+          </Badge>
+        )}
         {stateBadge}
         {pendingBasketRequest && <RequestLifecycleBadge request={request} />}
         {settled && !pendingBasketRequest && (
@@ -4250,7 +4366,6 @@ function ClauseDecisionCard({
             Drafting request
           </Badge>
         )}
-        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-60" />
       </div>
 
       {showQueuedCompact && (
@@ -4299,8 +4414,8 @@ function ClauseDecisionCard({
         <div className="mt-2 flex items-center gap-1.5 pl-[30px]" onClick={(event) => event.stopPropagation()}>
           <Button
             size="sm"
-            variant={requestIsPrimary ? "default" : "outline"}
-            className={cn("h-8 rounded-[5px] px-3 text-[11px] font-normal gap-1.5", requestIsPrimary && "bg-[#1a2744] text-white hover:bg-[#243454]")}
+            variant="secondary"
+            className="h-8 gap-1.5 rounded-[5px] px-3 text-[11px] font-normal"
             onClick={onRequest}
           >
             <Sparkles className="h-3 w-3" /> {primaryActionLabel}
@@ -4325,8 +4440,8 @@ function ClauseDecisionCard({
       {showQueuedCompact && queuedExpanded && (
         <div className="mt-2 pl-[30px]" onClick={(event) => event.stopPropagation()}>
           <div className="rounded-md border border-[#185FA5]/20 bg-[#E6F1FB]/55 px-3 py-2 text-[11px] text-[#0C447C]">
-            <p className="font-medium">Added to request basket.</p>
-            <p className="mt-0.5 text-[#0C447C]/80">Submit all requests when ready.</p>
+            <p className="font-medium">Added to Review.</p>
+            <p className="mt-0.5 text-[#0C447C]/80">Review and generate all requests when ready.</p>
           </div>
         </div>
       )}
@@ -4357,10 +4472,21 @@ function ClauseRowScaleCard({
   missingClause,
   hideSubclauseReference,
   highlighted,
-  primaryActionLabel,
+  decision,
+  isDrafting,
+  versionLabel,
+  draft,
+  request,
+  inherited,
+  requestPlaceholder,
+  onUpdateDraft,
+  onCancelDraft,
+  onSubmitDraft,
+  onUseRecommendation,
   onRequest,
   onNoAction,
-  onOpenDetail,
+  onEditRequest,
+  onUndoDecision,
 }: {
   id: string;
   clause: ClauseResult;
@@ -4369,76 +4495,146 @@ function ClauseRowScaleCard({
   missingClause?: boolean;
   hideSubclauseReference?: boolean;
   highlighted?: boolean;
-  primaryActionLabel: string;
+  decision?: RoundDecision;
+  isDrafting?: boolean;
+  versionLabel: string;
+  draft?: ClauseRequest;
+  request?: ClauseRequest;
+  inherited?: { request: ClauseRequest; version: string };
+  requestPlaceholder?: string;
+  onUpdateDraft?: (patch: { requestedChange?: string; rationale?: string }) => void;
+  onCancelDraft?: () => void;
+  onSubmitDraft?: () => void;
+  onUseRecommendation?: () => void;
   onRequest?: () => void;
   onNoAction?: () => void;
-  onOpenDetail: () => void;
+  onEditRequest?: () => void;
+  onUndoDecision?: () => void;
 }) {
   const tier = clause.severity;
-  const colour = tier === "high" ? "#A32D2D" : tier === "medium" ? "#BA7517" : "#888780";
-  const isHigh = tier === "high";
-  const isMedium = tier === "medium";
-  const isLow = tier === "low";
-  const severityLabel = hideSubclauseReference && isHigh ? "High Deviation" : titleCaseSeverity(tier);
+  const theme = rowScaleSeverityThemes[tier];
+  const cardBackground = missingClause ? rowScaleMissingClauseBackground : theme.background;
+  const accentColor = missingClause ? "#A32D2D" : theme.accent;
+  const severityLabel = hideSubclauseReference ? `${titleCaseSeverity(tier)} Deviation` : titleCaseSeverity(tier);
+  const showSeverityBadge = !isPureMissingClause(clause);
   const metadata = hideSubclauseReference ? clause.category : `${clause.subclause} · ${clause.category}`;
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const target = event.target as HTMLElement;
-    if (target.closest("button, a, input, textarea, select, [contenteditable='true']")) return;
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      onOpenDetail();
-    }
-  };
+  const actionabilityText = actionability?.trim() ?? "";
+  const requestText = request?.requestedChange?.trim() ?? "";
+  const hasRequest = decision === "request-update" && Boolean(requestText);
+  const handledState = !isDrafting && (hasRequest || decision === "no-action")
+    ? hasRequest
+      ? "request"
+      : "no-action"
+    : null;
+  const acceptedRecommendation = hasRequest && actionabilityText === requestText;
+  const requestForm =
+    isDrafting && onUpdateDraft && onCancelDraft && onSubmitDraft ? (
+      <ClauseRequestForm
+        versionLabel={versionLabel}
+        draft={draft}
+        request={request}
+        inherited={inherited}
+        requestPlaceholder={requestPlaceholder}
+        compact
+        onUpdate={onUpdateDraft}
+        onCancel={onCancelDraft}
+        onSubmit={onSubmitDraft}
+      />
+    ) : null;
 
   const runAction = (event: MouseEvent<HTMLButtonElement>, action?: () => void) => {
     event.stopPropagation();
     action?.();
   };
 
-  if (isHigh) {
+  if (handledState) {
+    const statusLabel =
+      handledState === "request"
+        ? acceptedRecommendation
+          ? "Added to Review"
+          : "Custom request added"
+        : "No action selected";
+    const preview =
+      handledState === "request"
+        ? requestText
+        : "No supplier change will be requested for this clause.";
+
     return (
-      <div
-        id={`clause-row-${id}`}
-        role="button"
-        tabIndex={0}
-        onClick={onOpenDetail}
-        onKeyDown={handleKeyDown}
-        className={cn(
-          "group relative min-h-[104px] cursor-pointer overflow-hidden rounded-lg border border-border bg-card px-4 py-4 pl-5 transition-colors hover:border-[#A32D2D]/35",
-          highlighted && "ring-2 ring-primary/40",
-        )}
-        style={{ backgroundColor: "rgba(163, 45, 45, 0.04)" }}
-      >
-        <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: colour }} />
+      <ClauseReviewModalCard
+        domId={`clause-row-${id}`}
+        itemId={id}
+        title={clause.title}
+        category={metadata}
+        severity={tier}
+        missingClause={clause.missingClause}
+        sourceDeviationLevel={clause.sourceDeviationLevel}
+        request={{ requestedChange: preview }}
+        statusLabel={statusLabel}
+        statusTone={handledState === "request" ? "blue" : "neutral"}
+        highlighted={highlighted}
+        editMode="external"
+        onEditRequest={onEditRequest}
+        onRemove={onUndoDecision ?? (() => undefined)}
+        secondaryActionLabel="Undo"
+        secondaryActionIcon={null}
+        secondaryActionTone="neutral"
+      />
+    );
+  }
+
+  return (
+    <div
+      id={`clause-row-${id}`}
+      className={cn(
+        "relative min-h-[104px] overflow-hidden rounded-lg border border-border bg-card px-4 py-4 pl-5 transition-colors",
+        highlighted && "ring-2 ring-primary/40",
+      )}
+      style={{ backgroundColor: cardBackground }}
+    >
+      <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: accentColor }} />
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           {missingClause && (
             <Badge variant="outline" className={firstAnalysisDeviationBadgeClass}>
               Missing Clause
             </Badge>
           )}
-          <Badge variant="outline" className={firstAnalysisDeviationBadgeClass}>
-            {severityLabel}
-          </Badge>
-          <p className="text-[11px] text-muted-foreground">
-            {id.toUpperCase()} · {metadata}
-          </p>
+          {showSeverityBadge && (
+            <Badge variant="outline" className={theme.badgeClass}>
+              {severityLabel}
+            </Badge>
+          )}
+          {isDrafting && (
+            <Badge variant="outline" className="rounded-full border-[#185FA5]/25 bg-[#E6F1FB] px-1.5 py-0.5 text-[9px] font-medium text-[#0C447C]">
+              Drafting request
+            </Badge>
+          )}
         </div>
-        <h3 className="mt-2 text-[15px] font-medium text-foreground">{clause.title}</h3>
-        {description && <p className="mt-1 text-[13px] leading-5 text-muted-foreground">{description}</p>}
-        {actionability && (
-          <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
-            <Lightbulb className="mr-1 inline h-3 w-3 text-[#A32D2D]" />
-            <span className="font-semibold text-foreground">Actionability:</span> {actionability}
-          </p>
-        )}
+        <p className="text-[11px] text-muted-foreground">
+          {id.toUpperCase()} · {metadata}
+        </p>
+      </div>
+      <h3 className="mt-2 text-[15px] font-medium text-foreground">{clause.title}</h3>
+      {description && <FindingCallout text={description} />}
+      {actionability && <RecommendedActionCallout text={actionability} />}
+      {requestForm ?? (
         <div className="mt-3 flex flex-wrap items-center gap-2" onClick={(event) => event.stopPropagation()}>
           <Button
             size="sm"
-            className="h-8 rounded-[5px] bg-[#A32D2D] px-3 text-[11px] font-medium text-white hover:bg-[#8F2727]"
+            variant="outline"
+            className="h-8 rounded-[5px] bg-white px-3 text-[11px]"
+            disabled={!actionabilityText || !onUseRecommendation}
+            onClick={(event) => runAction(event, onUseRecommendation)}
+          >
+            <Sparkles className="h-3 w-3" /> Use Recommendation
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 rounded-[5px] bg-white px-3 text-[11px]"
             onClick={(event) => runAction(event, onRequest)}
           >
-            <Sparkles className="h-3 w-3" /> Request change
+            <Pencil className="h-3 w-3" /> Edit Request
           </Button>
           <Button
             size="sm"
@@ -4448,88 +4644,92 @@ function ClauseRowScaleCard({
           >
             <CheckCircle2 className="h-3 w-3" /> No Action
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 rounded-[5px] bg-white px-3 text-[11px]"
-            onClick={(event) => runAction(event, onOpenDetail)}
-          >
-            View clause
-          </Button>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      id={`clause-row-${id}`}
-      role="button"
-      tabIndex={0}
-      onClick={onOpenDetail}
-      onKeyDown={handleKeyDown}
-      className={cn(
-        "group relative cursor-pointer overflow-hidden rounded-lg border border-border bg-card pl-5 transition-colors hover:border-primary/30 hover:bg-[#E6F1FB]/25",
-        isMedium ? "min-h-[58px] px-3.5 py-3" : "min-h-[40px] px-3 py-2",
-        highlighted && "ring-2 ring-primary/40 bg-primary/5",
       )}
-    >
-      <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: colour }} />
-      <div className="flex min-w-0 items-center gap-2">
-        <Badge
-          variant="outline"
-          className={cn(
-            "shrink-0 rounded-[4px] px-2 py-[3px] text-[11px] font-medium leading-none",
-            isMedium ? "border-[#BA7517]/20 bg-[#BA7517] text-[#251607]" : "border-[#D3D1C7] bg-[#F1EFE8] text-[#4F4D48]",
-          )}
-        >
-          {severityLabel}
-        </Badge>
-        <span className="shrink-0 text-[11px] text-muted-foreground">
-          {id.toUpperCase()} · {hideSubclauseReference ? clause.category : clause.subclause}
+    </div>
+  );
+}
+
+const rowScaleSeverityThemes: Record<
+  ClauseResult["severity"],
+  {
+    accent: string;
+    background: string;
+    badgeClass: string;
+  }
+> = {
+  high: {
+    accent: "#A32D2D",
+    background: "#FFF6F4",
+    badgeClass: firstAnalysisDeviationBadgeClass,
+  },
+  medium: {
+    accent: "#BA7517",
+    background: "#FFF9EC",
+    badgeClass: "shrink-0 rounded-full border-[#F1D29B] bg-[#FFF8E8] px-1.5 py-0.5 text-[9px] font-medium text-[#854F0B]",
+  },
+  low: {
+    accent: "#3B6D11",
+    background: "#F4FAEE",
+    badgeClass: "shrink-0 rounded-full border-[#BFD6AB] bg-[#EAF3DE] px-1.5 py-0.5 text-[9px] font-medium text-[#27500A]",
+  },
+};
+
+const rowScaleMissingClauseBackground = "#FFF6F4";
+
+function FindingCallout({ text }: { text: string }) {
+  return (
+    <div className="mt-3 rounded-md border border-border bg-white px-3 py-2.5">
+      <div className="flex items-start gap-2.5">
+        <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border border-border bg-background text-muted-foreground">
+          <Search className="h-3 w-3" />
         </span>
-        <span className={cn("min-w-0 truncate font-medium text-foreground", isMedium ? "text-[13px]" : "text-[12px]")}>
-          {clause.title}
-        </span>
-        {isMedium && description && (
-          <span className="hidden min-w-0 flex-1 truncate text-[12px] text-muted-foreground lg:inline">
-            {description}
-          </span>
-        )}
-        <div className="ml-auto flex shrink-0 items-center gap-1.5" onClick={(event) => event.stopPropagation()}>
-          {isMedium && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 rounded-[5px] bg-white px-2.5 text-[11px]"
-              onClick={(event) => runAction(event, onRequest)}
-            >
-              Request change
-            </Button>
-          )}
-          {isLow && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 rounded-[5px] px-2.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
-              onClick={(event) => runAction(event, onNoAction)}
-            >
-              No Action
-            </Button>
-          )}
-          <Button
-            size="sm"
-            variant={isLow ? "ghost" : "outline"}
-            className={cn("h-7 rounded-[5px] px-2.5 text-[11px]", !isLow && "bg-white")}
-            onClick={(event) => runAction(event, isLow ? onOpenDetail : onNoAction)}
-          >
-            {isLow ? "View" : "No Action"}
-          </Button>
-          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-60" />
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Finding
+          </p>
+          <p className="mt-0.5 text-[12px] font-medium leading-5 text-foreground/85">
+            {renderFindingText(text)}
+          </p>
         </div>
       </div>
     </div>
   );
+}
+
+function RecommendedActionCallout({ text }: { text: string }) {
+  return (
+    <div className="mt-3 rounded-md border border-border bg-white px-3 py-2.5">
+      <div className="flex items-start gap-2.5">
+        <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border border-border bg-background text-muted-foreground">
+          <Lightbulb className="h-3 w-3" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Recommended action
+          </p>
+          <p className="mt-0.5 text-[12px] font-medium leading-5 text-foreground">
+            {text}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function renderFindingText(text: string) {
+  const parts = text.split(/(\b\d+(?:\.\d+)?%?(?:[-\s]?(?:day|days|month|months|year|years|hour|hours|fee|fees))?|\bvs\b|\bbenchmark\b)/gi);
+  return parts.map((part, index) => {
+    if (!part) return null;
+    const prominent = /^(\d+(?:\.\d+)?%?(?:[-\s]?(?:day|days|month|months|year|years|hour|hours|fee|fees))?|vs|benchmark)$/i.test(part);
+    return prominent ? (
+      <span key={`${part}-${index}`} className="font-semibold text-foreground">
+        {part}
+      </span>
+    ) : (
+      <span key={`${part}-${index}`}>{part}</span>
+    );
+  });
 }
 
 function titleCaseSeverity(severity: ClauseResult["severity"]) {
@@ -4539,6 +4739,20 @@ function titleCaseSeverity(severity: ClauseResult["severity"]) {
 interface BasketRequestItem {
   clauseId: string;
   clauseTitle: string;
+  category?: string;
+  severity?: ClauseResult["severity"];
+  missingClause?: boolean;
+  sourceDeviationLevel?: ClauseResult["sourceDeviationLevel"];
+  request: ClauseRequest;
+}
+
+interface RecommendationTargetItem {
+  id: string;
+  clauseTitle: string;
+  category: string;
+  severity: ClauseResult["severity"];
+  missingClause?: boolean;
+  sourceDeviationLevel?: ClauseResult["sourceDeviationLevel"];
   request: ClauseRequest;
 }
 
@@ -4548,10 +4762,335 @@ interface ClosedBasketItem {
   version: string;
 }
 
+function reviewClauseCardTone(severity?: ClauseResult["severity"]) {
+  if (severity === "high") return "border-l-[#E5484D] bg-[#FFF7F7]";
+  if (severity === "medium") return "border-l-[#F59E0B] bg-[#FFFBEB]";
+  if (severity === "low") return "border-l-[#1BA97F] bg-[#F8FCFA]";
+  return "border-l-border bg-white";
+}
+
+function ClauseReviewModalCard({
+  domId,
+  itemId,
+  title,
+  category,
+  severity,
+  missingClause,
+  sourceDeviationLevel,
+  request,
+  statusLabel,
+  statusTone = "blue",
+  highlighted,
+  editMode = "inline",
+  onEditRequest,
+  onUpdate,
+  onRemove,
+  secondaryActionLabel = "Remove",
+  secondaryActionIcon,
+  secondaryActionTone = "danger",
+}: {
+  domId?: string;
+  itemId: string;
+  title: string;
+  category?: string;
+  severity?: ClauseResult["severity"];
+  missingClause?: boolean;
+  sourceDeviationLevel?: ClauseResult["sourceDeviationLevel"];
+  request: ClauseRequest;
+  statusLabel: string;
+  statusTone?: "blue" | "neutral";
+  highlighted?: boolean;
+  editMode?: "inline" | "external";
+  onEditRequest?: () => void;
+  onUpdate?: (request: ClauseRequest) => void;
+  onRemove: () => void;
+  secondaryActionLabel?: string;
+  secondaryActionIcon?: ReactNode;
+  secondaryActionTone?: "danger" | "neutral";
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<ClauseRequest>(request);
+  const pureMissing = Boolean(missingClause && sourceDeviationLevel === "None");
+
+  useEffect(() => {
+    if (!editing) setDraft(request);
+  }, [editing, request]);
+
+  const canSave = Boolean(draft.requestedChange?.trim());
+  const saveDraft = () => {
+    if (!canSave || !onUpdate) return;
+    onUpdate({
+      requestedChange: draft.requestedChange?.trim(),
+      rationale: draft.rationale?.trim() || undefined,
+    });
+    setEditing(false);
+  };
+
+  return (
+    <div
+      id={domId}
+      className={cn(
+        "rounded-lg border border-l-4 px-3 py-2.5 shadow-sm",
+        reviewClauseCardTone(pureMissing ? "high" : severity),
+        highlighted && "ring-2 ring-primary/40",
+      )}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {pureMissing && (
+            <Badge variant="outline" className={firstAnalysisDeviationBadgeClass}>
+              Missing Clause
+            </Badge>
+          )}
+          {severity && !pureMissing && (
+            <Badge
+              variant="outline"
+              className={cn("h-5 rounded-full px-2 text-[9px] font-medium", severityTone(severity))}
+            >
+              {titleCaseSeverity(severity)} Deviation
+            </Badge>
+          )}
+          <Badge
+            variant="outline"
+            className={cn(
+              "h-5 rounded-full px-2 text-[9px] font-medium",
+              statusTone === "blue"
+                ? "border-[#185FA5]/20 bg-[#E6F1FB]/60 text-[#0C447C]"
+                : "border-border bg-white text-muted-foreground",
+            )}
+          >
+            {statusLabel}
+          </Badge>
+        </div>
+        <p className="shrink-0 text-[10px] text-muted-foreground">
+          {itemId.toUpperCase()}{category ? ` · ${category}` : ""}
+        </p>
+      </div>
+
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] font-semibold text-foreground">{title}</p>
+          <p className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-muted-foreground">
+            {request.requestedChange || "No requested change entered yet."}
+          </p>
+          {request.rationale && (
+            <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-muted-foreground">
+              <span className="font-medium text-foreground">Rationale:</span> {request.rationale}
+            </p>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-2" onClick={(event) => event.stopPropagation()}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 rounded-[5px] bg-white px-3 text-[11px]"
+            onClick={() => {
+              if (editMode === "external") {
+                onEditRequest?.();
+                return;
+              }
+              setEditing((current) => !current);
+            }}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Edit Request
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={cn(
+              "h-8 gap-1.5 rounded-[5px] px-3 text-[11px]",
+              secondaryActionTone === "danger"
+                ? "text-muted-foreground hover:border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
+                : "bg-white text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+            onClick={onRemove}
+          >
+            {secondaryActionIcon === undefined ? <Trash2 className="h-3.5 w-3.5" /> : secondaryActionIcon}
+            {secondaryActionLabel}
+          </Button>
+        </div>
+      </div>
+
+      {editing && editMode === "inline" && (
+        <div className="mt-3 rounded-lg border border-border bg-white/85 p-3" onClick={(event) => event.stopPropagation()}>
+          <div className="grid gap-3">
+            <label className="grid gap-1.5 text-xs font-medium text-foreground">
+              Requested change
+              <Textarea
+                value={draft.requestedChange ?? ""}
+                onChange={(event) => setDraft((current) => ({ ...current, requestedChange: event.target.value }))}
+                className="min-h-[72px] resize-none bg-white text-xs font-normal leading-5"
+              />
+            </label>
+            <label className="grid gap-1.5 text-xs font-medium text-foreground">
+              Rationale
+              <Textarea
+                value={draft.rationale ?? ""}
+                onChange={(event) => setDraft((current) => ({ ...current, rationale: event.target.value }))}
+                placeholder="Add why this change is needed before supplier negotiation."
+                className="min-h-[64px] resize-none bg-white text-xs font-normal leading-5"
+              />
+            </label>
+          </div>
+          <div className="mt-3 flex justify-end gap-2">
+            <Button type="button" variant="outline" size="sm" className="h-8" onClick={() => setEditing(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="h-8 bg-[#1a2744] text-white hover:bg-[#243454]"
+              disabled={!canSave}
+              onClick={saveDraft}
+            >
+              Save changes
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ApplyRecommendationsDialog({
+  open,
+  onOpenChange,
+  recommendations,
+  onApply,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  recommendations: RecommendationTargetItem[];
+  onApply: (recommendations: RecommendationTargetItem[]) => void;
+}) {
+  const [workingRecommendations, setWorkingRecommendations] = useState<RecommendationTargetItem[]>(recommendations);
+
+  useEffect(() => {
+    if (open) setWorkingRecommendations(recommendations);
+  }, [open, recommendations]);
+
+  const recommendationCount = workingRecommendations.length;
+  const applyRecommendations = () => {
+    if (recommendationCount === 0) return;
+    onApply(workingRecommendations);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[82vh] max-w-[760px] flex-col gap-0 overflow-hidden p-0">
+        <DialogHeader className="border-b border-border bg-white px-5 py-4 text-left">
+          <div className="flex items-start gap-3 pr-6">
+            <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#1a2744] text-white">
+              <Sparkles className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <DialogTitle className="text-base">Apply all recommendations</DialogTitle>
+                <span className="inline-flex h-5 items-center rounded-full border border-border bg-muted/50 px-2 text-[10px] font-medium text-muted-foreground">
+                  {recommendationCount} ready
+                </span>
+              </div>
+              <DialogDescription className="mt-1 max-w-[560px] text-xs leading-5">
+                Review ClauseIQ recommended actions before adding them to your CSV review list.
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        {recommendationCount > 0 && (
+          <div className="border-b border-border bg-muted/20 px-5 py-3">
+            <div className="flex items-start gap-2 rounded-lg border border-border bg-white px-3 py-2 text-xs">
+              <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#185FA5]" />
+              <div>
+                <p className="font-medium text-foreground">Only unreviewed recommendations will be added.</p>
+                <p className="mt-0.5 text-muted-foreground">
+                  Existing custom requests, No Action choices, and draft edits will not be changed.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/60 p-3">
+          {recommendationCount > 0 ? (
+            <div className="space-y-2">
+              {workingRecommendations.map((item) => (
+                <ClauseReviewModalCard
+                  key={item.id}
+                  itemId={item.id}
+                  title={item.clauseTitle}
+                  category={item.category}
+                  severity={item.severity}
+                  missingClause={item.missingClause}
+                  sourceDeviationLevel={item.sourceDeviationLevel}
+                  request={item.request}
+                  statusLabel="Ready to Apply"
+                  onUpdate={(request) =>
+                    setWorkingRecommendations((current) =>
+                      current.map((candidate) =>
+                        candidate.id === item.id ? { ...candidate, request } : candidate,
+                      ),
+                    )
+                  }
+                  onRemove={() =>
+                    setWorkingRecommendations((current) => current.filter((candidate) => candidate.id !== item.id))
+                  }
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border bg-white px-4 py-10 text-center">
+              <div className="mx-auto grid h-10 w-10 place-items-center rounded-lg bg-muted text-muted-foreground">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
+              <p className="mt-3 text-sm font-medium text-foreground">No recommendations available</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                All recommendations have been removed from this bulk action or already reviewed.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="border-t border-border bg-white px-5 py-3 sm:items-center sm:justify-between">
+          <p className="max-w-[360px] text-xs leading-5 text-muted-foreground">
+            {recommendationCount === 0
+              ? "Nothing will be changed."
+              : `${recommendationCount} recommendation${recommendationCount === 1 ? "" : "s"} will be added to the CSV review list.`}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+            <Button
+              size="sm"
+              className="gap-1.5 bg-[#1a2744] text-white hover:bg-[#243454]"
+              disabled={recommendationCount === 0}
+              onClick={applyRecommendations}
+            >
+              <Sparkles className="h-3.5 w-3.5" /> Apply {recommendationCount} recommendations
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function requestCsvEscape(value: string | number | undefined | null) {
   if (value === undefined || value === null) return "";
   const text = String(value).replace(/"/g, '""');
   return /[",\n]/.test(text) ? `"${text}"` : text;
+}
+
+function requestSeverityLabel(clause?: ClauseResult) {
+  if (!clause) return "";
+  if (isPureMissingClause(clause)) return "Missing Clause";
+  return clause.sourceDeviationLevel && clause.sourceDeviationLevel !== "None"
+    ? clause.sourceDeviationLevel
+    : titleCaseSeverity(clause.severity);
 }
 
 function exportRequestChangeCsv(
@@ -4593,7 +5132,7 @@ function exportRequestChangeCsv(
       item.clauseId.toUpperCase(),
       item.clauseTitle,
       clause?.category ?? "",
-      clause?.severity ?? "",
+      requestSeverityLabel(clause),
       clause?.deviation ?? "",
       item.request.requestedChange ?? "",
       item.request.rationale ?? "",
@@ -4603,243 +5142,171 @@ function exportRequestChangeCsv(
   return rows.map((row) => row.map(requestCsvEscape).join(",")).join("\n");
 }
 
-function RequestsBasket({
+function RequestReviewDialog({
+  open,
+  onOpenChange,
   requests,
   closedItems,
   supplierName,
-  onEdit,
+  onUpdate,
   onRemove,
   onViewClosed,
   onReopenClosed,
   onSubmit,
 }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   requests: BasketRequestItem[];
   closedItems: ClosedBasketItem[];
   supplierName: string;
-  onEdit: (clauseId: string) => void;
+  onUpdate: (clauseId: string, request: ClauseRequest) => void;
   onRemove: (clauseId: string) => void;
   onViewClosed: (clauseId: string) => void;
   onReopenClosed: (clauseId: string) => void;
   onSubmit: () => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const [activeView, setActiveView] = useState<"requests" | "closed">("requests");
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [basketBounds, setBasketBounds] = useState<{ left: number; right: number } | null>(null);
   const requestCount = requests.length;
   const closedCount = closedItems.length;
   const totalCount = requestCount + closedCount;
 
   useEffect(() => {
-    if (totalCount === 0) setExpanded(false);
-  }, [totalCount]);
+    if (totalCount === 0 && open) onOpenChange(false);
+  }, [onOpenChange, open, totalCount]);
 
   useEffect(() => {
     if (requestCount === 0 && closedCount > 0) setActiveView("closed");
     if (closedCount === 0 && requestCount > 0) setActiveView("requests");
   }, [closedCount, requestCount]);
 
-  useEffect(() => {
-    if (totalCount === 0) return;
-    const measure = () => {
-      const column = document.getElementById("comparison-work-column");
-      if (!column) {
-        setBasketBounds(null);
-        return;
-      }
-      const rect = column.getBoundingClientRect();
-      setBasketBounds({
-        left: Math.max(14, rect.left),
-        right: Math.max(14, window.innerWidth - rect.right),
-      });
-    };
-
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [totalCount]);
-
-  const summary = [
-    requestCount > 0 ? `${requestCount} request${requestCount === 1 ? "" : "s"}` : null,
-    closedCount > 0 ? `${closedCount} closed` : null,
-  ].filter(Boolean).join(" · ");
   const reviewingRequests = activeView === "requests";
+  const submitRequests = () => {
+    if (requestCount === 0) return;
+    onSubmit();
+    onOpenChange(false);
+  };
 
   return (
-    <>
-      <AnimatePresence>
-        {totalCount > 0 && (
-          <motion.div
-            initial={{ y: 90, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 90, opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="fixed bottom-3.5 z-40"
-            style={{
-              left: basketBounds?.left ?? 14,
-              right: basketBounds?.right ?? 14,
-            }}
-          >
-            {expanded && (
-              <div className="max-h-[240px] overflow-y-auto rounded-t-lg border border-b-0 border-border bg-card shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
-                <div className="flex items-center gap-1 border-b border-border bg-muted/30 p-1.5">
-                  <BasketTab
-                    active={activeView === "requests"}
-                    disabled={requestCount === 0}
-                    onClick={() => setActiveView("requests")}
-                  >
-                    Requests <span className="font-mono">{requestCount}</span>
-                  </BasketTab>
-                  <BasketTab
-                    active={activeView === "closed"}
-                    disabled={closedCount === 0}
-                    onClick={() => setActiveView("closed")}
-                  >
-                    Closed <span className="font-mono">{closedCount}</span>
-                  </BasketTab>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-[680px] overflow-hidden p-0">
+          <DialogHeader className="border-b border-border px-5 py-4 text-left">
+            <DialogTitle>Review and generate selected clauses</DialogTitle>
+            <DialogDescription>
+              Check the clauses you have chosen, then submit to generate a CSV negotiation log for {supplierName}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex items-center gap-1 border-b border-border bg-muted/30 p-1.5">
+            <BasketTab
+              active={activeView === "requests"}
+              disabled={requestCount === 0}
+              onClick={() => setActiveView("requests")}
+            >
+              Requests <span className="font-mono">{requestCount}</span>
+            </BasketTab>
+            <BasketTab
+              active={activeView === "closed"}
+              disabled={closedCount === 0}
+              onClick={() => setActiveView("closed")}
+            >
+              Closed <span className="font-mono">{closedCount}</span>
+            </BasketTab>
+          </div>
+
+          {requestCount > 0 && (
+            <div className="mx-3 mt-3 rounded-lg border border-[#185FA5]/20 bg-[#E6F1FB]/45 px-3 py-2.5 text-xs text-[#0C447C]">
+              <div className="flex items-start gap-2">
+                <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <div>
+                  <p className="font-medium">Submitting generates your supplier change log.</p>
+                  <p className="mt-1 text-[#0C447C]/80">
+                    The CSV will include clause IDs, titles, categories, severity, ClauseIQ summary, requested changes, and rationale so you can take it back to the supplier for negotiation.
+                  </p>
                 </div>
-                <div className="divide-y divide-border p-2">
-                  {reviewingRequests ? (
-                    requests.map((item) => (
-                      <div key={item.clauseId} className="flex items-center gap-2 rounded-[5px] px-2 py-1.5 text-[10px] hover:bg-muted">
-                        <span className="w-[26px] shrink-0 font-mono text-[9px] text-muted-foreground">{item.clauseId.toUpperCase()}</span>
-                        <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-foreground">{item.clauseTitle}</span>
-                        <span className="hidden min-w-0 flex-[1.5] truncate italic text-muted-foreground sm:block">
-                          {item.request.requestedChange}
-                        </span>
-                        <button
-                          type="button"
-                          className="shrink-0 text-[10px] font-medium text-primary hover:underline"
-                          onClick={() => onEdit(item.clauseId)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="shrink-0 rounded px-1 text-[11px] text-muted-foreground hover:bg-background hover:text-foreground"
-                          aria-label={`Remove request for ${item.clauseTitle}`}
-                          onClick={() => {
-                            if (window.confirm(`Remove request for ${item.clauseTitle}?`)) onRemove(item.clauseId);
-                          }}
-                        >
-                          ×
-                        </button>
+              </div>
+            </div>
+          )}
+
+          <div className="max-h-[420px] overflow-y-auto p-3">
+            {reviewingRequests ? (
+              <div className="space-y-2">
+                {requests.map((item) => (
+                  <ClauseReviewModalCard
+                    key={item.clauseId}
+                    itemId={item.clauseId}
+                    title={item.clauseTitle}
+                    category={item.category}
+                    severity={item.severity}
+                    missingClause={item.missingClause}
+                    sourceDeviationLevel={item.sourceDeviationLevel}
+                    request={item.request}
+                    statusLabel="Added to Review"
+                    onUpdate={(request) => onUpdate(item.clauseId, request)}
+                    onRemove={() => onRemove(item.clauseId)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {closedItems.map((item) => (
+                  <div key={item.clauseId} className="rounded-lg border border-border bg-card px-3 py-2.5">
+                    <div className="flex items-center gap-3">
+                      <span className="w-[34px] shrink-0 font-mono text-[10px] text-muted-foreground">
+                        {item.clauseId.toUpperCase()}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">{item.clauseTitle}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">Closed for {item.version}</p>
                       </div>
-                    ))
-                  ) : (
-                    closedItems.map((item) => (
-                      <div key={item.clauseId} className="flex items-center gap-2 rounded-[5px] px-2 py-1.5 text-[10px] hover:bg-muted">
-                        <span className="w-[26px] shrink-0 font-mono text-[9px] text-muted-foreground">{item.clauseId.toUpperCase()}</span>
-                        <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-foreground">{item.clauseTitle}</span>
-                        <span className="hidden shrink-0 text-[10px] text-muted-foreground sm:inline">Closed for {item.version}</span>
+                      <div className="flex shrink-0 items-center gap-2">
                         <button
                           type="button"
-                          className="shrink-0 text-[10px] font-medium text-primary hover:underline"
-                          onClick={() => onViewClosed(item.clauseId)}
+                          className="text-xs font-medium text-primary hover:underline"
+                          onClick={() => {
+                            onOpenChange(false);
+                            onViewClosed(item.clauseId);
+                          }}
                         >
                           View
                         </button>
                         <button
                           type="button"
-                          className="shrink-0 text-[10px] font-medium text-success hover:underline"
+                          className="text-xs font-medium text-success hover:underline"
                           onClick={() => onReopenClosed(item.clauseId)}
                         >
                           Reopen
                         </button>
                       </div>
-                    ))
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-3 border-t border-border bg-muted/30 px-3.5 py-2.5">
-                  <p className="text-[10px] text-muted-foreground">
-                    {reviewingRequests
-                      ? `${requestCount} requested change${requestCount === 1 ? "" : "s"} will be included in the CSV negotiation log`
-                      : `${closedCount} closed clause${closedCount === 1 ? "" : "s"} can be reviewed or reopened before you continue`}
-                  </p>
-                </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
-            <div className={cn(
-              "flex h-[46px] items-center gap-2.5 border border-border bg-card px-3.5 py-2 shadow-[0_4px_12px_rgba(0,0,0,0.06)]",
-              expanded ? "rounded-b-lg" : "rounded-lg",
-            )}>
-              <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-full bg-[#1a2744] text-white">
-                <ShoppingBag className="h-3.5 w-3.5" />
-              </span>
-              <p className="flex-1 text-[11px] font-medium text-foreground">
-                {expanded ? (reviewingRequests ? "Requests to submit" : "Closed clauses") : summary}
-              </p>
-              {expanded && (
-                <Badge variant="outline" className="h-5 rounded-full px-2 text-[10px]">
-                  {reviewingRequests ? requestCount : closedCount}
-                </Badge>
-              )}
-              <button
-                type="button"
-                className="text-[10px] text-muted-foreground hover:text-foreground"
-                onClick={() => setExpanded((current) => !current)}
-              >
-                {expanded ? "Close" : "Review"}
-              </button>
+          </div>
+
+          <DialogFooter className="border-t border-border bg-muted/30 px-5 py-3 sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">
+              {reviewingRequests
+                ? `${requestCount} requested change${requestCount === 1 ? "" : "s"} will be included in the CSV negotiation log`
+                : `${closedCount} closed clause${closedCount === 1 ? "" : "s"} can be reviewed or reopened before you continue`}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+                Close
+              </Button>
               {requestCount > 0 && (
                 <Button
                   size="sm"
-                  className="h-8 gap-1.5 rounded-[5px] bg-[#1a2744] px-3 text-[11px] font-medium text-white hover:bg-[#243454]"
-                  onClick={() => setConfirmOpen(true)}
+                  className="gap-1.5 bg-[#1a2744] text-white hover:bg-[#243454]"
+                  onClick={submitRequests}
                 >
-                  <Send className="h-3 w-3" /> Submit
+                  <Download className="h-3.5 w-3.5" /> Submit & Generate
                 </Button>
               )}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent className="max-w-[540px]">
-          <AlertDialogHeader>
-            <div className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg bg-[#E6F1FB] text-[#0C447C]">
-              <FileText className="h-4 w-4" />
-            </div>
-            <AlertDialogTitle>Generate requested-changes CSV?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will create a CSV negotiation log for {supplierName}. It includes every clause you requested changes on, so you can take the file back to the supplier for the next contract negotiation round.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="rounded-lg border border-[#185FA5]/20 bg-[#E6F1FB]/45 px-3 py-2.5 text-xs text-[#0C447C]">
-            <p className="font-medium">The CSV acts as your supplier change log.</p>
-            <p className="mt-1 text-[#0C447C]/80">
-              It captures clause IDs, titles, categories, severity, ClauseIQ summary, requested changes, and rationale.
-            </p>
-          </div>
-          <div className="max-h-48 overflow-y-auto rounded-md border border-border bg-muted/20 p-2">
-            <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              {requestCount} requested change{requestCount === 1 ? "" : "s"} in this export
-            </p>
-            {requests.map((item) => (
-              <div key={item.clauseId} className="rounded px-1 py-1.5 text-xs text-foreground">
-                <p className="truncate font-medium">{item.clauseId.toUpperCase()} · {item.clauseTitle}</p>
-                <p className="mt-0.5 truncate text-muted-foreground">{item.request.requestedChange}</p>
-              </div>
-            ))}
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep editing</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-[#1a2744] text-white hover:bg-[#243454]"
-              onClick={() => {
-                onSubmit();
-                setConfirmOpen(false);
-              }}
-              disabled={requestCount === 0}
-            >
-              <Download className="mr-1.5 h-3.5 w-3.5" />
-              Generate CSV
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
   );
 }
 
@@ -4885,6 +5352,8 @@ function ReviewScreen({
   displayMode = "default",
   onSetNoAction,
   onStartDraft,
+  onUseRecommendation,
+  onUndoDecision,
   onUpdateDraft,
   onCancelDraft,
   onSubmitDraft,
@@ -4905,6 +5374,8 @@ function ReviewScreen({
   displayMode?: "default" | "row-scale";
   onSetNoAction: (id: string) => void;
   onStartDraft: (id: string, initialDraft?: { requestedChange?: string; rationale?: string }) => void;
+  onUseRecommendation: (id: string, request: { requestedChange?: string; rationale?: string }) => void;
+  onUndoDecision: (id: string) => void;
   onUpdateDraft: (id: string, patch: { requestedChange?: string; rationale?: string }) => void;
   onCancelDraft: (id: string) => void;
   onSubmitDraft: (id: string) => void;
@@ -4919,16 +5390,26 @@ function ReviewScreen({
     .filter(({ clause: c }) => {
       if (activeCategorySet.size > 0 && !activeCategorySet.has(c.category)) return false;
       if (quickMissingClauseIds && !quickMissingClauseIds.has(c.id)) return false;
-      if (quickSeverityFilters && quickSeverityFilters.size > 0 && !quickSeverityFilters.has(c.severity)) return false;
-      if (!quickSeverityFilters && quickSeverityFilter && (c.severity !== quickSeverityFilter || c.resolved)) return false;
+      if (
+        quickSeverityFilters &&
+        quickSeverityFilters.size > 0 &&
+        (!countsTowardDeviationMetric(c) || !quickSeverityFilters.has(c.severity))
+      ) return false;
+      if (
+        !quickSeverityFilters &&
+        quickSeverityFilter &&
+        (c.severity !== quickSeverityFilter || c.resolved || !countsTowardDeviationMetric(c))
+      ) return false;
       if (q && !c.title.toLowerCase().includes(q) && !c.category.toLowerCase().includes(q) && !c.id.includes(q)) return false;
       if (quickReviewFilter === "need-review") {
         if (!quickMissingClauseIds && c.resolved) return false;
-        const state = stateOf(c.id);
-        const decision = state.roundDecisions[versionLabel];
-        const request = state.requests[versionLabel];
-        if (decision === "no-action" || decision === "request-update" || request?.requestedChange?.trim()) {
-          return false;
+        if (displayMode !== "row-scale") {
+          const state = stateOf(c.id);
+          const decision = state.roundDecisions[versionLabel];
+          const request = state.requests[versionLabel];
+          if (decision === "no-action" || decision === "request-update" || request?.requestedChange?.trim()) {
+            return false;
+          }
         }
       }
       return true;
@@ -4971,10 +5452,12 @@ function ReviewScreen({
             missingClause={Boolean(missingClauseIds?.has(c.id))}
             hideSubclauseReference={hideSubclauseReference}
             displayMode={displayMode}
+            onUseRecommendation={() => onUseRecommendation(c.id, actionabilityDraft)}
             onRequest={() => onStartDraft(c.id, actionabilityDraft)}
             onNoAction={() => onSetNoAction(c.id)}
             onEditRequest={() => onStartDraft(c.id, own)}
             onChangeNoAction={() => onStartDraft(c.id, actionabilityDraft)}
+            onUndoDecision={() => onUndoDecision(c.id)}
             onUpdateDraft={(patch) => onUpdateDraft(c.id, patch)}
             onCancelDraft={cancelDraft}
             onSubmitDraft={() => onSubmitDraft(c.id)}

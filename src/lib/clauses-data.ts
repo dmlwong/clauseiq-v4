@@ -23,6 +23,16 @@ function genericDeviation(severity: ClauseSeverity, title: string): string {
   return `${title} aligns with the benchmark playbook.`;
 }
 
+function genericActionability(severity: ClauseSeverity, resolved: boolean, title: string, category: string): string {
+  if (resolved || severity === "low") {
+    return `No immediate action required; keep ${title.toLowerCase()} under observation for future supplier changes.`;
+  }
+  if (severity === "high") {
+    return `Prioritise a supplier update for ${title.toLowerCase()}; align the clause with the ${category} playbook benchmark before accepting.`;
+  }
+  return `Review ${title.toLowerCase()} with the supplier and request a targeted amendment if the deviation remains commercially important.`;
+}
+
 // Per-version overrides for the 5 example focus clauses (Acme MSA storyline)
 // Clause IDs: c3 Termination for Convenience, c31 Payment Terms, c35 Liability Cap of Supplier,
 // c48 Data Processing, c58 Subcontracting
@@ -141,7 +151,7 @@ function buildClauseFor(versionLabel: string, prevVersionLabel: string | null, o
       excerpt: ovr.excerpt ?? genericExcerpt(def.title),
       improvementReason: ovr.improvementReason,
       locations: ovr.locations ?? enrich?.locations,
-      actionability: ovr.actionability ?? enrich?.actionability,
+      actionability: ovr.actionability ?? enrich?.actionability ?? genericActionability(severity, resolved, def.title, def.category),
     };
   });
 }

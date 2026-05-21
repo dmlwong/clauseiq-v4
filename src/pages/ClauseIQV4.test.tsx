@@ -37,13 +37,24 @@ describe("ClauseIQ V4 flow", () => {
     renderClauseIQ();
 
     expect(screen.getByRole("button", { name: /get started/i })).toBeInTheDocument();
-    expect(screen.getAllByText("Supplier Outputs").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("No outputs yet").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Supplier Outputs")).not.toBeInTheDocument();
+    expect(screen.queryByRole("searchbox", { name: "Search supplier outputs" })).not.toBeInTheDocument();
+    expect(screen.getAllByText("No Supplier Outputs Yet").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("Upload a contract and run ClauseIQ. Completed analyses will appear here, grouped by supplier.")
+        .length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(
+        "Once outputs are available, you can switch between Mine and Team to review your own results or the team's results.",
+      ).length,
+    ).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("button", { name: /get started/i }));
 
     expect(screen.getByRole("button", { name: /search initiatives/i })).toBeInTheDocument();
-    expect(screen.getAllByText("No outputs yet").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Supplier Outputs")).not.toBeInTheDocument();
+    expect(screen.getAllByText("No Supplier Outputs Yet").length).toBeGreaterThan(0);
   });
 
   it("shows Contract Analysis Parameters after selecting an initiative before upload", async () => {
@@ -52,6 +63,7 @@ describe("ClauseIQ V4 flow", () => {
     startAndSelectInitiative();
 
     expect(screen.getByRole("heading", { name: "Contract Analysis Parameters" })).toBeInTheDocument();
+    expect(screen.queryByText("Logistics · Sarah Chen")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
   });
 
@@ -64,6 +76,7 @@ describe("ClauseIQ V4 flow", () => {
 
     expect(screen.getByText(CIQ_DEFAULT_PLAYBOOK)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /change playbook/i })).toBeInTheDocument();
+    expect(screen.queryByText("Logistics · Sarah Chen")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Upload Contract" })).toBeInTheDocument();
   });
 
@@ -116,8 +129,12 @@ describe("ClauseIQ V4 flow", () => {
     });
 
     expect(screen.getByRole("heading", { name: "Analysing Your Contract" })).toBeInTheDocument();
-    expect(screen.getAllByText("Analysis running").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Analysis running. This output will appear here when complete.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Analysis In Progress").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(
+        "ClauseIQ is reviewing the uploaded contract. Supplier outputs will appear here once the analysis is complete.",
+      ).length,
+    ).toBeGreaterThan(0);
   });
 
   it("renders the output-panel route with filled supplier outputs", () => {
@@ -132,7 +149,6 @@ describe("ClauseIQ V4 flow", () => {
     renderClauseIQ("/clauseiq-v4?view=results");
 
     expect(screen.getByText(CIQ_DEFAULT_PLAYBOOK)).toBeInTheDocument();
-    expect(screen.getByText("Playbook")).toBeInTheDocument();
     expect(screen.getAllByText(/Analysis Result/i).length).toBeGreaterThan(0);
   });
 });

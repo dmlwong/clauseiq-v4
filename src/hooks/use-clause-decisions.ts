@@ -233,6 +233,50 @@ export function useClauseDecisions(initial: Store = {}, options: ClauseDecisionO
     [mutate],
   );
 
+  const acceptRequest = useCallback(
+    (
+      supplierId: string,
+      contractId: string,
+      clauseId: string,
+      version: string,
+      request: ClauseRequest,
+    ) => {
+      mutate(supplierId, contractId, clauseId, (s) => {
+        if (!request.requestedChange?.trim()) return s;
+        const existing = s.requests[version];
+        const now = new Date().toISOString();
+        return {
+          ...s,
+          roundDecisions: { ...s.roundDecisions, [version]: "request-update" },
+          requests: {
+            ...s.requests,
+            [version]: {
+              requestedChange: request.requestedChange.trim(),
+              rationale: request.rationale?.trim() || undefined,
+              state: "pending",
+              createdAt: existing?.createdAt ?? now,
+              submittedAt: undefined,
+            },
+          },
+          draftRequests: withoutKey(s.draftRequests, version),
+        };
+      });
+    },
+    [mutate],
+  );
+
+  const clearRoundDecision = useCallback(
+    (supplierId: string, contractId: string, clauseId: string, version: string) => {
+      mutate(supplierId, contractId, clauseId, (s) => ({
+        ...s,
+        roundDecisions: withoutKey(s.roundDecisions, version),
+        requests: withoutKey(s.requests, version),
+        draftRequests: withoutKey(s.draftRequests, version),
+      }));
+    },
+    [mutate],
+  );
+
   const setFollowUpNote = useCallback(
     (supplierId: string, contractId: string, clauseId: string, targetVersion: string, note: string) => {
       mutate(supplierId, contractId, clauseId, (s) => ({
@@ -455,6 +499,8 @@ export function useClauseDecisions(initial: Store = {}, options: ClauseDecisionO
       updateDraftRequestText,
       cancelDraftRequest,
       submitDraftRequest,
+      acceptRequest,
+      clearRoundDecision,
       changeDecision,
       removePendingRequest,
       submitPendingRequests,
@@ -473,6 +519,8 @@ export function useClauseDecisions(initial: Store = {}, options: ClauseDecisionO
       updateDraftRequestText,
       cancelDraftRequest,
       submitDraftRequest,
+      acceptRequest,
+      clearRoundDecision,
       changeDecision,
       removePendingRequest,
       submitPendingRequests,

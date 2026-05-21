@@ -81,7 +81,7 @@ export function SupplierOutputsPanel({
   const [outputScope, setOutputScope] = useState<OutputScope>("mine");
   const [query, setQuery] = useState("");
   const allRows = useMemo(() => flattenSupplierAnalyses(initiative.suppliers), [initiative.suppliers]);
-  const controlsDisabled = allRows.length === 0;
+  const hasOutputs = allRows.length > 0;
   const scopedSuppliers = useMemo(
     () => filterSuppliersByScope(initiative.suppliers, outputScope),
     [initiative.suppliers, outputScope],
@@ -103,14 +103,16 @@ export function SupplierOutputsPanel({
   const emptyState =
     outputState === "processing"
       ? {
-          title: "Analysis running",
-          copy: "Analysis running. This output will appear here when complete.",
-          icon: <Loader2 className="h-4 w-4 animate-spin" />,
+          title: "Analysis In Progress",
+          copy: "ClauseIQ is reviewing the uploaded contract. Supplier outputs will appear here once the analysis is complete.",
+          scopeHint: "When it finishes, you can switch between Mine and Team to compare your output with the wider team view.",
+          loading: true,
         }
       : {
-          title: "No outputs yet",
-          copy: "Completed analyses will appear here, grouped by supplier, with result, rerun and download actions.",
-          icon: <FileText className="h-4 w-4" />,
+          title: "No Supplier Outputs Yet",
+          copy: "Upload a contract and run ClauseIQ. Completed analyses will appear here, grouped by supplier.",
+          scopeHint: "Once outputs are available, you can switch between Mine and Team to review your own results or the team's results.",
+          loading: false,
         };
 
   useEffect(() => {
@@ -126,66 +128,72 @@ export function SupplierOutputsPanel({
   };
 
   return (
-    <section className={cn("min-w-0 space-y-3", className)} aria-label="Supplier grouped outputs">
-      <div className="space-y-3">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">Supplier Outputs</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {supplierCount} {supplierCount === 1 ? "supplier" : "suppliers"} &middot; {outputCount}{" "}
-            {outputCount === 1 ? "output" : "outputs"}
-          </p>
-        </div>
+    <section
+      className={cn(
+        "min-w-0 space-y-3",
+        !hasOutputs && "flex h-full items-center justify-center space-y-0",
+        className,
+      )}
+      aria-label="Supplier grouped outputs"
+    >
+      {hasOutputs && (
+        <div className="space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Supplier Outputs</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {supplierCount} {supplierCount === 1 ? "supplier" : "suppliers"} &middot; {outputCount}{" "}
+              {outputCount === 1 ? "output" : "outputs"}
+            </p>
+          </div>
 
-        <div className="flex h-8 items-center gap-2 rounded-md border border-input bg-white px-2">
-          <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search suppliers or files"
-            disabled={controlsDisabled}
-            className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:text-muted-foreground"
-            aria-label="Search supplier outputs"
-          />
-        </div>
+          <div className="flex h-8 items-center gap-2 rounded-md border border-input bg-white px-2">
+            <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search suppliers or files"
+              className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+              aria-label="Search supplier outputs"
+            />
+          </div>
 
-        <Tabs
-          value={outputScope}
-          onValueChange={(value) => {
-            if (controlsDisabled) return;
-            if (value === "team" || value === "mine") {
-              setOutputScope(value);
-            }
-          }}
-        >
-          <TabsList className="grid h-8 w-full grid-cols-2 rounded-md">
-            <TabsTrigger value="mine" className="h-6 px-2 text-xs" disabled={controlsDisabled}>
-              Mine
-            </TabsTrigger>
-            <TabsTrigger value="team" className="h-6 px-2 text-xs" disabled={controlsDisabled}>
-              Team
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
+          <Tabs
+            value={outputScope}
+            onValueChange={(value) => {
+              if (value === "team" || value === "mine") {
+                setOutputScope(value);
+              }
+            }}
+          >
+            <TabsList className="grid h-8 w-full grid-cols-2 rounded-md">
+              <TabsTrigger value="mine" className="h-6 px-2 text-xs">
+                Mine
+              </TabsTrigger>
+              <TabsTrigger value="team" className="h-6 px-2 text-xs">
+                Team
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      )}
 
       <div className="space-y-3">
         {suppliers.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border bg-card px-4 py-6 text-sm text-muted-foreground">
-            {query.trim() && !controlsDisabled ? (
-              "No outputs match this view."
-            ) : (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 font-medium text-foreground">
-                  <span className="grid h-7 w-7 place-items-center rounded-md bg-primary/10 text-primary">
-                    {emptyState.icon}
-                  </span>
-                  <span>{emptyState.title}</span>
-                </div>
-                <p className="text-xs leading-relaxed text-muted-foreground">{emptyState.copy}</p>
+          <>
+            {hasOutputs ? (
+              <div className="rounded-lg border border-dashed border-border bg-card px-4 py-6 text-sm text-muted-foreground">
+                No outputs match this view.
               </div>
+            ) : (
+              <SupplierPanelEmptyState
+                title={emptyState.title}
+                copy={emptyState.copy}
+                scopeHint={emptyState.scopeHint}
+                loading={emptyState.loading}
+              />
             )}
-          </div>
+          </>
         ) : (
           suppliers.map((supplier) => (
             <SupplierOutputGroup
@@ -202,6 +210,51 @@ export function SupplierOutputsPanel({
         )}
       </div>
     </section>
+  );
+}
+
+function SupplierPanelEmptyState({
+  title,
+  copy,
+  scopeHint,
+  loading,
+}: {
+  title: string;
+  copy: string;
+  scopeHint: string;
+  loading: boolean;
+}) {
+  return (
+    <div className="w-full px-2 text-center">
+      <div className="mx-auto max-w-[260px]">
+        <div className="mx-auto h-24 w-32">
+          <div className="relative mx-auto h-full w-full">
+            <div className="absolute left-7 top-2 h-16 w-20 rounded-xl border border-slate-200 bg-white shadow-sm" />
+            <div className="absolute left-10 top-6 h-2 w-8 rounded bg-primary/20" />
+            <div className="absolute left-10 top-11 h-2 w-12 rounded bg-slate-200" />
+            <div className="absolute left-10 top-16 h-2 w-9 rounded bg-slate-200" />
+            <div className="absolute right-5 top-7 grid h-9 w-9 place-items-center rounded-full border border-primary/20 bg-primary/10 text-primary shadow-sm">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            </div>
+            <div className="absolute bottom-2 left-4 grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm">
+              <FileText className="h-4 w-4" />
+            </div>
+            <div className="absolute bottom-3 right-8 grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm">
+              <BarChart2 className="h-3.5 w-3.5" />
+            </div>
+          </div>
+        </div>
+        <h3 className="mt-5 text-base font-semibold leading-tight text-foreground">{title}</h3>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{copy}</p>
+        <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-2">
+          <div className="grid h-8 grid-cols-2 rounded-md bg-white p-1 text-xs font-medium text-slate-500 shadow-sm">
+            <span className="grid place-items-center rounded bg-slate-100 text-slate-700">Mine</span>
+            <span className="grid place-items-center rounded text-slate-500">Team</span>
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{scopeHint}</p>
+        </div>
+      </div>
+    </div>
   );
 }
 

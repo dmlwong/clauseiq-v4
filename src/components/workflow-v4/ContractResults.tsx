@@ -4,7 +4,7 @@ import {
   ChevronLeft, AlertTriangle, CheckCircle2, Search, MapPin, Lightbulb,
   GitCompare, History, X, ArrowRight, Sparkles, Upload, Trash2, FileText, Loader2,
   Download, Info, ShieldCheck, ExternalLink, Sigma, Pin, RotateCcw,
-  Clock, ShieldX, Send, Pencil,
+  Clock, ShieldX, Pencil,
 } from "lucide-react";
 
 import { toast } from "@/components/ui/use-toast";
@@ -1776,6 +1776,7 @@ export function ContractResults({
             historyDisabled={firstAnalysisDemo || versions.length < 2}
             onApplyAllRecommendations={() => setApplyAllConfirmOpen(true)}
             applyAllRecommendationsDisabled={!firstAnalysisDemo || firstAnalysisRecommendationTargets.length === 0}
+            applyAllRecommendationsReviewed={firstAnalysisDemo && firstAnalysisRecommendationTargets.length === 0}
             recommendationCount={firstAnalysisRecommendationTargets.length}
             onReviewGenerate={() => setRequestReviewOpen(true)}
             reviewGenerateDisabled={!activeRequestVersion || pendingRequestItems.length === 0}
@@ -1800,8 +1801,14 @@ export function ContractResults({
                       disabled={firstAnalysisRecommendationTargets.length === 0}
                       onClick={() => setApplyAllConfirmOpen(true)}
                     >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      Apply all recommendations{firstAnalysisRecommendationTargets.length > 0 ? ` (${firstAnalysisRecommendationTargets.length})` : ""}
+                      {firstAnalysisRecommendationTargets.length > 0 ? (
+                        <Sparkles className="w-3.5 h-3.5" />
+                      ) : (
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      )}
+                      {firstAnalysisRecommendationTargets.length > 0
+                        ? `Apply all recommendations (${firstAnalysisRecommendationTargets.length})`
+                        : "All recommendations reviewed"}
                     </Button>
                   )}
                   <Button
@@ -2465,6 +2472,7 @@ function ModeSwitcher({
   historyDisabled = false,
   onApplyAllRecommendations,
   applyAllRecommendationsDisabled = true,
+  applyAllRecommendationsReviewed = false,
   recommendationCount = 0,
   onReviewGenerate,
   reviewGenerateDisabled,
@@ -2476,6 +2484,7 @@ function ModeSwitcher({
   historyDisabled?: boolean;
   onApplyAllRecommendations?: () => void;
   applyAllRecommendationsDisabled?: boolean;
+  applyAllRecommendationsReviewed?: boolean;
   recommendationCount?: number;
   onReviewGenerate: () => void;
   reviewGenerateDisabled: boolean;
@@ -2519,8 +2528,14 @@ function ModeSwitcher({
             disabled={applyAllRecommendationsDisabled}
             onClick={onApplyAllRecommendations}
           >
-            <Sparkles className="h-3.5 w-3.5" />
-            Apply all recommendations{recommendationCount > 0 ? ` (${recommendationCount})` : ""}
+            {applyAllRecommendationsReviewed ? (
+              <CheckCircle2 className="h-3.5 w-3.5" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5" />
+            )}
+            {applyAllRecommendationsReviewed
+              ? "All recommendations reviewed"
+              : `Apply all recommendations${recommendationCount > 0 ? ` (${recommendationCount})` : ""}`}
           </Button>
         )}
         <Button
@@ -2862,9 +2877,9 @@ function RequestLifecycleBadge({ request }: { request?: ClauseRequest }) {
 
   if (request?.state === "submitted") {
     return (
-      <span className="inline-flex cursor-default items-center gap-1 rounded-full bg-primary px-2 py-1 text-[10px] font-medium text-primary-foreground">
-        <Send className="h-3 w-3" />
-        Submitted
+      <span className="inline-flex cursor-default items-center gap-1 rounded-full border border-[#BFD6AB] bg-[#EAF3DE] px-2 py-1 text-[10px] font-medium text-[#27500A]">
+        <CheckCircle2 className="h-3 w-3" />
+        Reviewed
       </span>
     );
   }
@@ -4103,9 +4118,9 @@ function ReviewGuidance({ versionLabel, compact = false }: { versionLabel: strin
 function requestLifecycleLabel(request?: ClauseRequest) {
   if (!request?.requestedChange) return undefined;
   return request.state === "submitted" && request.submittedAt
-    ? `Submitted to supplier on ${formatShortDate(request.submittedAt)}`
+    ? `Reviewed on ${formatShortDate(request.submittedAt)}`
     : request.state === "submitted"
-      ? "Submitted to supplier"
+      ? "Reviewed"
       : "Added to Review";
 }
 
@@ -4574,9 +4589,12 @@ function ClauseRowScaleCard({
   };
 
   if (handledState) {
+    const requestSubmitted = request?.state === "submitted";
     const statusLabel =
       handledState === "request"
-        ? acceptedRecommendation
+        ? requestSubmitted
+          ? "Reviewed"
+          : acceptedRecommendation
           ? "Added to Review"
           : "Custom request added"
         : "No action selected";
@@ -4596,7 +4614,7 @@ function ClauseRowScaleCard({
         sourceDeviationLevel={clause.sourceDeviationLevel}
         request={{ requestedChange: preview }}
         statusLabel={statusLabel}
-        statusTone={handledState === "request" ? "blue" : "neutral"}
+        statusTone={requestSubmitted ? "green" : handledState === "request" ? "blue" : "neutral"}
         highlighted={highlighted}
         editMode="external"
         onEditRequest={onEditRequest}
@@ -4824,7 +4842,7 @@ function ClauseReviewModalCard({
   sourceDeviationLevel?: ClauseResult["sourceDeviationLevel"];
   request: ClauseRequest;
   statusLabel: string;
-  statusTone?: "blue" | "neutral";
+  statusTone?: "blue" | "green" | "neutral";
   highlighted?: boolean;
   editMode?: "inline" | "external";
   onEditRequest?: () => void;
@@ -4880,9 +4898,9 @@ function ClauseReviewModalCard({
             variant="outline"
             className={cn(
               "h-5 rounded-full px-2 text-[9px] font-medium",
-              statusTone === "blue"
-                ? "border-[#185FA5]/20 bg-[#E6F1FB]/60 text-[#0C447C]"
-                : "border-border bg-white text-muted-foreground",
+              statusTone === "blue" && "border-[#185FA5]/20 bg-[#E6F1FB]/60 text-[#0C447C]",
+              statusTone === "green" && "border-[#BFD6AB] bg-[#EAF3DE] text-[#27500A]",
+              statusTone === "neutral" && "border-border bg-white text-muted-foreground",
             )}
           >
             {statusLabel}

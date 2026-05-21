@@ -1520,13 +1520,39 @@ export function ContractResults({
     : [];
   const applyAllRecommendations = (targets: RecommendationTargetItem[]) => {
     if (!firstAnalysisVersion || targets.length === 0) return;
-    targets.forEach(({ id, request }) => {
-      decisions.acceptRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version, request);
-    });
+    const requestItems: BasketRequestItem[] = targets.map((item) => ({
+      clauseId: item.id,
+      clauseTitle: item.clauseTitle,
+      category: item.category,
+      severity: item.severity,
+      missingClause: item.missingClause,
+      sourceDeviationLevel: item.sourceDeviationLevel,
+      request: item.request,
+    }));
+    const csv = exportRequestChangeCsv(
+      {
+        initiativeName: initiative.name,
+        supplierName: supplier.name,
+        contractName: contract.name,
+        versionLabel: firstAnalysisVersion.version,
+      },
+      firstAnalysisVersion,
+      requestItems,
+    );
+    downloadCsv(
+      `${supplier.name}-${contract.name}-${firstAnalysisVersion.version}-all-recommendations.csv`,
+      csv,
+    );
+    decisions.acceptSubmittedRequests(
+      supplierId,
+      decisionContractId,
+      firstAnalysisVersion.version,
+      targets.map((item) => ({ clauseId: item.id, request: item.request })),
+    );
     setApplyAllConfirmOpen(false);
     toast({
-      title: "Recommendations applied",
-      description: `${targets.length} recommendation${targets.length === 1 ? "" : "s"} added to CSV review.`,
+      title: "CSV generated",
+      description: `${targets.length} recommendation${targets.length === 1 ? "" : "s"} applied and exported for supplier negotiation.`,
     });
   };
   const firstAnalysisReviewList = firstAnalysisVersion ? (
@@ -4994,7 +5020,7 @@ function ApplyRecommendationsDialog({
                 </span>
               </div>
               <DialogDescription className="mt-1 max-w-[560px] text-xs leading-5">
-                Review ClauseIQ recommended actions before adding them to your CSV review list.
+                Review ClauseIQ recommended actions before generating the CSV negotiation log for the supplier.
               </DialogDescription>
             </div>
           </div>
@@ -5007,7 +5033,7 @@ function ApplyRecommendationsDialog({
               <div>
                 <p className="font-medium text-foreground">Only unreviewed recommendations will be added.</p>
                 <p className="mt-0.5 text-muted-foreground">
-                  Existing custom requests, No Action choices, and draft edits will not be changed.
+                  Existing custom requests, No Action choices, and draft edits will not be changed or exported from this action.
                 </p>
               </div>
             </div>
@@ -5058,7 +5084,7 @@ function ApplyRecommendationsDialog({
           <p className="max-w-[360px] text-xs leading-5 text-muted-foreground">
             {recommendationCount === 0
               ? "Nothing will be changed."
-              : `${recommendationCount} recommendation${recommendationCount === 1 ? "" : "s"} will be added to the CSV review list.`}
+              : `${recommendationCount} recommendation${recommendationCount === 1 ? "" : "s"} will be applied and included in the generated CSV.`}
           </p>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
@@ -5070,7 +5096,7 @@ function ApplyRecommendationsDialog({
               disabled={recommendationCount === 0}
               onClick={applyRecommendations}
             >
-              <Sparkles className="h-3.5 w-3.5" /> Apply {recommendationCount} recommendations
+              <Download className="h-3.5 w-3.5" /> Submit &amp; Generate
             </Button>
           </div>
         </DialogFooter>

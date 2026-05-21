@@ -49,16 +49,16 @@ export default function InitiativeDetailPageV4() {
   const [tab, setTab] = useState<DetailTab>("overview");
   const returnPath =
     searchParams.get("return") ??
-    "/initiatives-v4?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&mode=comparison&design=side-by-side&scenario=first-analysis";
+    "/initiatives-v4?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&mode=comparison&design=row-scale&scenario=first-analysis";
 
   const usedTools = initiative?.toolCoverage.filter((tool) => tool.isUsed).length ?? 0;
 
   const closePage = () => navigate(returnPath);
   const openClauseIqUpload = () => {
-    navigate(`/clauseiq-v4?view=results&rerun=upload&source=delivery-engine&initiativeId=${initiative?.id ?? "AAK01-1442"}`);
+    navigate(`/clauseiq-v4/output-panel?rerun=upload&source=delivery-engine&initiativeId=${initiative?.id ?? "AAK01-1442"}`);
   };
   const openClauseIqResults = () => {
-    navigate("/clauseiq-v4?view=results");
+    navigate("/clauseiq-v4/output-panel");
   };
   const downloadLatestContract = () => {
     const blob = new Blob(

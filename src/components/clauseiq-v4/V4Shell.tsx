@@ -9,11 +9,22 @@ interface Props {
   subheader?: ReactNode;
   subheaderClassName?: string;
   sidePanel?: ReactNode;
+  rightPanel?: ReactNode;
   children: ReactNode;
 }
 
 /** Shared Orbit-style shell for all v4 surfaces. */
-export function V4Shell({ title, subtitle, titleIcon, headerRight, subheader, subheaderClassName, sidePanel, children }: Props) {
+export function V4Shell({
+  title,
+  subtitle,
+  titleIcon,
+  headerRight,
+  subheader,
+  subheaderClassName,
+  sidePanel,
+  rightPanel,
+  children,
+}: Props) {
   return (
     <div className="h-screen flex bg-background overflow-hidden">
       <div className="hidden md:flex h-screen sticky top-0">
@@ -44,6 +55,11 @@ export function V4Shell({ title, subtitle, titleIcon, headerRight, subheader, su
             </aside>
           )}
           <main className="flex-1 overflow-y-auto min-h-0">{children}</main>
+          {rightPanel && (
+            <aside className="hidden w-[360px] shrink-0 overflow-y-auto border-l border-border bg-white lg:block">
+              {rightPanel}
+            </aside>
+          )}
         </div>
       </div>
     </div>

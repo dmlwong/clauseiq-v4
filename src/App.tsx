@@ -41,6 +41,7 @@ const App = () => (
           <Route path="/clauseiq-v2" element={<ClauseIQV2 />} />
           <Route path="/clauseiq-v3" element={<ClauseIQV3 />} />
           <Route path="/clauseiq-v4" element={<ClauseIQV4 />} />
+          <Route path="/clauseiq-v4/output-panel" element={<ClauseIQV4 forceResults resultsLayout="output-panel" />} />
           <Route path="/clauseiq-v4/deviation-prominence" element={<ClauseIQV4DeviationProminence />} />
           <Route path="/usability-v2" element={<UsabilityStudyV2 />} />
           <Route path="/usability-v3" element={<UsabilityStudyV3 />} />

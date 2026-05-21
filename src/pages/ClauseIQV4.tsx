@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Sparkles, Search, Check, Pencil, UploadCloud, FileText, Loader2,
   ChevronRight, ListChecks, FilePlus2, Building2, Lock, Info,
-  BookOpen, Tag, MapPin, ChevronDown,
+  BookOpen, Tag, MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
@@ -22,22 +22,46 @@ import {
   type CiqSelectedParameter,
 } from "@/lib/clauseiq-v4-data";
 import { cn } from "@/lib/utils";
-import { mockInitiative } from "@/data/mock-clauseiq";
+import { mockInitiative, type Initiative } from "@/data/mock-clauseiq";
 import { V4_DELIVERY_INITIATIVE_ID } from "@/data/mock-delivery-engine-v4";
 import {
   ResultsContent,
+  SupplierOutputsPanel,
 } from "@/components/clauseiq-v4/supplier-results";
+import type { ResultsLayout, SupplierOutputsPanelState } from "@/components/clauseiq-v4/supplier-results/types";
 
 type Step = "welcome" | "select" | "parameters" | "upload" | "processing" | "results";
 
 const PROCESSING_MS = 3_000;
 const DEFAULT_PARAMETER: CiqSelectedParameter = { kind: "Playbook", label: CIQ_DEFAULT_PLAYBOOK };
+const EMPTY_MOCK_INITIATIVE: Initiative = {
+  ...mockInitiative,
+  suppliers: mockInitiative.suppliers.map((supplier) => ({
+    ...supplier,
+    analyses: [],
+  })),
+};
+const FIRST_RUN_MOCK_INITIATIVE: Initiative = {
+  ...mockInitiative,
+  suppliers: mockInitiative.suppliers.slice(0, 1).map((supplier) => ({
+    ...supplier,
+    analyses: supplier.analyses.slice(0, 1),
+  })),
+};
+const LATEST_V4_RESULTS_ROUTE =
+  "/initiatives-v4?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=first-analysis";
 
-export default function ClauseIQV4() {
+interface ClauseIQV4Props {
+  forceResults?: boolean;
+  resultsLayout?: ResultsLayout;
+}
+
+export default function ClauseIQV4({ forceResults = false, resultsLayout = "accordion" }: ClauseIQV4Props) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const resultsFromRoute = searchParams.get("view") === "results";
+  const resultsFromRoute = forceResults || searchParams.get("view") === "results";
   const rerunUploadFromRoute = resultsFromRoute && searchParams.get("rerun") === "upload";
+  const resultScenario = searchParams.get("resultScenario") === "empty" ? "empty" : "history";
   const currentRoute = `${window.location.pathname}${window.location.search}`;
   const defaultCompletedInitiative =
     CIQ_INITIATIVES.find((item) => item.name === "Network Edge Hardware") ?? CIQ_INITIATIVES[0];
@@ -70,6 +94,11 @@ export default function ClauseIQV4() {
   }, []);
 
   useEffect(() => {
+    if (!forceResults && searchParams.get("view") === "results" && !rerunUploadFromRoute) {
+      navigate("/clauseiq-v4/output-panel", { replace: true });
+      return;
+    }
+
     if (!resultsFromRoute) return;
     setInitiative((current) => current ?? defaultCompletedInitiative);
     setSelectedParameter((current) => current ?? DEFAULT_PARAMETER);
@@ -78,7 +107,7 @@ export default function ClauseIQV4() {
       setRerunUploadVisible(true);
       scrollLatestOutputIntoView(160);
     }
-  }, [defaultCompletedInitiative, rerunUploadFromRoute, resultsFromRoute, scrollLatestOutputIntoView]);
+  }, [defaultCompletedInitiative, forceResults, navigate, rerunUploadFromRoute, resultsFromRoute, scrollLatestOutputIntoView, searchParams]);
 
   // Auto-scroll the active card into view
   useEffect(() => {
@@ -101,9 +130,14 @@ export default function ClauseIQV4() {
   // Simulated processing
   useEffect(() => {
     if (step !== "processing") return;
-    const t = setTimeout(() => setStep("results"), PROCESSING_MS);
+    const t = setTimeout(() => {
+      setStep("results");
+      if (!forceResults) {
+        navigate("/clauseiq-v4/output-panel");
+      }
+    }, PROCESSING_MS);
     return () => clearTimeout(t);
-  }, [step]);
+  }, [forceResults, navigate, step]);
 
   useEffect(() => {
     if (!rerunProcessing) return;
@@ -127,6 +161,16 @@ export default function ClauseIQV4() {
   const processingVisible = step === "processing" || step === "results";
   const processingState: CardState = step === "processing" ? "active" : "default";
   const resultsVisible = step === "results";
+  const outputPanelResultsVisible = resultsVisible && resultsLayout === "output-panel";
+  const resultsInitiative =
+    outputPanelResultsVisible && resultScenario === "empty" ? FIRST_RUN_MOCK_INITIATIVE : mockInitiative;
+  const supplierOutputPanelState: SupplierOutputsPanelState = resultsVisible
+    ? "filled"
+    : step === "processing"
+      ? "processing"
+      : "empty";
+  const supplierOutputInitiative =
+    supplierOutputPanelState === "filled" ? resultsInitiative : EMPTY_MOCK_INITIATIVE;
   const initiativeLocked = step === "processing" || step === "results";
   const parameterLocked = step === "processing" || step === "results";
 
@@ -186,7 +230,18 @@ export default function ClauseIQV4() {
     setFile(null);
     setRerunProcessing(false);
     setRerunUploadVisible(true);
+    if (!forceResults) {
+      navigate("/clauseiq-v4/output-panel?rerun=upload");
+    }
     scrollLatestOutputIntoView(120);
+  };
+
+  const handleDownload = () => {
+    toast.success("Report download queued.");
+  };
+
+  const handleViewResult = () => {
+    navigate(LATEST_V4_RESULTS_ROUTE);
   };
 
   return (
@@ -205,6 +260,17 @@ export default function ClauseIQV4() {
             <Sparkles className="h-4 w-4" />
           </div>
         )
+      }
+      rightPanel={
+        <div className="p-4">
+          <SupplierOutputsPanel
+            initiative={supplierOutputInitiative}
+            outputState={supplierOutputPanelState}
+            onRunAgain={showRunAgainUpload}
+            onDownload={handleDownload}
+            onViewResult={handleViewResult}
+          />
+        </div>
       }
     >
       <div
@@ -391,14 +457,11 @@ export default function ClauseIQV4() {
             {resultsVisible && (
               <div ref={resultRef} className="space-y-4">
                 <ResultsContent
-                  initiative={mockInitiative}
+                  initiative={resultsInitiative}
+                  layout={resultsLayout}
                   onRunAgain={showRunAgainUpload}
-                  onDownload={() => toast.success("Report download queued.")}
-                  onViewResult={() =>
-                    navigate(
-                      "/initiatives-v4?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=side-by-side&scenario=first-analysis",
-                    )
-                  }
+                  onDownload={resultsLayout === "output-panel" ? undefined : handleDownload}
+                  onViewResult={handleViewResult}
                 />
                 {(rerunUploadVisible || rerunProcessing) && <NewAnalysisDivider />}
                 {rerunUploadVisible && (
@@ -437,6 +500,18 @@ export default function ClauseIQV4() {
                   </StateCard>
                 )}
                 <div ref={latestOutputRef} className="h-[304px]" aria-hidden="true" />
+              </div>
+            )}
+
+            {!outputPanelResultsVisible && (
+              <div className="lg:hidden">
+                <SupplierOutputsPanel
+                  initiative={supplierOutputInitiative}
+                  outputState={supplierOutputPanelState}
+                  onRunAgain={showRunAgainUpload}
+                  onDownload={handleDownload}
+                  onViewResult={handleViewResult}
+                />
               </div>
             )}
           </div>
@@ -493,32 +568,46 @@ function ParameterSelection({
 
   return (
     <div className="space-y-3">
-      <div className="grid gap-2 sm:grid-cols-3">
+      <fieldset className="grid gap-2 sm:grid-cols-3">
+        <legend className="sr-only">Contract analysis parameter type</legend>
         {options.map((option) => {
-          const expanded = option.kind === expandedKind;
+          const selected = option.kind === expandedKind;
           return (
-            <button
+            <label
               key={option.kind}
-              type="button"
-              aria-expanded={expanded}
-              aria-controls={`ciq-parameter-options-${option.kind}`}
               className={cn(
-                "flex min-h-[88px] flex-col items-start justify-between rounded-lg border p-3 text-left transition-colors",
-                expanded ? "border-ciq bg-ciq-soft text-foreground" : "border-border bg-card hover:border-ciq/40 hover:bg-muted/35",
+                "flex min-h-[88px] cursor-pointer flex-col items-start justify-between rounded-lg border p-3 text-left transition-colors",
+                selected ? "border-ciq bg-ciq-soft text-foreground" : "border-border bg-card hover:border-ciq/40 hover:bg-muted/35",
               )}
-              onClick={() => onToggle(option.kind)}
             >
               <span className="flex w-full items-start justify-between gap-2">
                 <span className="grid h-8 w-8 place-items-center rounded-md bg-primary/10 text-primary">
                   <ParameterIcon kind={option.kind} />
                 </span>
-                <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", expanded && "rotate-180 text-ciq")} />
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "mt-0.5 grid h-4 w-4 place-items-center rounded-full border transition-colors",
+                    selected ? "border-ciq bg-ciq" : "border-muted-foreground/40 bg-background",
+                  )}
+                >
+                  {selected && <span className="h-1.5 w-1.5 rounded-full bg-primary-foreground" />}
+                </span>
               </span>
+              <input
+                type="radio"
+                name="ciq-parameter-kind"
+                value={option.kind}
+                checked={selected}
+                onChange={() => onToggle(option.kind)}
+                aria-controls={`ciq-parameter-options-${option.kind}`}
+                className="sr-only"
+              />
               <span className="text-sm font-medium">{option.label}</span>
-            </button>
+            </label>
           );
         })}
-      </div>
+      </fieldset>
 
       {expandedOption && (
         <div

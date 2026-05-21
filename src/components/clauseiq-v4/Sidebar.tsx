@@ -13,7 +13,14 @@ import {
   Sparkles,
   Target,
 } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +38,21 @@ const deliverNav = [
 
 export function CiqSidebar() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const showResultScenarioControl = pathname === "/clauseiq-v4/output-panel";
+  const resultScenario = searchParams.get("resultScenario") === "empty" ? "empty" : "history";
+
+  const handleResultScenarioChange = (value: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (value === "empty") {
+      nextParams.set("resultScenario", "empty");
+    } else {
+      nextParams.delete("resultScenario");
+    }
+    const nextSearch = nextParams.toString();
+    navigate(`${pathname}${nextSearch ? `?${nextSearch}` : ""}`);
+  };
 
   return (
     <aside className="hidden h-screen w-[298px] shrink-0 flex-col border-r border-slate-200 bg-white text-slate-800 md:flex">
@@ -177,6 +199,22 @@ export function CiqSidebar() {
           <Home className="h-4 w-4 text-slate-500" />
           <span>Prototype home</span>
         </NavLink>
+        {showResultScenarioControl && (
+          <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-2">
+            <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
+              Result scenario
+            </label>
+            <Select value={resultScenario} onValueChange={handleResultScenarioChange}>
+              <SelectTrigger className="h-8 bg-white text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="history">Previous analysis</SelectItem>
+                <SelectItem value="empty">No previous analysis</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
     </aside>
   );

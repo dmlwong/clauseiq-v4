@@ -1,6 +1,8 @@
 import type { Initiative } from "@/data/mock-clauseiq";
 
 export type FilteredListSortMode = "severity" | "recent" | "supplier" | "clauses";
+export type ResultsLayout = "accordion" | "output-panel";
+export type SupplierOutputsPanelState = "empty" | "processing" | "filled";
 export type MasterDetailSupplier = Initiative["suppliers"][number];
 
 export interface FilteredListControls {
@@ -20,6 +22,8 @@ export interface ResultsViewProps {
   onRunAgain?: () => void;
   onDownload?: () => void;
   onViewResult?: () => void;
+  layout?: ResultsLayout;
+  outputState?: SupplierOutputsPanelState;
   filteredControls?: FilteredListControls;
   onFilteredControlsChange?: (controls: FilteredListControls) => void;
   masterDetailState?: MasterDetailState;

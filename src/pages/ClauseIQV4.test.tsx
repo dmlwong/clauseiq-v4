@@ -4,11 +4,17 @@ import { describe, expect, it, vi, beforeAll } from "vitest";
 
 import ClauseIQV4 from "./ClauseIQV4";
 import { CIQ_DEFAULT_PLAYBOOK } from "@/lib/clauseiq-v4-data";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
-function renderClauseIQ(route = "/clauseiq-v4") {
+function renderClauseIQ(
+  route = "/clauseiq-v4",
+  props: { forceResults?: boolean; resultsLayout?: "accordion" | "output-panel" } = {},
+) {
   return render(
     <MemoryRouter initialEntries={[route]}>
-      <ClauseIQV4 />
+      <TooltipProvider>
+        <ClauseIQV4 {...props} />
+      </TooltipProvider>
     </MemoryRouter>,
   );
 }
@@ -31,10 +37,13 @@ describe("ClauseIQ V4 flow", () => {
     renderClauseIQ();
 
     expect(screen.getByRole("button", { name: /get started/i })).toBeInTheDocument();
+    expect(screen.getAllByText("Supplier Outputs").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("No outputs yet").length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("button", { name: /get started/i }));
 
     expect(screen.getByRole("button", { name: /search initiatives/i })).toBeInTheDocument();
+    expect(screen.getAllByText("No outputs yet").length).toBeGreaterThan(0);
   });
 
   it("shows Contract Analysis Parameters after selecting an initiative before upload", async () => {
@@ -50,7 +59,7 @@ describe("ClauseIQ V4 flow", () => {
     renderClauseIQ();
 
     startAndSelectInitiative();
-    fireEvent.click(screen.getByRole("button", { name: "Playbook" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Playbook" }));
     fireEvent.click(screen.getByRole("option", { name: CIQ_DEFAULT_PLAYBOOK }));
 
     expect(screen.getByText(CIQ_DEFAULT_PLAYBOOK)).toBeInTheDocument();
@@ -62,11 +71,11 @@ describe("ClauseIQ V4 flow", () => {
     renderClauseIQ();
 
     startAndSelectInitiative();
-    fireEvent.click(screen.getByRole("button", { name: "Playbook" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Playbook" }));
     fireEvent.click(screen.getByRole("option", { name: CIQ_DEFAULT_PLAYBOOK }));
     fireEvent.click(screen.getByRole("button", { name: /change playbook/i }));
 
-    expect(screen.getByRole("button", { name: "Playbook" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Playbook" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
   });
 
@@ -74,7 +83,7 @@ describe("ClauseIQ V4 flow", () => {
     const { container } = renderClauseIQ();
 
     startAndSelectInitiative();
-    fireEvent.click(screen.getByRole("button", { name: "Playbook" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Playbook" }));
     fireEvent.click(screen.getByRole("option", { name: CIQ_DEFAULT_PLAYBOOK }));
 
     const input = container.querySelector<HTMLInputElement>('input[type="file"]');
@@ -88,6 +97,35 @@ describe("ClauseIQ V4 flow", () => {
 
     expect(screen.getByRole("heading", { name: "Upload Contract" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Analysing Your Contract" })).not.toBeInTheDocument();
+  });
+
+  it("shows the supplier output panel processing state after a PDF upload", async () => {
+    const { container } = renderClauseIQ();
+
+    startAndSelectInitiative();
+    fireEvent.click(screen.getByRole("radio", { name: "Playbook" }));
+    fireEvent.click(screen.getByRole("option", { name: CIQ_DEFAULT_PLAYBOOK }));
+
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+    expect(input).toBeTruthy();
+
+    fireEvent.change(input!, {
+      target: {
+        files: [new File(["pdf"], "contract.pdf", { type: "application/pdf" })],
+      },
+    });
+
+    expect(screen.getByRole("heading", { name: "Analysing Your Contract" })).toBeInTheDocument();
+    expect(screen.getAllByText("Analysis running").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Analysis running. This output will appear here when complete.").length).toBeGreaterThan(0);
+  });
+
+  it("renders the output-panel route with filled supplier outputs", () => {
+    renderClauseIQ("/clauseiq-v4/output-panel", { forceResults: true, resultsLayout: "output-panel" });
+
+    expect(screen.getAllByText("Supplier Outputs").length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText("View Results").length).toBeGreaterThan(0);
+    expect(screen.queryByText("No outputs yet")).not.toBeInTheDocument();
   });
 
   it("renders direct results routes with the default playbook selected", () => {

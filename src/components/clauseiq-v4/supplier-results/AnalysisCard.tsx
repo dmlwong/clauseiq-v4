@@ -95,7 +95,11 @@ export function AnalysisCard({
         </div>
 
         <div className="space-y-3">
-          <p className="text-base text-foreground">Summary shown below. Download the report for full details.</p>
+          <p className="text-base text-foreground">
+            {onDownload
+              ? "Summary shown below. Download the report for full details."
+              : "Summary shown below. View the result for full details."}
+          </p>
           <div className="space-y-2" role="group" aria-labelledby={deviationSummaryId}>
             <p id={deviationSummaryId} className="text-sm font-medium text-muted-foreground">
               Missing Clauses and deviation levels
@@ -131,7 +135,7 @@ export function AnalysisCard({
               View Result
             </Button>
           )}
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className={cn("grid gap-2", onRunAgain && onDownload ? "sm:grid-cols-2" : "grid-cols-1")}>
             {onRunAgain && (
               <Button variant="outline" className="h-10 gap-2" onClick={onRunAgain}>
                 <RotateCw className="h-4 w-4" />

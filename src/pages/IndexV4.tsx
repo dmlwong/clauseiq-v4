@@ -56,7 +56,6 @@ const IndexV4 = () => {
   const routeSource = searchParams.get("source");
   const isClauseIQResultRoute = routeSource === "clauseiq";
   const isDeliveryEngineResultRoute = routeSource === "delivery-engine";
-  const isExternalResultRoute = isClauseIQResultRoute || isDeliveryEngineResultRoute;
   const deliveryEngineReturnPath = searchParams.get("return") ?? "/delivery-engine/YRK18-1043";
   const currentRoute = `${window.location.pathname}${window.location.search}`;
   const firstAnalysisDefaultAppliedRef = useRef(false);
@@ -69,7 +68,7 @@ const IndexV4 = () => {
     if (
       searchParams.get("scenario") === "first-analysis" &&
       searchParams.get("mode") === "comparison" &&
-      (searchParams.get("design") === "side-by-side" || searchParams.get("design") === "row-scale") &&
+      searchParams.get("design") === "row-scale" &&
       searchParams.get("catSort") === "risk"
     ) {
       return;
@@ -78,7 +77,7 @@ const IndexV4 = () => {
     const params = new URLSearchParams(searchParams);
     params.set("scenario", "first-analysis");
     params.set("mode", "comparison");
-    if (params.get("design") !== "row-scale") params.set("design", "side-by-side");
+    params.set("design", "row-scale");
     params.set("catSort", "risk");
     if (!params.has("tab")) params.set("tab", "changes");
     params.delete("from");
@@ -171,23 +170,13 @@ const IndexV4 = () => {
                 : undefined
           }
           compactHeader
-          onRunAnalysisAgain={
-            isExternalResultRoute
-              ? () =>
-                  navigate(
-                    `/clauseiq-v4?view=results&rerun=upload&source=${routeSource ?? "clauseiq"}${
-                      isDeliveryEngineResultRoute ? "&initiativeId=YRK18-1043" : ""
-                    }`,
-                  )
-              : undefined
-          }
           onBack={() => {
             if (isDeliveryEngineResultRoute) {
               navigate(deliveryEngineReturnPath);
               return;
             }
             if (isClauseIQResultRoute) {
-              navigate("/clauseiq-v4?view=results");
+              navigate("/clauseiq-v4/output-panel");
               return;
             }
             setView({ name: "supplier", initiativeId: view.initiativeId, supplierId: view.supplierId });

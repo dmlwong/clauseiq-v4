@@ -1,4 +1,5 @@
 export { ResultsContent } from "./ResultsContent";
+export { SupplierOutputsPanel } from "./OutputPanelResultsContent";
 export { MasterSupplierRail } from "./OptionMasterDetail";
 export { useMasterDetailState } from "./useMasterDetailState";
 export { AnalysisCard } from "./AnalysisCard";

@@ -45,19 +45,19 @@ const V5_DASHBOARD_ROUTE =
 
 const v5EntryPoints = [
   {
-    label: "Open V5 output panel",
+    label: "Open test output panel",
     description: "ClauseIQ supplier output with the Orbit visual foundation.",
     url: "/clauseiq-v5/output-panel",
     primary: true,
   },
   {
-    label: "Open V5 dashboard",
+    label: "Open test dashboard",
     description: "Latest contract results dashboard for the first-analysis scenario.",
     url: V5_DASHBOARD_ROUTE,
   },
   {
-    label: "Open V5 intake flow",
-    description: "Start at the local V5 ClauseIQ upload journey.",
+    label: "Open test intake flow",
+    description: "Start at the local ClauseIQ upload journey.",
     url: "/clauseiq-v5",
   },
 ];
@@ -127,42 +127,6 @@ export default function PrototypeTimeline() {
           </p>
         </header>
 
-        <section className="rounded-xl border border-primary/20 bg-primary/5 p-5 shadow-sm">
-          <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-            <div className="max-w-2xl space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-background/80 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
-                <Sparkles className="h-3.5 w-3.5" />
-                Prototype v5 local Orbit migration
-              </div>
-              <h2 className="text-xl font-semibold tracking-tight text-foreground">
-                Jump into the V5 prototype
-              </h2>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                Direct access for the local Orbit migration work. This does not add V5 to
-                the prototype timeline; V4 remains the current version baseline below.
-              </p>
-            </div>
-            <div className="grid w-full gap-2 md:w-[340px]">
-              {v5EntryPoints.map((entry) => (
-                <Button
-                  key={entry.url}
-                  variant={entry.primary ? "default" : "outline"}
-                  className="h-auto justify-between gap-3 px-4 py-3 text-left"
-                  onClick={() => openPrototype(entry.url)}
-                >
-                  <span className="min-w-0">
-                    <span className="block text-sm font-semibold">{entry.label}</span>
-                    <span className="mt-0.5 block whitespace-normal text-xs font-normal opacity-80">
-                      {entry.description}
-                    </span>
-                  </span>
-                  <ExternalLink className="h-4 w-4 shrink-0" />
-                </Button>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {current && (
           <section className="space-y-3">
             <div className="flex items-center gap-2">
@@ -206,8 +170,48 @@ export default function PrototypeTimeline() {
             <p className="text-muted-foreground">No prototype versions yet.</p>
           </div>
         )}
+
+        <TestPrototypeSection />
       </div>
     </div>
+  );
+}
+
+function TestPrototypeSection() {
+  return (
+    <section className="rounded-xl border border-primary/20 bg-primary/5 p-5 shadow-sm">
+      <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+        <div className="max-w-2xl space-y-2">
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-background/80 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
+            <Sparkles className="h-3.5 w-3.5" />
+            test
+          </div>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">Jump into test</h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Direct access for the local Orbit migration work. This sits below the main
+            prototype timeline so V4 remains the current version baseline.
+          </p>
+        </div>
+        <div className="grid w-full gap-2 md:w-[340px]">
+          {v5EntryPoints.map((entry) => (
+            <Button
+              key={entry.url}
+              variant={entry.primary ? "default" : "outline"}
+              className="h-auto justify-between gap-3 px-4 py-3 text-left"
+              onClick={() => openPrototype(entry.url)}
+            >
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">{entry.label}</span>
+                <span className="mt-0.5 block whitespace-normal text-xs font-normal opacity-80">
+                  {entry.description}
+                </span>
+              </span>
+              <ExternalLink className="h-4 w-4 shrink-0" />
+            </Button>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 

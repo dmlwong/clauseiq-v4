@@ -1,0 +1,15 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: auto;
+  padding: var(--orbit-space-xxs) var(--orbit-space-s);
+  background-color: var(--_bg);
+  border-radius: var(--orbit-badge-radius);
+  font-size: var(--orbit-text-xs);
+  font-weight: var(--orbit-font-weight-regular);
+  font-family: var(--orbit-font-family-sans);
+  color: var(--_fg, var(--orbit-color-white));
+  line-height: 1;
+  white-space: nowrap;
+}

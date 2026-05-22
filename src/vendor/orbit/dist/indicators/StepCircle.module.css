@@ -1,0 +1,63 @@
+.circle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  border-radius: var(--orbit-radius-pill);
+}
+
+.large {
+  width: var(--orbit-space-xl);
+  height: var(--orbit-space-xl);
+}
+
+.medium {
+  width: var(--orbit-space-base);
+  height: var(--orbit-space-base);
+}
+
+.small {
+  width: var(--orbit-space-s);
+  height: var(--orbit-space-s);
+}
+
+.checked {
+  background: var(--orbit-color-status-high-bg-success);
+  color: var(--orbit-color-white);
+}
+
+.toDo,
+.active {
+  border: var(--orbit-space-xxs) solid var(--orbit-color-silver);
+  background: transparent;
+}
+
+.numbered {
+  background: transparent;
+}
+
+.disabled {
+  background: var(--orbit-color-bg-disabled);
+}
+
+.digit {
+  color: var(--orbit-color-btn-secondary-fg);
+  font-family: var(--orbit-font-family-sans);
+  font-size: var(--orbit-text-base);
+  font-weight: var(--orbit-font-weight-regular);
+  line-height: var(--orbit-leading-tight);
+}
+
+.marker {
+  position: absolute;
+  bottom: calc(-1 * var(--orbit-space-xs));
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-right: var(--orbit-space-xs) solid transparent;
+  border-left: var(--orbit-space-xs) solid transparent;
+  border-top: calc(var(--orbit-space-xs) + var(--orbit-space-xxs)) solid var(--orbit-color-silver);
+  transform: translateX(-50%);
+}

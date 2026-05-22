@@ -1,0 +1,173 @@
+/* ==========================================================================
+ * ORBIT MODE
+ *
+ * Alternative theme from Figma — rebrand with different status colors,
+ * Orbit heading weight overrides, and saturated semantic foreground colors.
+ * Activate by adding data-theme="orbit" to a parent element.
+ * Source: https://www.figma.com/design/5RUsy0uKtFarK7nO8Y3nLL
+ * Node: 7383-28287
+ * ========================================================================== */
+
+[data-theme="orbit"] {
+  /* --- Text --- */
+  --orbit-color-text-secondary: #475569;
+
+  /* --- Primitives --- */
+  --orbit-color-silver: #8594a9;
+
+  /* --- Typography: Heading 1 (Semi Bold) --- */
+  --orbit-text-h1-family: var(--orbit-font-family-sans);
+  --orbit-text-h1-weight: var(--orbit-font-weight-semibold);
+
+  /* --- Card --- */
+  --orbit-color-card-border-default: #e2e8f0;
+  --orbit-color-card-border-hover: #e2e8f0;
+  --orbit-color-card-border-highlight: #615fff;
+  --orbit-color-card-border-accent: #e2e8f0;
+  --orbit-color-card-border-disabled: #8594a9;
+  --orbit-color-card-border-selected: #4ade80;
+  --orbit-color-card-border-style1: #ffae2f;
+  --orbit-color-card-bg-accent: #f8fafc;
+  --orbit-color-card-bg-disabled: #e2e8f0;
+  --orbit-color-card-bg-selected: #f7fef9;
+  --orbit-color-card-bg-style1: #fffbf2;
+
+  /* --- Sidenav --- */
+  --orbit-color-sidenav-bg: #041628;
+  --orbit-color-sidenav-active-bg: #1e293b;
+  --orbit-color-sidenav-divider: #334155;
+  --orbit-color-sidenav-muted: #a3b1c4;
+  --orbit-color-sidenav-gradient-from: #5b8efd;
+  --orbit-color-sidenav-gradient-to: #1252de;
+  --orbit-sidenav-width: 300px;
+  --orbit-sidenav-stack-gap: var(--orbit-space-s);
+  --orbit-sidenav-padding-top: calc(var(--orbit-space-base) + var(--orbit-space-xs));
+  --orbit-sidenav-header-padding-inline: calc(var(--orbit-space-base) + var(--orbit-space-xs));
+  --orbit-sidenav-header-padding-block-end: calc(var(--orbit-space-base) + var(--orbit-space-xs));
+  --orbit-sidenav-avatar-size: var(--orbit-space-m);
+  --orbit-sidenav-row-gap: var(--orbit-space-xs);
+  --orbit-sidenav-profile-padding-inline: calc(var(--orbit-space-base) + var(--orbit-space-xs));
+  --orbit-sidenav-profile-padding-bottom: var(--orbit-space-none);
+  --orbit-sidenav-section-gap: var(--orbit-space-none);
+  --orbit-sidenav-section-row-padding-inline: var(--orbit-space-xs);
+  --orbit-sidenav-nav-row-gap: var(--orbit-space-xs);
+  --orbit-sidenav-nav-row-padding-block: var(--orbit-space-none);
+  --orbit-sidenav-nav-row-radius: var(--orbit-radius-md);
+  --orbit-sidenav-nav-row-active-radius: var(--orbit-radius-md);
+  --orbit-sidenav-subitem-offset: calc(var(--orbit-space-base) - var(--orbit-space-xs));
+  --orbit-sidenav-subitem-padding-inline: var(--orbit-space-xs);
+  --orbit-sidenav-subitem-radius: var(--orbit-radius-md);
+  --orbit-sidenav-subitem-active-radius: var(--orbit-radius-sm);
+  --orbit-sidenav-badge-size: var(--orbit-space-base);
+  --orbit-sidenav-badge-bg: var(--orbit-color-white);
+  --orbit-sidenav-badge-fg: var(--orbit-color-black);
+  --orbit-sidenav-badge-font-weight: var(--orbit-font-weight-regular);
+  --orbit-sidenav-work-heading-color: var(--orbit-color-sidenav-muted);
+  --orbit-sidenav-work-item-padding-left: calc(var(--orbit-space-base) + var(--orbit-space-xs));
+  --orbit-sidenav-avatar-font-size: 10px;
+  --orbit-sidenav-app-name-font-weight: 700;
+
+  /* --- Page Header --- */
+  --orbit-page-header-padding-block: calc(var(--orbit-space-base) + var(--orbit-space-xs));
+  --orbit-page-header-padding-inline: var(--orbit-space-base);
+
+  /* --- Radial Indicator Tracks --- */
+  --orbit-color-radial-track-success: #b3e6d8;
+  --orbit-color-radial-track-information: #c8d8fd;
+  --orbit-color-radial-track-error: #f5b3b3;
+  --orbit-color-radial-track-warning: #fde0b0;
+  --orbit-color-radial-track-no-status: #d4d9e0;
+
+  /* --- Indicators --- */
+  --orbit-color-bright-green: #4ade80;
+  --orbit-color-bright-orange: #fc5c48;
+  --orbit-color-mid-gray: #475569;
+
+  /* --- Chip --- */
+  --orbit-color-chip-additional-bg: #f4f4ff;
+  --orbit-color-chip-additional-border: #4f4de6;
+  --orbit-color-chip-additional-fg: #4f4de6;
+  --orbit-color-chip-no-status-bg: #f1f5f9;
+  --orbit-color-chip-disabled-bg: #e2e8f0;
+  --orbit-color-chip-disabled-fg: #8594a9;
+  --orbit-color-text-info: #1252de;
+  --orbit-color-text-success: #15803d;
+  --orbit-color-text-warning: #a15900;
+  --orbit-color-text-error: #cd0030;
+
+  /* --- Toggle --- */
+  --orbit-color-toggle-active-bg: #615fff;
+  --orbit-color-toggle-inactive-bg: #8594a9;
+  --orbit-color-toggle-disabled-bg: #e2e8f0;
+  --orbit-color-toggle-handle-disabled: #8594a9;
+  --orbit-color-toggle-label-disabled: #8594a9;
+
+  /* --- Checkbox --- */
+  --orbit-color-checkbox-checked-bg: #615fff;
+  --orbit-color-checkbox-checked-border: #615fff;
+  --orbit-color-checkbox-unchecked-border: #8594a9;
+  --orbit-color-checkbox-disabled-bg: #e2e8f0;
+  --orbit-color-checkbox-disabled-fg: #475569;
+  --orbit-color-checkbox-disabled-icon: #8594a9;
+
+  /* --- Button — Primary --- */
+  --orbit-color-btn-primary-bg: #615fff;
+  --orbit-color-btn-primary-bg-hover: #403fbd;
+  --orbit-color-btn-primary-fg-disabled: #8594a9;
+  --orbit-color-btn-primary-bg-disabled: #e2e8f0;
+
+  /* --- Button — Secondary --- */
+  --orbit-color-btn-secondary-fg: #475569;
+  --orbit-color-btn-secondary-bg-hover: #f1f5f9;
+  --orbit-color-btn-secondary-border: #8594a9;
+  --orbit-color-btn-secondary-icon: #475569;
+  --orbit-color-btn-secondary-fg-disabled: #8594a9;
+  --orbit-color-btn-secondary-bg-disabled: #e2e8f0;
+  --orbit-color-btn-secondary-border-disabled: #8594a9;
+  --orbit-color-btn-secondary-border-error: #e00034;
+  --orbit-color-btn-secondary-bg-accent: #615fff;
+
+  /* --- Button — Tertiary --- */
+  --orbit-color-btn-tertiary-fg: #475569;
+  --orbit-color-btn-tertiary-fg-disabled: #8594a9;
+  --orbit-color-btn-tertiary-bg-disabled: #e2e8f0;
+
+  /* --- Status — High Contrast (Toast + Indicators) --- */
+  --orbit-color-status-high-bg-success: #00a962;
+  --orbit-color-status-high-bg-information: #1252de;
+  --orbit-color-status-high-bg-warning: #ff9a0d;
+  --orbit-color-status-high-bg-error: #cd0030;
+  --orbit-color-status-high-bg-style-1: #7d80f2;
+  --orbit-color-status-high-bg-no-status: #f1f5f9;
+
+  /* --- Status — Low Contrast: Information --- */
+  --orbit-color-status-low-bg-information: #eaf0ff;
+  --orbit-color-status-low-icon-information: #1252de;
+  --orbit-color-status-low-fg-information: #1252de;
+  --orbit-color-status-low-border-information: #1252de;
+
+  /* --- Status — Low Contrast: Success --- */
+  --orbit-color-status-low-bg-success: #f7fef9;
+  --orbit-color-status-low-icon-success: #15803d;
+  --orbit-color-status-low-fg-success: #15803d;
+  --orbit-color-status-low-border-success: #15803d;
+
+  /* --- Status — Low Contrast: Error --- */
+  --orbit-color-status-low-icon-error: #cd0030;
+  --orbit-color-status-low-fg-error: #cd0030;
+  --orbit-color-status-low-border-error: #cd0030;
+
+  /* --- Status — Low Contrast: Warning --- */
+  --orbit-color-status-low-icon-warning: #f26d07;
+  --orbit-color-status-low-fg-warning: #f26d07;
+  --orbit-color-status-low-border-warning: #f26d07;
+
+  /* --- Status — Low Contrast: No Status --- */
+  --orbit-color-status-low-bg-no-status: #f8fafc;
+  --orbit-color-status-low-icon-no-status: #8594a9;
+  --orbit-color-status-low-fg-no-status: #475569;
+  --orbit-color-status-low-border-no-status: #8594a9;
+
+  /* --- Border — error (Figma --Border/color-error) --- */
+  --orbit-color-border-error: #e00034;
+}

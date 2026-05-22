@@ -1,0 +1,65 @@
+.button {
+  display: flex;
+  align-items: center;
+  gap: var(--orbit-space-s);
+  padding: 0 var(--orbit-space-base);
+  height: var(--orbit-multistate-height);
+  background-color: transparent;
+  border-radius: var(--orbit-radius-sm);
+  box-shadow: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--orbit-font-family-sans);
+  overflow: hidden;
+  transition: all 0.15s ease;
+}
+
+.button:hover:not(:disabled) {
+  background-color: var(--orbit-color-bg-hover);
+}
+
+.button.selected {
+  background-color: var(--orbit-color-white);
+  box-shadow: var(--orbit-shadow-md);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--orbit-color-focus-ring, currentColor);
+  outline-offset: 2px;
+}
+
+.button:disabled {
+  color: var(--orbit-color-text-disabled);
+  cursor: not-allowed;
+}
+
+.button:disabled .label {
+  color: var(--orbit-color-text-disabled);
+}
+
+.iconSlot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--orbit-multistate-icon-size);
+  height: var(--orbit-multistate-icon-size);
+  padding: var(--orbit-space-s);
+}
+
+.label {
+  font-size: var(--orbit-text-sm);
+  font-weight: var(--orbit-font-weight-regular);
+  line-height: var(--orbit-leading-relaxed);
+  color: var(--orbit-color-text-primary);
+  white-space: nowrap;
+}
+
+.group {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--orbit-space-s);
+  padding: var(--orbit-space-xs);
+  background-color: var(--orbit-color-status-high-bg-no-status);
+  border-radius: var(--orbit-multistate-group-radius);
+  overflow: hidden;
+}

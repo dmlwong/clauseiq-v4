@@ -1,0 +1,12 @@
+.required {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--orbit-font-family-sans);
+  font-size: var(--orbit-text-sm);
+  font-weight: var(--orbit-font-weight-regular);
+  line-height: var(--orbit-text-body-leading);
+  color: var(--orbit-color-text-error);
+  width: var(--orbit-required-width);
+  height: var(--orbit-space-base);
+}

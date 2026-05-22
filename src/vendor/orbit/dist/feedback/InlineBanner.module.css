@@ -1,0 +1,54 @@
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--orbit-inline-banner-height);
+  padding: 0 var(--orbit-space-s);
+  border-radius: var(--orbit-space-s);
+  width: 100%;
+  border: none;
+  background-color: var(--_bg);
+}
+
+.banner:focus-visible {
+  outline: 2px solid var(--orbit-color-border-focused);
+  outline-offset: 2px;
+}
+
+.outlined {
+  border: 1px solid var(--orbit-color-border-default);
+}
+
+.wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.iconBox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--orbit-inline-banner-icon-box-size);
+  height: var(--orbit-inline-banner-icon-box-size);
+  padding: var(--orbit-space-s);
+  box-sizing: border-box;
+  flex: 0 0 var(--orbit-inline-banner-icon-box-size);
+}
+
+.label {
+  font-family: var(--orbit-font-family-sans);
+  font-size: var(--orbit-text-xs);
+  font-weight: var(--orbit-font-weight-regular);
+  line-height: normal;
+  color: var(--_fg);
+  white-space: nowrap;
+}
+
+.status {
+  font-family: var(--orbit-font-family-sans);
+  font-size: var(--orbit-text-xs);
+  font-weight: var(--orbit-font-weight-regular);
+  line-height: normal;
+  color: var(--_fg);
+  white-space: nowrap;
+}

@@ -6,7 +6,7 @@
     "noUnusedParameters": false,
     "paths": {
       "@orbit": [
-        "/Users/derekwong/efficio-orbit/packages/orbit/dist/index.d.ts"
+        "./src/vendor/orbit/dist/index.d.ts"
       ],
       "@/*": [
         "./src/*"

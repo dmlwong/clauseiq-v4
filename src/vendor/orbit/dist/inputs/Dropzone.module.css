@@ -1,0 +1,96 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--orbit-space-s);
+}
+
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--orbit-space-base);
+  min-height: var(--orbit-dropzone-min-height);
+  padding: var(--orbit-space-base);
+  border: 2px dashed var(--orbit-color-card-border-accent);
+  border-radius: var(--orbit-radius-md);
+  background: var(--orbit-color-card-bg-accent);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.dropzoneActive {
+  border-color: var(--orbit-color-card-border-highlight);
+  background: var(--orbit-color-card-bg-default);
+}
+
+.dropzoneDisabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.dropzone:focus-within {
+  outline: 2px solid var(--orbit-color-border-focused);
+  outline-offset: 2px;
+}
+
+.hiddenInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--orbit-space-xxl);
+  height: var(--orbit-space-xxl);
+}
+
+.prompt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--orbit-space-xs);
+  flex-wrap: wrap;
+  text-align: center;
+}
+
+.chooseButton {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--orbit-color-btn-tertiary-fg);
+  font: inherit;
+  font-weight: var(--orbit-font-weight-medium);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.chooseButton:disabled {
+  color: var(--orbit-color-btn-tertiary-fg-disabled);
+  cursor: not-allowed;
+}
+
+.chooseButton:focus-visible {
+  outline: 2px solid var(--orbit-color-border-focused);
+  outline-offset: 2px;
+  border-radius: var(--orbit-radius-sm);
+}
+
+.error {
+  padding: var(--orbit-space-s) var(--orbit-space-base);
+  border: 1px solid var(--orbit-color-text-error);
+  border-radius: var(--orbit-radius-sm);
+  background: var(--orbit-color-card-bg-style1);
+  color: var(--orbit-color-text-error);
+  font-family: var(--orbit-font-family-sans);
+  font-size: var(--orbit-text-sm);
+}

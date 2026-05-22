@@ -14,7 +14,6 @@ export default defineConfig(({ mode }) => ({
     fs: {
       allow: [
         path.resolve(__dirname, "."),
-        "/Users/derekwong/efficio-orbit",
       ],
     },
   },
@@ -27,10 +26,10 @@ export default defineConfig(({ mode }) => ({
       "react-dom": path.resolve(__dirname, "node_modules/react-dom"),
       "react/jsx-runtime": path.resolve(__dirname, "node_modules/react/jsx-runtime.js"),
       "react/jsx-dev-runtime": path.resolve(__dirname, "node_modules/react/jsx-dev-runtime.js"),
-      "@orbit": "/Users/derekwong/efficio-orbit/packages/orbit/dist/index.js",
-      "@orbit-styles": "/Users/derekwong/efficio-orbit/packages/orbit/styles.css",
-      "@orbit-tokens": "/Users/derekwong/efficio-orbit/packages/orbit/tokens.css",
-      "@orbit-fonts": "/Users/derekwong/efficio-orbit/packages/orbit/fonts.css",
+      "@orbit": path.resolve(__dirname, "src/vendor/orbit/dist/index.js"),
+      "@orbit-styles": path.resolve(__dirname, "src/vendor/orbit/styles.css"),
+      "@orbit-tokens": path.resolve(__dirname, "src/vendor/orbit/tokens.css"),
+      "@orbit-fonts": path.resolve(__dirname, "src/vendor/orbit/fonts.css"),
     },
   },
 }));

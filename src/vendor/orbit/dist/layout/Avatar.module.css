@@ -1,0 +1,39 @@
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--_size);
+  height: var(--_size);
+  min-width: var(--_size);
+  border-radius: 50%;
+  background-color: var(--_bg);
+  color: var(--orbit-color-text-inverse);
+  font-size: var(--_fontSize);
+  font-weight: var(--orbit-font-weight-semibold);
+  font-family: var(--orbit-font-family-sans);
+  line-height: var(--orbit-leading-tight);
+  user-select: none;
+  object-fit: cover;
+}
+
+.square {
+  border-radius: var(--orbit-radius-sm);
+}
+
+.stack {
+  display: inline-flex;
+  align-items: center;
+}
+
+.stackItem {
+  display: inline-flex;
+  border-radius: var(--orbit-radius-pill);
+}
+
+.stackItem + .stackItem {
+  margin-left: calc(-1 * var(--orbit-space-s));
+}
+
+.stackItem .avatar {
+  box-shadow: 0 0 0 var(--orbit-space-px) var(--orbit-color-bg-default);
+}

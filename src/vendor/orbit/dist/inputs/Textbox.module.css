@@ -1,0 +1,108 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--orbit-space-xs);
+  padding: var(--orbit-space-s) 0;
+  width: 100%;
+}
+
+.label {
+  display: flex;
+  gap: var(--orbit-space-xs);
+}
+
+.labelText {
+  font-family: var(--orbit-font-family-sans);
+  font-size: var(--orbit-text-sm);
+  font-weight: var(--orbit-font-weight-semibold);
+  line-height: var(--orbit-leading-snug);
+  color: var(--orbit-color-text-primary);
+}
+
+.required {
+  color: var(--orbit-color-text-error);
+  font-size: var(--orbit-text-sm);
+}
+
+.inputContainer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--orbit-space-l);
+  background-color: var(--orbit-color-btn-secondary-bg);
+  border: 1px solid var(--orbit-color-btn-secondary-border);
+  border-radius: var(--orbit-radius-sm);
+  padding-left: var(--orbit-space-s);
+  padding-right: var(--orbit-space-base);
+}
+
+.inputContainerFocused {
+  border-color: var(--orbit-color-border-focused);
+}
+
+.inputContainer:hover:not(.inputContainerDisabled),
+.inputContainerHover {
+  border-color: var(--orbit-color-border-hover);
+}
+
+.inputContainerError {
+  border-color: var(--orbit-color-border-error);
+}
+
+.inputContainerDisabled {
+  background-color: var(--orbit-color-btn-secondary-bg-disabled);
+  border-color: var(--orbit-color-btn-secondary-border-disabled);
+}
+
+.inputContainerLocked {
+  padding-right: var(--orbit-space-xs);
+}
+
+.input {
+  flex: 1;
+  font-family: var(--orbit-font-family-sans);
+  font-size: var(--orbit-text-sm);
+  font-weight: var(--orbit-font-weight-regular);
+  line-height: var(--orbit-leading-relaxed);
+  color: var(--orbit-color-text-secondary);
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0;
+  cursor: text;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--orbit-color-border-focused);
+  outline-offset: 2px;
+}
+
+.inputFilled {
+  color: var(--orbit-color-text-primary);
+}
+
+.input:disabled {
+  color: var(--orbit-color-text-disabled);
+  cursor: not-allowed;
+}
+
+.lockIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--orbit-space-m);
+  height: var(--orbit-space-m);
+  padding: var(--orbit-space-s);
+}
+
+.message {
+  font-family: var(--orbit-font-family-sans);
+  font-size: var(--orbit-text-xs);
+  font-weight: var(--orbit-font-weight-regular);
+  line-height: 1;
+  color: var(--orbit-color-text-secondary);
+}
+
+.messageError {
+  color: var(--orbit-color-text-error);
+}

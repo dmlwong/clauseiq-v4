@@ -1,0 +1,84 @@
+.container {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--orbit-space-s);
+  cursor: pointer;
+}
+
+.containerRight {
+  flex-direction: row-reverse;
+}
+
+.containerDisabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--orbit-space-s);
+}
+
+.hiddenInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+}
+
+.dot {
+  position: relative;
+  width: var(--orbit-space-base);
+  height: var(--orbit-space-base);
+  flex: 0 0 var(--orbit-space-base);
+  border: var(--orbit-space-xxs) solid var(--orbit-color-checkbox-unchecked-border);
+  border-radius: var(--orbit-radius-pill);
+  background: var(--orbit-color-bg-default);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.dotChecked {
+  border-color: var(--orbit-color-checkbox-checked-bg);
+}
+
+.dotChecked::after {
+  content: "";
+  position: absolute;
+  inset: calc(var(--orbit-space-xxs) + var(--orbit-space-px));
+  border-radius: var(--orbit-radius-pill);
+  background: var(--orbit-color-checkbox-checked-bg);
+}
+
+.container:not(.containerDisabled):hover .dot,
+.dotHover {
+  box-shadow: 0 0 0 var(--orbit-space-xs) color-mix(in srgb, var(--orbit-color-checkbox-checked-bg) 10%, transparent);
+}
+
+.dotError {
+  border-color: var(--orbit-color-border-error);
+}
+
+.dotDisabled {
+  border-color: var(--orbit-color-border-disabled);
+  background: var(--orbit-color-checkbox-disabled-bg);
+}
+
+.hiddenInput:focus-visible + .dot {
+  outline: 2px solid var(--orbit-color-border-focused);
+  outline-offset: 2px;
+}
+
+.label {
+  color: var(--orbit-color-text-primary);
+  font-family: var(--orbit-font-family-sans);
+  font-size: var(--orbit-text-body-size);
+  font-weight: var(--orbit-text-body-weight);
+  line-height: var(--orbit-text-body-leading);
+  user-select: none;
+}
+
+.labelDisabled {
+  color: var(--orbit-color-text-disabled);
+}

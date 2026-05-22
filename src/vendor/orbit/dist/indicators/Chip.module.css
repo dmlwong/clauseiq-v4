@@ -1,0 +1,65 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  appearance: none;
+  background-color: var(--_bg);
+  border: var(--_border);
+  color: var(--_fg);
+  font-size: var(--orbit-text-xs);
+  font-weight: var(--orbit-font-weight-regular);
+  font-family: var(--orbit-font-family-sans);
+  line-height: 1;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.mini {
+  gap: var(--orbit-space-xs);
+  height: var(--orbit-chip-height-mini);
+  padding: var(--orbit-space-xxs) var(--orbit-space-s);
+  border-radius: var(--orbit-chip-radius-mini);
+}
+
+.default {
+  gap: var(--orbit-space-0);
+  min-height: var(--orbit-chip-height-mini);
+  padding: var(--orbit-space-xxs) var(--orbit-space-s);
+  border-radius: var(--orbit-chip-radius-default);
+}
+
+.closeButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: inherit;
+  font-size: var(--orbit-chip-close-size);
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+.interactive {
+  cursor: pointer;
+}
+
+.interactive:hover {
+  filter: brightness(0.97);
+}
+
+.interactive:focus-visible {
+  outline: 2px solid var(--orbit-color-border-focused);
+  outline-offset: 2px;
+}
+
+.selected {
+  box-shadow: inset 0 0 0 1px var(--orbit-color-border-selected);
+}
+
+.disabled {
+  cursor: not-allowed;
+}
+
+.closeButton:disabled {
+  cursor: not-allowed;
+}

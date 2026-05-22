@@ -1,0 +1,39 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+::-webkit-scrollbar {
+  width: var(--orbit-space-s);
+}
+
+::-webkit-scrollbar-track {
+  background: var(--orbit-color-bg-default);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--orbit-color-silver);
+  border-radius: var(--orbit-radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--orbit-color-mid-gray);
+}

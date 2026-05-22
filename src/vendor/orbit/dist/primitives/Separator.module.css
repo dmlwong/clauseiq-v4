@@ -1,0 +1,14 @@
+.separator {
+  background-color: var(--orbit-color-border-default);
+}
+
+.horizontal {
+  width: 100%;
+  height: var(--orbit-space-micro);
+}
+
+.vertical {
+  width: var(--orbit-space-micro);
+  height: 100%;
+  align-self: stretch;
+}

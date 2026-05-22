@@ -1,0 +1,31 @@
+.spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--orbit-color-card-border-highlight);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: orbitSpin 1s linear infinite;
+  flex: 0 0 auto;
+}
+
+.inline {
+  width: var(--orbit-space-base);
+  height: var(--orbit-space-base);
+}
+
+.medium {
+  width: var(--orbit-space-l);
+  height: var(--orbit-space-l);
+}
+
+.large {
+  width: var(--orbit-space-xl);
+  height: var(--orbit-space-xl);
+}
+
+@keyframes orbitSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}

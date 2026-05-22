@@ -1,0 +1,12 @@
+.container {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--orbit-space-xs);
+  font-size: var(--orbit-text-body-size);
+  font-family: var(--orbit-font-family-sans);
+  color: var(--orbit-color-text-primary);
+}
+
+.flag {
+  font-size: var(--orbit-text-base);
+}

@@ -1,0 +1,39 @@
+.backdrop {
+  position: fixed;
+  inset: var(--orbit-space-0);
+  background-color: var(--orbit-color-overlay-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--orbit-z-overlay);
+  padding: var(--orbit-space-m);
+}
+
+.modal {
+  background-color: var(--orbit-color-bg-default);
+  border-radius: var(--orbit-radius-lg);
+  box-shadow: var(--orbit-shadow-lg);
+  max-width: var(--orbit-overlay-width-medium);
+  width: 100%;
+  height: var(--orbit-overlay-height-default);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  outline: none;
+}
+
+.large {
+  max-width: var(--orbit-overlay-width-large);
+}
+
+.contentHeight {
+  height: auto;
+  max-height: calc(100vh - (var(--orbit-space-m) * 2));
+}
+
+.modal:focus-visible {
+  outline: 2px solid var(--orbit-color-focus-ring, currentColor);
+  outline-offset: -2px;
+  border-radius: var(--orbit-radius-lg);
+}

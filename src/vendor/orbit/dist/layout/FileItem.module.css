@@ -1,0 +1,49 @@
+.fileItem {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: var(--_width, auto);
+  max-width: 100%;
+  gap: var(--orbit-space-xs);
+  padding: var(--orbit-space-s);
+  border: 1px solid var(--orbit-color-border-default);
+  border-radius: var(--orbit-radius-sm);
+  background: var(--orbit-color-bg-default);
+  color: var(--orbit-color-text-heading);
+  font: inherit;
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+.interactive {
+  cursor: pointer;
+}
+
+.interactive:hover {
+  background: var(--orbit-color-bg-hover);
+}
+
+.interactive:focus-visible {
+  outline: 2px solid var(--orbit-color-border-focused);
+  outline-offset: 2px;
+}
+
+.filename {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--orbit-color-text-heading);
+  font-family: var(--orbit-font-family-sans);
+  font-size: var(--orbit-text-sm);
+  font-weight: var(--orbit-font-weight-regular);
+  line-height: var(--orbit-leading-relaxed);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trailing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}

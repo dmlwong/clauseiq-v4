@@ -1,0 +1,42 @@
+.micro {
+  display: inline-block;
+  width: var(--_size);
+  height: var(--_size);
+  border-radius: var(--orbit-document-glyph-micro-radius);
+  background-color: var(--_color);
+  flex-shrink: 0;
+}
+
+.wrapper {
+  position: relative;
+  display: inline-flex;
+  width: var(--_size);
+  height: var(--_size);
+  flex-shrink: 0;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: var(--_overlay-padding);
+}
+
+.textLabel {
+  font-family: var(--orbit-font-family-sans);
+  font-weight: var(--orbit-font-weight-bold);
+  font-size: var(--_label-size);
+  color: var(--orbit-color-doc-label);
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+.iconLabel {
+  font-family: 'Font Awesome 6 Pro';
+  font-weight: var(--orbit-font-weight-regular);
+  font-size: var(--_icon-size);
+  color: var(--orbit-color-doc-label);
+  line-height: 1;
+}

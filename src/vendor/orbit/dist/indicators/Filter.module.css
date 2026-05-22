@@ -1,0 +1,42 @@
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--orbit-space-xs);
+  height: var(--orbit-chip-height-mini);
+  padding: var(--orbit-space-xxs) var(--orbit-space-s);
+  border: 1px solid var(--orbit-color-silver);
+  border-radius: var(--orbit-radius-pill);
+  background: var(--orbit-color-card-bg-accent);
+  color: var(--orbit-color-text-secondary);
+  font-family: var(--orbit-font-family-sans);
+  font-size: var(--orbit-text-xs);
+  line-height: var(--orbit-leading-tight);
+  white-space: nowrap;
+}
+
+.filter:hover,
+.previewHover {
+  background: var(--orbit-color-btn-secondary-bg-hover);
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.remove:focus-visible {
+  outline: 2px solid var(--orbit-color-border-focused);
+  outline-offset: 2px;
+  border-radius: var(--orbit-radius-pill);
+}

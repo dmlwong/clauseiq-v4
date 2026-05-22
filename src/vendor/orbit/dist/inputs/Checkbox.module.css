@@ -1,0 +1,76 @@
+.container {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--orbit-space-s);
+  cursor: pointer;
+}
+
+.containerRight {
+  flex-direction: row-reverse;
+}
+
+.containerDisabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.hiddenInput {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+}
+
+.box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--orbit-space-base);
+  height: var(--orbit-space-base);
+  min-width: var(--orbit-space-base);
+  border: var(--orbit-space-xxs) solid var(--orbit-color-checkbox-unchecked-border);
+  border-radius: var(--orbit-radius-sm);
+  background-color: var(--orbit-color-checkbox-unchecked-bg);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  outline: none;
+}
+
+.box:focus-visible {
+  outline: 2px solid var(--orbit-color-border-focused);
+  outline-offset: 2px;
+}
+
+.hiddenInput:focus-visible + .box {
+  outline: 2px solid var(--orbit-color-border-focused);
+  outline-offset: 2px;
+}
+
+.container:not(.containerDisabled):hover .box,
+.boxHover {
+  border-color: var(--orbit-color-border-hover);
+}
+
+.boxChecked {
+  border-color: var(--orbit-color-checkbox-checked-border);
+  background-color: var(--orbit-color-checkbox-checked-bg);
+}
+
+.boxDisabled {
+  border-color: transparent;
+  background-color: var(--orbit-color-checkbox-disabled-bg);
+}
+
+.label {
+  font-size: var(--orbit-text-body-size);
+  font-weight: var(--orbit-text-body-weight);
+  font-family: var(--orbit-font-family-sans);
+  line-height: var(--orbit-text-body-leading);
+  color: var(--orbit-color-text-primary);
+  user-select: none;
+}
+
+.labelDisabled {
+  color: var(--orbit-color-checkbox-disabled-fg);
+}

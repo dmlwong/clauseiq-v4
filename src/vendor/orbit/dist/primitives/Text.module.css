@@ -1,0 +1,65 @@
+.text {
+  font-family: var(--orbit-font-family-sans);
+}
+
+/* Size variants */
+.paragraph {
+  font-size: var(--orbit-text-sm);
+  white-space: normal;
+}
+
+.small {
+  font-size: var(--orbit-text-xs);
+  white-space: nowrap;
+}
+
+/* Weight */
+.regular {
+  font-weight: var(--orbit-font-weight-regular);
+}
+
+.bold {
+  font-weight: var(--orbit-font-weight-semibold);
+}
+
+/* Line heights */
+.leadingParagraph {
+  line-height: var(--orbit-leading-relaxed);
+}
+
+.leadingBold {
+  line-height: var(--orbit-leading-snug);
+}
+
+.leadingSmall {
+  line-height: 1;
+}
+
+/* Color variants */
+.primary {
+  color: var(--orbit-color-text-primary);
+}
+
+.secondary {
+  color: var(--orbit-color-text-secondary);
+}
+
+.disabled {
+  color: var(--orbit-color-text-disabled);
+}
+
+.inverse {
+  color: var(--orbit-color-white);
+}
+
+.error {
+  color: var(--orbit-color-text-error);
+}
+
+.information {
+  color: var(--orbit-color-text-info);
+}
+
+.warning {
+  color: var(--orbit-color-text-warning);
+}

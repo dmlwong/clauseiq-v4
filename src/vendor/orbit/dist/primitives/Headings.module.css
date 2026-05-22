@@ -1,0 +1,36 @@
+.heading {
+  font-family: var(--orbit-font-family-sans);
+  color: var(--orbit-color-text-heading);
+  margin: var(--orbit-space-0);
+}
+
+.heading1 {
+  font-size: var(--orbit-text-h1-size);
+  font-weight: var(--orbit-text-h1-weight);
+  line-height: var(--orbit-text-h1-leading);
+  font-family: var(--orbit-text-h1-family);
+}
+
+.heading2 {
+  font-size: var(--orbit-text-h2-size);
+  font-weight: var(--orbit-text-h2-weight);
+  line-height: var(--orbit-text-h2-leading);
+}
+
+.heading3 {
+  font-size: var(--orbit-text-h3-size);
+  font-weight: var(--orbit-text-h3-weight);
+  line-height: var(--orbit-text-h3-leading);
+}
+
+.heading4 {
+  font-size: var(--orbit-text-h4-size);
+  font-weight: var(--orbit-text-h4-weight);
+  line-height: var(--orbit-text-h4-leading);
+}
+
+.heading5 {
+  font-size: var(--orbit-text-h5-size);
+  font-weight: var(--orbit-text-h5-weight);
+  line-height: var(--orbit-text-h5-leading);
+}

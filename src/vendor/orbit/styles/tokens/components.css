@@ -1,0 +1,337 @@
+/* --------------------------------------------------------------------------
+ * 6. BUTTON — PRIMARY
+ * -------------------------------------------------------------------------- */
+
+:root {
+  --orbit-color-btn-primary-fg: #ffffff;
+  --orbit-color-btn-primary-bg: #001969;
+  --orbit-color-btn-primary-fg-hover: #ffffff;
+  --orbit-color-btn-primary-bg-hover: #40548f;
+  --orbit-color-btn-primary-fg-disabled: #999999;
+  --orbit-color-btn-primary-bg-disabled: #e6e6e6;
+  --orbit-color-btn-primary-bg-positive: #00a962;
+  --orbit-color-btn-primary-bg-destructive: #e00034;
+  --orbit-color-btn-primary-icon: #ffffff;
+
+  /* --------------------------------------------------------------------------
+   * 7. BUTTON — SECONDARY
+   * -------------------------------------------------------------------------- */
+
+  --orbit-color-btn-secondary-fg: #000000;
+  --orbit-color-btn-secondary-bg: #ffffff;
+  --orbit-color-btn-secondary-border: #cccccc;
+  --orbit-color-btn-secondary-fg-hover: #000000;
+  --orbit-color-btn-secondary-bg-hover: #f6f6f6;
+  --orbit-color-btn-secondary-border-hover: #cccccc;
+  --orbit-color-btn-secondary-fg-disabled: #999999;
+  --orbit-color-btn-secondary-bg-disabled: #e6e6e6;
+  --orbit-color-btn-secondary-border-disabled: #cccccc;
+  --orbit-color-btn-secondary-border-focused: #00bd9e;
+  --orbit-color-btn-secondary-border-error: #e00034;
+  --orbit-color-btn-secondary-icon: #040921;
+  --orbit-color-btn-secondary-icon-disabled: #999999;
+  --orbit-color-btn-secondary-bg-accent: #001969;
+
+  /* --------------------------------------------------------------------------
+   * 8. BUTTON — TERTIARY
+   * -------------------------------------------------------------------------- */
+
+  --orbit-color-btn-tertiary-fg: #001969;
+  --orbit-color-btn-tertiary-fg-hover: #001969;
+  --orbit-color-btn-tertiary-bg-hover: #f6f6f6;
+  --orbit-color-btn-tertiary-fg-disabled: #999999;
+  --orbit-color-btn-tertiary-bg-disabled: #e6e6e6;
+
+  /* --------------------------------------------------------------------------
+   * 5b. CARD
+   * -------------------------------------------------------------------------- */
+
+  --orbit-color-card-bg-default: #ffffff;
+  --orbit-color-card-bg-hover: #ffffff;
+  --orbit-color-card-bg-accent: #fafafa;
+  --orbit-color-card-bg-disabled: #e6e6e6;
+  --orbit-color-card-bg-selected: #dffcf3;
+  --orbit-color-card-bg-style1: #fffbf2;
+  --orbit-color-card-border-default: #e6e6e6;
+  --orbit-color-card-border-hover: #e6e6e6;
+  --orbit-color-card-border-highlight: #001969;
+  --orbit-color-card-border-accent: #e6e6e6;
+  --orbit-color-card-border-disabled: #cccccc;
+  --orbit-color-card-border-selected: #00bd9e;
+  --orbit-color-card-border-style1: #f0ab00;
+
+  /* --------------------------------------------------------------------------
+   * 7b. RADIAL INDICATOR TRACKS
+   * -------------------------------------------------------------------------- */
+
+  --orbit-color-radial-track-success: #c0eee7;
+  --orbit-color-radial-track-information: #c8d9f1;
+  --orbit-color-radial-track-error: #feada3;
+  --orbit-color-radial-track-warning: #fde8c0;
+  --orbit-color-radial-track-no-status: #e0e0e0;
+
+  /* --------------------------------------------------------------------------
+   * 8a. CHIP
+   * -------------------------------------------------------------------------- */
+
+  --orbit-color-chip-additional-bg: var(--orbit-color-swatch-hollywood-cerise-300);
+  --orbit-color-chip-additional-border: var(--orbit-color-status-low-border-additional-4);
+  --orbit-color-chip-additional-fg: var(--orbit-color-status-low-border-additional-4);
+  --orbit-color-chip-no-status-bg: var(--orbit-color-status-high-bg-no-status);
+  --orbit-color-chip-default-border: var(--orbit-color-border-default);
+  --orbit-color-chip-disabled-bg: var(--orbit-color-bg-disabled);
+  --orbit-color-chip-disabled-fg: var(--orbit-color-text-disabled);
+
+  /* --------------------------------------------------------------------------
+   * 8b. CHECKBOX
+   * -------------------------------------------------------------------------- */
+
+  --orbit-color-checkbox-checked-bg: var(--orbit-color-efficio-blue);
+  --orbit-color-checkbox-checked-border: var(--orbit-color-efficio-blue);
+  --orbit-color-checkbox-unchecked-border: var(--orbit-color-border-default);
+  --orbit-color-checkbox-unchecked-bg: var(--orbit-color-bg-default);
+  --orbit-color-checkbox-disabled-bg: var(--orbit-color-bg-disabled);
+  --orbit-color-checkbox-disabled-fg: var(--orbit-color-text-disabled);
+  --orbit-color-checkbox-disabled-icon: var(--orbit-color-text-disabled);
+
+  /* --------------------------------------------------------------------------
+   * 8c. TOGGLE
+   * -------------------------------------------------------------------------- */
+
+  --orbit-color-toggle-active-bg: var(--orbit-color-efficio-blue);
+  --orbit-color-toggle-inactive-bg: var(--orbit-color-silver);
+  --orbit-color-toggle-disabled-bg: var(--orbit-color-bg-disabled);
+  --orbit-color-toggle-handle: #ffffff;
+  --orbit-color-toggle-handle-disabled: var(--orbit-color-silver);
+  --orbit-color-toggle-label-disabled: var(--orbit-color-text-disabled);
+
+  /* --------------------------------------------------------------------------
+   * 9. LINK
+   * -------------------------------------------------------------------------- */
+
+  --orbit-color-link-disabled: #999999;
+
+  /* --------------------------------------------------------------------------
+   * 10. STATUS — HIGH CONTRAST
+   * -------------------------------------------------------------------------- */
+
+  --orbit-color-status-high-bg-information: #0073cf;
+  --orbit-color-status-high-bg-success: #00a962;
+  --orbit-color-status-high-bg-warning: #f0ab00;
+  --orbit-color-status-high-bg-error: #e00034;
+  --orbit-color-status-high-bg-style-1: #7d80f2;
+  --orbit-color-status-high-bg-no-status: #f6f6f6;
+
+  /* --------------------------------------------------------------------------
+   * 11. STATUS — LOW CONTRAST
+   * -------------------------------------------------------------------------- */
+
+  --orbit-color-status-low-bg-information: #e5f1fa;
+  --orbit-color-status-low-border-information: #2a75b1;
+  --orbit-color-status-low-icon-information: #2a75b1;
+  --orbit-color-status-low-fg-information: #000000;
+
+  --orbit-color-status-low-bg-success: #dffcf3;
+  --orbit-color-status-low-border-success: #009a81;
+  --orbit-color-status-low-icon-success: #009a81;
+  --orbit-color-status-low-fg-success: #000000;
+
+  --orbit-color-status-low-bg-warning: #fffbf2;
+  --orbit-color-status-low-border-warning: #af7d00;
+  --orbit-color-status-low-icon-warning: #f0ab00;
+  --orbit-color-status-low-fg-warning: #000000;
+
+  --orbit-color-status-low-bg-error: #ffdedb;
+  --orbit-color-status-low-border-error: #e00034;
+  --orbit-color-status-low-icon-error: #e00034;
+  --orbit-color-status-low-fg-error: #000000;
+
+  --orbit-color-status-low-bg-no-status: #d6d8e4;
+  --orbit-color-status-low-border-no-status: #999999;
+  --orbit-color-status-low-icon-no-status: #cccccc;
+  --orbit-color-status-low-fg-no-status: #000000;
+
+  --orbit-color-status-low-border-additional-4: #ae008d;
+
+  /* --------------------------------------------------------------------------
+   * 12. FLAGS / TAG-SPECIFIC
+   * -------------------------------------------------------------------------- */
+
+  --orbit-color-flag-07: #f0f0f3;
+  --orbit-color-flag-03: #66788c;
+
+  /* --------------------------------------------------------------------------
+   * 13. SIDENAV
+   * -------------------------------------------------------------------------- */
+
+  --orbit-color-sidenav-bg: #2f3342;
+  --orbit-color-sidenav-active-bg: #43485d;
+  --orbit-color-sidenav-divider: #43485d;
+  --orbit-color-sidenav-muted: #7d87ae;
+  --orbit-color-sidenav-gradient-from: #147ed3;
+  --orbit-color-sidenav-gradient-to: #2a75b1;
+  --orbit-sidenav-width: 300px;
+  --orbit-sidenav-stack-gap: var(--orbit-space-base);
+  --orbit-sidenav-padding-top: var(--orbit-space-m);
+  --orbit-sidenav-header-padding-inline: var(--orbit-space-l);
+  --orbit-sidenav-header-padding-block-end: var(--orbit-space-m);
+  --orbit-sidenav-avatar-size: var(--orbit-space-l);
+  --orbit-sidenav-row-gap: var(--orbit-space-xxs);
+  --orbit-sidenav-profile-padding-inline: var(--orbit-space-l);
+  --orbit-sidenav-profile-padding-bottom: var(--orbit-space-s);
+  --orbit-sidenav-section-gap: var(--orbit-space-xs);
+  --orbit-sidenav-section-row-padding-inline: var(--orbit-space-s);
+  --orbit-sidenav-nav-row-gap: var(--orbit-space-xxs);
+  --orbit-sidenav-nav-row-padding-block: var(--orbit-space-0);
+  --orbit-sidenav-nav-row-radius: var(--orbit-radius-none);
+  --orbit-sidenav-nav-row-active-radius: var(--orbit-radius-sm);
+  --orbit-sidenav-subitem-offset: var(--orbit-space-base);
+  --orbit-sidenav-subitem-padding-inline: var(--orbit-space-xxs);
+  --orbit-sidenav-subitem-radius: var(--orbit-radius-sm);
+  --orbit-sidenav-subitem-active-radius: var(--orbit-radius-sm);
+  --orbit-sidenav-badge-size: var(--orbit-space-base);
+  --orbit-sidenav-badge-bg: var(--orbit-color-bright-orange);
+  --orbit-sidenav-badge-fg: var(--orbit-color-black);
+  --orbit-sidenav-badge-font-weight: var(--orbit-font-weight-semibold);
+  --orbit-sidenav-work-heading-color: var(--orbit-color-white);
+  --orbit-sidenav-work-item-padding-left: var(--orbit-space-l);
+  --orbit-sidenav-avatar-font-size: var(--orbit-text-xs);
+  --orbit-sidenav-app-name-font-weight: var(--orbit-font-weight-bold);
+
+  /* --------------------------------------------------------------------------
+   * 13a. PAGE HEADER
+   * -------------------------------------------------------------------------- */
+
+  --orbit-page-header-padding-block: var(--orbit-space-base);
+  --orbit-page-header-padding-inline: var(--orbit-space-base);
+
+  /* --------------------------------------------------------------------------
+   * 13b. OVERLAY
+   * -------------------------------------------------------------------------- */
+
+  --orbit-color-overlay-backdrop: rgba(4, 9, 33, 0.5);
+
+  /* --------------------------------------------------------------------------
+   * 13c. DOCUMENT GLYPH
+   * -------------------------------------------------------------------------- */
+
+  --orbit-color-doc-xls: #E00034;
+  --orbit-color-doc-word: #92B4F4;
+  --orbit-color-doc-pdf: #E00034;
+  --orbit-color-doc-zip: #F0AB00;
+  --orbit-color-doc-img: #40CEB6;
+  --orbit-color-doc-unknown: #E00034;
+  --orbit-color-doc-fold-overlay: rgba(255, 255, 255, 0.3);
+  --orbit-color-doc-label: var(--orbit-color-white);
+  --orbit-document-glyph-size-large: var(--orbit-space-mega);
+  --orbit-document-glyph-size-medium: var(--orbit-space-l);
+  --orbit-document-glyph-size-small: var(--orbit-space-m);
+  --orbit-document-glyph-size-extra-small: var(--orbit-space-base);
+  --orbit-document-glyph-size-micro: var(--orbit-space-s);
+  --orbit-document-glyph-micro-radius: var(--orbit-space-px);
+  --orbit-document-glyph-overlay-padding-large: 6px;
+  --orbit-document-glyph-overlay-padding-medium: 3px;
+  --orbit-document-glyph-overlay-padding-small: 2px;
+  --orbit-document-glyph-overlay-padding-extra-small: 2px;
+  --orbit-document-glyph-label-size-large: 14px;
+  --orbit-document-glyph-label-size-medium: 7px;
+  --orbit-document-glyph-label-size-small: 5px;
+  --orbit-document-glyph-label-size-extra-small: 4px;
+  --orbit-document-glyph-icon-size-large: 24px;
+  --orbit-document-glyph-icon-size-medium: 12px;
+  --orbit-document-glyph-icon-size-small: 9px;
+  --orbit-document-glyph-icon-size-extra-small: 6px;
+
+  /* --------------------------------------------------------------------------
+   * 13d. PAGE HEADER / INITIATIVE PRESETS
+   * -------------------------------------------------------------------------- */
+
+  --orbit-color-header-identify-from: #5b8efd;
+  --orbit-color-header-identify-to: #1252de;
+  --orbit-color-header-identify-border: #1252de;
+  --orbit-color-header-deliver-from: #01968a;
+  --orbit-color-header-deliver-to: #007360;
+  --orbit-color-header-deliver-border: #01968a;
+  --orbit-color-header-sustain-from: #ff9a0d;
+  --orbit-color-header-sustain-to: #e08800;
+  --orbit-color-header-sustain-border: #ff9a0d;
+  --orbit-color-header-rfp-from: #01968a;
+  --orbit-color-header-rfp-to: #007360;
+  --orbit-color-header-rfp-border: #01968a;
+
+  /* --------------------------------------------------------------------------
+   * 14. COMPONENT-LEVEL SIZING TOKENS
+   * -------------------------------------------------------------------------- */
+
+  /* --- Toggle --- */
+  --orbit-toggle-track-width: 32px;
+  --orbit-toggle-track-height: 18px;
+  --orbit-toggle-track-radius: 12px;
+  --orbit-toggle-handle-size: 14px;
+  --orbit-toggle-handle-shadow: 0 1px 2px var(--orbit-shadow-color);
+
+  /* --- Badge --- */
+  --orbit-badge-radius: 4px;
+
+  /* --- Toast --- */
+  --orbit-toast-max-width: 1058px;
+
+  /* --- Button --- */
+  --orbit-btn-height-medium: var(--orbit-space-l);
+  --orbit-btn-height-small: var(--orbit-space-m);
+  --orbit-btn-icon-size: 16px;
+
+  /* --- IconButton --- */
+  --orbit-icon-btn-small: var(--orbit-space-m);
+  --orbit-icon-btn-medium: var(--orbit-space-l);
+  --orbit-icon-btn-large: 40px;
+
+  /* --- TabButton --- */
+  --orbit-tab-height: 40px;
+  --orbit-tab-inner-height: 36px;
+  --orbit-tab-underline-height: 4px;
+
+  /* --- Chip --- */
+  --orbit-chip-height-mini: var(--orbit-space-m);
+  --orbit-chip-height-default: var(--orbit-space-l);
+  --orbit-chip-close-size: 10px;
+  --orbit-chip-radius-mini: var(--orbit-radius-sm);
+  --orbit-chip-radius-default: var(--orbit-space-s);
+
+  /* --- QuickFilter --- */
+  --orbit-quickfilter-height: var(--orbit-space-l);
+  --orbit-quickfilter-radius: 16px;
+
+  /* --- Dropdown --- */
+  --orbit-dropdown-trigger-height: var(--orbit-space-l);
+  --orbit-dropdown-option-height: var(--orbit-space-xxl);
+  --orbit-dropdown-chevron-size: var(--orbit-space-m);
+
+  /* --- InlineBanner --- */
+  --orbit-inline-banner-height: var(--orbit-space-l);
+  --orbit-inline-banner-icon-box-size: var(--orbit-space-m);
+
+  /* --- TextArea --- */
+  --orbit-textarea-min-height: 48px;
+
+  /* --- Dropzone --- */
+  --orbit-dropzone-min-height: 268px;
+
+  /* --- Overlay --- */
+  --orbit-overlay-width-medium: 800px;
+  --orbit-overlay-width-large: 1200px;
+  --orbit-overlay-height-default: 85vh;
+
+  /* --- MultiStateButton --- */
+  --orbit-multistate-height: var(--orbit-space-l);
+  --orbit-multistate-icon-size: var(--orbit-space-m);
+  --orbit-multistate-group-radius: var(--orbit-radius-md);
+
+  /* --- Required --- */
+  --orbit-required-width: 7px;
+
+  /* --- Radial Indicator --- */
+  --orbit-radial-size: 24px;
+  --orbit-radial-stroke-radius: 6;
+  --orbit-radial-stroke-width: 2.5;
+}

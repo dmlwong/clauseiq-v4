@@ -1,0 +1,15 @@
+@font-face {
+  font-family: 'Font Awesome 6 Pro';
+  font-style: normal;
+  font-weight: 900;
+  src: url('./fonts/Font Awesome 6 Pro-Solid-900.otf') format('opentype');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Font Awesome 6 Pro';
+  font-style: normal;
+  font-weight: 400;
+  src: url('./fonts/Font Awesome 6 Pro-Regular-400.otf') format('opentype');
+  font-display: swap;
+}

@@ -1,0 +1,43 @@
+.card {
+  background-color: var(--_bg);
+  border: 1px solid var(--_border-color);
+  border-radius: var(--orbit-radius-md);
+  transition: none;
+}
+
+.dynamic {
+  box-shadow: var(--orbit-shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.dynamic:hover:not(.disabled) {
+  box-shadow: var(--orbit-shadow-md);
+}
+
+.dynamic.previewHover:not(.disabled) {
+  box-shadow: var(--orbit-shadow-md);
+}
+
+.static {
+  box-shadow: var(--orbit-shadow-none);
+}
+
+.disabled {
+  border: none;
+  opacity: 0.6;
+  box-shadow: var(--orbit-shadow-none);
+  cursor: default;
+}
+
+/* Padding variants */
+.paddingBase {
+  padding: var(--orbit-space-base);
+}
+
+.paddingMedium {
+  padding: var(--orbit-space-m);
+}
+
+.paddingSmall {
+  padding: var(--orbit-space-s);
+}

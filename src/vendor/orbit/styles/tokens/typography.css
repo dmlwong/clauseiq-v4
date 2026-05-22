@@ -1,0 +1,93 @@
+/* --------------------------------------------------------------------------
+ * 14. TYPOGRAPHY — FONT FAMILIES
+ * -------------------------------------------------------------------------- */
+
+:root {
+  --orbit-font-family-sans: "Inter", sans-serif;
+  --orbit-font-family-brand: "Sofia Pro", sans-serif;
+
+  /* --------------------------------------------------------------------------
+   * 15. TYPOGRAPHY — FONT SIZES
+   * -------------------------------------------------------------------------- */
+
+  --orbit-text-xs: 12px;
+  --orbit-text-sm: 14px;
+  --orbit-text-base: 16px;
+  --orbit-text-lg: 20px;
+  --orbit-text-xl: 26px;
+  --orbit-text-2xl: 28px;
+  --orbit-text-3xl: 36px;
+
+  /* --------------------------------------------------------------------------
+   * 16. TYPOGRAPHY — FONT WEIGHTS
+   * -------------------------------------------------------------------------- */
+
+  --orbit-font-weight-regular: 400;
+  --orbit-font-weight-medium: 500;
+  --orbit-font-weight-semibold: 600;
+  --orbit-font-weight-bold: 800;
+
+  /* --------------------------------------------------------------------------
+   * 17. TYPOGRAPHY — LINE HEIGHTS
+   * -------------------------------------------------------------------------- */
+
+  --orbit-leading-tight: 1;
+  --orbit-leading-snug: 1.143;   /* 16px at 14px font */
+  --orbit-leading-normal: 1.571; /* 22px at 14px font */
+  --orbit-leading-relaxed: 1.714; /* 24px at 14px font */
+
+  /* --------------------------------------------------------------------------
+   * 18. TYPOGRAPHY — COMPOSITE STYLES (as shorthand references)
+   * -------------------------------------------------------------------------- */
+
+  /* Heading 1: Inter Semi Bold 36px / 100% */
+  --orbit-text-h1-family: var(--orbit-font-family-sans);
+  --orbit-text-h1-size: var(--orbit-text-3xl);
+  --orbit-text-h1-weight: var(--orbit-font-weight-semibold);
+  --orbit-text-h1-leading: var(--orbit-leading-tight);
+
+  /* Heading 2: Inter Semi Bold 28px / 100% */
+  --orbit-text-h2-size: var(--orbit-text-2xl);
+  --orbit-text-h2-weight: var(--orbit-font-weight-semibold);
+  --orbit-text-h2-leading: var(--orbit-leading-tight);
+
+  /* Heading 3: Inter Semi Bold 26px / 100% */
+  --orbit-text-h3-size: var(--orbit-text-xl);
+  --orbit-text-h3-weight: var(--orbit-font-weight-semibold);
+  --orbit-text-h3-leading: var(--orbit-leading-tight);
+
+  /* Heading 4: Inter Semi Bold 20px / 100% */
+  --orbit-text-h4-size: var(--orbit-text-lg);
+  --orbit-text-h4-weight: var(--orbit-font-weight-semibold);
+  --orbit-text-h4-leading: var(--orbit-leading-tight);
+
+  /* Heading 5: Inter Semi Bold 16px / 100% */
+  --orbit-text-h5-size: var(--orbit-text-base);
+  --orbit-text-h5-weight: var(--orbit-font-weight-semibold);
+  --orbit-text-h5-leading: var(--orbit-leading-tight);
+
+  /* Paragraph: Inter Regular 14px / 24px */
+  --orbit-text-body-size: var(--orbit-text-sm);
+  --orbit-text-body-weight: var(--orbit-font-weight-regular);
+  --orbit-text-body-leading: var(--orbit-leading-relaxed);
+
+  /* Strong: Inter Semi Bold 14px / 16px */
+  --orbit-text-strong-size: var(--orbit-text-sm);
+  --orbit-text-strong-weight: var(--orbit-font-weight-semibold);
+  --orbit-text-strong-leading: var(--orbit-leading-snug);
+
+  /* Button: Inter Medium 14px / 24px */
+  --orbit-text-button-size: var(--orbit-text-sm);
+  --orbit-text-button-weight: var(--orbit-font-weight-medium);
+  --orbit-text-button-leading: var(--orbit-leading-relaxed);
+
+  /* Link: Inter Regular 14px / 24px */
+  --orbit-text-link-size: var(--orbit-text-sm);
+  --orbit-text-link-weight: var(--orbit-font-weight-regular);
+  --orbit-text-link-leading: var(--orbit-leading-relaxed);
+
+  /* Small: Inter Regular 12px / 100% */
+  --orbit-text-small-size: var(--orbit-text-xs);
+  --orbit-text-small-weight: var(--orbit-font-weight-regular);
+  --orbit-text-small-leading: var(--orbit-leading-tight);
+}

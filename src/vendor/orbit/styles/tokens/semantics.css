@@ -1,0 +1,42 @@
+/* --------------------------------------------------------------------------
+ * 3. SEMANTIC TEXT COLORS
+ * -------------------------------------------------------------------------- */
+
+:root {
+  --orbit-color-text-primary: #000000;
+  --orbit-color-text-secondary: #666666;
+  --orbit-color-text-disabled: #999999;
+  --orbit-color-text-inverse: #ffffff;
+  --orbit-color-text-error: #e00034;
+  --orbit-color-text-info: #2a75b1;
+  --orbit-color-text-success: #009a81;
+  --orbit-color-text-warning: #af7d00;
+  --orbit-color-text-heading: #040921;
+
+  /* --------------------------------------------------------------------------
+   * 4. SEMANTIC BORDER COLORS
+   * -------------------------------------------------------------------------- */
+
+  --orbit-color-border-default: #e6e6e6;
+  --orbit-color-border-accent: #a2a9c5;
+  --orbit-color-border-selected: #00bd9e;
+  --orbit-color-border-highlight: #001969;
+  --orbit-color-border-hover: #e6e6e6;
+  --orbit-color-border-disabled: #cccccc;
+  --orbit-color-border-focused: #00bd9e;
+  --orbit-color-border-error: #e00034;
+  --orbit-color-border-style1: #f0ab00;
+
+  /* --------------------------------------------------------------------------
+   * 5. SEMANTIC BACKGROUND COLORS
+   * -------------------------------------------------------------------------- */
+
+  --orbit-color-bg-default: #ffffff;
+  --orbit-color-bg-accent: #ffffff;
+  --orbit-color-bg-hover: #f6f6f6;
+  --orbit-color-bg-selected: #dffcf3;
+  --orbit-color-bg-disabled: #e6e6e6;
+  --orbit-color-bg-style1: #fffbf2;
+  --orbit-color-bg-canvas: var(--orbit-color-swatch-slate-100);
+  --orbit-color-bg-canvas-grid: color-mix(in srgb, var(--orbit-color-swatch-slate-200) 64%, transparent);
+}

@@ -1,0 +1,110 @@
+@keyframes toastSlideIn {
+  from {
+    transform: translateX(-50%) translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+.toast {
+  position: fixed;
+  top: var(--orbit-space-base);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--orbit-space-s);
+  padding: var(--orbit-space-base);
+  background-color: var(--_bg);
+  color: var(--_fg);
+  border-radius: var(--orbit-radius-sm);
+  box-shadow: var(--orbit-shadow-lg);
+  font-size: var(--orbit-text-body-size);
+  font-weight: var(--orbit-text-body-weight);
+  font-family: var(--orbit-font-family-sans);
+  line-height: var(--orbit-text-body-leading);
+  z-index: var(--orbit-z-toast);
+  width: 90%;
+  max-width: var(--orbit-toast-max-width);
+  animation: toastSlideIn 0.3s ease;
+}
+
+.content {
+  display: flex;
+  align-items: center;
+  gap: var(--orbit-space-s);
+  flex: 1;
+}
+
+.iconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--orbit-space-m);
+  height: var(--orbit-space-m);
+}
+
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--orbit-space-xs);
+  flex-shrink: 0;
+}
+
+.actionPrimary,
+.actionSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--orbit-btn-height-small);
+  padding: 0 var(--orbit-space-s);
+  border: 0;
+  border-radius: var(--orbit-radius-sm);
+  background: transparent;
+  font: inherit;
+  font-weight: var(--orbit-font-weight-medium);
+  cursor: pointer;
+}
+
+.actionPrimary {
+  color: var(--orbit-color-btn-tertiary-fg);
+}
+
+.actionSecondary {
+  color: inherit;
+}
+
+.actionPrimary:hover,
+.actionSecondary:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.actionPrimary:focus-visible,
+.actionSecondary:focus-visible {
+  outline: 2px solid var(--orbit-color-focus-ring, currentColor);
+  outline-offset: 2px;
+}
+
+.dismissButton {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--orbit-space-m);
+  height: var(--orbit-space-m);
+  padding: var(--orbit-space-s);
+  flex-shrink: 0;
+}
+
+.dismissButton:focus-visible {
+  outline: 2px solid var(--orbit-color-focus-ring, currentColor);
+  outline-offset: 2px;
+  border-radius: var(--orbit-radius-sm);
+}

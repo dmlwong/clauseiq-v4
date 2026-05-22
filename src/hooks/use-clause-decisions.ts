@@ -310,6 +310,51 @@ export function useClauseDecisions(initial: Store = {}, options: ClauseDecisionO
     [options.storageKey],
   );
 
+  const acceptPendingRequests = useCallback(
+    (
+      supplierId: string,
+      contractId: string,
+      version: string,
+      requests: Array<{ clauseId: string; request: ClauseRequest }>,
+    ) => {
+      const validRequests = requests.filter((item) => item.request.requestedChange?.trim());
+      if (validRequests.length === 0) return;
+      const now = new Date().toISOString();
+
+      setStore((prev) => {
+        const key = `${supplierId}:${contractId}`;
+        const list = prev[key] ?? {};
+        const nextList = { ...list };
+
+        for (const item of validRequests) {
+          const current = nextList[item.clauseId] ?? EMPTY;
+          const existing = current.requests[version];
+          nextList[item.clauseId] = {
+            ...current,
+            roundDecisions: { ...current.roundDecisions, [version]: "request-update" },
+            requests: {
+              ...current.requests,
+              [version]: {
+                requestedChange: item.request.requestedChange!.trim(),
+                rationale: item.request.rationale?.trim() || undefined,
+                state: "pending",
+                createdAt: existing?.createdAt ?? now,
+                submittedAt: undefined,
+              },
+            },
+            draftRequests: withoutKey(current.draftRequests, version),
+            updatedAt: now,
+          };
+        }
+
+        const nextStore = { ...prev, [key]: nextList };
+        saveStored(options.storageKey, nextStore);
+        return nextStore;
+      });
+    },
+    [options.storageKey],
+  );
+
   const clearRoundDecision = useCallback(
     (supplierId: string, contractId: string, clauseId: string, version: string) => {
       mutate(supplierId, contractId, clauseId, (s) => ({
@@ -546,6 +591,7 @@ export function useClauseDecisions(initial: Store = {}, options: ClauseDecisionO
       submitDraftRequest,
       acceptRequest,
       acceptSubmittedRequests,
+      acceptPendingRequests,
       clearRoundDecision,
       changeDecision,
       removePendingRequest,
@@ -567,6 +613,7 @@ export function useClauseDecisions(initial: Store = {}, options: ClauseDecisionO
       submitDraftRequest,
       acceptRequest,
       acceptSubmittedRequests,
+      acceptPendingRequests,
       clearRoundDecision,
       changeDecision,
       removePendingRequest,

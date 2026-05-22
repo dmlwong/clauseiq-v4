@@ -29,7 +29,6 @@ import {
   IconArrowDown,
   IconArrowUp,
   IconEye,
-  IconFlame,
   IconHelp,
   IconInfoCircle,
   IconList,
@@ -118,6 +117,20 @@ interface Props {
 type TabKey = "review" | ComparisonTab;
 type FilterKey = "all" | "open" | "new-issues" | "closed" | "unmarked";
 type QuickFilterKey = "high" | "medium" | "low" | "missing" | "need-action" | "changes" | "open-items" | "met" | "closed";
+interface FirstAnalysisReviewProgress {
+  total: number;
+  usedRecommendations: number;
+  noAction: number;
+  unreviewed: number;
+  submitted: number;
+  readyForCsv: number;
+  breakdown: Array<{
+    label: string;
+    reviewed: number;
+    unreviewed: number;
+    total: number;
+  }>;
+}
 type CategorySortKey = "risk" | "az" | "count";
 export type ScoringOptionKey = "issue-score" | "hybrid";
 type ScoreBand = "A" | "B" | "C" | "D" | "F";
@@ -635,6 +648,7 @@ export function ContractResults({
   useEffect(() => {
     if (!firstAnalysisDemo) {
       firstAnalysisResetKeyRef.current = null;
+      setBulkReviewSelection(null);
       return;
     }
     const resetKey = `${supplierId}:${decisionContractId}`;
@@ -840,7 +854,7 @@ export function ContractResults({
   const [decisions_, setDecisions_] = useState<Record<string, "accepted" | "changes-requested" | null>>({});
   const [acceptConfirmOpen, setAcceptConfirmOpen] = useState(false);
   const [requestReviewOpen, setRequestReviewOpen] = useState(false);
-  const [applyAllConfirmOpen, setApplyAllConfirmOpen] = useState(false);
+  const [bulkReviewSelection, setBulkReviewSelection] = useState<{ version: string; clauseIds: string[] } | null>(null);
   const [quickFilter, setQuickFilter] = useState<QuickFilterKey | null>(() =>
     mode === "comparison" && versions.length >= 2 ? "open-items" : null,
   );
@@ -896,6 +910,15 @@ export function ContractResults({
       description: `${pendingRequestItems.length} requested change${pendingRequestItems.length === 1 ? "" : "s"} exported for supplier negotiation.`,
     });
   };
+  const bulkReviewClauseIdSet = new Set(bulkReviewSelection?.clauseIds ?? []);
+  const bulkReviewSummaryMode = Boolean(
+    bulkReviewSelection &&
+      activeRequestVersion &&
+      bulkReviewSelection.version === activeRequestVersion.version &&
+      pendingRequestItems.length > 0 &&
+      pendingRequestItems.length === bulkReviewClauseIdSet.size &&
+      pendingRequestItems.every((item) => bulkReviewClauseIdSet.has(item.clauseId)),
+  );
 
   const onUploadVersion = (file: File | null, label: string) => {
     if (!file) return;
@@ -949,19 +972,6 @@ export function ContractResults({
     }),
     [comparisonModel],
   );
-  const closedBasketItems = useMemo<ClosedBasketItem[]>(() => {
-    if (mode !== "comparison" || versions.length < 2 || !rightVersion) return [];
-    return comparisonSections.closed.map((row) => {
-      const clause = row.curr ?? row.prev;
-      const def = CLAUSE_FRAMEWORK.find((candidate) => candidate.id === row.id);
-      return {
-        clauseId: row.id,
-        clauseTitle: clause?.title ?? def?.title ?? row.id.toUpperCase(),
-        version: rightVersion.version,
-      };
-    });
-  }, [comparisonSections.closed, mode, rightVersion, versions.length]);
-
   const stripStats = comparisonModel.stripStats;
   const comparisonMovers = useMemo(
     () => deriveComparisonMovers(comparisonModel.buckets.new_changes),
@@ -1328,6 +1338,64 @@ export function ContractResults({
     distribution: firstAnalysisDistribution,
     versionLabel: firstAnalysisVersionLabel,
   };
+  const firstAnalysisReviewProgress = useMemo<FirstAnalysisReviewProgress>(() => {
+    const reviewClauses = firstAnalysisAllClauses.filter(isFirstAnalysisReviewClause);
+    const clauseStatus = (clause: ClauseResult) => {
+      const state = stateOf(clause.id);
+      const decision = state.roundDecisions[firstAnalysisVersionLabel];
+      const request = state.requests[firstAnalysisVersionLabel];
+      const requestedChange = request?.requestedChange?.trim();
+      const usedRecommendation = Boolean(
+        requestedChange &&
+          decision === "request-update" &&
+          requestedChange === clause.actionability?.trim(),
+      );
+      return {
+        reviewed: decision === "request-update" || decision === "no-action" || Boolean(requestedChange),
+        usedRecommendation,
+        noAction: decision === "no-action",
+        submitted: request?.state === "submitted",
+        readyForCsv: decision === "request-update" && Boolean(requestedChange) && request?.state !== "submitted",
+      };
+    };
+    const reviewed = reviewClauses.filter((clause) => clauseStatus(clause).reviewed).length;
+    const breakdown = [
+      {
+        label: "High",
+        clauses: reviewClauses.filter((clause) => clause.severity === "high" && countsTowardDeviationMetric(clause)),
+      },
+      {
+        label: "Medium",
+        clauses: reviewClauses.filter((clause) => clause.severity === "medium" && countsTowardDeviationMetric(clause)),
+      },
+      {
+        label: "Low",
+        clauses: reviewClauses.filter((clause) => clause.severity === "low" && countsTowardDeviationMetric(clause)),
+      },
+      {
+        label: "Missing",
+        clauses: reviewClauses.filter((clause) => firstAnalysisMissingClauseIds.has(clause.id)),
+      },
+    ].map((item) => {
+      const itemReviewed = item.clauses.filter((clause) => clauseStatus(clause).reviewed).length;
+      return {
+        label: item.label,
+        reviewed: itemReviewed,
+        unreviewed: Math.max(0, item.clauses.length - itemReviewed),
+        total: item.clauses.length,
+      };
+    });
+
+    return {
+      total: reviewClauses.length,
+      unreviewed: Math.max(0, reviewClauses.length - reviewed),
+      usedRecommendations: reviewClauses.filter((clause) => clauseStatus(clause).usedRecommendation).length,
+      noAction: reviewClauses.filter((clause) => clauseStatus(clause).noAction).length,
+      submitted: reviewClauses.filter((clause) => clauseStatus(clause).submitted).length,
+      readyForCsv: reviewClauses.filter((clause) => clauseStatus(clause).readyForCsv).length,
+      breakdown,
+    };
+  }, [firstAnalysisAllClauses, firstAnalysisMissingClauseIds, firstAnalysisVersionLabel, stateOf]);
   const historyCategoryTotal = historyCategoryItems.reduce((sum, category) => sum + category.count, 0);
   const historyCategoryPanel = (
     <CategorySidebar
@@ -1518,41 +1586,44 @@ export function ContractResults({
           request: { requestedChange: clause.actionability?.trim() },
         }))
     : [];
+  const firstAnalysisRecommendationClauses = firstAnalysisVersion
+    ? firstAnalysisVersion.clauses.filter(
+        (clause) => isFirstAnalysisReviewClause(clause) && Boolean(clause.actionability?.trim()),
+      )
+    : [];
+  const firstAnalysisPendingRecommendationCount = firstAnalysisRecommendationClauses.filter((clause) => {
+    const state = stateOf(clause.id);
+    const request = state.requests[firstAnalysisVersionLabel];
+    return state.roundDecisions[firstAnalysisVersionLabel] === "request-update" && request?.state !== "submitted";
+  }).length;
+  const firstAnalysisRecommendationsQueued =
+    firstAnalysisRecommendationClauses.length > 0 &&
+    firstAnalysisRecommendationTargets.length === 0 &&
+    firstAnalysisPendingRecommendationCount > 0;
+  const firstAnalysisRecommendationsReviewed =
+    firstAnalysisRecommendationClauses.length > 0 &&
+    firstAnalysisRecommendationTargets.length === 0 &&
+    firstAnalysisPendingRecommendationCount === 0;
+  const firstAnalysisApplyAllLabel =
+    firstAnalysisRecommendationTargets.length > 0
+      ? `Apply all recommendations (${firstAnalysisRecommendationTargets.length})`
+      : firstAnalysisRecommendationsQueued
+      ? "Recommendations added to review"
+      : "All recommendations reviewed";
   const applyAllRecommendations = (targets: RecommendationTargetItem[]) => {
     if (!firstAnalysisVersion || targets.length === 0) return;
-    const requestItems: BasketRequestItem[] = targets.map((item) => ({
-      clauseId: item.id,
-      clauseTitle: item.clauseTitle,
-      category: item.category,
-      severity: item.severity,
-      missingClause: item.missingClause,
-      sourceDeviationLevel: item.sourceDeviationLevel,
-      request: item.request,
-    }));
-    const csv = exportRequestChangeCsv(
-      {
-        initiativeName: initiative.name,
-        supplierName: supplier.name,
-        contractName: contract.name,
-        versionLabel: firstAnalysisVersion.version,
-      },
-      firstAnalysisVersion,
-      requestItems,
-    );
-    downloadCsv(
-      `${supplier.name}-${contract.name}-${firstAnalysisVersion.version}-all-recommendations.csv`,
-      csv,
-    );
-    decisions.acceptSubmittedRequests(
+    const bulkClauseIds = new Set(pendingRequestItems.map((item) => item.clauseId));
+    targets.forEach((item) => bulkClauseIds.add(item.id));
+    decisions.acceptPendingRequests(
       supplierId,
       decisionContractId,
       firstAnalysisVersion.version,
       targets.map((item) => ({ clauseId: item.id, request: item.request })),
     );
-    setApplyAllConfirmOpen(false);
+    setBulkReviewSelection({ version: firstAnalysisVersion.version, clauseIds: Array.from(bulkClauseIds) });
     toast({
-      title: "CSV generated",
-      description: `${targets.length} recommendation${targets.length === 1 ? "" : "s"} applied and exported for supplier negotiation.`,
+      title: "Recommendations added to review",
+      description: `${targets.length} recommendation${targets.length === 1 ? "" : "s"} added. Review and generate the CSV when ready.`,
     });
   };
   const firstAnalysisReviewList = firstAnalysisVersion ? (
@@ -1762,7 +1833,6 @@ export function ContractResults({
             onBack={onBack}
             contractName={contract.name}
             contractType={contract.type}
-            viewingVersion={mode === "comparison" ? (rightVersion?.version ?? latest?.version ?? "v1") : undefined}
             supplierId={supplierId}
             supplierName={supplier.name}
             firstAnalysisDemo={firstAnalysisDemo}
@@ -1774,9 +1844,10 @@ export function ContractResults({
             onChange={switchMode}
             comparisonLabel={firstAnalysisDemo ? "V1 Analysis" : "Review"}
             historyDisabled={firstAnalysisDemo || versions.length < 2}
-            onApplyAllRecommendations={() => setApplyAllConfirmOpen(true)}
+            onApplyAllRecommendations={() => applyAllRecommendations(firstAnalysisRecommendationTargets)}
             applyAllRecommendationsDisabled={!firstAnalysisDemo || firstAnalysisRecommendationTargets.length === 0}
-            applyAllRecommendationsReviewed={firstAnalysisDemo && firstAnalysisRecommendationTargets.length === 0}
+            applyAllRecommendationsQueued={firstAnalysisDemo && firstAnalysisRecommendationsQueued}
+            applyAllRecommendationsReviewed={firstAnalysisDemo && firstAnalysisRecommendationsReviewed}
             recommendationCount={firstAnalysisRecommendationTargets.length}
             onReviewGenerate={() => setRequestReviewOpen(true)}
             reviewGenerateDisabled={!activeRequestVersion || pendingRequestItems.length === 0}
@@ -1799,16 +1870,14 @@ export function ContractResults({
                       size="sm"
                       className="h-9 gap-1.5 bg-[#1a2744] text-white hover:bg-[#243454]"
                       disabled={firstAnalysisRecommendationTargets.length === 0}
-                      onClick={() => setApplyAllConfirmOpen(true)}
+                      onClick={() => applyAllRecommendations(firstAnalysisRecommendationTargets)}
                     >
                       {firstAnalysisRecommendationTargets.length > 0 ? (
                         <Sparkles className="w-3.5 h-3.5" />
                       ) : (
                         <CheckCircle2 className="w-3.5 h-3.5" />
                       )}
-                      {firstAnalysisRecommendationTargets.length > 0
-                        ? `Apply all recommendations (${firstAnalysisRecommendationTargets.length})`
-                        : "All recommendations reviewed"}
+                      {firstAnalysisApplyAllLabel}
                     </Button>
                   )}
                   <Button
@@ -2175,37 +2244,12 @@ export function ContractResults({
         open={requestReviewOpen}
         onOpenChange={setRequestReviewOpen}
         requests={pendingRequestItems}
-        closedItems={closedBasketItems}
         supplierName={supplier.name}
-        onUpdate={(id, request) =>
-          activeRequestVersion &&
-          decisions.acceptRequest(supplierId, decisionContractId, id, activeRequestVersion.version, request)
-        }
-        onRemove={(id) => activeRequestVersion && decisions.removePendingRequest(supplierId, decisionContractId, id, activeRequestVersion.version)}
-        onViewClosed={(id) => setDetailClauseId(id)}
-        onReopenClosed={(id) => {
-          if (!rightVersion) return;
-          decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open");
-          setRecentlyClosed((current) => {
-            const next = { ...current };
-            delete next[id];
-            return next;
-          });
-          toast({
-            title: "Clause reopened",
-            description: "The clause has moved back into Open Items.",
-          });
-        }}
+        bulkSummaryMode={firstAnalysisDemo && bulkReviewSummaryMode}
+        reviewProgress={firstAnalysisDemo ? firstAnalysisReviewProgress : undefined}
         onSubmit={() => {
           generateRequestedChangesCsv();
         }}
-      />
-
-      <ApplyRecommendationsDialog
-        open={applyAllConfirmOpen}
-        onOpenChange={setApplyAllConfirmOpen}
-        recommendations={firstAnalysisRecommendationTargets}
-        onApply={applyAllRecommendations}
       />
 
       {/* Upload new version */}
@@ -2355,7 +2399,6 @@ function CompactContractTopbar({
   onBack,
   contractName,
   contractType,
-  viewingVersion,
   supplierId,
   supplierName,
   firstAnalysisDemo,
@@ -2366,7 +2409,6 @@ function CompactContractTopbar({
   onBack: () => void;
   contractName: string;
   contractType: string;
-  viewingVersion?: string;
   supplierId: string;
   supplierName: string;
   firstAnalysisDemo: boolean;
@@ -2387,7 +2429,6 @@ function CompactContractTopbar({
         <Badge variant="outline" className="h-5 rounded-full bg-muted/50 px-2 text-[9px] font-medium">
           {contractType}
         </Badge>
-        {viewingVersion && <ViewingVersionChip version={viewingVersion} />}
         <SupplierGroupingLink supplierId={supplierId} supplierName={supplierName} />
       </div>
       {demoAvailable && (
@@ -2397,15 +2438,6 @@ function CompactContractTopbar({
         />
       )}
     </div>
-  );
-}
-
-function ViewingVersionChip({ version }: { version: string }) {
-  return (
-    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[rgba(230,241,251,0.5)] px-2 py-0.5 text-[10px] font-medium text-[#0C447C]">
-      <IconEye size={11} stroke={1.8} aria-hidden />
-      Viewing {version} · Current
-    </span>
   );
 }
 
@@ -2455,7 +2487,7 @@ function FirstAnalysisContextBanner() {
                 V1 Analysis review
               </span>
             </div>
-            <p className="mt-1 max-w-4xl text-xs leading-5 text-muted-foreground">
+            <p className="mt-1 max-w-none whitespace-nowrap text-xs leading-5 text-muted-foreground">
               Review each clause, decide whether to use the recommended actionability, edit your own requested change, or mark no action. Requested changes are collected for review and generated as a CSV negotiation log.
             </p>
           </div>
@@ -2472,6 +2504,7 @@ function ModeSwitcher({
   historyDisabled = false,
   onApplyAllRecommendations,
   applyAllRecommendationsDisabled = true,
+  applyAllRecommendationsQueued = false,
   applyAllRecommendationsReviewed = false,
   recommendationCount = 0,
   onReviewGenerate,
@@ -2484,6 +2517,7 @@ function ModeSwitcher({
   historyDisabled?: boolean;
   onApplyAllRecommendations?: () => void;
   applyAllRecommendationsDisabled?: boolean;
+  applyAllRecommendationsQueued?: boolean;
   applyAllRecommendationsReviewed?: boolean;
   recommendationCount?: number;
   onReviewGenerate: () => void;
@@ -2528,13 +2562,15 @@ function ModeSwitcher({
             disabled={applyAllRecommendationsDisabled}
             onClick={onApplyAllRecommendations}
           >
-            {applyAllRecommendationsReviewed ? (
+            {applyAllRecommendationsQueued || applyAllRecommendationsReviewed ? (
               <CheckCircle2 className="h-3.5 w-3.5" />
             ) : (
               <Sparkles className="h-3.5 w-3.5" />
             )}
             {applyAllRecommendationsReviewed
               ? "All recommendations reviewed"
+              : applyAllRecommendationsQueued
+              ? "Recommendations added to review"
               : `Apply all recommendations${recommendationCount > 0 ? ` (${recommendationCount})` : ""}`}
           </Button>
         )}
@@ -3904,23 +3940,6 @@ function CategorySidebar({
         </p>
       )}
 
-      <div
-        role="radiogroup"
-        aria-label="Sort categories"
-        className="mb-2 flex items-center gap-2 rounded-md bg-muted/30 px-2 py-1.5"
-      >
-        <CategorySortChip active={sort === "risk"} onClick={() => onSortChange("risk")}>
-          <IconFlame className={`h-2.5 w-2.5 ${sort === "risk" ? "text-[#BA7517]" : ""}`} stroke={1.8} />
-          Risk
-        </CategorySortChip>
-        <CategorySortChip active={sort === "az"} onClick={() => onSortChange("az")}>
-          A-Z
-        </CategorySortChip>
-        <CategorySortChip active={sort === "count"} onClick={() => onSortChange("count")}>
-          #
-        </CategorySortChip>
-      </div>
-
       <div className="space-y-1">
         <button
           ref={(node) => {
@@ -4060,33 +4079,6 @@ function CategoryStripChip({
           ? "border-[#185FA5]/30 bg-[#E6F1FB] text-[#0C447C]"
           : "border-border bg-white text-muted-foreground hover:bg-muted hover:text-foreground",
       )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function CategorySortChip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={active}
-      onClick={onClick}
-      className={`inline-flex items-center gap-1 rounded-full px-[7px] py-0.5 text-[9px] leading-none transition-colors ${
-        active
-          ? "bg-[#E6F1FB]/60 text-[#185FA5] border-[#185FA5]"
-          : "border-border bg-[#f8f7f5] text-muted-foreground hover:text-foreground"
-      }`}
-      style={{ borderWidth: "0.5px" }}
     >
       {children}
     </button>
@@ -4800,12 +4792,6 @@ interface RecommendationTargetItem {
   request: ClauseRequest;
 }
 
-interface ClosedBasketItem {
-  clauseId: string;
-  clauseTitle: string;
-  version: string;
-}
-
 function reviewClauseCardTone(severity?: ClauseResult["severity"]) {
   if (severity === "high") return "border-l-[#E5484D] bg-[#FFF7F7]";
   if (severity === "medium") return "border-l-[#F59E0B] bg-[#FFFBEB]";
@@ -4999,130 +4985,6 @@ function ClauseReviewModalCard({
   );
 }
 
-function ApplyRecommendationsDialog({
-  open,
-  onOpenChange,
-  recommendations,
-  onApply,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  recommendations: RecommendationTargetItem[];
-  onApply: (recommendations: RecommendationTargetItem[]) => void;
-}) {
-  const [workingRecommendations, setWorkingRecommendations] = useState<RecommendationTargetItem[]>(recommendations);
-
-  useEffect(() => {
-    if (open) setWorkingRecommendations(recommendations);
-  }, [open, recommendations]);
-
-  const recommendationCount = workingRecommendations.length;
-  const applyRecommendations = () => {
-    if (recommendationCount === 0) return;
-    onApply(workingRecommendations);
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[82vh] max-w-[760px] flex-col gap-0 overflow-hidden p-0">
-        <DialogHeader className="border-b border-border bg-white px-5 py-4 text-left">
-          <div className="flex items-start gap-3 pr-6">
-            <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#1a2744] text-white">
-              <Sparkles className="h-4 w-4" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <DialogTitle className="text-base">Apply all recommendations</DialogTitle>
-                <span className="inline-flex h-5 items-center rounded-full border border-border bg-muted/50 px-2 text-[10px] font-medium text-muted-foreground">
-                  {recommendationCount} ready
-                </span>
-              </div>
-              <DialogDescription className="mt-1 max-w-[560px] text-xs leading-5">
-                Review ClauseIQ recommended actions before generating the CSV negotiation log for the supplier.
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
-
-        {recommendationCount > 0 && (
-          <div className="border-b border-border bg-muted/20 px-5 py-3">
-            <div className="flex items-start gap-2 rounded-lg border border-border bg-white px-3 py-2 text-xs">
-              <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#185FA5]" />
-              <div>
-                <p className="font-medium text-foreground">Only unreviewed recommendations will be added.</p>
-                <p className="mt-0.5 text-muted-foreground">
-                  Existing custom requests, No Action choices, and draft edits will not be changed or exported from this action.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/60 p-3">
-          {recommendationCount > 0 ? (
-            <div className="space-y-2">
-              {workingRecommendations.map((item) => (
-                <ClauseReviewModalCard
-                  key={item.id}
-                  itemId={item.id}
-                  title={item.clauseTitle}
-                  category={item.category}
-                  severity={item.severity}
-                  missingClause={item.missingClause}
-                  sourceDeviationLevel={item.sourceDeviationLevel}
-                  request={item.request}
-                  statusLabel="Ready to Apply"
-                  onUpdate={(request) =>
-                    setWorkingRecommendations((current) =>
-                      current.map((candidate) =>
-                        candidate.id === item.id ? { ...candidate, request } : candidate,
-                      ),
-                    )
-                  }
-                  onRemove={() =>
-                    setWorkingRecommendations((current) => current.filter((candidate) => candidate.id !== item.id))
-                  }
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-lg border border-dashed border-border bg-white px-4 py-10 text-center">
-              <div className="mx-auto grid h-10 w-10 place-items-center rounded-lg bg-muted text-muted-foreground">
-                <CheckCircle2 className="h-5 w-5" />
-              </div>
-              <p className="mt-3 text-sm font-medium text-foreground">No recommendations available</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                All recommendations have been removed from this bulk action or already reviewed.
-              </p>
-            </div>
-          )}
-        </div>
-
-        <DialogFooter className="border-t border-border bg-white px-5 py-3 sm:items-center sm:justify-between">
-          <p className="max-w-[360px] text-xs leading-5 text-muted-foreground">
-            {recommendationCount === 0
-              ? "Nothing will be changed."
-              : `${recommendationCount} recommendation${recommendationCount === 1 ? "" : "s"} will be applied and included in the generated CSV.`}
-          </p>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
-              Close
-            </Button>
-            <Button
-              size="sm"
-              className="gap-1.5 bg-[#1a2744] text-white hover:bg-[#243454]"
-              disabled={recommendationCount === 0}
-              onClick={applyRecommendations}
-            >
-              <Download className="h-3.5 w-3.5" /> Submit &amp; Generate
-            </Button>
-          </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function requestCsvEscape(value: string | number | undefined | null) {
   if (value === undefined || value === null) return "";
   const text = String(value).replace(/"/g, '""');
@@ -5190,40 +5052,25 @@ function RequestReviewDialog({
   open,
   onOpenChange,
   requests,
-  closedItems,
   supplierName,
-  onUpdate,
-  onRemove,
-  onViewClosed,
-  onReopenClosed,
+  bulkSummaryMode = false,
+  reviewProgress,
   onSubmit,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   requests: BasketRequestItem[];
-  closedItems: ClosedBasketItem[];
   supplierName: string;
-  onUpdate: (clauseId: string, request: ClauseRequest) => void;
-  onRemove: (clauseId: string) => void;
-  onViewClosed: (clauseId: string) => void;
-  onReopenClosed: (clauseId: string) => void;
+  bulkSummaryMode?: boolean;
+  reviewProgress?: FirstAnalysisReviewProgress;
   onSubmit: () => void;
 }) {
-  const [activeView, setActiveView] = useState<"requests" | "closed">("requests");
   const requestCount = requests.length;
-  const closedCount = closedItems.length;
-  const totalCount = requestCount + closedCount;
 
   useEffect(() => {
-    if (totalCount === 0 && open) onOpenChange(false);
-  }, [onOpenChange, open, totalCount]);
+    if (requestCount === 0 && open) onOpenChange(false);
+  }, [onOpenChange, open, requestCount]);
 
-  useEffect(() => {
-    if (requestCount === 0 && closedCount > 0) setActiveView("closed");
-    if (closedCount === 0 && requestCount > 0) setActiveView("requests");
-  }, [closedCount, requestCount]);
-
-  const reviewingRequests = activeView === "requests";
   const submitRequests = () => {
     if (requestCount === 0) return;
     onSubmit();
@@ -5232,152 +5079,137 @@ function RequestReviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-[680px] overflow-hidden p-0">
+        <DialogContent className="max-w-[680px] gap-0 overflow-hidden p-0 [&>button.absolute.right-4.top-4]:hidden">
           <DialogHeader className="border-b border-border px-5 py-4 text-left">
-            <DialogTitle>Review and generate selected clauses</DialogTitle>
+            <DialogTitle>
+              {bulkSummaryMode ? "Generate CSV from applied recommendations" : "Review and generate selected clauses"}
+            </DialogTitle>
             <DialogDescription>
-              Check the clauses you have chosen, then submit to generate a CSV negotiation log for {supplierName}.
+              {bulkSummaryMode
+                ? `You have applied all current ClauseIQ recommendations. Confirm when you are ready to generate a CSV negotiation log for ${supplierName}.`
+                : `Check the clauses you have chosen, then submit to generate a CSV negotiation log for ${supplierName}.`}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex items-center gap-1 border-b border-border bg-muted/30 p-1.5">
-            <BasketTab
-              active={activeView === "requests"}
-              disabled={requestCount === 0}
-              onClick={() => setActiveView("requests")}
-            >
-              Requests <span className="font-mono">{requestCount}</span>
-            </BasketTab>
-            <BasketTab
-              active={activeView === "closed"}
-              disabled={closedCount === 0}
-              onClick={() => setActiveView("closed")}
-            >
-              Closed <span className="font-mono">{closedCount}</span>
-            </BasketTab>
-          </div>
-
-          {requestCount > 0 && (
-            <div className="mx-3 mt-3 rounded-lg border border-[#185FA5]/20 bg-[#E6F1FB]/45 px-3 py-2.5 text-xs text-[#0C447C]">
-              <div className="flex items-start gap-2">
-                <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <div>
-                  <p className="font-medium">Submitting generates your supplier change log.</p>
-                  <p className="mt-1 text-[#0C447C]/80">
-                    The CSV will include clause IDs, titles, categories, severity, ClauseIQ summary, requested changes, and rationale so you can take it back to the supplier for negotiation.
+          <div className="px-3 pt-3">
+            <div className="rounded-lg border border-[#185FA5]/25 bg-[#E6F1FB]/60 p-4">
+              <div className="flex items-start gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#185FA5] text-white">
+                  <CheckCircle2 className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[#0C447C]">
+                    {bulkSummaryMode ? "Ready to generate supplier change log" : "Ready to generate selected clauses"}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-[#0C447C]/80">
+                    The CSV will include clause IDs, titles, categories, severity, ClauseIQ findings, requested changes, and rationale so you can take it back to the supplier for negotiation. Are you ready to generate it?
                   </p>
                 </div>
               </div>
             </div>
-          )}
-
-          <div className="max-h-[420px] overflow-y-auto p-3">
-            {reviewingRequests ? (
-              <div className="space-y-2">
-                {requests.map((item) => (
-                  <ClauseReviewModalCard
-                    key={item.clauseId}
-                    itemId={item.clauseId}
-                    title={item.clauseTitle}
-                    category={item.category}
-                    severity={item.severity}
-                    missingClause={item.missingClause}
-                    sourceDeviationLevel={item.sourceDeviationLevel}
-                    request={item.request}
-                    statusLabel="Added to Review"
-                    onUpdate={(request) => onUpdate(item.clauseId, request)}
-                    onRemove={() => onRemove(item.clauseId)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {closedItems.map((item) => (
-                  <div key={item.clauseId} className="rounded-lg border border-border bg-card px-3 py-2.5">
-                    <div className="flex items-center gap-3">
-                      <span className="w-[34px] shrink-0 font-mono text-[10px] text-muted-foreground">
-                        {item.clauseId.toUpperCase()}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground">{item.clauseTitle}</p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">Closed for {item.version}</p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <button
-                          type="button"
-                          className="text-xs font-medium text-primary hover:underline"
-                          onClick={() => {
-                            onOpenChange(false);
-                            onViewClosed(item.clauseId);
-                          }}
-                        >
-                          View
-                        </button>
-                        <button
-                          type="button"
-                          className="text-xs font-medium text-success hover:underline"
-                          onClick={() => onReopenClosed(item.clauseId)}
-                        >
-                          Reopen
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
+
+          {reviewProgress && (
+            <div className="px-3 pb-3 pt-2">
+              <ReviewGenerateProgressDashboard progress={reviewProgress} />
+            </div>
+          )}
 
           <DialogFooter className="border-t border-border bg-muted/30 px-5 py-3 sm:items-center sm:justify-between">
             <p className="text-xs text-muted-foreground">
-              {reviewingRequests
-                ? `${requestCount} requested change${requestCount === 1 ? "" : "s"} will be included in the CSV negotiation log`
-                : `${closedCount} closed clause${closedCount === 1 ? "" : "s"} can be reviewed or reopened before you continue`}
+              Confirm to generate the CSV. Nothing is sent to the supplier from this prototype.
             </p>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
-                Close
+            {requestCount > 0 && (
+              <Button
+                size="sm"
+                className="gap-1.5 bg-[#1a2744] text-white hover:bg-[#243454]"
+                onClick={submitRequests}
+              >
+                <Download className="h-3.5 w-3.5" /> Submit & Generate
               </Button>
-              {requestCount > 0 && (
-                <Button
-                  size="sm"
-                  className="gap-1.5 bg-[#1a2744] text-white hover:bg-[#243454]"
-                  onClick={submitRequests}
-                >
-                  <Download className="h-3.5 w-3.5" /> Submit & Generate
-                </Button>
-              )}
-            </div>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
   );
 }
 
-function BasketTab({
-  active,
-  disabled,
-  onClick,
-  children,
+function ReviewGenerateProgressDashboard({ progress }: { progress: FirstAnalysisReviewProgress }) {
+  const reviewed = Math.max(0, progress.total - progress.unreviewed);
+  const percentage = progress.total > 0 ? Math.round((reviewed / progress.total) * 100) : 0;
+
+  return (
+    <section className="rounded-lg border border-border bg-white p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Summary
+          </p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Check what has been accepted, marked no action, and what is still left unreviewed before generating the CSV.
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-foreground">
+          {percentage}%
+        </span>
+      </div>
+
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+        <span className="block h-full rounded-full bg-[#1a2744]" style={{ width: `${percentage}%` }} />
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-4">
+        <ReviewGenerateMetric label="Used recommendations" value={progress.usedRecommendations} />
+        <ReviewGenerateMetric label="No action" value={progress.noAction} />
+        <ReviewGenerateMetric label="Left unreviewed" value={progress.unreviewed} muted />
+        <ReviewGenerateMetric label="Ready for CSV" value={progress.readyForCsv} />
+      </div>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        {progress.breakdown.map((item) => {
+          const itemReviewed = item.reviewed;
+          const itemPercentage = item.total > 0 ? Math.round((itemReviewed / item.total) * 100) : 0;
+          return (
+            <div key={item.label} className="rounded-md border border-border bg-muted/20 px-2.5 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-medium text-muted-foreground">{item.label}</span>
+                <span className="text-[10px] text-muted-foreground">
+                  {item.unreviewed} left
+                </span>
+              </div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                <span className="block h-full rounded-full bg-[#1a2744]/80" style={{ width: `${itemPercentage}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {progress.submitted > 0 && (
+        <p className="mt-3 text-[11px] text-muted-foreground">
+          {progress.submitted} clause{progress.submitted === 1 ? "" : "s"} already generated in a previous CSV.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function ReviewGenerateMetric({
+  label,
+  value,
+  muted = false,
 }: {
-  active: boolean;
-  disabled: boolean;
-  onClick: () => void;
-  children: ReactNode;
+  label: string;
+  value: number;
+  muted?: boolean;
 }) {
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className={cn(
-        "inline-flex h-7 items-center gap-1.5 rounded-[5px] px-2.5 text-[10px] font-medium transition-colors",
-        active ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:bg-white/70 hover:text-foreground",
-        disabled && "cursor-not-allowed opacity-40 hover:bg-transparent hover:text-muted-foreground",
-      )}
-    >
-      {children}
-    </button>
+    <div className={cn("rounded-md border border-border bg-[#F7FAFC] px-2.5 py-2", muted && "bg-muted/25")}>
+      <p className="text-lg font-semibold leading-none text-foreground">{value}</p>
+      <p className="mt-1 text-[9px] font-medium uppercase tracking-[0.04em] text-muted-foreground">
+        {label}
+      </p>
+    </div>
   );
 }
 

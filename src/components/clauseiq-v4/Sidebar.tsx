@@ -41,12 +41,12 @@ export function CiqSidebar() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const showResultScenarioControl = pathname === "/clauseiq-v4/output-panel";
-  const resultScenario = searchParams.get("resultScenario") === "empty" ? "empty" : "history";
+  const resultScenario = searchParams.get("resultScenario") === "history" ? "history" : "empty";
 
   const handleResultScenarioChange = (value: string) => {
     const nextParams = new URLSearchParams(searchParams);
-    if (value === "empty") {
-      nextParams.set("resultScenario", "empty");
+    if (value === "history") {
+      nextParams.set("resultScenario", "history");
     } else {
       nextParams.delete("resultScenario");
     }
@@ -209,8 +209,8 @@ export function CiqSidebar() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="history">Previous analysis</SelectItem>
                 <SelectItem value="empty">No previous analysis</SelectItem>
+                <SelectItem value="history">Previous analysis</SelectItem>
               </SelectContent>
             </Select>
           </div>

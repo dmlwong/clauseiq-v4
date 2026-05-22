@@ -273,6 +273,7 @@ export function FirstAnalysisDesignOptions({
       <div className="mx-auto grid w-full max-w-[1500px] gap-4 px-6 py-4 xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
         <aside className="xl:sticky xl:top-[100px] xl:max-h-[calc(100vh-180px)] xl:self-start xl:overflow-y-auto">
           <section className="overflow-hidden rounded-lg border border-border bg-card p-3">
+            <FirstAnalysisReviewCountPanel visibleCount={visibleCount} />
             <FirstAnalysisSummaryPanel
               metrics={metrics}
               activeMetrics={activeMetrics}
@@ -283,7 +284,7 @@ export function FirstAnalysisDesignOptions({
           </section>
         </aside>
         <div id="comparison-work-column" className="min-w-0 space-y-4">
-          <FirstAnalysisReviewShell visibleCount={visibleCount}>{clausesToReview}</FirstAnalysisReviewShell>
+          <FirstAnalysisReviewShell>{clausesToReview}</FirstAnalysisReviewShell>
         </div>
       </div>
     );
@@ -303,11 +304,14 @@ export function FirstAnalysisDesignOptions({
 
       <div className="min-[900px]:flex min-[900px]:items-start min-[900px]:gap-4">
         <div className="hidden w-60 shrink-0 min-[900px]:block">
-          <SidebarFiltersPanel activeFilterChips={activeFilterChips}>{categoryRail}</SidebarFiltersPanel>
+          <div className="space-y-3">
+            <FirstAnalysisReviewCountPanel visibleCount={visibleCount} />
+            <SidebarFiltersPanel activeFilterChips={activeFilterChips}>{categoryRail}</SidebarFiltersPanel>
+          </div>
         </div>
         <div id="comparison-work-column" className="flex min-w-0 flex-1 flex-col gap-4">
           <div className="min-[900px]:hidden">{categoryStrip}</div>
-          <FirstAnalysisReviewShell visibleCount={visibleCount}>{clausesToReview}</FirstAnalysisReviewShell>
+          <FirstAnalysisReviewShell>{clausesToReview}</FirstAnalysisReviewShell>
         </div>
       </div>
     </div>
@@ -502,9 +506,6 @@ function FirstAnalysisSummaryPanel({
           <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             {analysisLabel}
           </p>
-          <Badge variant="outline" className="rounded-full bg-white text-[10px]">
-            {metrics.versionLabel}
-          </Badge>
         </div>
         <div className="mt-1 flex items-end gap-2">
           <span className="text-3xl font-semibold leading-none text-foreground">{metrics.score}</span>
@@ -523,28 +524,28 @@ function FirstAnalysisSummaryPanel({
   );
 }
 
+function FirstAnalysisReviewCountPanel({ visibleCount }: { visibleCount: number }) {
+  return (
+    <div className="mb-3 px-1">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          Clauses to review
+        </p>
+        <Badge variant="outline" className="rounded-full bg-white text-[10px]">
+          {visibleCount}
+        </Badge>
+      </div>
+    </div>
+  );
+}
+
 function FirstAnalysisReviewShell({
-  visibleCount,
   children,
 }: {
-  visibleCount: number;
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-border bg-white">
-      <div className="border-b border-border bg-[#f8f7f5] px-4 py-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm font-semibold text-foreground">Clauses to review</p>
-          <Badge variant="outline" className="rounded-full bg-white text-[10px]">
-            {visibleCount}
-          </Badge>
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Decide whether each flagged clause needs a requested change or no action.
-        </p>
-      </div>
-      <div className="p-3">{children}</div>
-    </section>
+    <div>{children}</div>
   );
 }
 

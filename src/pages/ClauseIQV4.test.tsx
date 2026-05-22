@@ -137,10 +137,13 @@ describe("ClauseIQ V4 flow", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("renders the output-panel route with filled supplier outputs", () => {
+  it("renders the output-panel route with the first-run output by default", () => {
     renderClauseIQ("/clauseiq-v4/output-panel", { forceResults: true, resultsLayout: "output-panel" });
 
     expect(screen.getAllByText("Supplier Outputs").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Thomson Reuters").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Kira Systems")).not.toBeInTheDocument();
+    expect(screen.queryByText("API_Kira_v3.pdf")).not.toBeInTheDocument();
     expect(screen.getAllByLabelText("View Results").length).toBeGreaterThan(0);
     expect(screen.queryByText("No outputs yet")).not.toBeInTheDocument();
   });

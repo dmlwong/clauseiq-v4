@@ -61,7 +61,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   const [searchParams] = useSearchParams();
   const resultsFromRoute = forceResults || searchParams.get("view") === "results";
   const rerunUploadFromRoute = resultsFromRoute && searchParams.get("rerun") === "upload";
-  const resultScenario = searchParams.get("resultScenario") === "empty" ? "empty" : "history";
+  const resultScenario = searchParams.get("resultScenario") === "history" ? "history" : "empty";
   const currentRoute = `${window.location.pathname}${window.location.search}`;
   const defaultCompletedInitiative =
     CIQ_INITIATIVES.find((item) => item.name === "Network Edge Hardware") ?? CIQ_INITIATIVES[0];

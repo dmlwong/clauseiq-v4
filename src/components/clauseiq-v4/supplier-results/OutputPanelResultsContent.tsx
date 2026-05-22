@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BarChart2, ChevronDown, Download, FileText, Loader2, RotateCw, Search } from "lucide-react";
+import { BarChart2, ChevronDown, Download, Eye, FileText, Loader2, Play, RotateCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -16,7 +16,15 @@ type OutputScope = "team" | "mine";
 
 const MINE_ANALYSIS_IDS = new Set(["a-001", "a-004", "a-007"]);
 
-export function OutputPanelResultsContent({ initiative, onRunAgain, onDownload, onViewResult }: ResultsViewProps) {
+export function OutputPanelResultsContent({
+  initiative,
+  onRunAgain,
+  onDownload,
+  onViewResult,
+  viewResultPrimary = true,
+  highlightLatestOutput = true,
+  analysisParameters,
+}: ResultsViewProps) {
   const rows = useMemo(() => {
     return flattenSupplierAnalyses(initiative.suppliers).sort(
       (a, b) => Date.parse(a.analysis.analysedAt) - Date.parse(b.analysis.analysedAt),
@@ -47,8 +55,10 @@ export function OutputPanelResultsContent({ initiative, onRunAgain, onDownload, 
               onRunAgain={onRunAgain}
               onDownload={onDownload}
               onViewResult={onViewResult}
-              viewResultPrimary={analysis.id === latestAnalysisId}
+              viewResultPrimary={viewResultPrimary && analysis.id === latestAnalysisId}
               isLatestOutput={analysis.id === latestAnalysisId}
+              highlighted={highlightLatestOutput && analysis.id === latestAnalysisId}
+              analysisParameters={analysisParameters}
             />
           ))
         )}
@@ -182,7 +192,7 @@ export function SupplierOutputsPanel({
         {suppliers.length === 0 ? (
           <>
             {hasOutputs ? (
-              <div className="rounded-lg border border-dashed border-border bg-card px-4 py-6 text-sm text-muted-foreground">
+              <div className="rounded-lg border border-dashed border-border bg-card p-[16px] text-sm text-muted-foreground">
                 No outputs match this view.
               </div>
             ) : (
@@ -246,7 +256,7 @@ function SupplierPanelEmptyState({
         </div>
         <h3 className="mt-5 text-base font-semibold leading-tight text-foreground">{title}</h3>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{copy}</p>
-        <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-2">
+        <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-[16px]">
           <div className="grid h-8 grid-cols-2 rounded-md bg-white p-1 text-xs font-medium text-slate-500 shadow-sm">
             <span className="grid place-items-center rounded bg-slate-100 text-slate-700">Mine</span>
             <span className="grid place-items-center rounded text-slate-500">Team</span>
@@ -260,7 +270,7 @@ function SupplierPanelEmptyState({
 
 function NoPreviousAnalysisState({ onRunAgain }: { onRunAgain?: () => void }) {
   return (
-    <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center">
+    <div className="rounded-xl border border-dashed border-border bg-card p-[16px] text-center">
       <div className="mx-auto grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary">
         <FileText className="h-5 w-5" />
       </div>
@@ -270,7 +280,7 @@ function NoPreviousAnalysisState({ onRunAgain }: { onRunAgain?: () => void }) {
       </p>
       {onRunAgain && (
         <Button className="mt-4 h-9 gap-2" onClick={onRunAgain}>
-          <RotateCw className="h-4 w-4" />
+          <Play className="h-4 w-4" />
           Run first analysis
         </Button>
       )}
@@ -303,7 +313,7 @@ function SupplierOutputGroup({
     <section className="overflow-hidden rounded-lg border border-border bg-card">
       <button
         type="button"
-        className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/40"
+        className="flex w-full items-center gap-2 p-[16px] text-left transition-colors hover:bg-muted/40"
         aria-expanded={open}
         aria-controls={contentId}
         onClick={onToggle}
@@ -316,10 +326,15 @@ function SupplierOutputGroup({
         />
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-medium text-foreground">{supplier.name}</h3>
-          <p className="text-xs text-muted-foreground">
-            {supplier.analyses.length} {supplier.analyses.length === 1 ? "output" : "outputs"}
-            {containsLatestOutput && <span className="font-medium"> - Latest output</span>}
-          </p>
+        </div>
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          {containsLatestOutput && (
+            <>
+              <span>Latest output</span>
+              <span aria-hidden="true">|</span>
+            </>
+          )}
+          <span>{supplier.analyses.length} {supplier.analyses.length === 1 ? "output" : "outputs"}</span>
         </div>
         <motion.span
           animate={{ rotate: open ? 180 : 0 }}
@@ -341,7 +356,7 @@ function SupplierOutputGroup({
             transition={{ duration: 0.18, ease: "easeOut" }}
             className="overflow-hidden"
           >
-            <div className="space-y-2 px-4 pb-3">
+            <div className="space-y-2 px-[16px] pb-[16px]">
               {analyses.map((analysis) => (
                 <CompactOutputRow
                   key={analysis.id}
@@ -394,7 +409,7 @@ function CompactOutputRow({
 
       <div className="mt-2 grid grid-cols-3 gap-1">
         <CompactActionButton label="View Results" onClick={onViewResult}>
-          <BarChart2 className="h-3.5 w-3.5" />
+          <Eye className="h-3.5 w-3.5" />
         </CompactActionButton>
         <CompactActionButton label="Re-Run" onClick={onRunAgain}>
           <RotateCw className="h-3.5 w-3.5" />

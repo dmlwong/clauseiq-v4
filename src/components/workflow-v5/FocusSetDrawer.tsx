@@ -1,4 +1,5 @@
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Card, Headings, Text } from "@orbit";
+import { V5OrbitOverlay } from "@/components/clauseiq-v5/V5OrbitOverlay";
 import { Badge } from "@/components/clauseiq-v5/orbit-ui/badge";
 import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/clauseiq-v5/orbit-ui/select";
@@ -58,18 +59,18 @@ export function FocusSetDrawer({
   const openCount = entries.length - resolvedCount;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <Target className="w-4 h-4 text-primary" />
-            Negotiation Focus Set
-          </SheetTitle>
-          <SheetDescription>
-            User-selected clauses tracked across negotiation rounds.
-          </SheetDescription>
-        </SheetHeader>
-
+    <V5OrbitOverlay
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Negotiation Focus Set"
+      description="User-selected clauses tracked across negotiation rounds."
+      size="Large"
+      height="Viewport"
+    >
+        <div className="flex items-center gap-2">
+          <Target className="h-4 w-4 text-primary" />
+          <Headings size="Heading 5">Tracked clauses</Headings>
+        </div>
         <div className="mt-4 grid grid-cols-3 gap-2 text-center">
           <Stat label="Tracked" value={entries.length} />
           <Stat label="Resolved" value={resolvedCount} tone="text-success" />
@@ -78,9 +79,13 @@ export function FocusSetDrawer({
 
         <div className="mt-6 space-y-2">
           {entries.length === 0 && (
-            <div className="border border-dashed border-border rounded-lg p-6 text-center text-sm text-muted-foreground">
-              No clauses tracked yet. Use the "Track" checkbox on any clause row to add it here.
-            </div>
+            <Card type="Static" padding="Base" state="Default">
+              <div className="text-center">
+                <Text size="Small" variant="Secondary" as="p">
+                  No clauses tracked yet. Use the "Track" checkbox on any clause row to add it here.
+                </Text>
+              </div>
+            </Card>
           )}
 
           {entries.map((e) => {
@@ -89,7 +94,8 @@ export function FocusSetDrawer({
             const change = (live?.change ?? "unchanged") as keyof typeof CHANGE_ICON;
             const Icon = CHANGE_ICON[change];
             return (
-              <div key={e.clauseId} className="border border-border rounded-lg p-3 bg-card space-y-2">
+              <Card key={e.clauseId} type="Static" padding="Small" state="Default">
+                <div className="space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-mono text-muted-foreground">
@@ -163,12 +169,12 @@ export function FocusSetDrawer({
                 <Badge variant="outline" className={`${LIFECYCLE_TONE[e.lifecycle]} text-[10px]`}>
                   {e.lifecycle}
                 </Badge>
-              </div>
+                </div>
+              </Card>
             );
           })}
         </div>
-      </SheetContent>
-    </Sheet>
+    </V5OrbitOverlay>
   );
 }
 

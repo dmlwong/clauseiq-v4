@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 import { motion } from "framer-motion";
-import { BarChart2, Check, Download, FileText, RotateCw } from "lucide-react";
+import { Check, Download, Eye, FileText, RotateCw, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -8,6 +8,7 @@ import type { ClauseAnalysis, Supplier } from "@/data/mock-clauseiq";
 import { cn } from "@/lib/utils";
 import { supplierSeverity } from "@/lib/clauseiq-utils";
 import { SupplierAvatar } from "./SupplierAvatar";
+import type { AnalysisParameterItem } from "./types";
 
 interface Props {
   analysis: ClauseAnalysis;
@@ -18,6 +19,8 @@ interface Props {
   onViewResult?: () => void;
   viewResultPrimary?: boolean;
   isLatestOutput?: boolean;
+  highlighted?: boolean;
+  analysisParameters?: AnalysisParameterItem[];
 }
 
 export function AnalysisCard({
@@ -29,6 +32,8 @@ export function AnalysisCard({
   onViewResult,
   viewResultPrimary = true,
   isLatestOutput = false,
+  highlighted = isLatestOutput,
+  analysisParameters = [],
 }: Props) {
   const [saveToDocuments, setSaveToDocuments] = useState(false);
   const deviationSummaryId = useId();
@@ -39,8 +44,8 @@ export function AnalysisCard({
       layout
       transition={{ type: "spring", stiffness: 320, damping: 28 }}
       className={cn(
-        "rounded-xl border bg-card p-5",
-        isLatestOutput ? "border-primary/40 ring-2 ring-primary/15 shadow-sm" : "border-border",
+        "rounded-xl border bg-card p-[16px]",
+        highlighted ? "border-primary/40 ring-2 ring-primary/15 shadow-sm" : "border-border",
       )}
     >
       {showSupplier && supplier && (
@@ -86,6 +91,7 @@ export function AnalysisCard({
             status="Uploaded"
             tone="neutral"
           />
+          {analysisParameters.length > 0 && <AnalysisParametersSummary parameters={analysisParameters} />}
           <StatusLine
             icon={<Check className="h-4 w-4" />}
             label={`Reviewed ${analysis.clausesReviewed} clauses`}
@@ -131,7 +137,7 @@ export function AnalysisCard({
               className="h-10 w-full gap-2"
               onClick={onViewResult}
             >
-              <BarChart2 className="h-4 w-4" />
+              <Eye className="h-4 w-4" />
               View Result
             </Button>
           )}
@@ -152,6 +158,26 @@ export function AnalysisCard({
         </div>
       </div>
     </motion.article>
+  );
+}
+
+function AnalysisParametersSummary({ parameters }: { parameters: AnalysisParameterItem[] }) {
+  const parameter = parameters[0];
+
+  if (!parameter) return null;
+
+  return (
+    <div className="flex min-h-10 items-center justify-between gap-3 rounded-lg bg-muted px-3 text-sm text-foreground">
+      <div className="flex min-w-0 items-center gap-2">
+        <SlidersHorizontal className="h-4 w-4 shrink-0" />
+        <span className="min-w-0 truncate font-medium text-foreground">
+          <span className="font-medium text-foreground">{parameter.label}</span>
+          {" · "}
+          {parameter.value}
+        </span>
+      </div>
+      <span className="shrink-0 font-medium text-foreground">Parameter Applied</span>
+    </div>
   );
 }
 

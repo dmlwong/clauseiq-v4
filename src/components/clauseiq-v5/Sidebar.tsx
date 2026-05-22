@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/clauseiq-v5/orbit-ui/select";
-import { toast } from "@/components/ui/use-toast";
+import { showV5OrbitToast as toast } from "@/components/clauseiq-v5/V5OrbitToast";
 import { cn } from "@/lib/utils";
 
 const topNav = [

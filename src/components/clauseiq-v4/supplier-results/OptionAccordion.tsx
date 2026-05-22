@@ -8,7 +8,7 @@ import { AnalysisCard } from "./AnalysisCard";
 import { SupplierAvatar } from "./SupplierAvatar";
 import type { ResultsViewProps } from "./types";
 
-export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResult }: ResultsViewProps) {
+export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResult, analysisParameters }: ResultsViewProps) {
   const suppliers = useMemo(() => sortByLatestChange(initiative.suppliers), [initiative.suppliers]);
   const latestAnalysisId = useMemo(() => latestAnalysis(initiative.suppliers)?.id, [initiative.suppliers]);
   const [openIds, setOpenIds] = useState<string[]>(() => {
@@ -47,7 +47,7 @@ export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResu
                 type="button"
                 variant="ghost"
                 onClick={() => toggle(supplier.id)}
-                className="h-auto w-full justify-start rounded-none px-4 py-3 text-left hover:bg-muted/45"
+                className="h-auto w-full justify-start rounded-none p-[16px] text-left hover:bg-muted/45"
               >
                 <div className="flex w-full min-w-0 items-start gap-3">
                   <SupplierAvatar name={supplier.name} shortCode={supplier.shortCode} severity={severity} />
@@ -77,7 +77,7 @@ export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResu
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                   >
-                    <div className="space-y-3 border-t border-border/70 bg-muted/20 p-3">
+                    <div className="space-y-3 border-t border-border/70 bg-muted/20 p-[16px]">
                       {oldestFirst(supplier.analyses).map((analysis) => (
                         <AnalysisCard
                           key={analysis.id}
@@ -87,6 +87,7 @@ export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResu
                           onViewResult={onViewResult}
                           viewResultPrimary={analysis.id === latestAnalysisId}
                           isLatestOutput={analysis.id === latestAnalysisId}
+                          analysisParameters={analysisParameters}
                         />
                       ))}
                     </div>

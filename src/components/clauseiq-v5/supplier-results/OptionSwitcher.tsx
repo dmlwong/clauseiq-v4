@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Info } from "lucide-react";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Tooltip } from "@orbit";
 import { cn } from "@/lib/utils";
 
 export type ResultsOption = "accordion" | "master-detail" | "filtered-list";
@@ -56,20 +56,15 @@ export function OptionSwitcher({ value, onChange }: Props) {
           );
         })}
       </div>
-      <HoverCard openDelay={0} closeDelay={80}>
-        <HoverCardTrigger asChild>
-          <button
-            type="button"
-            aria-label="Design rationale"
-            className="grid h-8 w-8 place-items-center rounded-full border border-border/80 bg-muted/50 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
-          >
-            <Info className="h-4 w-4" />
-          </button>
-        </HoverCardTrigger>
-        <HoverCardContent align="end" sideOffset={8} className="w-[320px] p-3 text-xs leading-relaxed text-muted-foreground">
-          {RATIONALE[value]}
-        </HoverCardContent>
-      </HoverCard>
+      <Tooltip content={RATIONALE[value]} direction="top">
+        <button
+          type="button"
+          aria-label="Design rationale"
+          className="grid h-8 w-8 place-items-center rounded-full border border-border/80 bg-muted/50 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+        >
+          <Info className="h-4 w-4" />
+        </button>
+      </Tooltip>
     </div>
   );
 }

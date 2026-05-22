@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Sparkles, Search, Check, Pencil, UploadCloud, FileText, Loader2,
-  ChevronRight, ListChecks, FilePlus2, Building2, Info,
-  BookOpen, Tag, MapPin,
+  ChevronRight, ListChecks, FileDown, Building2, Info,
+  BookOpen, Tag, Scale,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
@@ -22,13 +22,18 @@ import {
   type CiqSelectedParameter,
 } from "@/lib/clauseiq-v4-data";
 import { cn } from "@/lib/utils";
-import { mockInitiative, type Initiative } from "@/data/mock-clauseiq";
+import { mockInitiative, type ClauseAnalysis, type Initiative } from "@/data/mock-clauseiq";
 import { V4_DELIVERY_INITIATIVE_ID } from "@/data/mock-delivery-engine-v4";
 import {
+  AnalysisCard,
   ResultsContent,
   SupplierOutputsPanel,
 } from "@/components/clauseiq-v4/supplier-results";
-import type { ResultsLayout, SupplierOutputsPanelState } from "@/components/clauseiq-v4/supplier-results/types";
+import type {
+  AnalysisParameterItem,
+  ResultsLayout,
+  SupplierOutputsPanelState,
+} from "@/components/clauseiq-v4/supplier-results/types";
 
 type Step = "welcome" | "select" | "parameters" | "upload" | "processing" | "results";
 
@@ -48,8 +53,29 @@ const FIRST_RUN_MOCK_INITIATIVE: Initiative = {
     analyses: supplier.analyses.slice(0, 1),
   })),
 };
+const createRerunAnalysis = (fileName: string): ClauseAnalysis => ({
+  id: "a-rerun-latest",
+  contractName: "New supplier contract",
+  fileName,
+  analysedAt: "2026-05-22T11:00:00Z",
+  clausesReviewed: 47,
+  status: "completed",
+  deviations: { missing: 8, high: 6, medium: 4, low: 10 },
+});
 const LATEST_V4_RESULTS_ROUTE =
   "/initiatives-v4?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=first-analysis";
+
+const buildAnalysisParameters = (
+  selected: CiqSelectedParameter | null,
+): AnalysisParameterItem[] => {
+  const parameter = selected ?? DEFAULT_PARAMETER;
+  return [
+    {
+      label: parameter.kind,
+      value: parameter.label,
+    },
+  ];
+};
 
 interface ClauseIQV4Props {
   forceResults?: boolean;
@@ -77,7 +103,14 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   const [file, setFile] = useState<File | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [rerunUploadVisible, setRerunUploadVisible] = useState(rerunUploadFromRoute);
+  const [rerunSelectedParameter, setRerunSelectedParameter] = useState<CiqSelectedParameter | null>(null);
+  const [rerunExpandedParameter, setRerunExpandedParameter] = useState<CiqParameterKind | null>(null);
+  const [rerunParameterSearch, setRerunParameterSearch] = useState("");
   const [rerunProcessing, setRerunProcessing] = useState(false);
+  const [pendingRerunAnalysis, setPendingRerunAnalysis] = useState<ClauseAnalysis | null>(null);
+  const [pendingRerunParameter, setPendingRerunParameter] = useState<CiqSelectedParameter | null>(null);
+  const [completedRerunAnalysis, setCompletedRerunAnalysis] = useState<ClauseAnalysis | null>(null);
+  const [completedRerunParameter, setCompletedRerunParameter] = useState<CiqSelectedParameter | null>(null);
 
   const selectRef = useRef<HTMLDivElement>(null);
   const parametersRef = useRef<HTMLDivElement>(null);
@@ -153,11 +186,18 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
     if (!rerunProcessing) return;
     const t = setTimeout(() => {
       setRerunProcessing(false);
+      setCompletedRerunAnalysis(pendingRerunAnalysis ?? createRerunAnalysis("New_Contract.pdf"));
+      setCompletedRerunParameter(pendingRerunParameter ?? selectedParameter ?? DEFAULT_PARAMETER);
+      setPendingRerunAnalysis(null);
+      setPendingRerunParameter(null);
+      setRerunSelectedParameter(null);
+      setRerunExpandedParameter(null);
+      setRerunParameterSearch("");
       setFile(null);
       toast.success("New analysis added as latest output.");
     }, PROCESSING_MS);
     return () => clearTimeout(t);
-  }, [rerunProcessing]);
+  }, [pendingRerunAnalysis, pendingRerunParameter, rerunProcessing, selectedParameter]);
 
   // ---- state helpers ----
   const stepIndex = (["welcome", "select", "parameters", "upload", "processing", "results"] as Step[]).indexOf(step);
@@ -174,6 +214,10 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   const outputPanelResultsVisible = resultsVisible && resultsLayout === "output-panel";
   const resultsInitiative =
     outputPanelResultsVisible && resultScenario === "empty" ? FIRST_RUN_MOCK_INITIATIVE : mockInitiative;
+  const rerunSupplier = resultsInitiative.suppliers[0];
+  const newAnalysisSectionVisible = rerunUploadVisible || rerunProcessing || completedRerunAnalysis !== null;
+  const selectedAnalysisParameters = buildAnalysisParameters(selectedParameter);
+  const completedRerunAnalysisParameters = buildAnalysisParameters(completedRerunParameter ?? selectedParameter);
   const supplierOutputPanelState: SupplierOutputsPanelState = resultsVisible
     ? "filled"
     : step === "processing"
@@ -208,6 +252,25 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
     setStep("upload");
   };
 
+  const handleRerunParameterToggle = (kind: CiqParameterKind) => {
+    setRerunExpandedParameter((current) => current === kind ? null : kind);
+    setRerunParameterSearch("");
+  };
+
+  const handleRerunParameterSelect = (option: CiqParameterOption, value: string) => {
+    setRerunSelectedParameter({ kind: option.kind, label: value });
+    setRerunExpandedParameter(null);
+    setRerunParameterSearch("");
+    setFile(null);
+  };
+
+  const handleRerunParameterEdit = () => {
+    setRerunSelectedParameter(null);
+    setRerunExpandedParameter(null);
+    setRerunParameterSearch("");
+    setFile(null);
+  };
+
   const handleParameterEdit = () => {
     if (parameterLocked) return;
     setSelectedParameter(null);
@@ -229,6 +292,11 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
     }
     setFile(f);
     if (resultsVisible && rerunUploadVisible) {
+      const parameterForRun = rerunSelectedParameter ?? selectedParameter ?? DEFAULT_PARAMETER;
+      setPendingRerunAnalysis(createRerunAnalysis(f.name));
+      setPendingRerunParameter(parameterForRun);
+      setCompletedRerunAnalysis(null);
+      setCompletedRerunParameter(null);
       setRerunUploadVisible(false);
       setRerunProcessing(true);
       return;
@@ -239,6 +307,13 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   const showRunAgainUpload = () => {
     setFile(null);
     setRerunProcessing(false);
+    setPendingRerunAnalysis(null);
+    setPendingRerunParameter(null);
+    setCompletedRerunAnalysis(null);
+    setCompletedRerunParameter(null);
+    setRerunSelectedParameter(null);
+    setRerunExpandedParameter(null);
+    setRerunParameterSearch("");
     setRerunUploadVisible(true);
     if (!forceResults) {
       const nextParams = new URLSearchParams(searchParams);
@@ -274,7 +349,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
         )
       }
       rightPanel={
-        <div className="h-full p-4">
+        <div className="h-full p-[16px]">
           <SupplierOutputsPanel
             initiative={supplierOutputInitiative}
             outputState={supplierOutputPanelState}
@@ -284,10 +359,11 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
           />
         </div>
       }
+      mainClassName="clauseiq-v4-canvas-grid"
     >
       <div
         className={cn(
-          "mx-auto px-4 pt-10 space-y-5 transition-[max-width] duration-300",
+          "mx-auto px-[16px] pt-10 space-y-5 transition-[max-width] duration-300",
           "pb-10",
           "max-w-[640px]",
         )}
@@ -304,11 +380,11 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
                 Upload a contract and ClauseIQ will review it against your initiative's playbook,
                 surfacing deviations, missing clauses and negotiation actions in seconds.
               </p>
-              <div className="rounded-lg bg-muted/50 border border-border p-4 mb-5 space-y-3">
+              <div className="rounded-lg bg-muted/50 border border-border p-[16px] mb-5 space-y-3">
                 <div className="text-sm font-medium text-foreground mb-1">Summary</div>
                 <SummaryRow icon={<ListChecks className="h-4 w-4 text-ciq" />} text="Reviews every clause against your benchmark playbook." />
                 <SummaryRow icon={<Building2 className="h-4 w-4 text-ciq" />} text="Tied to a chosen initiative for traceable governance." />
-                <SummaryRow icon={<FilePlus2 className="h-4 w-4 text-ciq" />} text="Exports a shareable report with severity and actions." />
+                <SummaryRow icon={<FileDown className="h-4 w-4 text-ciq" />} text="Exports a shareable report with severity and actions." />
               </div>
               {step === "welcome" && (
                 <Button
@@ -339,10 +415,10 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
                     </Button>
                   </StateCard>
                 ) : (
-                  <StateCard
-                    state={initiativeLocked ? "disabled" : "default"}
-                    className={resultsVisible ? "mx-auto w-full max-w-[640px]" : undefined}
-                  >
+	                  <StateCard
+	                    state="default"
+	                    className={resultsVisible ? "mx-auto w-full max-w-[640px]" : undefined}
+	                  >
                     <h2 className="text-base font-semibold mb-3">Initiative Selected</h2>
                     <SelectedSummaryRow
                       label={initiative.name}
@@ -356,7 +432,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
             )}
 
             {/* Contract Analysis Parameters */}
-            {parametersVisible && (
+            {parametersVisible && !resultsVisible && (
               <div ref={parametersRef}>
                 {!selectedParameter ? (
                   <StateCard state={parametersState}>
@@ -410,7 +486,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
               <div ref={processingRef}>
                 <StateCard state={processingState}>
                   <h2 className="text-base font-semibold mb-4">Analysing Your Contract</h2>
-                  <div className="flex items-center justify-between border border-border rounded-lg px-3 py-2 mb-4">
+                  <div className="flex items-center justify-between border border-border rounded-lg p-[16px] mb-4">
                     <div className="flex items-center gap-2 min-w-0">
                       <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                       <span className="text-sm truncate">{file?.name ?? "Contract.pdf"}</span>
@@ -440,33 +516,58 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
                   onRunAgain={showRunAgainUpload}
                   onDownload={resultsLayout === "output-panel" ? undefined : handleDownload}
                   onViewResult={handleViewResult}
+                  viewResultPrimary={!newAnalysisSectionVisible}
+                  highlightLatestOutput={!newAnalysisSectionVisible}
+                  analysisParameters={selectedAnalysisParameters}
                 />
-                {(rerunUploadVisible || rerunProcessing) && <NewAnalysisDivider />}
+                {newAnalysisSectionVisible && <NewAnalysisDivider />}
                 {rerunUploadVisible && (
                   <div ref={rerunUploadRef} className="space-y-4">
-                    <StateCard state="default">
-                      <h2 className="text-base font-semibold mb-3">Contract Analysis Parameters</h2>
-                      <SelectedSummaryRow
-                        label={(selectedParameter ?? DEFAULT_PARAMETER).label}
-                        disabled={false}
-                      />
+                    <StateCard state={rerunSelectedParameter ? "default" : "active"}>
+                      <h2 className="text-base font-semibold mb-1">Contract Analysis Parameters</h2>
+                      {!rerunSelectedParameter ? (
+                        <>
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Choose a parameter to analyse the next contract.
+                          </p>
+                          <ParameterSelection
+                            options={CIQ_PARAMETER_OPTIONS}
+                            expandedKind={rerunExpandedParameter}
+                            search={rerunParameterSearch}
+                            onToggle={handleRerunParameterToggle}
+                            onSearchChange={setRerunParameterSearch}
+                            onSelect={handleRerunParameterSelect}
+                          />
+                        </>
+                      ) : (
+                        <div className="mt-2">
+                          <SelectedSummaryRow
+                            label={rerunSelectedParameter.label}
+                            disabled={false}
+                            actionLabel={`Change ${rerunSelectedParameter.kind}`}
+                            onAction={handleRerunParameterEdit}
+                          />
+                        </div>
+                      )}
                     </StateCard>
 
-                    <StateCard state="active">
-                      <h2 className="text-base font-semibold mb-3">Upload Contract</h2>
-                      <PlaybookDisclaimer variant="callout" parameter={selectedParameter ?? DEFAULT_PARAMETER} />
-                      <Dropzone onFile={validateAndSetFile} />
-                      <div className="mt-3 text-xs text-muted-foreground space-y-0.5">
-                        <div>File types supported: PDF</div>
-                        <div>Maximum upload file size: 100 MB</div>
-                      </div>
-                    </StateCard>
+                    {rerunSelectedParameter && (
+                      <StateCard state="active">
+                        <h2 className="text-base font-semibold mb-3">Upload Contract</h2>
+                        <PlaybookDisclaimer variant="callout" parameter={rerunSelectedParameter} />
+                        <Dropzone onFile={validateAndSetFile} />
+                        <div className="mt-3 text-xs text-muted-foreground space-y-0.5">
+                          <div>File types supported: PDF</div>
+                          <div>Maximum upload file size: 100 MB</div>
+                        </div>
+                      </StateCard>
+                    )}
                   </div>
                 )}
                 {rerunProcessing && (
                   <StateCard state="active">
                     <h2 className="text-base font-semibold mb-4">Analysing New Contract</h2>
-                    <div className="flex items-center justify-between border border-border rounded-lg px-3 py-2 mb-4">
+                    <div className="flex items-center justify-between border border-border rounded-lg p-[16px] mb-4">
                       <div className="flex items-center gap-2 min-w-0">
                         <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                         <span className="text-sm truncate">{file?.name ?? "Contract.pdf"}</span>
@@ -479,11 +580,24 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
                       <Loader2 className="h-5 w-5 animate-spin text-ciq" />
                       <span className="text-sm font-medium">Finding clauses in your new contract...</span>
                     </div>
-                    <PlaybookDisclaimer variant="inline" parameter={selectedParameter} />
+                    <PlaybookDisclaimer variant="inline" parameter={rerunSelectedParameter ?? selectedParameter} />
                     <p className="text-xs text-muted-foreground mt-2">
                       The existing analysis history remains available above while this runs.
                     </p>
                   </StateCard>
+                )}
+                {completedRerunAnalysis && rerunSupplier && (
+                  <AnalysisCard
+                    analysis={completedRerunAnalysis}
+                    supplier={rerunSupplier}
+                    showSupplier
+                    onRunAgain={showRunAgainUpload}
+                    onViewResult={handleViewResult}
+                    viewResultPrimary
+                    isLatestOutput
+                    highlighted
+                    analysisParameters={completedRerunAnalysisParameters}
+                  />
                 )}
                 <div ref={latestOutputRef} className="h-[304px]" aria-hidden="true" />
               </div>
@@ -546,8 +660,8 @@ function SelectedSummaryRow({
   return (
     <div
       className={cn(
-        "flex min-h-11 items-center justify-between gap-4 rounded-md border px-4 py-2",
-        disabled ? "border-border bg-muted/50 text-muted-foreground" : "border-border bg-card text-foreground",
+        "flex min-h-11 items-center justify-between gap-4 rounded-md border p-[16px]",
+        disabled ? "border-border bg-muted text-muted-foreground" : "border-border bg-card text-foreground",
       )}
     >
       <div className="flex min-w-0 items-center gap-2">
@@ -600,7 +714,7 @@ function ParameterSelection({
             <label
               key={option.kind}
               className={cn(
-                "flex min-h-[88px] cursor-pointer flex-col items-start justify-between rounded-lg border p-3 text-left transition-colors",
+                "flex min-h-[88px] cursor-pointer flex-col items-start justify-between rounded-lg border p-[16px] text-left transition-colors",
                 selected ? "border-ciq bg-ciq-soft text-foreground" : "border-border bg-card hover:border-ciq/40 hover:bg-muted/35",
               )}
             >
@@ -640,7 +754,7 @@ function ParameterSelection({
           aria-label={`${expandedOption.label} options`}
           className="overflow-hidden rounded-lg border border-border bg-card"
         >
-          <div className="border-b border-border p-3">
+          <div className="border-b border-border p-[16px]">
             <div className="flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2">
               <Search className="h-4 w-4 text-muted-foreground" />
               <input
@@ -655,7 +769,7 @@ function ParameterSelection({
           </div>
           <div className="max-h-52 overflow-y-auto p-1">
             {filteredOptions.length === 0 ? (
-              <div className="px-3 py-4 text-center text-sm text-muted-foreground">No options match your search.</div>
+              <div className="px-3 py-[16px] text-center text-sm text-muted-foreground">No options match your search.</div>
             ) : (
               filteredOptions.map((value) => (
                 <button
@@ -679,7 +793,7 @@ function ParameterSelection({
 
 function ParameterIcon({ kind }: { kind: CiqParameterKind }) {
   if (kind === "Category") return <Tag className="h-4 w-4" />;
-  if (kind === "Governing Law") return <MapPin className="h-4 w-4" />;
+  if (kind === "Governing Law") return <Scale className="h-4 w-4" />;
   return <BookOpen className="h-4 w-4" />;
 }
 
@@ -731,7 +845,7 @@ function Dropzone({ onFile }: { onFile: (f: File | null) => void }) {
         e.preventDefault(); setHover(false);
         onFile(e.dataTransfer.files?.[0] ?? null);
       }}
-      className={`rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors ${
+      className={`rounded-lg border-2 border-dashed p-[16px] text-center transition-colors ${
         hover ? "border-ciq bg-ciq-soft" : "border-border bg-muted/30"
       }`}
     >

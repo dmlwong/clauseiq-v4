@@ -16,7 +16,7 @@ export const StateCard = forwardRef<HTMLDivElement, Props>(({ state, children, c
       ref={ref}
       aria-disabled={state === "disabled" || undefined}
       className={cn(
-        "rounded-xl bg-card p-6 transition-all duration-200 ease-out",
+        "rounded-xl bg-card p-[16px] transition-all duration-200 ease-out",
         state === "active" && "border border-primary/40 ring-2 ring-primary/15 shadow-sm",
         state === "default" && "border border-border",
         state === "disabled" && "border border-border opacity-50 pointer-events-none select-none",

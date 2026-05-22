@@ -4,15 +4,16 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   CalendarDays,
   Check,
+  ClipboardList,
   DollarSign,
   Download,
   ExternalLink,
   FileText,
+  FolderKanban,
   Info,
   Pencil,
-  RefreshCw,
-  Settings,
-  SlidersHorizontal,
+  BriefcaseBusiness,
+  Upload,
   X,
 } from "lucide-react";
 
@@ -125,7 +126,7 @@ export default function InitiativeDetailPageV4() {
       subtitle="Manage and track procurement initiatives end-to-end"
       titleIcon={
         <div className="grid h-10 w-10 place-items-center rounded bg-emerald-700 text-white">
-          <Settings className="h-5 w-5" />
+          <FolderKanban className="h-5 w-5" />
         </div>
       }
       headerRight={
@@ -178,7 +179,7 @@ export default function InitiativeDetailPageV4() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="flex min-w-0 items-start gap-3">
                     <div className="grid h-8 w-8 place-items-center rounded bg-[#EEF0FF] text-[#5B5BF7]">
-                      <SlidersHorizontal className="h-4 w-4" />
+                      <BriefcaseBusiness className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
                       <h1 className="truncate text-lg font-semibold text-slate-950">
@@ -247,7 +248,7 @@ export default function InitiativeDetailPageV4() {
                   <div>
                     <div className="flex items-center gap-2">
                       <div className="grid h-7 w-7 place-items-center rounded-md bg-[#EEF0FF] text-[#5B5BF7]">
-                        <Settings className="h-3.5 w-3.5" />
+                        <ClipboardList className="h-3.5 w-3.5" />
                       </div>
                       <h2 className="text-sm font-semibold text-slate-950">Key Tool Coverage</h2>
                       <Info className="h-3.5 w-3.5 text-slate-400" />
@@ -272,6 +273,7 @@ export default function InitiativeDetailPageV4() {
                         timestamp="Jan 5, 2026, 10:08"
                         downloadLabel="Download latest contract"
                         uploadLabel="Upload contract in ClauseIQ"
+                        uploadIcon={<Upload className="h-4 w-4" />}
                         onDownload={downloadLatestContract}
                         onUpload={openClauseIqUpload}
                         onOpenResults={openClauseIqResults}
@@ -285,6 +287,7 @@ export default function InitiativeDetailPageV4() {
                         timestamp={tool.lastRunAt ?? "May 06, 2026, 10:34"}
                         downloadLabel="Download latest MarketIQ insight"
                         uploadLabel="Open MarketIQ"
+                        uploadIcon={<ExternalLink className="h-4 w-4" />}
                         onDownload={downloadLatestMarketInsight}
                         onUpload={openMarketIqTool}
                         onOpenResults={openMarketIqResults}
@@ -333,6 +336,7 @@ function CompletedToolActionCard({
   timestamp,
   downloadLabel,
   uploadLabel,
+  uploadIcon,
   onDownload,
   onUpload,
   onOpenResults,
@@ -343,6 +347,7 @@ function CompletedToolActionCard({
   timestamp: string;
   downloadLabel: string;
   uploadLabel: string;
+  uploadIcon: ReactNode;
   onDownload: () => void;
   onUpload: () => void;
   onOpenResults: () => void;
@@ -378,7 +383,7 @@ function CompletedToolActionCard({
           <Download className="h-4 w-4" />
         </Button>
         <Button variant="outline" className="h-8 border-slate-400 bg-white" aria-label={uploadLabel} onClick={onUpload}>
-          <RefreshCw className="h-4 w-4" />
+          {uploadIcon}
         </Button>
       </div>
       <Button variant="outline" className="mt-2 h-8 gap-2 border-slate-400 bg-white text-sm" onClick={onOpenResults}>

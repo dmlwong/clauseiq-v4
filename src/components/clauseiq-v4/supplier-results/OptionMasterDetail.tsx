@@ -18,6 +18,7 @@ export function OptionMasterDetail({
   onRunAgain,
   onDownload,
   onViewResult,
+  analysisParameters,
   masterDetailState,
 }: ResultsViewProps) {
   const fallbackState = useMasterDetailState(initiative);
@@ -54,6 +55,7 @@ export function OptionMasterDetail({
                     onRunAgain={onRunAgain}
                     onDownload={onDownload}
                     onViewResult={onViewResult}
+                    analysisParameters={analysisParameters}
                   />
                 ))}
               </div>
@@ -85,14 +87,14 @@ export function MasterSupplierRail({ state, mobile = false }: MasterSupplierRail
 
   if (mobile) {
     return (
-      <aside className="mb-4 rounded-lg border border-border bg-muted/20 p-3 md:hidden">
+      <aside className="mb-4 rounded-lg border border-border bg-muted/20 p-[16px] md:hidden">
         {content}
       </aside>
     );
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col p-3">
+    <div className="flex h-full min-h-0 flex-col p-[16px]">
       {content}
     </div>
   );

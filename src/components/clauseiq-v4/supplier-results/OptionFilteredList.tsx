@@ -23,6 +23,7 @@ export function OptionFilteredList({
   onRunAgain,
   onDownload,
   onViewResult,
+  analysisParameters,
   filteredControls,
 }: ResultsViewProps) {
   const controls = filteredControls ?? DEFAULT_FILTERED_LIST_CONTROLS;
@@ -79,11 +80,12 @@ export function OptionFilteredList({
               onRunAgain={onRunAgain}
               onDownload={onDownload}
               onViewResult={onViewResult}
+              analysisParameters={analysisParameters}
             />
           ))}
         </AnimatePresence>
         {rows.length === 0 && (
-          <div className="rounded-lg border border-dashed border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
+          <div className="rounded-lg border border-dashed border-border bg-card p-[16px] text-center text-sm text-muted-foreground">
             No analyses match your filters.
           </div>
         )}

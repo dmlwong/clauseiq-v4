@@ -2,9 +2,10 @@ import { useState, useMemo, useEffect, useRef, type KeyboardEvent, type MouseEve
 import { useSearchParams } from "react-router-dom";
 import {
   ChevronLeft, AlertTriangle, CheckCircle2, Search, MapPin, Lightbulb,
-  GitCompare, History, X, ArrowRight, Sparkles, Upload, Trash2, FileText, Loader2,
-  Download, Info, ShieldCheck, ExternalLink, Sigma, Pin, RotateCcw,
-  Clock, ShieldX, Pencil,
+  GitCompare, History, X, ArrowRight, Upload, Trash2, FileText, Loader2,
+  Info, ShieldCheck, ExternalLink, Sigma, Pin, RotateCcw,
+  Clock, ShieldX, Pencil, CircleMinus, ClipboardList, FileCheck2, FileDown,
+  FileSearch, ListPlus, MessageSquarePlus,
 } from "lucide-react";
 
 import { toast } from "@/components/ui/use-toast";
@@ -21,6 +22,14 @@ import {
 } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import {
   IconCircleCheck,
@@ -649,11 +658,16 @@ export function ContractResults({
     if (!firstAnalysisDemo) {
       firstAnalysisResetKeyRef.current = null;
       setBulkReviewSelection(null);
+      setBulkAppliedRecommendationIds([]);
+      setBulkAppliedRecommendationScopeLabel(null);
       return;
     }
     const resetKey = `${supplierId}:${decisionContractId}`;
     if (firstAnalysisResetKeyRef.current === resetKey) return;
     decisions.resetContract(supplierId, decisionContractId);
+    setBulkReviewSelection(null);
+    setBulkAppliedRecommendationIds([]);
+    setBulkAppliedRecommendationScopeLabel(null);
     firstAnalysisResetKeyRef.current = resetKey;
   }, [decisionContractId, decisions, firstAnalysisDemo, supplierId]);
 
@@ -855,6 +869,8 @@ export function ContractResults({
   const [acceptConfirmOpen, setAcceptConfirmOpen] = useState(false);
   const [requestReviewOpen, setRequestReviewOpen] = useState(false);
   const [bulkReviewSelection, setBulkReviewSelection] = useState<{ version: string; clauseIds: string[] } | null>(null);
+  const [bulkAppliedRecommendationIds, setBulkAppliedRecommendationIds] = useState<string[]>([]);
+  const [bulkAppliedRecommendationScopeLabel, setBulkAppliedRecommendationScopeLabel] = useState<string | null>(null);
   const [quickFilter, setQuickFilter] = useState<QuickFilterKey | null>(() =>
     mode === "comparison" && versions.length >= 2 ? "open-items" : null,
   );
@@ -905,6 +921,9 @@ export function ContractResults({
       csv,
     );
     decisions.submitPendingRequests(supplierId, decisionContractId, activeRequestVersion.version);
+    setBulkAppliedRecommendationIds([]);
+    setBulkAppliedRecommendationScopeLabel(null);
+    setBulkReviewSelection(null);
     toast({
       title: "CSV generated",
       description: `${pendingRequestItems.length} requested change${pendingRequestItems.length === 1 ? "" : "s"} exported for supplier negotiation.`,
@@ -1604,13 +1623,30 @@ export function ContractResults({
     firstAnalysisRecommendationClauses.length > 0 &&
     firstAnalysisRecommendationTargets.length === 0 &&
     firstAnalysisPendingRecommendationCount === 0;
+  const bulkAppliedRecommendationIdSet = new Set(bulkAppliedRecommendationIds);
+  const firstAnalysisUndoableRecommendationIds = firstAnalysisRecommendationClauses
+    .filter((clause) => bulkAppliedRecommendationIdSet.has(clause.id))
+    .filter((clause) => {
+      const state = stateOf(clause.id);
+      const request = state.requests[firstAnalysisVersionLabel];
+      return (
+        state.roundDecisions[firstAnalysisVersionLabel] === "request-update" &&
+        request?.state !== "submitted"
+      );
+    })
+    .map((clause) => clause.id);
+  const firstAnalysisUndoRecommendationCount = firstAnalysisUndoableRecommendationIds.length;
+  const canUndoFirstAnalysisRecommendations = firstAnalysisUndoRecommendationCount > 0;
   const firstAnalysisApplyAllLabel =
-    firstAnalysisRecommendationTargets.length > 0
+    canUndoFirstAnalysisRecommendations
+      ? `Undo recommendations (${firstAnalysisUndoRecommendationCount})`
+      : firstAnalysisRecommendationTargets.length > 0
       ? `Apply all recommendations (${firstAnalysisRecommendationTargets.length})`
       : firstAnalysisRecommendationsQueued
       ? "Recommendations added to review"
       : "All recommendations reviewed";
-  const applyAllRecommendations = (targets: RecommendationTargetItem[]) => {
+  const firstAnalysisRecommendationApplyOptions = buildRecommendationApplyOptions(firstAnalysisRecommendationTargets);
+  const applyAllRecommendations = (targets: RecommendationTargetItem[], scope?: RecommendationApplyOption) => {
     if (!firstAnalysisVersion || targets.length === 0) return;
     const bulkClauseIds = new Set(pendingRequestItems.map((item) => item.clauseId));
     targets.forEach((item) => bulkClauseIds.add(item.id));
@@ -1621,9 +1657,24 @@ export function ContractResults({
       targets.map((item) => ({ clauseId: item.id, request: item.request })),
     );
     setBulkReviewSelection({ version: firstAnalysisVersion.version, clauseIds: Array.from(bulkClauseIds) });
+    setBulkAppliedRecommendationIds(targets.map((item) => item.id));
+    setBulkAppliedRecommendationScopeLabel(scope?.undoLabel ?? null);
     toast({
       title: "Recommendations added to review",
-      description: `${targets.length} recommendation${targets.length === 1 ? "" : "s"} added. Review and generate the CSV when ready.`,
+      description: `${targets.length} ${scope?.toastLabel ?? "recommendation"}${targets.length === 1 ? "" : "s"} added. Review and generate the CSV when ready.`,
+    });
+  };
+  const undoAppliedRecommendations = () => {
+    if (!firstAnalysisVersion || firstAnalysisUndoableRecommendationIds.length === 0) return;
+    firstAnalysisUndoableRecommendationIds.forEach((id) => {
+      decisions.removePendingRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version);
+    });
+    setBulkAppliedRecommendationIds([]);
+    setBulkAppliedRecommendationScopeLabel(null);
+    setBulkReviewSelection(null);
+    toast({
+      title: "Recommendations removed from review",
+      description: `${firstAnalysisUndoableRecommendationIds.length} recommendation${firstAnalysisUndoableRecommendationIds.length === 1 ? "" : "s"} removed. Existing custom requests and No Action choices were left unchanged.`,
     });
   };
   const firstAnalysisReviewList = firstAnalysisVersion ? (
@@ -1842,14 +1893,23 @@ export function ContractResults({
           <ModeSwitcher
             mode={mode}
             onChange={switchMode}
-            comparisonLabel={firstAnalysisDemo ? "V1 Analysis" : "Review"}
-            historyDisabled={firstAnalysisDemo || versions.length < 2}
-            onApplyAllRecommendations={() => applyAllRecommendations(firstAnalysisRecommendationTargets)}
-            applyAllRecommendationsDisabled={!firstAnalysisDemo || firstAnalysisRecommendationTargets.length === 0}
+	            comparisonLabel={firstAnalysisDemo ? "V1 Analysis" : "Review"}
+	            historyDisabled={firstAnalysisDemo || versions.length < 2}
+	            onApplyAllRecommendations={() => applyAllRecommendations(firstAnalysisRecommendationTargets)}
+	            onApplyRecommendationOption={(option) => applyAllRecommendations(option.targets, option)}
+	            onUndoAllRecommendations={undoAppliedRecommendations}
+	            applyAllRecommendationsDisabled={
+	              !firstAnalysisDemo ||
+	              (!canUndoFirstAnalysisRecommendations && firstAnalysisRecommendationTargets.length === 0)
+	            }
             applyAllRecommendationsQueued={firstAnalysisDemo && firstAnalysisRecommendationsQueued}
-            applyAllRecommendationsReviewed={firstAnalysisDemo && firstAnalysisRecommendationsReviewed}
-            recommendationCount={firstAnalysisRecommendationTargets.length}
-            onReviewGenerate={() => setRequestReviewOpen(true)}
+	            applyAllRecommendationsReviewed={firstAnalysisDemo && firstAnalysisRecommendationsReviewed}
+	            applyAllRecommendationsUndoable={canUndoFirstAnalysisRecommendations}
+	            recommendationApplyOptions={firstAnalysisRecommendationApplyOptions}
+	            recommendationCount={firstAnalysisRecommendationTargets.length}
+	            undoRecommendationCount={firstAnalysisUndoRecommendationCount}
+	            undoRecommendationScopeLabel={bulkAppliedRecommendationScopeLabel}
+	            onReviewGenerate={() => setRequestReviewOpen(true)}
             reviewGenerateDisabled={!activeRequestVersion || pendingRequestItems.length === 0}
             requestCount={pendingRequestItems.length}
           />
@@ -1866,14 +1926,23 @@ export function ContractResults({
                 <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
                   <SupplierGroupingPopover supplierId={supplierId} supplierName={supplier.name} />
                   {firstAnalysisDemo && mode === "comparison" && (
-                    <Button
-                      size="sm"
-                      className="h-9 gap-1.5 bg-[#1a2744] text-white hover:bg-[#243454]"
-                      disabled={firstAnalysisRecommendationTargets.length === 0}
-                      onClick={() => applyAllRecommendations(firstAnalysisRecommendationTargets)}
+	                    <Button
+	                      size="sm"
+	                      variant="outline"
+	                      className="h-9 gap-1.5 bg-white"
+                      disabled={!canUndoFirstAnalysisRecommendations && firstAnalysisRecommendationTargets.length === 0}
+                      onClick={() => {
+                        if (canUndoFirstAnalysisRecommendations) {
+                          undoAppliedRecommendations();
+                          return;
+                        }
+                        applyAllRecommendations(firstAnalysisRecommendationTargets);
+                      }}
                     >
-                      {firstAnalysisRecommendationTargets.length > 0 ? (
-                        <Sparkles className="w-3.5 h-3.5" />
+                      {canUndoFirstAnalysisRecommendations ? (
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      ) : firstAnalysisRecommendationTargets.length > 0 ? (
+                        <ListPlus className="w-3.5 h-3.5" />
                       ) : (
                         <CheckCircle2 className="w-3.5 h-3.5" />
                       )}
@@ -1882,12 +1951,12 @@ export function ContractResults({
                   )}
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant={!activeRequestVersion || pendingRequestItems.length === 0 ? "outline" : "default"}
                     className="h-9 gap-1.5"
                     disabled={!activeRequestVersion || pendingRequestItems.length === 0}
                     onClick={() => setRequestReviewOpen(true)}
                   >
-                    <Download className="w-3.5 h-3.5" />
+                    <FileCheck2 className="w-3.5 h-3.5" />
                     Review &amp; Generate{pendingRequestItems.length > 0 ? ` (${pendingRequestItems.length})` : ""}
                   </Button>
                   <Button size="sm" variant="default" className="h-9 gap-1.5" onClick={() => setUploadOpen(true)}>
@@ -2503,10 +2572,16 @@ function ModeSwitcher({
   comparisonLabel = "Review",
   historyDisabled = false,
   onApplyAllRecommendations,
+  onApplyRecommendationOption,
+  onUndoAllRecommendations,
   applyAllRecommendationsDisabled = true,
   applyAllRecommendationsQueued = false,
   applyAllRecommendationsReviewed = false,
+  applyAllRecommendationsUndoable = false,
+  recommendationApplyOptions = [],
   recommendationCount = 0,
+  undoRecommendationCount = 0,
+  undoRecommendationScopeLabel,
   onReviewGenerate,
   reviewGenerateDisabled,
   requestCount,
@@ -2516,19 +2591,50 @@ function ModeSwitcher({
   comparisonLabel?: string;
   historyDisabled?: boolean;
   onApplyAllRecommendations?: () => void;
+  onApplyRecommendationOption?: (option: RecommendationApplyOption) => void;
+  onUndoAllRecommendations?: () => void;
   applyAllRecommendationsDisabled?: boolean;
   applyAllRecommendationsQueued?: boolean;
   applyAllRecommendationsReviewed?: boolean;
+  applyAllRecommendationsUndoable?: boolean;
+  recommendationApplyOptions?: RecommendationApplyOption[];
   recommendationCount?: number;
+  undoRecommendationCount?: number;
+  undoRecommendationScopeLabel?: string | null;
   onReviewGenerate: () => void;
   reviewGenerateDisabled: boolean;
   requestCount: number;
 }) {
+  const canUndoAppliedRecommendations = Boolean(
+    applyAllRecommendationsUndoable && onUndoAllRecommendations,
+  );
+  const applyAllButtonLabel = applyAllRecommendationsReviewed
+    ? "All recommendations reviewed"
+    : canUndoAppliedRecommendations
+    ? `${undoRecommendationScopeLabel ? `Undo ${undoRecommendationScopeLabel} recommendations` : "Undo recommendations"}${undoRecommendationCount > 0 ? ` (${undoRecommendationCount})` : ""}`
+    : applyAllRecommendationsQueued
+    ? "Recommendations added to review"
+    : `Apply recommendations${recommendationCount > 0 ? ` (${recommendationCount})` : ""}`;
+  const availableRecommendationApplyOptions = recommendationApplyOptions.filter((option) => option.count > 0);
+  const canChooseRecommendationScope =
+    Boolean(onApplyRecommendationOption) &&
+    !canUndoAppliedRecommendations &&
+    !applyAllRecommendationsQueued &&
+    !applyAllRecommendationsReviewed &&
+    !applyAllRecommendationsDisabled &&
+    availableRecommendationApplyOptions.length > 0;
+  const reviewIcon =
+    comparisonLabel === "V1 Analysis" ? (
+      <FileSearch key="comparison-icon" className="h-[13px] w-[13px]" />
+    ) : (
+      <IconArrowsDiff key="comparison-icon" size={13} stroke={1.8} />
+    );
+
   return (
     <div className="flex min-w-0 items-center gap-3 border-b border-[rgba(0,0,0,0.08)] bg-white px-3 py-1.5">
       <div className="inline-flex overflow-hidden rounded-md border border-border">
         {([
-          ["comparison", <IconArrowsDiff key="comparison-icon" size={13} stroke={1.8} />, comparisonLabel],
+          ["comparison", reviewIcon, comparisonLabel],
           ["history", <IconTimeline key="history-icon" size={13} stroke={1.8} />, "History"],
         ] as const).map(([value, icon, label]) => {
           const active = mode === value;
@@ -2556,32 +2662,59 @@ function ModeSwitcher({
       </div>
       <div className="ml-auto flex shrink-0 items-center gap-2">
         {onApplyAllRecommendations && (
-          <Button
-            size="sm"
-            className="h-7 gap-1.5 bg-[#1a2744] px-3 text-xs text-white hover:bg-[#243454]"
-            disabled={applyAllRecommendationsDisabled}
-            onClick={onApplyAllRecommendations}
-          >
-            {applyAllRecommendationsQueued || applyAllRecommendationsReviewed ? (
-              <CheckCircle2 className="h-3.5 w-3.5" />
-            ) : (
-              <Sparkles className="h-3.5 w-3.5" />
-            )}
-            {applyAllRecommendationsReviewed
-              ? "All recommendations reviewed"
-              : applyAllRecommendationsQueued
-              ? "Recommendations added to review"
-              : `Apply all recommendations${recommendationCount > 0 ? ` (${recommendationCount})` : ""}`}
-          </Button>
+          canChooseRecommendationScope ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" className="h-7 gap-1.5 bg-white px-3 text-xs">
+                  <ListPlus className="h-3.5 w-3.5" />
+                  {applyAllButtonLabel}
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel className="text-xs">Apply by deviation level</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {availableRecommendationApplyOptions.map((option) => (
+                  <DropdownMenuItem
+                    key={option.id}
+                    className="gap-3 text-xs"
+                    onSelect={() => onApplyRecommendationOption?.(option)}
+                  >
+                    <span>{option.label}</span>
+                    <span className="ml-auto tabular-nums text-muted-foreground">{option.count}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1.5 bg-white px-3 text-xs"
+              disabled={!canUndoAppliedRecommendations && applyAllRecommendationsDisabled}
+              onClick={canUndoAppliedRecommendations ? onUndoAllRecommendations : onApplyAllRecommendations}
+            >
+              {applyAllRecommendationsReviewed ? (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              ) : canUndoAppliedRecommendations ? (
+                <RotateCcw className="h-3.5 w-3.5" />
+              ) : applyAllRecommendationsQueued ? (
+                <ClipboardList className="h-3.5 w-3.5" />
+              ) : (
+                <ListPlus className="h-3.5 w-3.5" />
+              )}
+              {applyAllButtonLabel}
+            </Button>
+          )
         )}
         <Button
           size="sm"
-          variant="outline"
+          variant={reviewGenerateDisabled ? "outline" : "default"}
           className="h-7 gap-1.5 px-3 text-xs"
           disabled={reviewGenerateDisabled}
           onClick={onReviewGenerate}
         >
-          <Download className="h-3.5 w-3.5" />
+          <FileCheck2 className="h-3.5 w-3.5" />
           Review &amp; Generate{requestCount > 0 ? ` (${requestCount})` : ""}
         </Button>
       </div>
@@ -2887,7 +3020,7 @@ function DecisionBadge({ decision }: { decision: RoundDecision }) {
   if (decision === "request-update") {
     return (
       <span className="inline-flex cursor-default items-center gap-1 rounded-full bg-primary px-2 py-1 text-[10px] font-medium text-primary-foreground">
-        <Sparkles className="h-3 w-3" />
+        <MessageSquarePlus className="h-3 w-3" />
         Requested
       </span>
     );
@@ -2895,7 +3028,7 @@ function DecisionBadge({ decision }: { decision: RoundDecision }) {
 
   return (
     <span className="inline-flex cursor-default items-center gap-1 rounded-full bg-[#EAF3DE] px-2 py-1 text-[10px] font-medium text-[#27500A]">
-      <CheckCircle2 className="h-3 w-3" />
+      <CircleMinus className="h-3 w-3" />
       No Action
     </span>
   );
@@ -2905,7 +3038,7 @@ function RequestLifecycleBadge({ request }: { request?: ClauseRequest }) {
   if (request?.state === "pending") {
     return (
       <span className="inline-flex cursor-default items-center gap-1 rounded-full border border-[#185FA5]/25 bg-[#E6F1FB] px-2 py-1 text-[10px] font-medium text-[#0C447C]">
-        <FileText className="h-3 w-3" />
+        <ClipboardList className="h-3 w-3" />
         Added to Review
       </span>
     );
@@ -3466,7 +3599,7 @@ function MovementSummaryZone({
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full bg-[#1a2744] text-white" aria-hidden="true">
-            <Sparkles className="h-3 w-3" />
+            <GitCompare className="h-3 w-3" />
           </span>
           <div className="min-w-0">
             <p className="text-[9px] font-medium uppercase tracking-[0.04em] text-muted-foreground">Supplier-initiated</p>
@@ -4096,7 +4229,7 @@ function ReviewGuidance({ versionLabel, compact = false }: { versionLabel: strin
           : "bg-card border border-primary/20 rounded-lg px-4 py-3 text-xs text-muted-foreground flex items-start gap-2"
       }
     >
-      <Sparkles className={compact ? "h-3.5 w-3.5 shrink-0 text-primary" : "w-3.5 h-3.5 text-primary mt-0.5 shrink-0"} />
+      <MessageSquarePlus className={compact ? "h-3.5 w-3.5 shrink-0 text-primary" : "w-3.5 h-3.5 text-primary mt-0.5 shrink-0"} />
       <span className="min-w-0">
         Select <span className="font-semibold text-foreground">"Request Change"</span> for clauses you want the supplier to update.
         {versionLabel !== "v1" && (
@@ -4196,7 +4329,7 @@ function ClauseRequestForm({
             disabled={!requestValue.trim()}
             onClick={onSubmit}
           >
-            <Sparkles className="h-3.5 w-3.5" /> {submitLabel}
+            <MessageSquarePlus className="h-3.5 w-3.5" /> {submitLabel}
           </Button>
         </div>
       </div>
@@ -4451,7 +4584,7 @@ function ClauseDecisionCard({
             className="h-8 gap-1.5 rounded-[5px] px-3 text-[11px] font-normal"
             onClick={onRequest}
           >
-            <Sparkles className="h-3 w-3" /> {primaryActionLabel}
+            <MessageSquarePlus className="h-3 w-3" /> {primaryActionLabel}
           </Button>
           <Button
             size="sm"
@@ -4459,7 +4592,7 @@ function ClauseDecisionCard({
             className={cn("h-8 rounded-[5px] px-3 text-[11px] font-normal gap-1.5", noActionIsPrimary && "bg-[#1a2744] text-white hover:bg-[#243454]")}
             onClick={onNoAction}
           >
-            <CheckCircle2 className="h-3 w-3" /> No Action
+            <CircleMinus className="h-3 w-3" /> No Action
           </Button>
         </div>
       )}
@@ -4662,7 +4795,7 @@ function ClauseRowScaleCard({
             disabled={!actionabilityText || !onUseRecommendation}
             onClick={(event) => runAction(event, onUseRecommendation)}
           >
-            <Sparkles className="h-3 w-3" /> Use Recommendation
+            <ListPlus className="h-3 w-3" /> Use Recommendation
           </Button>
           <Button
             size="sm"
@@ -4678,7 +4811,7 @@ function ClauseRowScaleCard({
             className="h-8 rounded-[5px] bg-white px-3 text-[11px]"
             onClick={(event) => runAction(event, onNoAction)}
           >
-            <CheckCircle2 className="h-3 w-3" /> No Action
+            <CircleMinus className="h-3 w-3" /> No Action
           </Button>
         </div>
       )}
@@ -4790,6 +4923,72 @@ interface RecommendationTargetItem {
   missingClause?: boolean;
   sourceDeviationLevel?: ClauseResult["sourceDeviationLevel"];
   request: ClauseRequest;
+}
+
+type RecommendationApplyScope = "all" | "high" | "medium" | "low" | "missing";
+
+interface RecommendationApplyOption {
+  id: RecommendationApplyScope;
+  label: string;
+  toastLabel: string;
+  undoLabel: string;
+  count: number;
+  targets: RecommendationTargetItem[];
+}
+
+function buildRecommendationApplyOptions(targets: RecommendationTargetItem[]): RecommendationApplyOption[] {
+  const byScope = (scope: RecommendationApplyScope) => targets.filter((target) => targetMatchesRecommendationScope(target, scope));
+
+  return [
+    {
+      id: "all",
+      label: "Apply all recommendations",
+      toastLabel: "recommendation",
+      undoLabel: "all",
+      count: targets.length,
+      targets,
+    },
+    {
+      id: "high",
+      label: "Apply High only",
+      toastLabel: "High recommendation",
+      undoLabel: "High",
+      count: byScope("high").length,
+      targets: byScope("high"),
+    },
+    {
+      id: "medium",
+      label: "Apply Medium only",
+      toastLabel: "Medium recommendation",
+      undoLabel: "Medium",
+      count: byScope("medium").length,
+      targets: byScope("medium"),
+    },
+    {
+      id: "low",
+      label: "Apply Low only",
+      toastLabel: "Low recommendation",
+      undoLabel: "Low",
+      count: byScope("low").length,
+      targets: byScope("low"),
+    },
+    {
+      id: "missing",
+      label: "Apply Missing clauses only",
+      toastLabel: "Missing clause recommendation",
+      undoLabel: "Missing clause",
+      count: byScope("missing").length,
+      targets: byScope("missing"),
+    },
+  ];
+}
+
+function targetMatchesRecommendationScope(target: RecommendationTargetItem, scope: RecommendationApplyScope) {
+  if (scope === "all") return true;
+  if (scope === "missing") return Boolean(target.missingClause && target.sourceDeviationLevel === "None");
+
+  const sourceDeviationLevel = target.sourceDeviationLevel?.toLowerCase();
+  return sourceDeviationLevel === scope || (!sourceDeviationLevel && target.severity === scope);
 }
 
 function reviewClauseCardTone(severity?: ClauseResult["severity"]) {
@@ -5095,7 +5294,7 @@ function RequestReviewDialog({
             <div className="rounded-lg border border-[#185FA5]/25 bg-[#E6F1FB]/60 p-4">
               <div className="flex items-start gap-3">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#185FA5] text-white">
-                  <CheckCircle2 className="h-5 w-5" />
+                  <FileCheck2 className="h-5 w-5" />
                 </span>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-[#0C447C]">
@@ -5125,7 +5324,7 @@ function RequestReviewDialog({
                 className="gap-1.5 bg-[#1a2744] text-white hover:bg-[#243454]"
                 onClick={submitRequests}
               >
-                <Download className="h-3.5 w-3.5" /> Submit & Generate
+                <FileDown className="h-3.5 w-3.5" /> Submit & Generate
               </Button>
             )}
           </DialogFooter>
@@ -6283,7 +6482,7 @@ function ClauseDetailPanel({
               ) : (
                 <>
                   <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onKeepOpen(clauseId)}>
-                    <ArrowRight className="w-3.5 h-3.5" /> Keep Open
+                    <Clock className="w-3.5 h-3.5" /> Keep Open
                   </Button>
                   <Button size="sm" variant="default" className="h-8 text-xs gap-1.5" onClick={() => onCloseClause(clauseId)}>
                     <CheckCircle2 className="w-3.5 h-3.5" /> Close

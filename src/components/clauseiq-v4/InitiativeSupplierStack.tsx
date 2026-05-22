@@ -86,7 +86,7 @@ export function InitiativeSupplierStack({ initiativeName, currentSupplierName }:
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+        <div className="rounded-lg border border-dashed border-border p-[16px] text-center text-sm text-muted-foreground">
           No supplier analyses match your filters.
         </div>
       ) : (
@@ -114,7 +114,7 @@ function PriorAnalysisCard({ analysis }: { analysis: InitiativeSupplierAnalysis 
   return (
     <button
       type="button"
-      className="w-full text-left rounded-lg border border-border bg-background hover:border-ciq/40 hover:bg-ciq-soft/30 transition-colors px-3 py-2.5 group"
+      className="w-full text-left rounded-lg border border-border bg-background hover:border-ciq/40 hover:bg-ciq-soft/30 transition-colors p-[16px] group"
     >
       <div className="flex items-center gap-2 mb-1.5">
         <Building2 className="h-3.5 w-3.5 text-ciq shrink-0" />

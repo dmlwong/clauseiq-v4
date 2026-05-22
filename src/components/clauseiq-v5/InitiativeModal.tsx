@@ -1,7 +1,7 @@
 import { useMemo, useState, type MouseEvent } from "react";
 import { Search } from "lucide-react";
-import { Table as OrbitTable } from "@orbit";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Headings, Table as OrbitTable, Text } from "@orbit";
+import { V5OrbitOverlay } from "@/components/clauseiq-v5/V5OrbitOverlay";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/clauseiq-v5/orbit-ui/tabs";
 import { Input } from "@/components/clauseiq-v5/orbit-ui/input";
 import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
@@ -51,12 +51,20 @@ export function InitiativeModal({ open, onClose, onSelect }: Props) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden">
-        <DialogHeader className="px-6 pt-6 pb-4 flex-row items-center justify-between space-y-0">
-          <DialogTitle className="text-lg font-semibold">Select An Initiative</DialogTitle>
-        </DialogHeader>
-        <div className="px-6 pb-2">
+    <V5OrbitOverlay
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
+      title="Select An Initiative"
+      size="Large"
+      footer={<Button variant="outline" onClick={onClose}>Cancel</Button>}
+    >
+        <div className="space-y-4">
+          <div className="sr-only">
+            <Headings size="Heading 4">Select An Initiative</Headings>
+            <Text size="Small" variant="Secondary" as="p">Choose an initiative for ClauseIQ analysis.</Text>
+          </div>
           <Tabs value={tab} onValueChange={(v) => setTab(v as "mine" | "team")}>
             <TabsList>
               <TabsTrigger value="mine">Mine</TabsTrigger>
@@ -86,10 +94,6 @@ export function InitiativeModal({ open, onClose, onSelect }: Props) {
             </TabsContent>
           </Tabs>
         </div>
-        <div className="px-6 py-4 border-t border-border flex justify-start">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+    </V5OrbitOverlay>
   );
 }

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import "@orbit-tokens";
 import "@orbit-fonts";
 import "@/components/clauseiq-v5/orbit-theme.css";
+import { V5OrbitToastHost } from "@/components/clauseiq-v5/V5OrbitToast";
 
 interface V5OrbitRootProps {
   children: ReactNode;
@@ -20,6 +21,7 @@ export function V5OrbitRoot({ children }: V5OrbitRootProps) {
       }}
     >
       {children}
+      <V5OrbitToastHost />
     </div>
   );
 }

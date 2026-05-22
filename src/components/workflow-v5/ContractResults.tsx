@@ -7,20 +7,22 @@ import {
   Clock, ShieldX, Pencil,
 } from "lucide-react";
 
-import { toast } from "@/components/ui/use-toast";
-import { toast as sonnerToast } from "sonner";
+import {
+  Card,
+  Chip,
+  QuickFilterGroup,
+  QuickFilterItem,
+  Table as OrbitTable,
+  Text,
+} from "@orbit";
+import { showV5OrbitToast as toast } from "@/components/clauseiq-v5/V5OrbitToast";
+import { V5OrbitConfirmOverlay, V5OrbitOverlay } from "@/components/clauseiq-v5/V5OrbitOverlay";
 import { Input } from "@/components/clauseiq-v5/orbit-ui/input";
 import { Textarea } from "@/components/clauseiq-v5/orbit-ui/textarea";
 import { Badge } from "@/components/clauseiq-v5/orbit-ui/badge";
 import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/clauseiq-v5/orbit-ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/clauseiq-v5/orbit-ui/select";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
-} from "@/components/ui/dialog";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ChevronDown } from "lucide-react";
 import {
   IconCircleCheck,
@@ -29,7 +31,6 @@ import {
   IconArrowDown,
   IconArrowUp,
   IconEye,
-  IconFlame,
   IconHelp,
   IconInfoCircle,
   IconList,
@@ -39,10 +40,6 @@ import {
   IconTrendingUp,
 } from "@tabler/icons-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/clauseiq-v5/orbit-ui/tooltip";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
-  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import {
   getInitiative, getSupplier, getContract,
   type ClauseResult, type ContractVersion,
@@ -1000,7 +997,8 @@ export function ContractResults({
     if (!rightVersion) return;
     decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "closed");
     setRecentlyClosed((m) => ({ ...m, [id]: Date.now() + 30_000 }));
-    sonnerToast(`Closed "${label}" for ${rightVersion.version}`, {
+    toast({
+      title: `Closed "${label}" for ${rightVersion.version}`,
       description: "You can undo for 30 seconds.",
       duration: 8000,
       action: {
@@ -2265,51 +2263,29 @@ export function ContractResults({
         onConfirm={onUploadVersion}
       />
 
-      {/* Accept version confirmation */}
-      <AlertDialog open={acceptConfirmOpen} onOpenChange={setAcceptConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Accept {rightVersion?.version.toUpperCase() ?? "this version"}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This marks the current supplier version as accepted for this prototype review. You can undo the status from the review modal.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-              onClick={() => {
-                if (!rightVersion) return;
-                setDecisions_((prev) => ({ ...prev, [rightVersion.version]: "accepted" }));
-                setAcceptConfirmOpen(false);
-              }}
-            >
-              Accept Version
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <V5OrbitConfirmOverlay
+        open={acceptConfirmOpen}
+        onOpenChange={setAcceptConfirmOpen}
+        title={`Accept ${rightVersion?.version.toUpperCase() ?? "this version"}?`}
+        description="This marks the current supplier version as accepted for this prototype review. You can undo the status from the review modal."
+        confirmLabel="Accept Version"
+        onConfirm={() => {
+          if (!rightVersion) return;
+          setDecisions_((prev) => ({ ...prev, [rightVersion.version]: "accepted" }));
+        }}
+      />
 
-      {/* Delete version confirmation */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Version {deleteTarget ? parseInt(deleteTarget.replace("v", ""), 10) : ""}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will remove Version {deleteTarget ? parseInt(deleteTarget.replace("v", ""), 10) : ""} and update all comparisons and tracking.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteTarget && onDeleteVersion(deleteTarget)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete Version
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <V5OrbitConfirmOverlay
+        open={!!deleteTarget}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setDeleteTarget(null);
+        }}
+        title={`Delete Version ${deleteTarget ? parseInt(deleteTarget.replace("v", ""), 10) : ""}?`}
+        description={`This will remove Version ${deleteTarget ? parseInt(deleteTarget.replace("v", ""), 10) : ""} and update all comparisons and tracking.`}
+        confirmLabel="Delete Version"
+        destructive
+        onConfirm={() => deleteTarget && onDeleteVersion(deleteTarget)}
+      />
     </div>
   );
 }
@@ -2343,14 +2319,20 @@ function UploadVersionDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Upload Contract Version</DialogTitle>
-          <DialogDescription>
-            Upload the supplier's updated contract to compare changes against the previous version.
-          </DialogDescription>
-        </DialogHeader>
+    <V5OrbitOverlay
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Upload Contract Version"
+      description="Upload the supplier's updated contract to compare changes against the previous version."
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={processing}>Cancel</Button>
+          <Button onClick={handleConfirm} disabled={!file || !label || processing} className="gap-1.5">
+            {processing ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing…</> : <><Upload className="w-3.5 h-3.5" /> Upload &amp; analyse</>}
+          </Button>
+        </div>
+      }
+    >
         <div className="space-y-4">
           <div className="rounded-md border border-border bg-muted/30 p-3 text-xs space-y-1">
             <p><span className="text-muted-foreground">Initiative:</span> <span className="font-medium text-foreground"> {initiativeName} · {initiativeRef}</span></p>
@@ -2378,14 +2360,7 @@ function UploadVersionDialog({
             </label>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={processing}>Cancel</Button>
-          <Button onClick={handleConfirm} disabled={!file || !label || processing} className="gap-1.5">
-            {processing ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing…</> : <><Upload className="w-3.5 h-3.5" /> Upload &amp; analyse</>}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </V5OrbitOverlay>
   );
 }
 
@@ -3953,22 +3928,11 @@ function CategorySidebar({
         </p>
       )}
 
-      <div
-        role="radiogroup"
-        aria-label="Sort categories"
-        className="mb-2 flex items-center gap-2 rounded-md bg-muted/30 px-2 py-1.5"
-      >
-        <CategorySortChip active={sort === "risk"} onClick={() => onSortChange("risk")}>
-          <IconFlame className={`h-2.5 w-2.5 ${sort === "risk" ? "text-[#BA7517]" : ""}`} stroke={1.8} />
-          Risk
-        </CategorySortChip>
-        <CategorySortChip active={sort === "az"} onClick={() => onSortChange("az")}>
-          A-Z
-        </CategorySortChip>
-        <CategorySortChip active={sort === "count"} onClick={() => onSortChange("count")}>
-          #
-        </CategorySortChip>
-      </div>
+      <QuickFilterGroup ariaLabel="Sort categories">
+        <QuickFilterItem label="Risk" selected={sort === "risk"} onClick={() => onSortChange("risk")} />
+        <QuickFilterItem label="A-Z" selected={sort === "az"} onClick={() => onSortChange("az")} />
+        <QuickFilterItem label="#" selected={sort === "count"} onClick={() => onSortChange("count")} />
+      </QuickFilterGroup>
 
       <div className="space-y-1">
         <button
@@ -3987,13 +3951,7 @@ function CategorySidebar({
           }`}
         >
           <span>All</span>
-          <span
-            className={`rounded-full px-1.5 py-px text-[9px] font-medium ${
-              activeCategories.length === 0 ? "bg-card text-muted-foreground" : "bg-muted text-muted-foreground"
-            }`}
-          >
-            {total}
-          </span>
+          <Chip label={String(total)} size="Mini" variant={activeCategories.length === 0 ? "Information" : "No Status"} />
         </button>
 
         {sortedCategories.map((category, index) => {
@@ -4020,13 +3978,7 @@ function CategorySidebar({
               }`}
             >
               <span className="min-w-0 flex-1 truncate">{category.name}</span>
-              <span
-                className={`shrink-0 rounded-full px-1.5 py-px text-[9px] font-medium ${
-                  active ? "bg-card text-muted-foreground" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {category.count}
-              </span>
+              <Chip label={String(category.count)} size="Mini" variant={active ? "Information" : "No Status"} />
             </button>
           );
         })}
@@ -4050,96 +4002,59 @@ function CategoryStrip({
 }) {
   const topCategories = useMemo(() => sortCategorySidebarItems(categories, "risk").slice(0, 6), [categories]);
   const activeCategorySet = useMemo(() => new Set(activeCategories), [activeCategories]);
+  const [panelOpen, setPanelOpen] = useState(false);
   return (
-    <div className="rounded-lg border border-border bg-card px-3 py-2">
+    <Card type="Static" padding="Small">
       <div className="flex min-w-0 items-start gap-2">
-        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-          Categories
-        </span>
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-          <CategoryStripChip active={activeCategories.length === 0} onClick={() => onSelectCategory(null)}>
-            All <span className="text-muted-foreground">{total}</span>
-          </CategoryStripChip>
-          {topCategories.map((category) => (
+        <Text as="span" size="Small" variant="Secondary">Categories</Text>
+        <div className="min-w-0 flex-1">
+          <QuickFilterGroup ariaLabel="Category filters">
             <CategoryStripChip
-              key={category.name}
-              active={activeCategorySet.has(category.name)}
-              onClick={() => onSelectCategory(category.name)}
-            >
-              <span className="max-w-[170px] truncate">{category.name}</span>
-              <span className="text-muted-foreground">{category.count}</span>
-            </CategoryStripChip>
-          ))}
+              active={activeCategories.length === 0}
+              label={`All ${total}`}
+              onClick={() => onSelectCategory(null)}
+            />
+            {topCategories.map((category) => (
+              <CategoryStripChip
+                key={category.name}
+                active={activeCategorySet.has(category.name)}
+                label={`${category.name} ${category.count}`}
+                onClick={() => onSelectCategory(category.name)}
+              />
+            ))}
+          </QuickFilterGroup>
         </div>
-        <Popover>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-border bg-white px-2.5 text-[10px] font-medium text-muted-foreground hover:text-foreground"
-            >
-              <IconList size={12} stroke={1.8} />
-              Categories
-            </button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-[284px] border-none bg-transparent p-0 shadow-none">
-            {categoryPanel}
-          </PopoverContent>
-        </Popover>
+        <Button
+          type="button"
+          aria-expanded={panelOpen}
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          onClick={() => setPanelOpen((current) => !current)}
+        >
+          <IconList size={12} stroke={1.8} />
+          Categories
+        </Button>
       </div>
-    </div>
+      {panelOpen && (
+        <div className="mt-2 border-t border-border pt-2">
+          {categoryPanel}
+        </div>
+      )}
+    </Card>
   );
 }
 
 function CategoryStripChip({
   active,
   onClick,
-  children,
+  label,
 }: {
   active: boolean;
   onClick: () => void;
-  children: ReactNode;
+  label: string;
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[10px] font-medium transition-colors",
-        active
-          ? "border-[#185FA5]/30 bg-[#E6F1FB] text-[#0C447C]"
-          : "border-border bg-white text-muted-foreground hover:bg-muted hover:text-foreground",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function CategorySortChip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={active}
-      onClick={onClick}
-      className={`inline-flex items-center gap-1 rounded-full px-[7px] py-0.5 text-[9px] leading-none transition-colors ${
-        active
-          ? "bg-[#E6F1FB]/60 text-[#185FA5] border-[#185FA5]"
-          : "border-border bg-[#f8f7f5] text-muted-foreground hover:text-foreground"
-      }`}
-      style={{ borderWidth: "0.5px" }}
-    >
-      {children}
-    </button>
-  );
+  return <QuickFilterItem label={label} selected={active} onClick={onClick} />;
 }
 
 // ---- Review (v1) ------------------------------------------------------------
@@ -5135,19 +5050,33 @@ function RequestReviewDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-[680px] gap-0 overflow-hidden p-0 [&>button.absolute.right-4.top-4]:hidden">
-          <DialogHeader className="border-b border-border px-5 py-4 text-left">
-            <DialogTitle>
-              {bulkSummaryMode ? "Generate CSV from applied recommendations" : "Review and generate selected clauses"}
-            </DialogTitle>
-            <DialogDescription>
-              {bulkSummaryMode
-                ? `You have applied all current ClauseIQ recommendations. Confirm when you are ready to generate a CSV negotiation log for ${supplierName}.`
-                : `Check the clauses you have chosen, then submit to generate a CSV negotiation log for ${supplierName}.`}
-            </DialogDescription>
-          </DialogHeader>
-
+    <V5OrbitOverlay
+      open={open}
+      onOpenChange={onOpenChange}
+      title={bulkSummaryMode ? "Generate CSV from applied recommendations" : "Review and generate selected clauses"}
+      description={
+        bulkSummaryMode
+          ? `You have applied all current ClauseIQ recommendations. Confirm when you are ready to generate a CSV negotiation log for ${supplierName}.`
+          : `Check the clauses you have chosen, then submit to generate a CSV negotiation log for ${supplierName}.`
+      }
+      size="Large"
+      footer={
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted-foreground">
+            Confirm to generate the CSV. Nothing is sent to the supplier from this prototype.
+          </p>
+          {requestCount > 0 && (
+            <Button
+              size="sm"
+              className="gap-1.5 bg-[#1a2744] text-white hover:bg-[#243454]"
+              onClick={submitRequests}
+            >
+              <Download className="h-3.5 w-3.5" /> Submit & Generate
+            </Button>
+          )}
+        </div>
+      }
+    >
           <div className="px-3 pt-3">
             <div className="rounded-lg border border-[#185FA5]/25 bg-[#E6F1FB]/60 p-4">
               <div className="flex items-start gap-3">
@@ -5171,23 +5100,7 @@ function RequestReviewDialog({
               <ReviewGenerateProgressDashboard progress={reviewProgress} />
             </div>
           )}
-
-          <DialogFooter className="border-t border-border bg-muted/30 px-5 py-3 sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">
-              Confirm to generate the CSV. Nothing is sent to the supplier from this prototype.
-            </p>
-            {requestCount > 0 && (
-              <Button
-                size="sm"
-                className="gap-1.5 bg-[#1a2744] text-white hover:bg-[#243454]"
-                onClick={submitRequests}
-              >
-                <Download className="h-3.5 w-3.5" /> Submit & Generate
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </V5OrbitOverlay>
   );
 }
 
@@ -5668,31 +5581,29 @@ function ComparisonSection({
   }
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className={`bg-card border ${accentBorder} rounded-lg overflow-hidden`}>
-      <CollapsibleTrigger asChild>
-        <button
-          type="button"
-          className={`w-full flex items-start gap-3 p-4 text-left transition-colors ${accentBg}`}
-        >
-          <span className={`w-1 self-stretch rounded ${accentBar}`} />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className={`text-sm font-semibold ${accentText}`}>
-                {title} · <span className="font-mono text-foreground">{displayedStats.total}</span>
-              </h3>
-              {bucketSummary && (
-                <span className="text-[11px] text-muted-foreground font-medium">{bucketSummary}</span>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+    <section className={`overflow-hidden rounded-lg border ${accentBorder} bg-card`}>
+      <button
+        type="button"
+        aria-expanded={open}
+        className={`flex w-full items-start gap-3 p-4 text-left transition-colors ${accentBg}`}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className={`w-1 self-stretch rounded ${accentBar}`} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className={`text-sm font-semibold ${accentText}`}>
+              {title} · <span className="font-mono text-foreground">{displayedStats.total}</span>
+            </h3>
+            {bucketSummary && (
+              <span className="text-[11px] font-medium text-muted-foreground">{bucketSummary}</span>
+            )}
           </div>
-          <ChevronDown className={`w-4 h-4 text-muted-foreground mt-1 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        {rowsContent}
-      </CollapsibleContent>
-    </Collapsible>
+          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+        </div>
+        <ChevronDown className={`mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && rowsContent}
+    </section>
   );
 }
 
@@ -5738,9 +5649,12 @@ function UnmarkedSection({
   if (!visible) return null;
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
-      <Collapsible open={open} onOpenChange={setOpen}>
-        <CollapsibleTrigger asChild>
-          <button className="w-full flex items-start gap-3 p-4 border-b border-border text-left hover:bg-muted/30 transition-colors">
+          <button
+            type="button"
+            aria-expanded={open}
+            className="w-full flex items-start gap-3 p-4 border-b border-border text-left hover:bg-muted/30 transition-colors"
+            onClick={() => setOpen((current) => !current)}
+          >
             <span className="w-1 self-stretch rounded bg-muted-foreground/40" />
             <div className="flex-1">
               <h3 className="text-sm font-semibold text-foreground">
@@ -5752,9 +5666,8 @@ function UnmarkedSection({
             </div>
             <ChevronDown className={`w-4 h-4 text-muted-foreground mt-1 transition-transform ${open ? "rotate-180" : ""}`} />
           </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          {rows.length === 0 ? (
+        {open && (
+          rows.length === 0 ? (
             <div className="p-6 text-center text-xs text-muted-foreground">
               Every clause has either been actioned or already has a material change in this round.
             </div>
@@ -5843,9 +5756,8 @@ function UnmarkedSection({
                 </div>
               )}
             </>
-          )}
-        </CollapsibleContent>
-      </Collapsible>
+          )
+        )}
     </div>
   );
 }
@@ -5870,6 +5782,45 @@ function RoundTracker({
     }
     return true;
   });
+  const roundColumns = [
+    {
+      id: "clause",
+      header: "Clause",
+      width: "260px",
+      render: (def: (typeof CLAUSE_FRAMEWORK)[number]) => (
+        <div>
+          <span className="text-sm font-medium text-foreground hover:text-primary">
+            {def.title}
+          </span>
+          <p className="text-[11px] font-mono text-muted-foreground">{def.id.toUpperCase()} · {def.category}</p>
+        </div>
+      ),
+    },
+    ...versions.map((v) => ({
+      id: v.version,
+      header: (
+        <div className="flex flex-col items-center">
+          <span className="font-mono text-xs font-bold text-foreground">Round {parseInt(v.version.replace("v", ""), 10)}</span>
+          <span className="text-[10px] text-muted-foreground font-mono">{v.version}</span>
+        </div>
+      ),
+      render: (def: (typeof CLAUSE_FRAMEWORK)[number]) => {
+        const state = stateOf(def.id);
+        const outcome = roundOutcome(def.id, v.version, versions, state);
+        return <Badge variant="outline" className={`${outcome.tone} text-[10px]`}>{outcome.label}</Badge>;
+      },
+    })),
+    {
+      id: "current",
+      header: "Current Status",
+      width: "140px",
+      render: (def: (typeof CLAUSE_FRAMEWORK)[number]) => {
+        const state = stateOf(def.id);
+        const latest = roundOutcome(def.id, versions.at(-1)!.version, versions, state);
+        return <Badge variant="outline" className={`${latest.tone} text-[10px]`}>{latest.label}</Badge>;
+      },
+    },
+  ];
 
   return (
     <div className="space-y-3">
@@ -5878,50 +5829,15 @@ function RoundTracker({
         <p className="text-xs text-muted-foreground">Track clause changes and outcomes across negotiation rounds.</p>
       </div>
       <div className="bg-card border border-border rounded-lg overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[260px]">Clause</TableHead>
-            {versions.map((v) => (
-              <TableHead key={v.version} className="text-center">
-                <div className="flex flex-col items-center">
-                  <span className="font-mono text-xs font-bold text-foreground">Round {parseInt(v.version.replace("v", ""), 10)}</span>
-                  <span className="text-[10px] text-muted-foreground font-mono">{v.version}</span>
-                </div>
-              </TableHead>
-            ))}
-            <TableHead className="text-center w-[140px]">Current Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((def) => {
-            const state = stateOf(def.id);
-            // Current status = outcome of latest version.
-            const latest = roundOutcome(def.id, versions.at(-1)!.version, versions, state);
-            return (
-              <TableRow key={def.id} className="align-top cursor-pointer" onClick={() => onOpenDetail(def.id)}>
-                <TableCell>
-                  <span className="text-sm font-medium text-foreground hover:text-primary">
-                    {def.title}
-                  </span>
-                  <p className="text-[11px] font-mono text-muted-foreground">{def.id.toUpperCase()} · {def.category}</p>
-                </TableCell>
-                {versions.map((v) => {
-                  const o = roundOutcome(def.id, v.version, versions, state);
-                  return (
-                    <TableCell key={v.version} className="text-center">
-                      <Badge variant="outline" className={`${o.tone} text-[10px]`}>{o.label}</Badge>
-                    </TableCell>
-                  );
-                })}
-                <TableCell className="text-center">
-                  <Badge variant="outline" className={`${latest.tone} text-[10px]`}>{latest.label}</Badge>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+        <OrbitTable
+          ariaLabel="Clause negotiation history"
+          columns={roundColumns}
+          rows={rows}
+          getRowKey={(row) => row.id}
+          density="Compact"
+          onRowSelect={(row) => onOpenDetail(row.id)}
+          getRowSelectionLabel={(row) => `Open ${row.title}`}
+        />
       </div>
     </div>
   );
@@ -6415,39 +6331,29 @@ function SupplierGroupingPopover({
 }) {
   const g = getSupplierGrouping(supplierId);
   const isManual = g.source === "manual";
+  const groupingDetails = `Why is this grouped under ${supplierName}? ${g.matchBasis} Source: ${g.source}. Confidence: ${(g.confidence * 100).toFixed(0)}%.`;
   return (
-    <Popover>
-      <PopoverTrigger asChild>
+    <Tooltip>
+      <TooltipTrigger asChild>
         <Button size="sm" variant="outline" className={`${compact ? "h-7 px-2 text-xs" : "h-9"} gap-1.5`}>
           <Info className="w-3.5 h-3.5" /> Why grouped?
           <Badge variant="outline" className={`${compact ? "hidden 2xl:inline-flex" : ""} ${isManual ? "bg-secondary text-secondary-foreground border-border ml-1" : "bg-success/10 text-success border-success/20 ml-1"}`}>
             {isManual ? "Manual" : `Auto · ${(g.confidence * 100).toFixed(0)}%`}
           </Badge>
         </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 space-y-2">
-        <p className="text-sm font-semibold text-foreground">Why is this grouped under {supplierName}?</p>
-        <p className="text-xs text-muted-foreground">{g.matchBasis}</p>
-        <div className="flex items-center justify-between pt-2 border-t border-border text-[11px] text-muted-foreground">
-          <span>Source: <span className="font-semibold text-foreground capitalize">{g.source}</span></span>
-          <span>Confidence: <span className="font-mono text-foreground">{(g.confidence * 100).toFixed(0)}%</span></span>
-        </div>
-        {g.lastOverride && (
-          <p className="text-[11px] text-muted-foreground">
-            Last manual override: <span className="text-foreground">{g.lastOverride.user}</span> on {g.lastOverride.date}
-          </p>
-        )}
-      </PopoverContent>
-    </Popover>
+      </TooltipTrigger>
+      <TooltipContent>{groupingDetails}</TooltipContent>
+    </Tooltip>
   );
 }
 
 function SupplierGroupingLink({ supplierId, supplierName }: { supplierId: string; supplierName: string }) {
   const g = getSupplierGrouping(supplierId);
   const isManual = g.source === "manual";
+  const groupingDetails = `Why is this grouped under ${supplierName}? ${g.matchBasis} Source: ${g.source}. Confidence: ${(g.confidence * 100).toFixed(0)}%.`;
   return (
-    <Popover>
-      <PopoverTrigger asChild>
+    <Tooltip>
+      <TooltipTrigger asChild>
         <button
           type="button"
           className="inline-flex shrink-0 items-center gap-1 border-b border-dotted border-muted-foreground/60 text-[11px] font-medium text-muted-foreground hover:border-primary hover:text-primary"
@@ -6455,18 +6361,11 @@ function SupplierGroupingLink({ supplierId, supplierName }: { supplierId: string
           <IconInfoCircle size={12} stroke={1.8} />
           Why grouped?
         </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-80 space-y-2">
-        <p className="text-sm font-semibold text-foreground">Why is this grouped under {supplierName}?</p>
-        <p className="text-xs text-muted-foreground">{g.matchBasis}</p>
-        <div className="flex items-center justify-between border-t border-border pt-2 text-[11px] text-muted-foreground">
-          <span>Source: <span className="font-semibold capitalize text-foreground">{g.source}</span></span>
-          <Badge variant="outline" className={isManual ? "bg-secondary text-secondary-foreground" : "bg-success/10 text-success border-success/20"}>
-            {isManual ? "Manual" : `Auto · ${(g.confidence * 100).toFixed(0)}%`}
-          </Badge>
-        </div>
-      </PopoverContent>
-    </Popover>
+      </TooltipTrigger>
+      <TooltipContent>
+        {groupingDetails} {isManual ? "Manual grouping." : "Automatic grouping."}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

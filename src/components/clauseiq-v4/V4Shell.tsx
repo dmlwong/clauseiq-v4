@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { CiqSidebar } from "@/components/clauseiq-v4/Sidebar";
+import { cn } from "@/lib/utils";
 
 interface Props {
   title?: string;
@@ -8,6 +9,7 @@ interface Props {
   headerRight?: ReactNode;
   subheader?: ReactNode;
   subheaderClassName?: string;
+  mainClassName?: string;
   sidePanel?: ReactNode;
   rightPanel?: ReactNode;
   children: ReactNode;
@@ -21,6 +23,7 @@ export function V4Shell({
   headerRight,
   subheader,
   subheaderClassName,
+  mainClassName,
   sidePanel,
   rightPanel,
   children,
@@ -54,7 +57,9 @@ export function V4Shell({
               {sidePanel}
             </aside>
           )}
-          <main className="v4-hover-scrollbar flex-1 overflow-y-auto min-h-0">{children}</main>
+          <main className={cn("v4-hover-scrollbar flex-1 overflow-y-auto min-h-0", mainClassName)}>
+            {children}
+          </main>
           {rightPanel && (
             <aside className="v4-hover-scrollbar hidden w-[360px] shrink-0 overflow-y-auto border-l border-border bg-white lg:block">
               {rightPanel}

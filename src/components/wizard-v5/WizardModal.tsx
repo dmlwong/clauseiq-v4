@@ -9,7 +9,7 @@ import { ClientPlaybook } from "@/components/wizard-v5/steps/ClientPlaybook";
 import { GenerateResults } from "@/components/wizard-v5/steps/GenerateResults";
 import { uploadFile, resolveRouting, runAnalysis, getAnalysisStatus, auditLog } from "@/lib/mock-api";
 import type { WizardState } from "@/hooks/use-wizard-state";
-import { useToast } from "@/hooks/use-toast";
+import { useV5OrbitToast } from "@/components/clauseiq-v5/V5OrbitToast";
 
 interface WizardModalProps {
   state: WizardState;
@@ -28,7 +28,7 @@ interface WizardModalProps {
 }
 
 export function WizardModal({ state, update, completeStep, goNext, goBack, closeWizard, context }: WizardModalProps) {
-  const { toast } = useToast();
+  const { toast } = useV5OrbitToast();
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
 

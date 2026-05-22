@@ -3,12 +3,11 @@ import {
   Bell,
   ChevronDown,
   ChevronRight,
-  ClipboardCheck,
   Database,
+  FolderKanban,
   Home,
   Leaf,
-  MapPin,
-  Rocket,
+  Route,
   Search,
   Sparkles,
   Target,
@@ -31,8 +30,8 @@ const topNav = [
 ];
 
 const deliverNav = [
-  { to: "/delivery-engine", label: "Project Management", icon: Rocket },
-  { label: "Route to Market", icon: MapPin },
+  { to: "/delivery-engine", label: "Project Management", icon: FolderKanban },
+  { label: "Route to Market", icon: Route },
   { label: "Sourcing Execution", icon: BarChart3 },
 ];
 

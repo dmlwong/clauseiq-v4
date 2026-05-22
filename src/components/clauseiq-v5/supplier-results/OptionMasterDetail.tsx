@@ -1,7 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Search } from "lucide-react";
 import { Input } from "@/components/clauseiq-v5/orbit-ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import {
   aggregateDeviations,
@@ -118,7 +117,7 @@ function SupplierRailContent({ state }: { state: MasterDetailState }) {
         />
       </div>
 
-      <ScrollArea className="min-h-0 flex-1">
+      <div className="v5-hover-scrollbar min-h-0 flex-1 overflow-y-auto">
         <div className="space-y-1 pb-2">
           {filteredSuppliers.map((supplier) => {
             const selected = selectedId === supplier.id;
@@ -163,7 +162,7 @@ function SupplierRailContent({ state }: { state: MasterDetailState }) {
             );
           })}
         </div>
-      </ScrollArea>
+      </div>
     </>
   );
 }

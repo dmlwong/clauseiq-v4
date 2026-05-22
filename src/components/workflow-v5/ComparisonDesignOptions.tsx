@@ -1,7 +1,16 @@
 import { type ReactNode } from "react";
 import { ArrowRight, Columns3, List } from "lucide-react";
+import {
+  Badge,
+  Button,
+  Card,
+  Chip,
+  Filter as OrbitFilter,
+  RadialIndicator,
+  TabButton,
+  Text,
+} from "@orbit";
 
-import { Badge } from "@/components/clauseiq-v5/orbit-ui/badge";
 import { cn } from "@/lib/utils";
 import type { ComparisonStripStats, DeviationDistribution, VersionPanelData } from "@/lib/clauseiq-v4-comparison";
 
@@ -62,22 +71,30 @@ export function DesignOptionSwitcher({
   onChange: (value: ComparisonDesignOption) => void;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-1 overflow-x-auto rounded-md border border-border bg-white p-0.5">
+    <div
+      role="tablist"
+      aria-label="Comparison design"
+      className="flex min-w-0 items-center gap-1 overflow-x-auto rounded-md border border-border bg-white p-0.5"
+    >
       {designOptions.map((option) => {
         const active = option.value === value;
         return (
-          <button
+          <TabButton
             key={option.value}
-            type="button"
+            active={active}
+            showUnderline={false}
+            ariaControls="comparison-work-column"
             onClick={() => onChange(option.value)}
             className={cn(
-              "inline-flex h-6 shrink-0 items-center gap-1.5 rounded-[5px] px-2.5 text-[10px] font-medium transition-colors",
+              "h-6 shrink-0 rounded-[5px] px-2.5 text-[10px]",
               active ? "bg-[#1a2744] text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
-            {option.icon}
-            {option.label}
-          </button>
+            <span className="inline-flex items-center gap-1.5">
+              {option.icon}
+              {option.label}
+            </span>
+          </TabButton>
         );
       })}
     </div>
@@ -362,13 +379,9 @@ function ActiveFilterBar({
         />
       ))}
       {filterCount > 1 && onClearAllMetrics && (
-        <button
-          type="button"
-          onClick={onClearAllMetrics}
-          className="rounded-full border border-border bg-white px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:border-[#185FA5]/40 hover:bg-[#E6F1FB] hover:text-[#185FA5]"
-        >
+        <Button type="button" variant="Tertiary" size="Small" onClick={onClearAllMetrics}>
           Clear All
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -432,20 +445,16 @@ function InitialAnalysisSummaryCard({
   const analysisLabel = `${metrics.versionLabel.toUpperCase()} Analysis`;
 
   return (
-    <div className="rounded-lg border border-border bg-white p-4">
+    <Card type="Static" padding="Base">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-          {analysisLabel} summary
-        </p>
+        <Text as="p" size="Small" variant="Secondary">{analysisLabel} summary</Text>
         {metrics.requested > 0 && (
-          <Badge variant="outline" className="rounded-full bg-white text-[10px]">
-            {metrics.requested} requested
-          </Badge>
+          <Badge label={`${metrics.requested} requested`} status="Information" />
         )}
       </div>
-      <p className="mt-2 text-sm leading-6 text-foreground">
+      <Text as="p" size="Paragraph" variant="Primary">
         ClauseIQ reviewed this contract for the first time. Review flagged clauses and add requested changes to the supplier CSV.
-      </p>
+      </Text>
       <FirstAnalysisMetricGrid
         metrics={metrics}
         activeMetrics={activeMetrics}
@@ -453,7 +462,7 @@ function InitialAnalysisSummaryCard({
         grouped
       />
       <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>
-    </div>
+    </Card>
   );
 }
 
@@ -461,17 +470,13 @@ function CurrentRiskProfileCard({ metrics }: { metrics: FirstAnalysisMetrics }) 
   const analysisLabel = `${metrics.versionLabel.toUpperCase()} Analysis`;
 
   return (
-    <div className="rounded-lg border border-border bg-white p-4">
+    <Card type="Static" padding="Base">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Current risk profile
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">{analysisLabel}</p>
+          <Text as="p" size="Small" variant="Secondary">Current risk profile</Text>
+          <Text as="p" size="Small" variant="Secondary">{analysisLabel}</Text>
         </div>
-        <Badge variant="outline" className="rounded-full bg-[#E6F1FB] text-[10px] text-[#185FA5]">
-          {metrics.versionLabel}
-        </Badge>
+        <Badge label={metrics.versionLabel} status="Information" />
       </div>
       <DistributionSide
         label={analysisLabel}
@@ -480,7 +485,7 @@ function CurrentRiskProfileCard({ metrics }: { metrics: FirstAnalysisMetrics }) 
         current
         large
       />
-    </div>
+    </Card>
   );
 }
 
@@ -501,21 +506,25 @@ function FirstAnalysisSummaryPanel({
 
   return (
     <section className="rounded-none border-0 bg-card p-0">
-      <div className={cn("rounded-lg border border-border bg-[#f8f7f5] p-4", compact && "p-3")}>
+      <Card type="Static" padding={compact ? "Small" : "Base"} state="Accent">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            {analysisLabel}
-          </p>
-          <Badge variant="outline" className="rounded-full bg-white text-[10px]">
-            {metrics.versionLabel}
-          </Badge>
+          <Text as="p" size="Small" variant="Secondary">{analysisLabel}</Text>
+          <Badge label={metrics.versionLabel} status="Information" />
         </div>
-        <div className="mt-1 flex items-end gap-2">
-          <span className="text-3xl font-semibold leading-none text-foreground">{metrics.score}</span>
-          <span className="pb-1 text-sm font-medium text-muted-foreground">score</span>
+        <div className="mt-2 flex items-center gap-2">
+          <RadialIndicator
+            status={metrics.score >= 75 ? "Success" : metrics.score >= 50 ? "Warning" : "Error"}
+            progress={metrics.score}
+            size={32}
+            ariaLabel={`${metrics.score} score`}
+          />
+          <div className="flex items-end gap-2">
+            <span className="text-3xl font-semibold leading-none text-foreground">{metrics.score}</span>
+            <Text as="span" size="Small" variant="Secondary">score</Text>
+          </div>
         </div>
         <DistributionBar distribution={metrics.distribution} className="mt-3" />
-      </div>
+      </Card>
       <FirstAnalysisMetricGrid
         metrics={metrics}
         activeMetrics={activeMetrics}
@@ -531,12 +540,8 @@ function FirstAnalysisReviewCountPanel({ visibleCount }: { visibleCount: number 
   return (
     <div className="mb-3 px-1">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-          Clauses to review
-        </p>
-        <Badge variant="outline" className="rounded-full bg-white text-[10px]">
-          {visibleCount}
-        </Badge>
+        <Text as="p" size="Small" variant="Secondary">Clauses to review</Text>
+        <Chip label={String(visibleCount)} size="Mini" variant="Outline" />
       </div>
     </div>
   );
@@ -553,16 +558,7 @@ function FirstAnalysisReviewShell({
 }
 
 function FilterChip({ label, onClear }: { label: string; onClear: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClear}
-      className="inline-flex items-center gap-1.5 rounded-full border border-[#185FA5]/20 bg-[#E6F1FB] px-2 py-0.5 text-[10px] font-medium text-[#0C447C] hover:bg-[#D7E9F8]"
-    >
-      {label}
-      <span aria-hidden className="text-[#0C447C]/70">×</span>
-    </button>
-  );
+  return <OrbitFilter label={label} onRemove={onClear} />;
 }
 
 function WorkflowStack({
@@ -673,10 +669,11 @@ function ScoreHero({
     band: panel.current.band,
   };
   return (
-    <div className={cn("rounded-lg border border-border bg-[#f8f7f5] p-4", compact && "p-3", className)}>
+    <div className={className}>
+      <Card type="Static" padding={compact ? "Small" : "Base"} state="Accent">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Score movement</p>
-        <Badge variant="outline" className="rounded-full bg-white text-[10px]">Current {rightLabel}</Badge>
+        <Text as="p" size="Small" variant="Secondary">Score movement</Text>
+        <Badge label={`Current ${rightLabel}`} status="Information" />
       </div>
       <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-2">
         <ScoreSnapshot label={leftLabel} score={previous.score} band={previous.band} />
@@ -694,6 +691,7 @@ function ScoreHero({
           {comparison.met} of {comparison.requestedTotal} requested changes met.
         </p>
       )}
+      </Card>
     </div>
   );
 }
@@ -710,37 +708,28 @@ function ScoreSnapshot({
   current?: boolean;
 }) {
   return (
-    <div className={cn(
-      "min-w-0 rounded-md border border-border bg-white p-2",
-      current && "border-[#185FA5]/30 bg-[#E6F1FB]/55",
-    )}>
+    <Card type="Static" padding="Small" state={current ? "Accent" : "Default"}>
       <div className="flex items-center gap-1.5">
         <span className="truncate text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
         {current && (
-          <span className="rounded-full bg-[#185FA5] px-1.5 py-0.5 text-[8px] font-semibold uppercase text-white">
-            Current
-          </span>
+          <Badge label="Current" status="Information" />
         )}
       </div>
       <div className="mt-1 flex items-end gap-1.5">
         <span className="text-2xl font-semibold leading-none text-foreground">{score}</span>
         <span className="pb-0.5 text-xs font-medium text-muted-foreground">{band}</span>
       </div>
-    </div>
+    </Card>
   );
 }
 
 function ScoreMovementBadge({ panel }: { panel: VersionPanelData }) {
   return (
-    <span className="inline-flex h-5 shrink-0 items-center gap-1 rounded-full border border-border bg-white px-2 text-[10px] font-medium text-foreground">
-      <span className="text-muted-foreground">Score</span>
-      <span>{panel.current.score}</span>
-      <span className={cn(panel.delta >= 0 ? "text-success" : "text-destructive")}>
-        vs prior{" "}
-        {panel.delta >= 0 ? "+" : ""}
-        {panel.delta} pts
-      </span>
-    </span>
+    <Chip
+      label={`Score ${panel.current.score} vs prior ${panel.delta >= 0 ? "+" : ""}${panel.delta} pts`}
+      size="Mini"
+      variant={panel.delta >= 0 ? "Success" : "Error"}
+    />
   );
 }
 
@@ -756,18 +745,16 @@ function VersionMovementCard({
   comparisonControl: ReactNode;
 }) {
   return (
-    <div className="min-h-[204px] rounded-lg border border-border bg-white p-3">
+    <Card type="Static" padding="Small">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-          Version movement
-        </p>
+        <Text as="p" size="Small" variant="Secondary">Version movement</Text>
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
           {comparisonControl}
           <ScoreMovementBadge panel={panel} />
         </div>
       </div>
       <VersionDistributionPair panel={panel} leftLabel={leftLabel} rightLabel={rightLabel} layout="movement" />
-    </div>
+    </Card>
   );
 }
 
@@ -852,18 +839,16 @@ function DistributionSide({
   unframed?: boolean;
 }) {
   return (
-    <div
-      className={cn(
-        "rounded-lg border border-border bg-white p-3",
-        current && "border-[#185FA5]/30 bg-[#E6F1FB]/35",
-        unframed && "border-0 bg-transparent",
-        unframed && current && "bg-[#E6F1FB]/45",
-      )}
+    <Card
+      type="Static"
+      padding="Small"
+      state={current ? "Accent" : "Default"}
+      style={unframed ? { borderColor: "transparent", background: current ? "var(--orbit-color-card-bg-accent)" : "transparent" } : undefined}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{label}</p>
-          {current && <Badge className="bg-[#185FA5] px-1.5 py-0 text-[8px] text-white hover:bg-[#185FA5]">Current</Badge>}
+          <Text as="p" size="Small" variant="Secondary">{label}</Text>
+          {current && <Badge label="Current" status="Information" />}
         </div>
         {!hideScore && <p className={cn("font-semibold text-foreground", large ? "text-lg" : "text-sm")}>{score}</p>}
       </div>
@@ -874,7 +859,7 @@ function DistributionSide({
         <span><strong>{distribution.low}</strong> L</span>
         <span><strong className="text-[#3B6D11]">{distribution.clean}</strong> C</span>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -927,14 +912,15 @@ function NarrativeSummary({
     totalClauses: contract.total,
   };
   return (
-    <div className={cn("rounded-lg border border-border bg-[#f8f7f5] p-4", className)}>
+    <div className={className}>
+      <Card type="Static" padding="Base" state="Accent">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">What changed this round</p>
+        <Text as="p" size="Small" variant="Secondary">What changed this round</Text>
         <ProgressPill stripStats={stripStats} />
       </div>
-      <p className="mt-2 text-sm leading-6 text-foreground">
+      <Text as="p" size="Paragraph" variant="Primary">
         {comparison.supplierChanges} supplier changes were detected between versions. {comparison.met} of {comparison.requestedTotal} requested changes are met, with {actions.pendingReview} clause{actions.pendingReview === 1 ? "" : "s"} still needing review.
-      </p>
+      </Text>
       <MetricGrid
         metrics={metricCounts}
         activeMetric={activeMetric}
@@ -943,6 +929,7 @@ function NarrativeSummary({
         grouped={grouped}
       />
       <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>
+      </Card>
     </div>
   );
 }
@@ -952,9 +939,7 @@ function ProgressPill({ stripStats }: { stripStats: ComparisonStripStats }) {
   const done = Math.max(0, comparison.requestedTotal + comparison.supplierChanges - actions.pendingReview);
   const total = comparison.requestedTotal + comparison.supplierChanges;
   return (
-    <Badge variant="outline" className="rounded-full bg-white text-[10px]">
-      {done} of {total} reviewed
-    </Badge>
+    <Badge label={`${done} of ${total} reviewed`} status={actions.pendingReview > 0 ? "Warning" : "Success"} />
   );
 }
 
@@ -1091,9 +1076,7 @@ function MetricGrid({
       <div className="mt-3 grid gap-3 lg:grid-cols-2">
         {(["workflow", "risk"] as const).map((group) => (
           <div key={group} className="rounded-lg border border-border/70 bg-white/60 p-2">
-            <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              {group === "workflow" ? "Workflow" : "Risk"}
-            </p>
+            <Text as="p" size="Small" variant="Secondary">{group === "workflow" ? "Workflow" : "Risk"}</Text>
             <div className="grid grid-cols-2 gap-2 text-[11px]">
               {metricDefinitions.filter((definition) => definition.group === group).map(renderMetric)}
             </div>
@@ -1131,7 +1114,7 @@ function MetricCell({
   const interactive = Boolean(onClick);
   const content = (
     <>
-      <p className="text-[9px] font-medium uppercase text-muted-foreground">{label}</p>
+      <Text as="p" size="Small" variant="Secondary">{label}</Text>
       <p
         className={cn(
           "mt-1 text-sm font-semibold text-foreground",
@@ -1151,18 +1134,20 @@ function MetricCell({
         type="button"
         onClick={onClick}
         className={cn(
-          "rounded-md border border-border bg-white px-2.5 py-2 text-left transition-colors hover:border-[#185FA5]/40 hover:bg-[#E6F1FB]/50",
-          active && "border-[#185FA5]/50 bg-[#E6F1FB] shadow-[inset_3px_0_0_#185FA5]",
+          "text-left transition-colors",
+          active && "shadow-[inset_3px_0_0_var(--orbit-color-efficio-blue)]",
         )}
       >
-        {content}
+        <Card type="Dynamic" padding="Small" state={active ? "Accent" : "Default"}>
+          {content}
+        </Card>
       </button>
     );
   }
 
   return (
-    <div className="rounded-md border border-border bg-white px-2.5 py-2">
+    <Card type="Static" padding="Small">
       {content}
-    </div>
+    </Card>
   );
 }

@@ -22,10 +22,10 @@ import { StatusBadge } from "@/components/delivery-engine/StatusBadge";
 import { ToolCoverageCard } from "@/components/delivery-engine/ToolCoverageCard";
 import { V5InitiativeLinkButton } from "@/components/clauseiq-v5/V5InitiativeLinkButton";
 import { V5Shell } from "@/components/clauseiq-v5/V5Shell";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar } from "@orbit";
 import { Badge } from "@/components/clauseiq-v5/orbit-ui/badge";
 import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
-import { toast } from "@/components/ui/use-toast";
+import { showV5OrbitToast as toast } from "@/components/clauseiq-v5/V5OrbitToast";
 import { getV4DeliveryInitiative } from "@/data/mock-delivery-engine-v4";
 import { cn } from "@/lib/utils";
 
@@ -193,11 +193,12 @@ export default function InitiativeDetailPageV5() {
                           </span>
                           <span>|</span>
                           <span>Efficio Lead:</span>
-                          <Avatar className="h-6 w-6">
-                            <AvatarFallback className="bg-slate-100 text-[10px] font-semibold text-slate-600">
-                              {initials(initiative.leadName)}
-                            </AvatarFallback>
-                          </Avatar>
+                          <Avatar
+                            name={initiative.leadName}
+                            initials={initials(initiative.leadName)}
+                            size="Extra Small"
+                            color="var(--orbit-color-chip-no-status-bg)"
+                          />
                         </p>
                       </div>
                     </div>

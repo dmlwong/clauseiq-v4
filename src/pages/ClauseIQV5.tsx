@@ -6,7 +6,7 @@ import {
   BookOpen, Tag, MapPin,
 } from "lucide-react";
 import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
-import { toast } from "@/components/ui/sonner";
+import { showV5OrbitToast as toast } from "@/components/clauseiq-v5/V5OrbitToast";
 import { V5Shell } from "@/components/clauseiq-v5/V5Shell";
 import { V5InitiativeLinkButton } from "@/components/clauseiq-v5/V5InitiativeLinkButton";
 import { StateCard, type CardState } from "@/components/clauseiq-v5/StateCard";

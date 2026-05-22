@@ -66,7 +66,7 @@ export function OptionSwitcher({ value, onChange }: Props) {
             <Info className="h-4 w-4" />
           </button>
         </HoverCardTrigger>
-        <HoverCardContent align="end" sideOffset={8} className="w-[320px] p-3 text-xs leading-relaxed text-muted-foreground">
+        <HoverCardContent align="end" sideOffset={8} className="w-[320px] p-[16px] text-xs leading-relaxed text-muted-foreground">
           {RATIONALE[value]}
         </HoverCardContent>
       </HoverCard>

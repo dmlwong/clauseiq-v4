@@ -11,6 +11,16 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
   },
   resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") },
+    dedupe: ["react", "react-dom"],
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      react: path.resolve(__dirname, "node_modules/react"),
+      "react-dom": path.resolve(__dirname, "node_modules/react-dom"),
+      "react/jsx-runtime": path.resolve(__dirname, "node_modules/react/jsx-runtime.js"),
+      "react/jsx-dev-runtime": path.resolve(__dirname, "node_modules/react/jsx-dev-runtime.js"),
+      "@orbit": "/Users/derekwong/efficio-orbit/packages/orbit/dist/index.js",
+      "@orbit-tokens": "/Users/derekwong/efficio-orbit/packages/orbit/tokens.css",
+      "@orbit-fonts": "/Users/derekwong/efficio-orbit/packages/orbit/fonts.css",
+    },
   },
 });

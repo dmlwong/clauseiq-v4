@@ -54,9 +54,9 @@ export function V4Shell({
               {sidePanel}
             </aside>
           )}
-          <main className="flex-1 overflow-y-auto min-h-0">{children}</main>
+          <main className="v4-hover-scrollbar flex-1 overflow-y-auto min-h-0">{children}</main>
           {rightPanel && (
-            <aside className="hidden w-[360px] shrink-0 overflow-y-auto border-l border-border bg-white lg:block">
+            <aside className="v4-hover-scrollbar hidden w-[360px] shrink-0 overflow-y-auto border-l border-border bg-white lg:block">
               {rightPanel}
             </aside>
           )}

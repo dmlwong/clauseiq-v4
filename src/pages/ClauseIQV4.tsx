@@ -93,6 +93,12 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
     }, delay);
   }, []);
 
+  const scrollRerunWorkflowIntoView = useCallback((delay = 120) => {
+    window.setTimeout(() => {
+      rerunUploadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, delay);
+  }, []);
+
   useEffect(() => {
     if (!forceResults && searchParams.get("view") === "results" && !rerunUploadFromRoute) {
       navigate("/clauseiq-v4/output-panel", { replace: true });
@@ -105,9 +111,9 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
     setStep("results");
     if (rerunUploadFromRoute) {
       setRerunUploadVisible(true);
-      scrollLatestOutputIntoView(160);
+      scrollRerunWorkflowIntoView(160);
     }
-  }, [defaultCompletedInitiative, forceResults, navigate, rerunUploadFromRoute, resultsFromRoute, scrollLatestOutputIntoView, searchParams]);
+  }, [defaultCompletedInitiative, forceResults, navigate, rerunUploadFromRoute, resultsFromRoute, scrollRerunWorkflowIntoView, searchParams]);
 
   // Auto-scroll the active card into view
   useEffect(() => {
@@ -124,8 +130,12 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
 
   useEffect(() => {
     if (step !== "results") return;
+    if (rerunUploadVisible) {
+      scrollRerunWorkflowIntoView(140);
+      return;
+    }
     scrollLatestOutputIntoView(140);
-  }, [rerunProcessing, rerunUploadVisible, scrollLatestOutputIntoView, step]);
+  }, [rerunProcessing, rerunUploadVisible, scrollLatestOutputIntoView, scrollRerunWorkflowIntoView, step]);
 
   // Simulated processing
   useEffect(() => {
@@ -231,9 +241,11 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
     setRerunProcessing(false);
     setRerunUploadVisible(true);
     if (!forceResults) {
-      navigate("/clauseiq-v4/output-panel?rerun=upload");
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set("rerun", "upload");
+      navigate(`/clauseiq-v4/output-panel?${nextParams.toString()}`);
     }
-    scrollLatestOutputIntoView(120);
+    scrollRerunWorkflowIntoView(120);
   };
 
   const handleDownload = () => {
@@ -431,10 +443,18 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
                 />
                 {(rerunUploadVisible || rerunProcessing) && <NewAnalysisDivider />}
                 {rerunUploadVisible && (
-                  <div ref={rerunUploadRef}>
+                  <div ref={rerunUploadRef} className="space-y-4">
+                    <StateCard state="default">
+                      <h2 className="text-base font-semibold mb-3">Contract Analysis Parameters</h2>
+                      <SelectedSummaryRow
+                        label={(selectedParameter ?? DEFAULT_PARAMETER).label}
+                        disabled={false}
+                      />
+                    </StateCard>
+
                     <StateCard state="active">
                       <h2 className="text-base font-semibold mb-3">Upload Contract</h2>
-                      <PlaybookDisclaimer variant="callout" parameter={selectedParameter} />
+                      <PlaybookDisclaimer variant="callout" parameter={selectedParameter ?? DEFAULT_PARAMETER} />
                       <Dropzone onFile={validateAndSetFile} />
                       <div className="mt-3 text-xs text-muted-foreground space-y-0.5">
                         <div>File types supported: PDF</div>
@@ -520,8 +540,8 @@ function SelectedSummaryRow({
 }: {
   label: string;
   disabled: boolean;
-  actionLabel: string;
-  onAction: () => void;
+  actionLabel?: string;
+  onAction?: () => void;
 }) {
   return (
     <div
@@ -536,7 +556,7 @@ function SelectedSummaryRow({
           {label}
         </span>
       </div>
-      {!disabled && (
+      {!disabled && actionLabel && onAction && (
         <button
           type="button"
           className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-ciq transition-colors hover:bg-ciq-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

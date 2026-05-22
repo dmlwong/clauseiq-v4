@@ -138,9 +138,9 @@ export function SupplierOutputsPanel({
     >
       {hasOutputs && (
         <div className="space-y-3">
-          <div>
+          <div className="flex items-baseline justify-between gap-3">
             <h2 className="text-sm font-semibold text-foreground">Supplier Outputs</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
+            <p className="shrink-0 text-right text-xs text-muted-foreground">
               {supplierCount} {supplierCount === 1 ? "supplier" : "suppliers"} &middot; {outputCount}{" "}
               {outputCount === 1 ? "output" : "outputs"}
             </p>

@@ -148,6 +148,21 @@ describe("ClauseIQ V4 flow", () => {
     expect(screen.queryByText("No outputs yet")).not.toBeInTheDocument();
   });
 
+  it("shows parameters before upload when running another output-panel analysis", () => {
+    renderClauseIQ("/clauseiq-v4/output-panel", { forceResults: true, resultsLayout: "output-panel" });
+
+    expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Run Another Analysis" }));
+
+    const parameterHeadings = screen.getAllByRole("heading", { name: "Contract Analysis Parameters" });
+    const rerunParameterHeading = parameterHeadings[parameterHeadings.length - 1];
+    const uploadHeading = screen.getByRole("heading", { name: "Upload Contract" });
+
+    expect(parameterHeadings.length).toBeGreaterThan(1);
+    expect(rerunParameterHeading.compareDocumentPosition(uploadHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("renders direct results routes with the default playbook selected", () => {
     renderClauseIQ("/clauseiq-v4?view=results");
 

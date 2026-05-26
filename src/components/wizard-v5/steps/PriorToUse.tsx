@@ -2,22 +2,22 @@ import { Info } from "lucide-react";
 
 export function PriorToUse() {
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-orbit-l space-y-orbit-m">
       <div>
         <h2 className="text-lg font-semibold text-foreground">Tool Overview</h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-muted-foreground mt-orbit-xs">
           Please review the following before proceeding.
         </p>
       </div>
-      <div className="bg-secondary/60 border border-border rounded-lg p-6 space-y-4">
-        <div className="flex gap-3">
-          <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-          <div className="space-y-3 text-sm text-foreground leading-relaxed">
+      <div className="bg-secondary/60 border border-border rounded-lg p-orbit-m space-y-orbit-base">
+        <div className="flex gap-orbit-base">
+          <Info className="w-5 h-5 text-primary shrink-0 mt-orbit-xxs" />
+          <div className="space-y-orbit-base text-sm text-foreground leading-relaxed">
             <p>
               <strong>ClauseIQ Contract</strong> analyses supplier contracts to help legal and
               procurement teams make informed decisions faster.
             </p>
-            <ul className="list-disc list-inside space-y-1.5 text-muted-foreground">
+            <ul className="list-disc list-inside space-y-orbit-xs text-muted-foreground">
               <li>Extract key clauses and terms from uploaded contracts</li>
               <li>Flag risks, deviations, and non-standard language</li>
               <li>Compare against benchmark clause libraries</li>

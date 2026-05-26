@@ -44,7 +44,7 @@ export const TabsList = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HT
     <div
       ref={ref}
       role="tablist"
-      className={cn("inline-flex items-center gap-1", className)}
+      className={cn("inline-flex items-center gap-orbit-xs", className)}
       {...props}
     />
   );

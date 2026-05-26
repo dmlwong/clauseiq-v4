@@ -59,7 +59,7 @@ export function V5Shell({
                 {...HeaderPresets.deliver}
               />
               {headerRight && headerRightPlacement === "end" && (
-                <div className="pointer-events-none absolute inset-y-0 right-0 z-10 flex items-center px-6">
+                <div className="pointer-events-none absolute inset-y-0 right-0 z-10 flex items-center px-orbit-m">
                   <div className="pointer-events-auto flex max-w-[min(42vw,480px)] items-center justify-end">
                     {headerRight}
                   </div>
@@ -73,7 +73,7 @@ export function V5Shell({
             </header>
           )}
           {subheader && (
-            <div className={subheaderClassName ?? "shrink-0 border-b border-border bg-background/95 px-6 py-3 backdrop-blur"}>
+            <div className={subheaderClassName ?? "shrink-0 border-b border-border bg-background/95 px-orbit-m py-orbit-base backdrop-blur"}>
               {subheader}
             </div>
           )}

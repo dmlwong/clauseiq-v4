@@ -694,7 +694,7 @@ export default function ClauseIQV5DeviationProminence() {
         <>
           <Button
             type="button"
-            className="h-8 rounded-[5px] bg-[#1A2744] px-3 text-xs text-white hover:bg-[#243454]"
+            className="h-8 rounded-[5px] bg-[#1A2744] px-orbit-base text-xs text-white hover:bg-[#243454]"
             onClick={() => navigate(fullInteractionPath)}
           >
             Open full interaction
@@ -702,7 +702,7 @@ export default function ClauseIQV5DeviationProminence() {
           <Button
             type="button"
             variant="outline"
-            className="h-8 gap-1.5 rounded-[5px] bg-white text-xs"
+            className="h-8 gap-orbit-xs rounded-[5px] bg-white text-xs"
             onClick={() => navigate("/clauseiq-v5")}
           >
             <ChevronLeft className="h-3.5 w-3.5" />
@@ -711,12 +711,12 @@ export default function ClauseIQV5DeviationProminence() {
         </>
       }
       subheader={
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-orbit-base">
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Prototype v4
             </p>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <div className="mt-orbit-xs flex flex-wrap items-center gap-orbit-s text-xs text-muted-foreground">
               <span>{deviationClauses.length} clauses</span>
               <span>·</span>
               <span>{counts.high} high</span>
@@ -729,7 +729,7 @@ export default function ClauseIQV5DeviationProminence() {
           <div
             role="tablist"
             aria-label="Deviation prominence variant"
-            className="inline-flex rounded-md border border-border bg-white p-1"
+            className="inline-flex rounded-md border border-border bg-white p-orbit-xs"
           >
             {variants.map((variant) => {
               const selected = variant.key === activeVariant;
@@ -740,7 +740,7 @@ export default function ClauseIQV5DeviationProminence() {
                   role="tab"
                   aria-selected={selected}
                   className={cn(
-                    "h-8 rounded-[5px] px-3 text-xs font-medium outline-none transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#185FA5]",
+                    "h-8 rounded-[5px] px-orbit-base text-xs font-medium outline-none transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#185FA5]",
                     selected ? "bg-[#1A2744] text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                   onClick={() => setActiveVariant(variant.key)}
@@ -753,11 +753,11 @@ export default function ClauseIQV5DeviationProminence() {
         </div>
       }
     >
-      <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-4 px-6 py-5">
-        <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-orbit-base px-orbit-m py-orbit-m">
+        <div className="flex flex-wrap items-end justify-between gap-orbit-base">
           <div>
             <h1 className="text-lg font-semibold text-foreground">{visibleVariant.label}</h1>
-            <p className="mt-1 max-w-[720px] text-xs leading-5 text-muted-foreground">
+            <p className="mt-orbit-xs max-w-[720px] text-xs leading-5 text-muted-foreground">
               Same clause set, different severity treatment. Use the switcher to compare how quickly the high-risk work rises to the surface.
             </p>
           </div>
@@ -789,11 +789,11 @@ export default function ClauseIQV5DeviationProminence() {
 
 function SeverityLegend({ counts }: { counts: Record<SeverityTier, number> }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-orbit-s">
       {severityOrder.map((tier) => {
         const token = severityTokens[tier];
         return (
-          <div key={tier} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-white px-2 py-1 text-[11px] text-muted-foreground">
+          <div key={tier} className="inline-flex items-center gap-orbit-xs rounded-full border border-border bg-white px-orbit-s py-orbit-xs text-[11px] text-muted-foreground">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: token.color }} />
             <span>{token.label}</span>
             <span className="font-medium text-foreground">{counts[tier]}</span>
@@ -811,7 +811,7 @@ function VariantRowScale({ clauses }: { clauses: DeviationClause[] }) {
   );
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-orbit-xs">
       {sorted.map((clause) => {
         if (clause.tier === "high") return <HighScaleRow key={clause.id} clause={clause} />;
         if (clause.tier === "medium") return <MediumScaleRow key={clause.id} clause={clause} />;
@@ -823,24 +823,24 @@ function VariantRowScale({ clauses }: { clauses: DeviationClause[] }) {
 
 function HighScaleRow({ clause }: { clause: DeviationClause }) {
   return (
-    <CardShell clause={clause} className="min-h-[100px] p-4">
-      <div className="flex flex-wrap items-center gap-2">
+    <CardShell clause={clause} className="min-h-[100px] p-orbit-base">
+      <div className="flex flex-wrap items-center gap-orbit-s">
         <SeverityPill tier={clause.tier} />
         <p className="text-[11px] text-muted-foreground">
           {clause.issueCount} issues · {clause.section} · {clause.category}
         </p>
       </div>
-      <h2 className="mt-2 text-[15px] font-medium text-foreground">{clause.title}</h2>
-      <p className="mt-1 text-[13px] leading-5 text-muted-foreground">{clause.summary}</p>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <h2 className="mt-orbit-s text-[15px] font-medium text-foreground">{clause.title}</h2>
+      <p className="mt-orbit-xs text-[13px] leading-5 text-muted-foreground">{clause.summary}</p>
+      <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-s">
         <Button
           type="button"
-          className="h-8 rounded-[5px] px-3 text-[11px] font-medium text-white hover:opacity-90"
+          className="h-8 rounded-[5px] px-orbit-base text-[11px] font-medium text-white hover:opacity-90"
           style={{ backgroundColor: severityTokens.high.color }}
         >
           Request change
         </Button>
-        <Button type="button" variant="outline" className="h-8 rounded-[5px] bg-white px-3 text-[11px]">
+        <Button type="button" variant="outline" className="h-8 rounded-[5px] bg-white px-orbit-base text-[11px]">
           View clause
         </Button>
       </div>
@@ -850,14 +850,14 @@ function HighScaleRow({ clause }: { clause: DeviationClause }) {
 
 function MediumScaleRow({ clause }: { clause: DeviationClause }) {
   return (
-    <CardShell clause={clause} className="min-h-[56px] px-3.5 py-3">
-      <div className="flex min-w-0 items-center gap-2">
+    <CardShell clause={clause} className="min-h-[56px] px-orbit-base py-orbit-base">
+      <div className="flex min-w-0 items-center gap-orbit-s">
         <SeverityPill tier={clause.tier} />
         <p className="shrink-0 text-[11px] text-muted-foreground">
           {clause.section} · {clause.title}
         </p>
         <p className="min-w-0 flex-1 truncate text-[12px] text-muted-foreground">{clause.summary}</p>
-        <Button type="button" variant="outline" className="h-7 rounded-[5px] bg-white px-2.5 text-[11px]">
+        <Button type="button" variant="outline" className="h-7 rounded-[5px] bg-white px-orbit-s text-[11px]">
           Review
         </Button>
       </div>
@@ -867,8 +867,8 @@ function MediumScaleRow({ clause }: { clause: DeviationClause }) {
 
 function LowScaleRow({ clause }: { clause: DeviationClause }) {
   return (
-    <CardShell clause={clause} className="min-h-[38px] px-3 py-2">
-      <div className="flex min-w-0 items-center gap-2">
+    <CardShell clause={clause} className="min-h-[38px] px-orbit-base py-orbit-s">
+      <div className="flex min-w-0 items-center gap-orbit-s">
         <SeverityPill tier={clause.tier} />
         <span className="shrink-0 text-[11px] text-muted-foreground">{clause.section} ·</span>
         <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-foreground">{clause.title}</span>
@@ -894,7 +894,7 @@ function VariantSectionNav({
   const grouped = useMemo(() => groupBySeverity(sortForSectionNav(clauses)), [clauses]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-orbit-base">
       {severityOrder.map((tier) => (
         <SectionNavGroup
           key={tier}
@@ -927,14 +927,14 @@ function SectionNavGroup({
   const label = tier === "high" ? "High deviations" : token.label;
 
   return (
-    <section className="space-y-1.5">
-      <div className="sticky top-0 z-10 bg-background/95 py-1 backdrop-blur">
-        <div className="flex items-center gap-3">
+    <section className="space-y-orbit-xs">
+      <div className="sticky top-0 z-10 bg-background/95 py-orbit-xs backdrop-blur">
+        <div className="flex items-center gap-orbit-base">
           <div
             role="button"
             tabIndex={0}
             aria-expanded={expanded}
-            className="group flex min-w-0 flex-1 cursor-pointer items-center gap-2 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#185FA5]"
+            className="group flex min-w-0 flex-1 cursor-pointer items-center gap-orbit-s outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#185FA5]"
             onClick={onToggle}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
@@ -947,7 +947,7 @@ function SectionNavGroup({
               <Icon className="h-3.5 w-3.5" />
             </span>
             <span className="text-sm font-medium text-foreground">{label}</span>
-            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{clauses.length}</span>
+            <span className="rounded-full bg-muted px-orbit-s py-orbit-xxs text-xs text-muted-foreground">{clauses.length}</span>
             <span className="h-px min-w-8 flex-1 bg-border" />
             {expanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
           </div>
@@ -966,13 +966,13 @@ function SectionNavGroup({
       {!expanded && tier === "low" ? (
         <button
           type="button"
-          className="w-full rounded-[6px] border border-dashed border-border bg-white px-4 py-4 text-sm font-medium text-muted-foreground outline-none transition-colors hover:border-[#185FA5]/40 hover:bg-[#E6F1FB] hover:text-[#185FA5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#185FA5]"
+          className="w-full rounded-[6px] border border-dashed border-border bg-white px-orbit-base py-orbit-base text-sm font-medium text-muted-foreground outline-none transition-colors hover:border-[#185FA5]/40 hover:bg-[#E6F1FB] hover:text-[#185FA5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#185FA5]"
           onClick={onToggle}
         >
           Show {clauses.length} low-deviation clauses
         </button>
       ) : expanded ? (
-        <div className="space-y-1.5">
+        <div className="space-y-orbit-xs">
           {clauses.map((clause) => (
             <SectionCard key={clause.id} clause={clause} />
           ))}
@@ -985,16 +985,16 @@ function SectionNavGroup({
 function SectionCard({ clause }: { clause: DeviationClause }) {
   return (
     <Card type="Static" padding="Small">
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 items-center gap-orbit-base">
         <div className="min-w-0 flex-1">
           <Text as="div" size="Paragraph" variant="Bold">
             {clause.title} <span className="text-[12px] font-normal text-muted-foreground">{clause.section}</span>
           </Text>
-          <div className="mt-1 truncate">
+          <div className="mt-orbit-xs truncate">
             <Text as="span" size="Small" variant="Secondary">{clause.summary}</Text>
           </div>
         </div>
-        <Button type="button" variant="outline" className="h-7 rounded-[5px] bg-white px-2.5 text-[11px]">
+        <Button type="button" variant="outline" className="h-7 rounded-[5px] bg-white px-orbit-s text-[11px]">
           Review
         </Button>
       </div>
@@ -1021,7 +1021,7 @@ function VariantInlineDiff({
   );
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-orbit-xs">
       {sorted.map((clause) => {
         if (clause.tier === "high") {
           return (
@@ -1061,7 +1061,7 @@ function HighDiffCard({
   onToggleDiff: () => void;
 }) {
   return (
-    <CardShell clause={clause} className="p-3.5">
+    <CardShell clause={clause} className="p-orbit-base">
       <DiffHeader clause={clause} />
       <DiffBlock clause={clause} expanded={expanded} onToggle={onToggleDiff} />
       <DiffActions tier={clause.tier} />
@@ -1083,20 +1083,20 @@ function MediumDiffCard({
   onToggleDiff: () => void;
 }) {
   return (
-    <CardShell clause={clause} className="p-3">
-      <div className="flex min-w-0 items-center gap-2">
+    <CardShell clause={clause} className="p-orbit-base">
+      <div className="flex min-w-0 items-center gap-orbit-s">
         <SeverityPill tier={clause.tier} />
         <h2 className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
           {clause.title} <span className="text-[11px] font-normal text-muted-foreground">{clause.section}</span>
         </h2>
         <p className="hidden min-w-0 flex-[1.2] truncate text-[12px] text-muted-foreground lg:block">{clause.summary}</p>
-        <Button type="button" variant="outline" className="h-7 rounded-[5px] bg-white px-2.5 text-[11px]" onClick={onToggleMedium}>
+        <Button type="button" variant="outline" className="h-7 rounded-[5px] bg-white px-orbit-s text-[11px]" onClick={onToggleMedium}>
           {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           Show change
         </Button>
       </div>
       {expanded && (
-        <div className="mt-3">
+        <div className="mt-orbit-base">
           <DiffBlock clause={clause} expanded={diffExpanded} onToggle={onToggleDiff} />
           <DiffActions tier={clause.tier} />
         </div>
@@ -1107,7 +1107,7 @@ function MediumDiffCard({
 
 function LowDiffRow({ clause }: { clause: DeviationClause }) {
   return (
-    <article className="flex min-h-[38px] cursor-pointer items-center gap-2 rounded-[6px] border-[0.5px] border-border bg-white px-3 py-2 transition-colors hover:bg-muted/50">
+    <article className="flex min-h-[38px] cursor-pointer items-center gap-orbit-s rounded-[6px] border-[0.5px] border-border bg-white px-orbit-base py-orbit-s transition-colors hover:bg-muted/50">
       <IconCheck className="h-3.5 w-3.5 shrink-0 text-[#6B6A64]" />
       <span className="shrink-0 text-[11px] text-muted-foreground">{clause.section}</span>
       <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-foreground">{clause.title}</span>
@@ -1120,7 +1120,7 @@ function LowDiffRow({ clause }: { clause: DeviationClause }) {
 
 function DiffHeader({ clause }: { clause: DeviationClause }) {
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-2">
+    <div className="flex min-w-0 flex-wrap items-center gap-orbit-s">
       <SeverityPill tier={clause.tier} />
       <h2 className="min-w-0 text-[13px] font-medium text-foreground">{clause.title}</h2>
       <span className="text-[11px] text-muted-foreground">{clause.section}</span>
@@ -1141,12 +1141,12 @@ function DiffBlock({
   const hasLongDiff = `${clause.original} ${clause.proposed}`.length > 320;
 
   return (
-    <div className="mt-3 rounded-[6px] bg-[#F1EFE8] p-3">
+    <div className="mt-orbit-base rounded-[6px] bg-[#F1EFE8] p-orbit-base">
       <div className={cn("relative overflow-hidden", !expanded && hasLongDiff && "max-h-28")}>
         <p className="text-[12px] leading-5 text-[#6B6A64] line-through">{clause.original}</p>
-        <p className="mt-2 text-[12px] leading-5 text-foreground">
+        <p className="mt-orbit-s text-[12px] leading-5 text-foreground">
           <span
-            className="rounded-[2px] px-1 py-0.5"
+            className="rounded-[2px] px-orbit-xs py-orbit-xxs"
             style={{
               backgroundColor: clause.tier === "high" ? "rgba(163, 45, 45, 0.12)" : "rgba(186, 117, 23, 0.16)",
               color: clause.tier === "high" ? "#791F1F" : "#4B2D04",
@@ -1163,7 +1163,7 @@ function DiffBlock({
         // Open question: real diffs may exceed four lines; this keeps the sample scannable while preserving an inline full-clause escape hatch.
         <button
           type="button"
-          className="mt-2 text-[11px] font-medium outline-none hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="mt-orbit-s text-[11px] font-medium outline-none hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
           style={{ color: token.color }}
           onClick={onToggle}
         >
@@ -1178,18 +1178,18 @@ function DiffActions({ tier }: { tier: SeverityTier }) {
   const primaryColor = tier === "high" ? severityTokens.high.color : "#7A4900";
   const label = tier === "high" ? "Counter-propose" : "Counter-propose";
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-2">
+    <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-s">
       <Button
         type="button"
-        className="h-8 rounded-[5px] px-3 text-[11px] font-medium text-white hover:opacity-90"
+        className="h-8 rounded-[5px] px-orbit-base text-[11px] font-medium text-white hover:opacity-90"
         style={{ backgroundColor: primaryColor }}
       >
         {label}
       </Button>
-      <Button type="button" variant="outline" className="h-8 rounded-[5px] bg-white px-3 text-[11px]">
+      <Button type="button" variant="outline" className="h-8 rounded-[5px] bg-white px-orbit-base text-[11px]">
         Accept
       </Button>
-      <Button type="button" variant="outline" className="h-8 rounded-[5px] bg-white px-3 text-[11px]">
+      <Button type="button" variant="outline" className="h-8 rounded-[5px] bg-white px-orbit-base text-[11px]">
         Flag for legal
       </Button>
     </div>
@@ -1213,7 +1213,7 @@ function CardShell({
       state={clause.tier === "high" ? "Warning" : "Default"}
       style={{ padding: 0, backgroundColor: clause.tier === "high" ? token.rowWash : undefined }}
     >
-      <article className={cn("relative overflow-hidden pl-[18px]", className)}>
+      <article className={cn("relative overflow-hidden pl-orbit-base", className)}>
         <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: token.color }} />
         {children}
       </article>

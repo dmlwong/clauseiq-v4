@@ -16,11 +16,11 @@ export function SupplierHistoryStrip({ supplier }: Props) {
   if (count === 0) return null;
 
   return (
-    <div className="rounded-lg border border-ciq-border bg-ciq-soft/40 mb-3 overflow-hidden">
+    <div className="rounded-lg border border-ciq-border bg-ciq-soft/40 mb-orbit-base overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-ciq-soft/70 transition-colors"
+        className="w-full flex items-center gap-orbit-s px-orbit-base py-orbit-s text-left hover:bg-ciq-soft/70 transition-colors"
       >
         <History className="h-4 w-4 text-ciq shrink-0" />
         <span className="text-sm text-foreground">
@@ -41,7 +41,7 @@ export function SupplierHistoryStrip({ supplier }: Props) {
             <li key={p.id}>
               <button
                 type="button"
-                className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-muted/50 transition-colors"
+                className="w-full flex items-center gap-orbit-base px-orbit-base py-orbit-s text-left hover:bg-muted/50 transition-colors"
               >
                 <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div className="min-w-0 flex-1">
@@ -50,7 +50,7 @@ export function SupplierHistoryStrip({ supplier }: Props) {
                     {p.initiativeName} · {formatAnalysedDate(p.analysedAt)}
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex items-center gap-orbit-xs shrink-0">
                   <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-[10px]">
                     {p.high} high
                   </Badge>

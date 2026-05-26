@@ -74,7 +74,7 @@ export function DesignOptionSwitcher({
     <div
       role="tablist"
       aria-label="Comparison design"
-      className="flex min-w-0 items-center gap-1 overflow-x-auto rounded-md border border-border bg-white p-0.5"
+      className="flex min-w-0 items-center gap-orbit-xs overflow-x-auto rounded-md border border-border bg-white p-orbit-xxs"
     >
       {designOptions.map((option) => {
         const active = option.value === value;
@@ -86,11 +86,11 @@ export function DesignOptionSwitcher({
             ariaControls="comparison-work-column"
             onClick={() => onChange(option.value)}
             className={cn(
-              "h-6 shrink-0 rounded-[5px] px-2.5 text-[10px]",
+              "h-6 shrink-0 rounded-[5px] px-orbit-s text-[10px]",
               active ? "bg-[#1a2744] text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
-            <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-orbit-xs">
               {option.icon}
               {option.label}
             </span>
@@ -166,9 +166,9 @@ export function ComparisonDesignOptions({
 
   if (option === "side-by-side" || option === "row-scale") {
     return (
-      <div className="mx-auto grid w-full max-w-[1500px] gap-4 px-6 py-4 xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
+      <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-m py-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
         <aside className="xl:sticky xl:top-[100px] xl:max-h-[calc(100vh-180px)] xl:self-start xl:overflow-y-auto">
-          <section className="overflow-hidden rounded-lg border border-border bg-card p-3">
+          <section className="overflow-hidden rounded-lg border border-border bg-card p-orbit-base">
             <ComparisonSummaryRail
               panel={panel}
               stripStats={stripStats}
@@ -184,7 +184,7 @@ export function ComparisonDesignOptions({
             <CategoryFiltersSection activeFilterChips={activeFilterChips}>{categoryPanel}</CategoryFiltersSection>
           </section>
         </aside>
-        <div id="comparison-work-column" className="min-w-0 space-y-4">
+        <div id="comparison-work-column" className="min-w-0 space-y-orbit-base">
           <WorkflowStack
             openItems={openItems}
             newChanges={newChanges}
@@ -197,8 +197,8 @@ export function ComparisonDesignOptions({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] space-y-4 px-6 py-4">
-      <section className="grid items-stretch gap-4 xl:grid-cols-2">
+    <div className="mx-auto w-full max-w-[1500px] space-y-orbit-base px-orbit-m py-orbit-base">
+      <section className="grid items-stretch gap-orbit-base xl:grid-cols-2">
         <NarrativeSummary
           stripStats={stripStats}
           activeMetric={activeEvidenceMetric}
@@ -215,11 +215,11 @@ export function ComparisonDesignOptions({
         />
       </section>
 
-      <div className="min-[900px]:flex min-[900px]:items-start min-[900px]:gap-4">
+      <div className="min-[900px]:flex min-[900px]:items-start min-[900px]:gap-orbit-base">
         <div className="hidden w-60 shrink-0 min-[900px]:block">
           <SidebarFiltersPanel activeFilterChips={activeFilterChips}>{categoryRail}</SidebarFiltersPanel>
         </div>
-        <div id="comparison-work-column" className="flex min-w-0 flex-1 flex-col gap-4">
+        <div id="comparison-work-column" className="flex min-w-0 flex-1 flex-col gap-orbit-base">
           <div className="min-[900px]:hidden">{categoryStrip}</div>
           <WorkflowStack
             openItems={openItems}
@@ -287,9 +287,9 @@ export function FirstAnalysisDesignOptions({
 
   if (option === "side-by-side" || option === "row-scale") {
     return (
-      <div className="mx-auto grid w-full max-w-[1500px] gap-4 px-6 py-4 xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
+      <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-m py-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
         <aside className="xl:sticky xl:top-[100px] xl:max-h-[calc(100vh-180px)] xl:self-start xl:overflow-y-auto">
-          <section className="overflow-hidden rounded-lg border border-border bg-card p-3">
+          <section className="overflow-hidden rounded-lg border border-border bg-card p-orbit-base">
             <FirstAnalysisReviewCountPanel visibleCount={visibleCount} />
             <FirstAnalysisSummaryPanel
               metrics={metrics}
@@ -300,7 +300,7 @@ export function FirstAnalysisDesignOptions({
             <CategoryFiltersSection activeFilterChips={activeFilterChips}>{categoryPanel}</CategoryFiltersSection>
           </section>
         </aside>
-        <div id="comparison-work-column" className="min-w-0 space-y-4">
+        <div id="comparison-work-column" className="min-w-0 space-y-orbit-base">
           <FirstAnalysisReviewShell>{clausesToReview}</FirstAnalysisReviewShell>
         </div>
       </div>
@@ -308,8 +308,8 @@ export function FirstAnalysisDesignOptions({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] space-y-4 px-6 py-4">
-      <section className="grid items-stretch gap-4 xl:grid-cols-2">
+    <div className="mx-auto w-full max-w-[1500px] space-y-orbit-base px-orbit-m py-orbit-base">
+      <section className="grid items-stretch gap-orbit-base xl:grid-cols-2">
         <InitialAnalysisSummaryCard
           metrics={metrics}
           activeMetrics={activeMetrics}
@@ -319,14 +319,14 @@ export function FirstAnalysisDesignOptions({
         <CurrentRiskProfileCard metrics={metrics} />
       </section>
 
-      <div className="min-[900px]:flex min-[900px]:items-start min-[900px]:gap-4">
+      <div className="min-[900px]:flex min-[900px]:items-start min-[900px]:gap-orbit-base">
         <div className="hidden w-60 shrink-0 min-[900px]:block">
-          <div className="space-y-3">
+          <div className="space-y-orbit-base">
             <FirstAnalysisReviewCountPanel visibleCount={visibleCount} />
             <SidebarFiltersPanel activeFilterChips={activeFilterChips}>{categoryRail}</SidebarFiltersPanel>
           </div>
         </div>
-        <div id="comparison-work-column" className="flex min-w-0 flex-1 flex-col gap-4">
+        <div id="comparison-work-column" className="flex min-w-0 flex-1 flex-col gap-orbit-base">
           <div className="min-[900px]:hidden">{categoryStrip}</div>
           <FirstAnalysisReviewShell>{clausesToReview}</FirstAnalysisReviewShell>
         </div>
@@ -360,7 +360,7 @@ function ActiveFilterBar({
   const filterCount = (activeMetricLabel ? 1 : 0) + metricFilters.length + categoryLabels.length;
   if (filterCount === 0) return null;
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-orbit-xs">
       {activeMetricLabel && onClearMetric && (
         <FilterChip label={`Filter: ${activeMetricLabel}`} onClear={onClearMetric} />
       )}
@@ -395,7 +395,7 @@ function SidebarFiltersPanel({
   activeFilterChips?: ReactNode;
 }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-orbit-base">
       {children}
       <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>
     </div>
@@ -410,8 +410,8 @@ function CategoryFiltersSection({
   activeFilterChips?: ReactNode;
 }) {
   return (
-    <div className="mt-4 border-t border-border pt-3">
-      <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+    <div className="mt-orbit-base border-t border-border pt-orbit-base">
+      <p className="mb-orbit-s text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
         Categories
       </p>
       <SidebarFiltersPanel activeFilterChips={activeFilterChips}>{children}</SidebarFiltersPanel>
@@ -422,8 +422,8 @@ function CategoryFiltersSection({
 function ActiveFiltersSection({ children }: { children?: ReactNode }) {
   if (!children) return null;
   return (
-    <div className="border-t border-border pt-3">
-      <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+    <div className="border-t border-border pt-orbit-base">
+      <p className="mb-orbit-s text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
         Active filters
       </p>
       {children}
@@ -446,7 +446,7 @@ function InitialAnalysisSummaryCard({
 
   return (
     <Card type="Static" padding="Base">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-orbit-s">
         <Text as="p" size="Small" variant="Secondary">{analysisLabel} summary</Text>
         {metrics.requested > 0 && (
           <Badge label={`${metrics.requested} requested`} status="Information" />
@@ -471,7 +471,7 @@ function CurrentRiskProfileCard({ metrics }: { metrics: FirstAnalysisMetrics }) 
 
   return (
     <Card type="Static" padding="Base">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+      <div className="mb-orbit-base flex flex-wrap items-center justify-between gap-orbit-s border-b border-border pb-orbit-base">
         <div>
           <Text as="p" size="Small" variant="Secondary">Current risk profile</Text>
           <Text as="p" size="Small" variant="Secondary">{analysisLabel}</Text>
@@ -505,25 +505,25 @@ function FirstAnalysisSummaryPanel({
   const analysisLabel = `${metrics.versionLabel.toUpperCase()} Analysis`;
 
   return (
-    <section className="rounded-none border-0 bg-card p-0">
+    <section className="rounded-none border-0 bg-card p-orbit-none">
       <Card type="Static" padding={compact ? "Small" : "Base"} state="Accent">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-orbit-s">
           <Text as="p" size="Small" variant="Secondary">{analysisLabel}</Text>
           <Badge label={metrics.versionLabel} status="Information" />
         </div>
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-orbit-s flex items-center gap-orbit-s">
           <RadialIndicator
             status={metrics.score >= 75 ? "Success" : metrics.score >= 50 ? "Warning" : "Error"}
             progress={metrics.score}
             size={32}
             ariaLabel={`${metrics.score} score`}
           />
-          <div className="flex items-end gap-2">
+          <div className="flex items-end gap-orbit-s">
             <span className="text-3xl font-semibold leading-none text-foreground">{metrics.score}</span>
             <Text as="span" size="Small" variant="Secondary">score</Text>
           </div>
         </div>
-        <DistributionBar distribution={metrics.distribution} className="mt-3" />
+        <DistributionBar distribution={metrics.distribution} className="mt-orbit-base" />
       </Card>
       <FirstAnalysisMetricGrid
         metrics={metrics}
@@ -538,8 +538,8 @@ function FirstAnalysisSummaryPanel({
 
 function FirstAnalysisReviewCountPanel({ visibleCount }: { visibleCount: number }) {
   return (
-    <div className="mb-3 px-1">
-      <div className="flex items-center justify-between gap-2">
+    <div className="mb-orbit-base px-orbit-xs">
+      <div className="flex items-center justify-between gap-orbit-s">
         <Text as="p" size="Small" variant="Secondary">Clauses to review</Text>
         <Chip label={String(visibleCount)} size="Mini" variant="Outline" />
       </div>
@@ -573,7 +573,7 @@ function WorkflowStack({
   unmarkedClauses: ReactNode;
 }) {
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-orbit-base">
       {openItems}
       {closedItems}
       {newChanges}
@@ -620,7 +620,7 @@ export function ComparisonSummaryRail({
     totalClauses: contract.total,
   };
   return (
-    <section className="rounded-none border-0 bg-card p-0">
+    <section className="rounded-none border-0 bg-card p-orbit-none">
       <div>
         <ScoreHero
           stripStats={stripStats}
@@ -637,8 +637,8 @@ export function ComparisonSummaryRail({
         density="rail"
       />
       <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>
-      <div className="mt-4">
-        {comparisonControl && <div className="mb-3">{comparisonControl}</div>}
+      <div className="mt-orbit-base">
+        {comparisonControl && <div className="mb-orbit-base">{comparisonControl}</div>}
         <VersionDistributionPair panel={panel} leftLabel={leftLabel} rightLabel={rightLabel} layout="rail" />
       </div>
     </section>
@@ -671,15 +671,15 @@ function ScoreHero({
   return (
     <div className={className}>
       <Card type="Static" padding={compact ? "Small" : "Base"} state="Accent">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-orbit-s">
         <Text as="p" size="Small" variant="Secondary">Score movement</Text>
         <Badge label={`Current ${rightLabel}`} status="Information" />
       </div>
-      <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-2">
+      <div className="mt-orbit-base grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-orbit-s">
         <ScoreSnapshot label={leftLabel} score={previous.score} band={previous.band} />
-        <div className="flex min-w-10 flex-col items-center justify-center gap-1 text-muted-foreground">
+        <div className="flex min-w-10 flex-col items-center justify-center gap-orbit-xs text-muted-foreground">
           <ArrowRight className="h-4 w-4" />
-          <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
+          <span className={cn("rounded-full px-orbit-s py-orbit-xxs text-[10px] font-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
             {panel.delta >= 0 ? "+" : ""}
             {panel.delta} pts
           </span>
@@ -687,7 +687,7 @@ function ScoreHero({
         <ScoreSnapshot label={rightLabel} score={panel.current.score} band={panel.current.band} current />
       </div>
       {showSentence && (
-        <p className="mt-2 text-xs text-muted-foreground">
+        <p className="mt-orbit-s text-xs text-muted-foreground">
           {comparison.met} of {comparison.requestedTotal} requested changes met.
         </p>
       )}
@@ -709,15 +709,15 @@ function ScoreSnapshot({
 }) {
   return (
     <Card type="Static" padding="Small" state={current ? "Accent" : "Default"}>
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-orbit-xs">
         <span className="truncate text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
         {current && (
           <Badge label="Current" status="Information" />
         )}
       </div>
-      <div className="mt-1 flex items-end gap-1.5">
+      <div className="mt-orbit-xs flex items-end gap-orbit-xs">
         <span className="text-2xl font-semibold leading-none text-foreground">{score}</span>
-        <span className="pb-0.5 text-xs font-medium text-muted-foreground">{band}</span>
+        <span className="pb-orbit-xxs text-xs font-medium text-muted-foreground">{band}</span>
       </div>
     </Card>
   );
@@ -746,9 +746,9 @@ function VersionMovementCard({
 }) {
   return (
     <Card type="Static" padding="Small">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+      <div className="mb-orbit-base flex flex-wrap items-center justify-between gap-orbit-s border-b border-border pb-orbit-base">
         <Text as="p" size="Small" variant="Secondary">Version movement</Text>
-        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-orbit-s">
           {comparisonControl}
           <ScoreMovementBadge panel={panel} />
         </div>
@@ -785,12 +785,12 @@ function VersionDistributionPair({
 
   if (isHero) {
     return (
-      <div className={cn("grid w-full gap-2 rounded-lg border border-border bg-white p-3 lg:grid-cols-[minmax(0,1fr)_56px_minmax(0,1fr)] lg:items-stretch", className)}>
+      <div className={cn("grid w-full gap-orbit-s rounded-lg border border-border bg-white p-orbit-base lg:grid-cols-[minmax(0,1fr)_56px_minmax(0,1fr)] lg:items-stretch", className)}>
         <DistributionSide label={leftLabel} score={previous.score} distribution={previous.distribution} large={large} hideScore={hideScore} unframed />
-        <div className="hidden h-full flex-col items-center justify-center gap-1 text-muted-foreground lg:flex">
+        <div className="hidden h-full flex-col items-center justify-center gap-orbit-xs text-muted-foreground lg:flex">
           <ArrowRight className="h-4 w-4" />
           {showDelta && (
-            <span className={cn("whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
+            <span className={cn("whitespace-nowrap rounded-full px-orbit-s py-orbit-xxs text-[10px] font-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
               {panel.delta >= 0 ? "+" : ""}
               {panel.delta} pts
             </span>
@@ -802,13 +802,13 @@ function VersionDistributionPair({
   }
 
   return (
-    <div className={cn("grid w-full gap-3", isStacked ? "grid-cols-1" : "lg:grid-cols-[minmax(0,1fr)_40px_minmax(0,1fr)] lg:items-stretch", className)}>
+    <div className={cn("grid w-full gap-orbit-base", isStacked ? "grid-cols-1" : "lg:grid-cols-[minmax(0,1fr)_40px_minmax(0,1fr)] lg:items-stretch", className)}>
       <DistributionSide label={leftLabel} score={previous.score} distribution={previous.distribution} large={large} hideScore={hideScore} />
       {!isStacked && (
-        <div className="hidden h-full flex-col items-center justify-center gap-1 text-muted-foreground lg:flex">
+        <div className="hidden h-full flex-col items-center justify-center gap-orbit-xs text-muted-foreground lg:flex">
           <ArrowRight className="h-4 w-4" />
           {showDelta && (
-            <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
+            <span className={cn("rounded-full px-orbit-s py-orbit-xxs text-[10px] font-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
               vs prior{" "}
               {panel.delta >= 0 ? "+" : ""}
               {panel.delta} pts
@@ -845,15 +845,15 @@ function DistributionSide({
       state={current ? "Accent" : "Default"}
       style={unframed ? { borderColor: "transparent", background: current ? "var(--orbit-color-card-bg-accent)" : "transparent" } : undefined}
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-orbit-base">
+        <div className="flex items-center gap-orbit-s">
           <Text as="p" size="Small" variant="Secondary">{label}</Text>
           {current && <Badge label="Current" status="Information" />}
         </div>
         {!hideScore && <p className={cn("font-semibold text-foreground", large ? "text-lg" : "text-sm")}>{score}</p>}
       </div>
-      <DistributionBar distribution={distribution} className="mt-3" />
-      <div className="mt-2 grid grid-cols-4 gap-1 text-[9px] text-muted-foreground">
+      <DistributionBar distribution={distribution} className="mt-orbit-base" />
+      <div className="mt-orbit-s grid grid-cols-4 gap-orbit-xs text-[9px] text-muted-foreground">
         <span><strong className="text-[#A32D2D]">{distribution.high}</strong> H</span>
         <span><strong className="text-[#854F0B]">{distribution.medium}</strong> M</span>
         <span><strong>{distribution.low}</strong> L</span>
@@ -914,7 +914,7 @@ function NarrativeSummary({
   return (
     <div className={className}>
       <Card type="Static" padding="Base" state="Accent">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-orbit-s">
         <Text as="p" size="Small" variant="Secondary">What changed this round</Text>
         <ProgressPill stripStats={stripStats} />
       </div>
@@ -1003,31 +1003,31 @@ function FirstAnalysisMetricGrid({
     const riskMetrics = firstAnalysisMetricDefinitions.filter((definition) => definition.group === "risk");
     if (workflowMetrics.length === 0) {
       return (
-        <div className="mt-3 rounded-lg border border-border/70 bg-white/60 p-2">
-          <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        <div className="mt-orbit-base rounded-lg border border-border/70 bg-white/60 p-orbit-s">
+          <p className="mb-orbit-s text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Risk
           </p>
-          <div className="grid grid-cols-2 gap-2 text-[11px]">
+          <div className="grid grid-cols-2 gap-orbit-s text-[11px]">
             {riskMetrics.map(renderMetric)}
           </div>
         </div>
       );
     }
     return (
-      <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]">
-        <div className="rounded-lg border border-border/70 bg-white/60 p-2">
-          <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+      <div className="mt-orbit-base grid gap-orbit-base lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]">
+        <div className="rounded-lg border border-border/70 bg-white/60 p-orbit-s">
+          <p className="mb-orbit-s text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Workflow
           </p>
-          <div className="grid gap-2 text-[11px]">
+          <div className="grid gap-orbit-s text-[11px]">
             {workflowMetrics.map(renderMetric)}
           </div>
         </div>
-        <div className="rounded-lg border border-border/70 bg-white/60 p-2">
-          <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        <div className="rounded-lg border border-border/70 bg-white/60 p-orbit-s">
+          <p className="mb-orbit-s text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Risk
           </p>
-          <div className="grid grid-cols-2 gap-2 text-[11px]">
+          <div className="grid grid-cols-2 gap-orbit-s text-[11px]">
             {riskMetrics.map(renderMetric)}
           </div>
         </div>
@@ -1038,7 +1038,7 @@ function FirstAnalysisMetricGrid({
   return (
     <div
       className={cn(
-        "mt-4 grid gap-2 text-[11px]",
+        "mt-orbit-base grid gap-orbit-s text-[11px]",
         density === "rail" ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-5",
       )}
     >
@@ -1073,11 +1073,11 @@ function MetricGrid({
 
   if (grouped) {
     return (
-      <div className="mt-3 grid gap-3 lg:grid-cols-2">
+      <div className="mt-orbit-base grid gap-orbit-base lg:grid-cols-2">
         {(["workflow", "risk"] as const).map((group) => (
-          <div key={group} className="rounded-lg border border-border/70 bg-white/60 p-2">
+          <div key={group} className="rounded-lg border border-border/70 bg-white/60 p-orbit-s">
             <Text as="p" size="Small" variant="Secondary">{group === "workflow" ? "Workflow" : "Risk"}</Text>
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
+            <div className="grid grid-cols-2 gap-orbit-s text-[11px]">
               {metricDefinitions.filter((definition) => definition.group === group).map(renderMetric)}
             </div>
           </div>
@@ -1089,7 +1089,7 @@ function MetricGrid({
   return (
     <div
       className={cn(
-        "mt-4 grid gap-2 text-[11px]",
+        "mt-orbit-base grid gap-orbit-s text-[11px]",
         density === "rail" ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4",
       )}
     >
@@ -1118,7 +1118,7 @@ function MetricCell({
       <Text as="p" size="Small" variant="Secondary">{label}</Text>
       <p
         className={cn(
-          "mt-1 text-sm font-semibold text-foreground",
+          "mt-orbit-xs text-sm font-semibold text-foreground",
           tone === "success" && "text-success",
           tone === "warning" && "text-warning-foreground",
           tone === "destructive" && "text-destructive",

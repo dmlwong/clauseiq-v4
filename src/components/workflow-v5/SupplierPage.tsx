@@ -26,31 +26,31 @@ export function SupplierPage({
   if (!initiative || !supplier) return null;
 
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+    <div className="min-h-screen bg-background p-orbit-l">
+      <div className="max-w-6xl mx-auto space-y-orbit-m">
+        <button onClick={onBack} className="flex items-center gap-orbit-xs text-sm text-muted-foreground hover:text-foreground">
           <ChevronLeft className="w-4 h-4" /> Back to {initiative.name}
         </button>
 
         <header className="flex items-start justify-between">
-          <div className="space-y-2">
+          <div className="space-y-orbit-s">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               {initiative.name} · {initiative.reference}
             </p>
             <h1 className="text-2xl font-bold text-foreground tracking-tight">{supplier.name}</h1>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-orbit-s">
               <Badge variant="outline" className={statusTone(supplier.status)}>{supplier.status}</Badge>
               {supplier.overallScore != null && (
                 <span className="text-sm text-muted-foreground">ClauseIQ Score <span className="font-mono font-medium text-foreground">{supplier.overallScore}/100</span></span>
               )}
             </div>
           </div>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-orbit-s">
             <Plus className="w-4 h-4" /> Upload New Version
           </Button>
         </header>
 
-        <div className="space-y-3">
+        <div className="space-y-orbit-base">
           <h2 className="text-sm font-semibold text-foreground">Contracts ({supplier.contracts.length})</h2>
           {supplier.contracts.map((c) => (
             <ContractCard
@@ -79,18 +79,18 @@ function ContractCard({
 }) {
   const latest = contract.versions.at(-1);
   return (
-    <div className="bg-card border border-border rounded-xl p-5 flex items-center justify-between gap-6">
-      <div className="flex items-start gap-4 flex-1">
+    <div className="bg-card border border-border rounded-xl p-orbit-m flex items-center justify-between gap-orbit-m">
+      <div className="flex items-start gap-orbit-base flex-1">
         <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
           <FileText className="w-5 h-5 text-primary" />
         </div>
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
+        <div className="space-y-orbit-xs">
+          <div className="flex items-center gap-orbit-s">
             <h3 className="font-semibold text-foreground">{contract.name}</h3>
             <Badge variant="outline" className="text-xs">{contract.type}</Badge>
             {latest && <Badge variant="outline" className="font-mono text-xs">{latest.version}</Badge>}
           </div>
-          <div className="flex items-center gap-3 text-sm">
+          <div className="flex items-center gap-orbit-base text-sm">
             <Select value={status} onValueChange={(v) => onChangeStatus(v as ContractStatus)}>
               <SelectTrigger className="h-7 w-[160px] text-xs">
                 <SelectValue />
@@ -112,13 +112,13 @@ function ContractCard({
           </div>
         </div>
       </div>
-      <div className="flex gap-2">
+      <div className="flex gap-orbit-s">
         {latest && (
-          <Button variant="outline" onClick={onView} className="gap-1.5">
+          <Button variant="outline" onClick={onView} className="gap-orbit-xs">
             <Eye className="w-4 h-4" /> View Results
           </Button>
         )}
-        <Button onClick={onRun} className="gap-1.5">
+        <Button onClick={onRun} className="gap-orbit-xs">
           <Play className="w-4 h-4" /> Run ClauseIQ
         </Button>
       </div>

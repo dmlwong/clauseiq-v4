@@ -116,14 +116,14 @@ export function VersionVerdictBanner({
   return (
     <div
       className={cn(
-        "rounded-xl border p-5 bg-card",
+        "rounded-xl border p-orbit-m bg-card",
         tone === "success" && "border-success/30",
         tone === "warning" && "border-warning/40",
         tone === "destructive" && "border-destructive/30",
       )}
     >
-      <div className="flex items-start justify-between gap-6 flex-wrap">
-        <div className="flex items-start gap-3 min-w-0 flex-1">
+      <div className="flex items-start justify-between gap-orbit-m flex-wrap">
+        <div className="flex items-start gap-orbit-base min-w-0 flex-1">
           <div
             className={cn(
               "h-10 w-10 rounded-full grid place-items-center shrink-0",
@@ -135,7 +135,7 @@ export function VersionVerdictBanner({
             <Icon className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-orbit-s flex-wrap">
               <h2 className="text-lg font-semibold text-foreground">{headline}</h2>
               <Badge variant="outline" className="font-mono text-[11px]">
                 {leftVersion.version} → {rightVersion.version}
@@ -147,10 +147,10 @@ export function VersionVerdictBanner({
                 <Badge className="bg-warning/15 text-warning border-warning/30">Changes requested</Badge>
               )}
             </div>
-            <p className="text-sm text-muted-foreground mt-1">{subline}</p>
+            <p className="text-sm text-muted-foreground mt-orbit-xs">{subline}</p>
 
             {/* Three quick stats — clickable to jump */}
-            <div className="flex flex-wrap gap-2 mt-3">
+            <div className="flex flex-wrap gap-orbit-s mt-orbit-base">
               <Stat label="Met" value={met.length} tone="success" />
               <Stat label="Not met" value={notMet.length} tone="warning" onClick={notMet.length ? onJumpToOpen : undefined} />
               <Stat label="Changes" value={supplierChanges.length} tone="destructive" onClick={supplierChanges.length ? onJumpToChanges : undefined} />
@@ -158,9 +158,9 @@ export function VersionVerdictBanner({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-orbit-s shrink-0">
           {decision ? (
-            <Button variant="outline" className="gap-1.5" onClick={() => onDecision(null)}>
+            <Button variant="outline" className="gap-orbit-xs" onClick={() => onDecision(null)}>
               <RotateCcw className="h-3.5 w-3.5" /> Undo
             </Button>
           ) : (
@@ -172,7 +172,7 @@ export function VersionVerdictBanner({
                 Request changes
               </Button>
               <Button onClick={() => onDecision("accepted")}>
-                <CheckCircle2 className="h-4 w-4 mr-1.5" /> Accept version
+                <CheckCircle2 className="h-4 w-4 mr-orbit-xs" /> Accept version
               </Button>
             </>
           )}
@@ -204,7 +204,7 @@ function Stat({
     <Comp
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm",
+        "inline-flex items-center gap-orbit-s px-orbit-base py-orbit-xs rounded-md border text-sm",
         toneCls,
         onClick && "hover:opacity-80 cursor-pointer",
       )}

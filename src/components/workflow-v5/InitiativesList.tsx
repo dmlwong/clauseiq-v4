@@ -9,10 +9,10 @@ interface Props {
 
 export function InitiativesList({ onSelect }: Props) {
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="max-w-6xl mx-auto space-y-8">
-        <header className="flex items-end justify-between gap-4">
-          <div className="space-y-2">
+    <div className="min-h-screen bg-background p-orbit-l">
+      <div className="max-w-6xl mx-auto space-y-orbit-l">
+        <header className="flex items-end justify-between gap-orbit-base">
+          <div className="space-y-orbit-s">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Connected Platform</p>
             <h1 className="text-3xl font-bold text-foreground tracking-tight">Initiatives</h1>
             <p className="text-muted-foreground">Select an initiative to view its suppliers and contracts.</p>
@@ -22,7 +22,7 @@ export function InitiativesList({ onSelect }: Props) {
           </Button>
         </header>
 
-        <div className="grid gap-4">
+        <div className="grid gap-orbit-base">
           {INITIATIVES.map((init) => {
             const supplierCount = init.suppliers.length;
             const contractCount = init.suppliers.reduce((n, s) => n + s.contracts.length, 0);
@@ -31,20 +31,20 @@ export function InitiativesList({ onSelect }: Props) {
               <button
                 key={init.id}
                 onClick={() => onSelect(init.id)}
-                className="group text-left bg-card border border-border rounded-xl p-6 hover:border-primary/40 hover:shadow-md transition-all"
+                className="group text-left bg-card border border-border rounded-xl p-orbit-m hover:border-primary/40 hover:shadow-md transition-all"
               >
-                <div className="flex items-start justify-between gap-6">
-                  <div className="space-y-3 flex-1">
-                    <div className="flex items-center gap-2">
+                <div className="flex items-start justify-between gap-orbit-m">
+                  <div className="space-y-orbit-base flex-1">
+                    <div className="flex items-center gap-orbit-s">
                       <h2 className="text-lg font-semibold text-foreground">{init.name}</h2>
                       <Badge variant="outline" className="font-mono text-xs">{init.reference}</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground max-w-2xl">{init.description}</p>
-                    <div className="flex gap-6 text-sm pt-1">
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <div className="flex gap-orbit-m text-sm pt-orbit-xs">
+                      <div className="flex items-center gap-orbit-xs text-muted-foreground">
                         <Building2 className="w-4 h-4" /> {supplierCount} suppliers
                       </div>
-                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <div className="flex items-center gap-orbit-xs text-muted-foreground">
                         <FileText className="w-4 h-4" /> {contractCount} contracts
                       </div>
                       {inNegotiation > 0 && (

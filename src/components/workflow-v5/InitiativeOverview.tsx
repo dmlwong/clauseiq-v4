@@ -77,15 +77,15 @@ export function InitiativeOverview({ initiativeId, onBack, onSelectSupplier, onC
   ];
 
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+    <div className="min-h-screen bg-background p-orbit-l">
+      <div className="max-w-6xl mx-auto space-y-orbit-m">
+        <button onClick={onBack} className="flex items-center gap-orbit-xs text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ChevronLeft className="w-4 h-4" /> Back to Initiatives
         </button>
 
-        <header className="space-y-2 flex items-start justify-between gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
+        <header className="space-y-orbit-s flex items-start justify-between gap-orbit-base">
+          <div className="space-y-orbit-s">
+            <div className="flex items-center gap-orbit-s">
               <h1 className="text-2xl font-bold text-foreground tracking-tight">{initiative.name}</h1>
               <Badge variant="outline" className="font-mono text-xs">{initiative.reference}</Badge>
             </div>
@@ -97,7 +97,7 @@ export function InitiativeOverview({ initiativeId, onBack, onSelectSupplier, onC
         </header>
 
         <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-border">
+          <div className="px-orbit-m py-orbit-base border-b border-border">
             <h2 className="text-sm font-semibold text-foreground">Suppliers ({initiative.suppliers.length})</h2>
           </div>
           <OrbitTable

@@ -10,7 +10,7 @@ export function DeviationPills({ deviations, compact = false }: Props) {
   const size = compact ? "Mini" : "Small";
 
   return (
-    <div className={compact ? "flex flex-wrap gap-1" : "flex flex-wrap gap-2"}>
+    <div className={compact ? "flex flex-wrap gap-orbit-xs" : "flex flex-wrap gap-orbit-s"}>
       <Chip label={`Missing ${deviations.missing}`} size={size} variant="No Status" />
       <Chip label={`High ${deviations.high}`} size={size} variant="Error" />
       <Chip label={`Medium ${deviations.medium}`} size={size} variant="Warning" />

@@ -32,18 +32,18 @@ export function V5OrbitOverlay({
     >
       <Card type="Static" padding="Base" state="Default">
         <div className="flex max-h-[86vh] min-w-0 flex-col overflow-hidden">
-          <div className="border-b border-border pb-4">
+          <div className="border-b border-border pb-orbit-base">
             <Headings size="Heading 4">{title}</Headings>
             {description && (
-              <div className="mt-2">
+              <div className="mt-orbit-s">
                 <Text size="Small" variant="Secondary" as="p">
                   {description}
                 </Text>
               </div>
             )}
           </div>
-          {children && <div className="v5-hover-scrollbar min-h-0 overflow-y-auto py-4">{children}</div>}
-          {footer && <div className="border-t border-border pt-4">{footer}</div>}
+          {children && <div className="v5-hover-scrollbar min-h-0 overflow-y-auto py-orbit-base">{children}</div>}
+          {footer && <div className="border-t border-border pt-orbit-base">{footer}</div>}
         </div>
       </Card>
     </Overlay>
@@ -76,7 +76,7 @@ export function V5OrbitConfirmOverlay({
       title={title}
       description={description}
       footer={
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-orbit-s">
           <Button variant="Secondary" size="Medium" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>

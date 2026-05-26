@@ -108,9 +108,9 @@ export default function InitiativeDetailPageV5() {
   if (!initiative) {
     return (
       <V5Shell title="Delivery Engine" subtitle="Manage and track procurement initiatives end-to-end">
-        <div className="p-10">
+        <div className="p-orbit-xxl">
           <Card type="Static" padding="Base">
-            <div className="py-10 text-center">
+            <div className="py-orbit-xxl text-center">
               <Text size="Small" variant="Secondary">Initiative not found.</Text>
             </div>
           </Card>
@@ -131,17 +131,17 @@ export default function InitiativeDetailPageV5() {
       headerRight={
         <V5InitiativeLinkButton label={`${initiative.id} | ${initiative.name}`} />
       }
-      subheaderClassName="shrink-0 border-b border-slate-200 bg-white px-0 py-0"
+      subheaderClassName="shrink-0 border-b border-slate-200 bg-white px-orbit-none py-orbit-none"
       subheader={
-        <div className="flex h-12 items-stretch justify-between px-6">
-          <div className="flex items-stretch gap-6">
+        <div className="flex h-12 items-stretch justify-between px-orbit-m">
+          <div className="flex items-stretch gap-orbit-m">
             {detailTabs.map(([value, label]) => (
               <button
                 key={value}
                 type="button"
                 onClick={() => setTab(value)}
                 className={cn(
-                  "border-b-2 px-3 text-xs font-medium transition-colors",
+                  "border-b-2 px-orbit-base text-xs font-medium transition-colors",
                   tab === value ? "border-[#5B5BF7] text-slate-950" : "border-transparent text-slate-600 hover:text-slate-950",
                 )}
               >
@@ -149,16 +149,16 @@ export default function InitiativeDetailPageV5() {
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-orbit-s">
             <Button
               variant="outline"
-              className="h-8 gap-1.5 border-slate-400 bg-white text-xs"
+              className="h-8 gap-orbit-xs border-slate-400 bg-white text-xs"
               onClick={() => toast({ title: `Edit initiative ${initiative.id}` })}
             >
               <Pencil className="h-3.5 w-3.5" />
               Edit
             </Button>
-            <Button variant="outline" className="h-8 gap-1.5 border-slate-400 bg-white text-xs" onClick={closePage}>
+            <Button variant="outline" className="h-8 gap-orbit-xs border-slate-400 bg-white text-xs" onClick={closePage}>
               <X className="h-3.5 w-3.5" />
               Close
             </Button>
@@ -166,11 +166,11 @@ export default function InitiativeDetailPageV5() {
         </div>
       }
     >
-      <div className="min-h-full bg-slate-50 px-8 py-4">
-        <div className="mx-auto max-w-[900px] space-y-3">
+      <div className="min-h-full bg-slate-50 px-orbit-l py-orbit-base">
+        <div className="mx-auto max-w-[900px] space-y-orbit-base">
           {tab !== "overview" ? (
             <Card type="Static" padding="Base" state="Accent">
-              <div className="py-24 text-center">
+              <div className="py-orbit-mega text-center">
                 <Text size="Small" variant="Secondary">
                   {tab === "benefits" ? "Benefits" : "Milestones"} - Coming soon
                 </Text>
@@ -179,8 +179,8 @@ export default function InitiativeDetailPageV5() {
           ) : (
             <>
               <Card type="Static" padding="Base">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-start gap-3">
+                <div className="flex flex-wrap items-start justify-between gap-orbit-base">
+                  <div className="flex min-w-0 items-start gap-orbit-base">
                     <div className="grid h-8 w-8 place-items-center rounded bg-[#EEF0FF] text-[#5B5BF7]">
                       <SlidersHorizontal className="h-4 w-4" />
                     </div>
@@ -188,11 +188,11 @@ export default function InitiativeDetailPageV5() {
                       <h1 className="truncate text-lg font-semibold text-slate-950">
                         {initiative.id} | {initiative.name}
                       </h1>
-                      <div className="mt-3 space-y-2 text-xs text-slate-600">
+                      <div className="mt-orbit-base space-y-orbit-s text-xs text-slate-600">
                         <p>Category: <span className="font-medium text-slate-900">{initiative.category}</span></p>
                         <p>Methodology: <span className="font-medium text-slate-900">{initiative.methodology}</span></p>
-                        <p className="flex flex-wrap items-center gap-2">
-                          <span className="inline-flex items-center gap-1">
+                        <p className="flex flex-wrap items-center gap-orbit-s">
+                          <span className="inline-flex items-center gap-orbit-xs">
                             Led by: <span className="font-medium text-slate-900">{initiative.ledBy}</span>
                           </span>
                           <span>|</span>
@@ -207,15 +207,15 @@ export default function InitiativeDetailPageV5() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <span className="inline-flex items-center gap-1 text-slate-500">
+                  <div className="flex flex-wrap items-center gap-orbit-s text-xs">
+                    <span className="inline-flex items-center gap-orbit-xs text-slate-500">
                       <Info className="h-3.5 w-3.5" />
                       Initiative Status:
                     </span>
                     <StatusBadgeV5 status={initiative.status} />
                     <Button
                       variant="outline"
-                      className="h-8 gap-1.5 border-slate-400 bg-white text-xs"
+                      className="h-8 gap-orbit-xs border-slate-400 bg-white text-xs"
                       onClick={() => toast({ title: "Guidance panel coming soon" })}
                     >
                       Guidance
@@ -227,9 +227,9 @@ export default function InitiativeDetailPageV5() {
                 </div>
               </Card>
 
-              <div className="grid gap-3 lg:grid-cols-2">
+              <div className="grid gap-orbit-base lg:grid-cols-2">
                 <InfoCardV5 title="Timeline" icon={<CalendarDays className="h-4 w-4 text-[#5B5BF7]" />}>
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-orbit-base sm:grid-cols-2">
                     <MetricV5 label="Expected In-flight Date" value={initiative.timeline.expectedInflightDate} />
                     <MetricV5 label="Expected Completion Date" value={initiative.timeline.expectedCompletionDate} />
                   </div>
@@ -238,7 +238,7 @@ export default function InitiativeDetailPageV5() {
                   <MetricV5
                     label="Estimated Spend & Savings Known"
                     value={
-                      <span className="inline-flex items-center gap-2">
+                      <span className="inline-flex items-center gap-orbit-s">
                         <span className={cn("h-2.5 w-2.5 rounded-full", initiative.spendAndSavings.isKnown ? "bg-emerald-500" : "bg-red-500")} />
                         {initiative.spendAndSavings.isKnown ? "Yes" : "No"}
                       </span>
@@ -247,28 +247,28 @@ export default function InitiativeDetailPageV5() {
                 </InfoCardV5>
               </div>
 
-              <section className="space-y-3">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+              <section className="space-y-orbit-base">
+                <div className="flex flex-wrap items-start justify-between gap-orbit-base">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-orbit-s">
                       <div className="grid h-7 w-7 place-items-center rounded-md bg-[#EEF0FF] text-[#5B5BF7]">
                         <Settings className="h-3.5 w-3.5" />
                       </div>
                       <Headings size="Heading 5">Key Tool Coverage</Headings>
                       <Info className="h-3.5 w-3.5 text-slate-400" />
                     </div>
-                    <div className="mt-2">
+                    <div className="mt-orbit-s">
                       <Text as="p" size="Small" variant="Secondary">
                         Track progress across critical initiative tools
                       </Text>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-slate-600">
+                  <div className="flex items-center gap-orbit-s text-xs text-slate-600">
                     Tool Used:
                     <OrbitBadge label={`${usedTools}/${initiative.toolCoverage.length}`} status="Information" />
                   </div>
                 </div>
-                <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div className="mt-orbit-base grid gap-orbit-base md:grid-cols-2 xl:grid-cols-4">
                   {initiative.toolCoverage.map((tool, index) => (
                     tool.toolName === "ClauseIQ" ? (
                       <CompletedToolActionCardV5

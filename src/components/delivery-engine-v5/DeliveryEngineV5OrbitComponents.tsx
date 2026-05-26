@@ -127,7 +127,7 @@ export function InfoCardV5({
 }) {
   return (
     <Card type="Static" padding="Base">
-      <div className="mb-3 flex items-center gap-2">
+      <div className="mb-orbit-base flex items-center gap-orbit-s">
         <span className="grid h-7 w-7 place-items-center rounded-md bg-[var(--orbit-color-chip-additional-bg)]">
           {icon}
         </span>
@@ -146,7 +146,7 @@ export function MetricV5({ label, value }: { label: string; value: ReactNode }) 
       <Text as="p" size="Small" variant="Secondary">
         {label}
       </Text>
-      <div className="mt-1">
+      <div className="mt-orbit-xs">
         <Text as="div" size="Small" variant="Bold">
           {value}
         </Text>
@@ -179,7 +179,7 @@ export function CompletedToolActionCardV5({
   return (
     <Card type="Static" padding="Small" state="Success">
       <div className="flex min-h-[192px] flex-col">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start justify-between gap-orbit-s">
           <span className="relative grid h-10 w-10 place-items-center rounded-md border border-[var(--orbit-color-status-low-border-success)] bg-[var(--orbit-color-card-bg-default)] text-[var(--orbit-color-text-success)]">
             <FaIcon icon={ICON_FILE} size={18} />
             <span className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-[var(--orbit-color-status-high-bg-success)] text-white">
@@ -189,18 +189,18 @@ export function CompletedToolActionCardV5({
           <Badge label="Deliver" status="Success" />
         </div>
 
-        <div className="mt-4">
+        <div className="mt-orbit-base">
           <Headings size="Heading 5">
             {toolName}
           </Headings>
-          <div className="mt-1 min-h-[34px]">
+          <div className="mt-orbit-xs min-h-[34px]">
             <Text as="p" size="Small" variant="Secondary">
               {description}
             </Text>
           </div>
         </div>
 
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-orbit-base flex items-center gap-orbit-s">
           <Avatar
             style="Text"
             name={avatarInitials}
@@ -213,8 +213,8 @@ export function CompletedToolActionCardV5({
           </Text>
         </div>
 
-        <div className="mt-auto pt-4">
-          <div className="grid grid-cols-2 gap-2">
+        <div className="mt-auto pt-orbit-base">
+          <div className="grid grid-cols-2 gap-orbit-s">
             <IconButton
               variant="Secondary"
               size="Medium"
@@ -231,7 +231,7 @@ export function CompletedToolActionCardV5({
             />
           </div>
           <Button
-            className="mt-2 w-full"
+            className="mt-orbit-s w-full"
             variant="Secondary"
             size="Medium"
             iconRight={<FaIcon icon={ICON_EXTERNAL} />}
@@ -274,7 +274,7 @@ export function ToolCoverageCardV5({
   return (
     <Card type="Static" padding="Small" state={cardState}>
       <div className="flex min-h-[192px] flex-col">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start justify-between gap-orbit-s">
           <span className="grid h-10 w-10 place-items-center rounded-md border border-[var(--orbit-color-card-border-default)] bg-[var(--orbit-color-chip-additional-bg)] text-[var(--orbit-color-text-info)]">
             <FaIcon icon={index % 2 === 0 ? ICON_SETTINGS : ICON_FILE} size={18} />
           </span>
@@ -284,11 +284,11 @@ export function ToolCoverageCardV5({
           />
         </div>
 
-        <div className="mt-4">
+        <div className="mt-orbit-base">
           <Headings size="Heading 5">
             {tool.toolName}
           </Headings>
-          <div className="mt-1 min-h-[34px]">
+          <div className="mt-orbit-xs min-h-[34px]">
             <Text as="p" size="Small" variant="Secondary">
               {tool.description}
             </Text>
@@ -296,7 +296,7 @@ export function ToolCoverageCardV5({
         </div>
 
         {hasActivity ? (
-          <div className="mt-3 flex items-center gap-2">
+          <div className="mt-orbit-base flex items-center gap-orbit-s">
             <Avatar
               style="Text"
               name={tool.lastRunBy ?? tool.toolName}
@@ -309,7 +309,7 @@ export function ToolCoverageCardV5({
             </Text>
           </div>
         ) : (
-          <div className="mt-3">
+          <div className="mt-orbit-base">
             <Chip
               label={tool.isPrimary ? "Primary tool" : "Optional tool"}
               size="Small"
@@ -318,9 +318,9 @@ export function ToolCoverageCardV5({
           </div>
         )}
 
-        <div className="mt-auto pt-4">
+        <div className="mt-auto pt-orbit-base">
           {hasActivity ? (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-orbit-s">
               <IconButton
                 variant="Secondary"
                 size="Medium"
@@ -393,12 +393,12 @@ export function ContentSearchTableV5({ documents }: { documents: DeliveryDocumen
         onChange={() => toast({ title: "Document upload received" })}
       />
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-orbit-base">
         <div>
           <Headings size="Heading 4">
             Content Search
           </Headings>
-          <div className="mt-1">
+          <div className="mt-orbit-xs">
             <Text as="p" size="Small" variant="Secondary">
               Browse initiative content and training material
             </Text>
@@ -414,13 +414,13 @@ export function ContentSearchTableV5({ documents }: { documents: DeliveryDocumen
         </Button>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="mt-orbit-base flex flex-wrap items-center justify-between gap-orbit-base">
         <QuickFilterGroup ariaLabel="Content type">
           <QuickFilterItem label="General Docs" selected={tab === "general"} onClick={() => setTab("general")} />
           <QuickFilterItem label="Training" selected={tab === "training"} onClick={() => setTab("training")} />
         </QuickFilterGroup>
 
-        <div className="flex min-w-[280px] flex-1 flex-wrap justify-end gap-2">
+        <div className="flex min-w-[280px] flex-1 flex-wrap justify-end gap-orbit-s">
           <div className="min-w-[240px] max-w-sm flex-1">
             <Searchbox
               ariaLabel="Search content"
@@ -444,8 +444,8 @@ export function ContentSearchTableV5({ documents }: { documents: DeliveryDocumen
       </div>
 
       {filtersOpen ? (
-        <div className="mt-3 space-y-2 rounded-md border border-[var(--orbit-color-card-border-accent)] bg-[var(--orbit-color-card-bg-accent)] p-3">
-          <div className="grid gap-3 sm:grid-cols-3">
+        <div className="mt-orbit-base space-y-orbit-s rounded-md border border-[var(--orbit-color-card-border-accent)] bg-[var(--orbit-color-card-bg-accent)] p-orbit-base">
+          <div className="grid gap-orbit-base sm:grid-cols-3">
             <Checkbox
               label="Category case study"
               checked={filterState.categoryCaseStudy}
@@ -468,7 +468,7 @@ export function ContentSearchTableV5({ documents }: { documents: DeliveryDocumen
         </div>
       ) : null}
 
-      <div className="mt-4">
+      <div className="mt-orbit-base">
         <Table<DeliveryDocument>
           ariaLabel="Content search documents"
           density="Compact"
@@ -525,7 +525,7 @@ export function ContentSearchTableV5({ documents }: { documents: DeliveryDocumen
               header: "Action",
               width: "100px",
               render: (document) => (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-orbit-xs">
                   <IconButton
                     variant="Tertiary"
                     size="Medium"

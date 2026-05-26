@@ -30,7 +30,7 @@ export function FileDropzone({
   if (disabled && disabledMessage) {
     return (
       <Card type="Static" padding="Base" state="Disabled">
-        <div className="py-8 text-center">
+        <div className="py-orbit-l text-center">
           <Text as="p" size="Small" variant="Disabled">
             {disabledMessage}
           </Text>

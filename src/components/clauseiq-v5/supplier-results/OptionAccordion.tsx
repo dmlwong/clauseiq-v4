@@ -27,9 +27,9 @@ export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResu
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.18 }}
-      className="mx-auto w-full max-w-[640px] space-y-5"
+      className="mx-auto w-full max-w-[640px] space-y-orbit-m"
     >
-      <div className="space-y-3">
+      <div className="space-y-orbit-base">
         {suppliers.map((supplier) => {
           const open = openIds.includes(supplier.id);
           const severity = supplierSeverity(supplier.analyses);
@@ -47,18 +47,18 @@ export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResu
                 type="button"
                 variant="ghost"
                 onClick={() => toggle(supplier.id)}
-                className="h-auto w-full justify-start rounded-none px-4 py-3 text-left hover:bg-muted/45"
+                className="h-auto w-full justify-start rounded-none px-orbit-base py-orbit-base text-left hover:bg-muted/45"
               >
-                <div className="flex w-full min-w-0 items-start gap-3">
+                <div className="flex w-full min-w-0 items-start gap-orbit-base">
                   <SupplierAvatar name={supplier.name} shortCode={supplier.shortCode} severity={severity} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium text-foreground">{supplier.name}</div>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                    <div className="mt-orbit-xxs flex flex-wrap items-center gap-orbit-xs text-xs text-muted-foreground">
                       <span>Total Contract Runs: {supplier.analyses.length}</span>
                       {containsLatestOutput && <span className="font-medium">- Contains latest output</span>}
                     </div>
                   </div>
-                  <div className="ml-auto flex shrink-0 items-center gap-2 pt-0.5">
+                  <div className="ml-auto flex shrink-0 items-center gap-orbit-s pt-orbit-xxs">
                     <span className="max-w-[9rem] text-right text-[11px] leading-tight text-muted-foreground">
                       {latestChange}
                     </span>
@@ -77,7 +77,7 @@ export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResu
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                   >
-                    <div className="space-y-3 border-t border-border/70 bg-muted/20 p-3">
+                    <div className="space-y-orbit-base border-t border-border/70 bg-muted/20 p-orbit-base">
                       {oldestFirst(supplier.analyses).map((analysis) => (
                         <AnalysisCard
                           key={analysis.id}

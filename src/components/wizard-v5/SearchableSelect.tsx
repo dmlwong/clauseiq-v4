@@ -47,8 +47,8 @@ export function SearchableSelect({
   const selectedLabel = options.find((option) => option.value === value)?.label;
 
   return (
-    <div className="space-y-1.5" ref={ref}>
-      <div className="flex items-center gap-1.5">
+    <div className="space-y-orbit-xs" ref={ref}>
+      <div className="flex items-center gap-orbit-xs">
         <Text as="span" size="Small" variant="Bold">
           {label}
           {required ? " *" : ""}
@@ -74,18 +74,18 @@ export function SearchableSelect({
         </Button>
 
         {open ? (
-          <div className="absolute z-50 mt-1 w-full">
+          <div className="absolute z-50 mt-orbit-xs w-full">
             <Card type="Static" padding="Small">
-              <div className="space-y-2">
+              <div className="space-y-orbit-s">
                 <Searchbox
                   ariaLabel={`Search ${label}`}
                   value={search}
                   onChange={setSearch}
                   placeholder="Search..."
                 />
-                <div className="v5-hover-scrollbar max-h-48 space-y-1 overflow-y-auto">
+                <div className="v5-hover-scrollbar max-h-48 space-y-orbit-xs overflow-y-auto">
                   {filtered.length === 0 ? (
-                    <div className="p-2 text-center">
+                    <div className="p-orbit-s text-center">
                       <Text size="Small" variant="Secondary">No results</Text>
                     </div>
                   ) : (

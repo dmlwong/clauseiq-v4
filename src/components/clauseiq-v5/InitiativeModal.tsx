@@ -60,7 +60,7 @@ export function InitiativeModal({ open, onClose, onSelect }: Props) {
       size="Large"
       footer={<Button variant="outline" onClick={onClose}>Cancel</Button>}
     >
-        <div className="space-y-4">
+        <div className="space-y-orbit-base">
           <div className="sr-only">
             <Headings size="Heading 4">Select An Initiative</Headings>
             <Text size="Small" variant="Secondary" as="p">Choose an initiative for ClauseIQ analysis.</Text>
@@ -70,14 +70,14 @@ export function InitiativeModal({ open, onClose, onSelect }: Props) {
               <TabsTrigger value="mine">Mine</TabsTrigger>
               <TabsTrigger value="team">Team</TabsTrigger>
             </TabsList>
-            <TabsContent value={tab} className="mt-4">
-              <div className="relative mb-3">
+            <TabsContent value={tab} className="mt-orbit-base">
+              <div className="relative mb-orbit-base">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search initiative..."
-                  className="pl-9"
+                  className="pl-orbit-l"
                 />
               </div>
               <div className="max-h-[320px] overflow-y-auto" onClick={handleInitiativeTableClick}>
@@ -88,7 +88,7 @@ export function InitiativeModal({ open, onClose, onSelect }: Props) {
                   getRowKey={(row) => row.id}
                   onRowSelect={onSelect}
                   density="Compact"
-                  emptyState={<div className="py-6 text-center text-sm text-muted-foreground">No initiatives match your search.</div>}
+                  emptyState={<div className="py-orbit-m text-center text-sm text-muted-foreground">No initiatives match your search.</div>}
                 />
               </div>
             </TabsContent>

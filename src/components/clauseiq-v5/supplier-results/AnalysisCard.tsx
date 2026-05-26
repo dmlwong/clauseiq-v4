@@ -50,7 +50,7 @@ export function AnalysisCard({
     >
       <Card type="Static" state={highlighted ? "Highlight" : "Default"} padding="Base">
         {showSupplier && supplier && (
-          <div className="mb-4 flex items-center gap-2 border-b border-border/70 pb-3">
+          <div className="mb-orbit-base flex items-center gap-orbit-s border-b border-border/70 pb-orbit-base">
             <SupplierAvatar
               name={supplier.name}
               shortCode={supplier.shortCode}
@@ -61,15 +61,15 @@ export function AnalysisCard({
           </div>
         )}
 
-        <div className="space-y-5">
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <Badge variant="outline" className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground">
+        <div className="space-y-orbit-m">
+          <div className="space-y-orbit-base">
+            <div className="flex flex-wrap items-center justify-between gap-orbit-s">
+              <div className="flex min-w-0 flex-wrap items-center gap-orbit-s">
+                <Badge variant="outline" className="rounded-md px-orbit-s py-orbit-xs text-xs font-medium text-muted-foreground">
                   Analysis Result
                 </Badge>
                 {isLatestOutput && (
-                  <Badge variant="outline" className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground">
+                  <Badge variant="outline" className="rounded-md px-orbit-s py-orbit-xs text-xs font-medium text-muted-foreground">
                     Latest output
                   </Badge>
                 )}
@@ -78,16 +78,16 @@ export function AnalysisCard({
                 {formatAnalysisTimestamp(analysis.analysedAt)}
               </span>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-orbit-base">
               <h3 className="text-xl font-semibold leading-tight text-foreground">Here is your Analysis Result</h3>
-              <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <label className="flex items-center gap-orbit-s text-sm font-medium text-foreground">
                 <span>Save To My Documents</span>
                 <Switch checked={saveToDocuments} onCheckedChange={setSaveToDocuments} aria-label="Save To My Documents" />
               </label>
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-orbit-base">
             <StatusLine
               icon={<DocumentGlyph documentType={documentTypeFromFileName(analysis.fileName)} size="Extra Small" />}
               label={analysis.fileName}
@@ -103,13 +103,13 @@ export function AnalysisCard({
             />
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-orbit-base">
             <p className="text-base text-foreground">
               {onDownload
                 ? "Summary shown below. Download the report for full details."
                 : "Summary shown below. View the result for full details."}
             </p>
-            <div className="space-y-2" role="group" aria-labelledby={deviationSummaryId}>
+            <div className="space-y-orbit-s" role="group" aria-labelledby={deviationSummaryId}>
               <p id={deviationSummaryId} className="text-sm font-medium text-muted-foreground">
                 Missing Clauses and deviation levels
               </p>
@@ -117,26 +117,26 @@ export function AnalysisCard({
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-orbit-s">
             {onViewResult && (
               <Button
                 variant={viewResultPrimary ? "default" : "outline"}
-                className="h-10 w-full gap-2"
+                className="h-10 w-full gap-orbit-s"
                 onClick={onViewResult}
               >
                 <BarChart2 className="h-4 w-4" />
                 View Result
               </Button>
             )}
-            <div className={cn("grid gap-2", onRunAgain && onDownload ? "sm:grid-cols-2" : "grid-cols-1")}>
+            <div className={cn("grid gap-orbit-s", onRunAgain && onDownload ? "sm:grid-cols-2" : "grid-cols-1")}>
               {onRunAgain && (
-                <Button variant="outline" className="h-10 gap-2" onClick={onRunAgain}>
+                <Button variant="outline" className="h-10 gap-orbit-s" onClick={onRunAgain}>
                   <RotateCw className="h-4 w-4" />
                   Run Another Analysis
                 </Button>
               )}
               {onDownload && (
-                <Button variant="outline" className="h-10 gap-2" onClick={onDownload}>
+                <Button variant="outline" className="h-10 gap-orbit-s" onClick={onDownload}>
                   <Download className="h-4 w-4" />
                   Download Report
                 </Button>
@@ -178,14 +178,14 @@ function StatusLine({
   return (
     <div
       className={cn(
-        "flex min-h-10 items-center justify-between gap-3 rounded-lg px-3 text-sm",
+        "flex min-h-10 items-center justify-between gap-orbit-base rounded-lg px-orbit-base text-sm",
         tone === "neutral" && "bg-muted text-foreground",
         tone === "success" && "bg-success/10 text-success",
         tone === "warning" && "bg-warning/15 text-warning-foreground",
         tone === "destructive" && "bg-destructive/10 text-destructive",
       )}
     >
-      <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-w-0 items-center gap-orbit-s">
         <span className="shrink-0">{icon}</span>
         <span className="truncate font-medium">{label}</span>
       </div>

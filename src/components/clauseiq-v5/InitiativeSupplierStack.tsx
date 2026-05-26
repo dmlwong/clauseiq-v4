@@ -45,10 +45,10 @@ export function InitiativeSupplierStack({ initiativeName, currentSupplierName }:
   if (others.length === 0) return null;
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-end justify-between gap-3">
+    <div className="space-y-orbit-base">
+      <div className="flex items-end justify-between gap-orbit-base">
         <div>
-          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-orbit-xs">
             Other suppliers in this initiative
           </div>
           <h3 className="text-sm font-semibold text-foreground">
@@ -61,19 +61,19 @@ export function InitiativeSupplierStack({ initiativeName, currentSupplierName }:
         </Badge>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-orbit-s">
         <div className="relative flex-1">
           <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search supplier or contract..."
-            className="pl-8 h-9 text-sm"
+            className="pl-orbit-l h-9 text-sm"
           />
         </div>
         <Select value={status} onValueChange={(v) => setStatus(v as AnalysisStatusFilter)}>
           <SelectTrigger className="h-9 w-[160px] text-sm">
-            <SlidersHorizontal className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+            <SlidersHorizontal className="h-3.5 w-3.5 mr-orbit-xs text-muted-foreground" />
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -86,11 +86,11 @@ export function InitiativeSupplierStack({ initiativeName, currentSupplierName }:
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+        <div className="rounded-lg border border-dashed border-border px-orbit-base py-orbit-m text-center text-sm text-muted-foreground">
           No supplier analyses match your filters.
         </div>
       ) : (
-        <ul className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+        <ul className="space-y-orbit-s max-h-[420px] overflow-y-auto pr-orbit-xs">
           {filtered.map((a) => (
             <li key={a.id}>
               <PriorAnalysisCard analysis={a} />
@@ -99,7 +99,7 @@ export function InitiativeSupplierStack({ initiativeName, currentSupplierName }:
         </ul>
       )}
 
-      <div className="flex items-center gap-2 pt-1">
+      <div className="flex items-center gap-orbit-s pt-orbit-xs">
         <div className="h-px flex-1 bg-border" />
         <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
           Latest analysis below
@@ -114,9 +114,9 @@ function PriorAnalysisCard({ analysis }: { analysis: InitiativeSupplierAnalysis 
   return (
     <button
       type="button"
-      className="w-full text-left rounded-lg border border-border bg-background hover:border-ciq/40 hover:bg-ciq-soft/30 transition-colors px-3 py-2.5 group"
+      className="w-full text-left rounded-lg border border-border bg-background hover:border-ciq/40 hover:bg-ciq-soft/30 transition-colors px-orbit-base py-orbit-s group"
     >
-      <div className="flex items-center gap-2 mb-1.5">
+      <div className="flex items-center gap-orbit-s mb-orbit-xs">
         <Building2 className="h-3.5 w-3.5 text-ciq shrink-0" />
         <span className="text-sm font-medium text-foreground truncate flex-1">
           {analysis.supplierName}
@@ -124,13 +124,13 @@ function PriorAnalysisCard({ analysis }: { analysis: InitiativeSupplierAnalysis 
         <StatusPill status={analysis.status} />
         <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-ciq transition-colors" />
       </div>
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2 min-w-0">
+      <div className="flex items-center gap-orbit-xs text-xs text-muted-foreground mb-orbit-s min-w-0">
         <FileText className="h-3 w-3 shrink-0" />
         <span className="truncate">{analysis.contractName}</span>
         <span>·</span>
         <span className="shrink-0">{formatShortDate(analysis.analysedAt)}</span>
       </div>
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-wrap gap-orbit-xs">
         <Badge variant="outline" className="bg-ciq-soft text-ciq border-ciq-border text-[10px] font-normal">
           Missing: {analysis.missing}
         </Badge>

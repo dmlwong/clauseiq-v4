@@ -341,7 +341,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
         )
       }
       rightPanel={
-        <div className="h-full p-4">
+        <div className="h-full p-orbit-base">
           <SupplierOutputsPanel
             initiative={supplierOutputInitiative}
             outputState={supplierOutputPanelState}
@@ -354,25 +354,25 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
     >
       <div
         className={cn(
-          "mx-auto px-4 pt-10 space-y-5 transition-[max-width] duration-300",
-          "pb-10",
+          "mx-auto px-orbit-base pt-orbit-xxl space-y-orbit-m transition-[max-width] duration-300",
+          "pb-orbit-xxl",
           "max-w-[640px]",
         )}
       >
             {/* Welcome */}
             <StateCard state={welcomeState}>
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-orbit-base mb-orbit-base">
                 <div className="h-10 w-10 rounded-lg bg-primary text-primary-foreground grid place-items-center">
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <h1 className="text-xl font-semibold">ClauseIQ</h1>
               </div>
-              <p className="text-sm text-muted-foreground mb-5">
+              <p className="text-sm text-muted-foreground mb-orbit-m">
                 Upload a contract and ClauseIQ will review it against your initiative's playbook,
                 surfacing deviations, missing clauses and negotiation actions in seconds.
               </p>
-              <div className={cn("rounded-lg bg-muted/50 border border-border p-4 space-y-3", step === "welcome" && "mb-5")}>
-                <div className="text-sm font-medium text-foreground mb-1">Summary</div>
+              <div className={cn("rounded-lg bg-muted/50 border border-border p-orbit-base space-y-orbit-base", step === "welcome" && "mb-orbit-m")}>
+                <div className="text-sm font-medium text-foreground mb-orbit-xs">Summary</div>
                 <SummaryRow icon={<ListChecks className="h-4 w-4 text-ciq" />} text="Reviews every clause against your benchmark playbook." />
                 <SummaryRow icon={<Building2 className="h-4 w-4 text-ciq" />} text="Tied to a chosen initiative for traceable governance." />
                 <SummaryRow icon={<FilePlus2 className="h-4 w-4 text-ciq" />} text="Exports a shareable report with severity and actions." />
@@ -382,7 +382,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
                   className="w-full"
                   onClick={() => setStep("select")}
                 >
-                  <Sparkles className="h-4 w-4 mr-2" />
+                  <Sparkles className="h-4 w-4 mr-orbit-s" />
                   Get Started
                 </Button>
               )}
@@ -393,15 +393,15 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
               <div ref={selectRef}>
                 {!initiative ? (
                   <StateCard state={selectState}>
-                    <h2 className="text-base font-semibold mb-1">Select Initiative</h2>
-                    <p className="text-sm text-muted-foreground mb-4">
+                    <h2 className="text-base font-semibold mb-orbit-xs">Select Initiative</h2>
+                    <p className="text-sm text-muted-foreground mb-orbit-base">
                       Choose the initiative to analyse the contract against.
                     </p>
                     <Button
                       className="w-full"
                       onClick={() => setModalOpen(true)}
                     >
-                      <Search className="h-4 w-4 mr-2" />
+                      <Search className="h-4 w-4 mr-orbit-s" />
                       Search Initiatives
                     </Button>
                   </StateCard>
@@ -410,7 +410,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
                     state="default"
                     className={resultsVisible ? "mx-auto w-full max-w-[640px]" : undefined}
                   >
-                    <h2 className="text-base font-semibold mb-3">Initiative Selected</h2>
+                    <h2 className="text-base font-semibold mb-orbit-base">Initiative Selected</h2>
                     <SelectedSummaryRow
                       label={initiative.name}
                       disabled={initiativeLocked}
@@ -427,8 +427,8 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
               <div ref={parametersRef}>
                 {!selectedParameter ? (
                   <StateCard state={parametersState}>
-                    <h2 className="text-base font-semibold mb-1">Contract Analysis Parameters</h2>
-                    <p className="text-sm text-muted-foreground mb-4">
+                    <h2 className="text-base font-semibold mb-orbit-xs">Contract Analysis Parameters</h2>
+                    <p className="text-sm text-muted-foreground mb-orbit-base">
                       Choose a parameter to analyse this contract.
                     </p>
                     <ParameterSelection
@@ -443,7 +443,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
                     state={parameterLocked ? "disabled" : "default"}
                     className={resultsVisible ? "mx-auto w-full max-w-[640px]" : undefined}
                   >
-                    <h2 className="text-base font-semibold mb-3">Contract Analysis Parameters</h2>
+                    <h2 className="text-base font-semibold mb-orbit-base">Contract Analysis Parameters</h2>
                     <SelectedSummaryRow
                       label={selectedParameter.label}
                       disabled={parameterLocked}
@@ -459,10 +459,10 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
             {uploadVisible && selectedParameter && step !== "processing" && step !== "results" && (
               <div ref={uploadRef}>
                 <StateCard state={uploadState}>
-                  <h2 className="text-base font-semibold mb-3">Upload Contract</h2>
+                  <h2 className="text-base font-semibold mb-orbit-base">Upload Contract</h2>
                   <PlaybookDisclaimer variant="callout" parameter={selectedParameter} />
                   <Dropzone onFile={validateAndSetFile} />
-                  <div className="mt-3 text-xs text-muted-foreground space-y-0.5">
+                  <div className="mt-orbit-base text-xs text-muted-foreground space-y-orbit-xxs">
                     <div>File types supported: PDF</div>
                     <div>Maximum upload file size: 100 MB</div>
                   </div>
@@ -474,22 +474,22 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
             {processingVisible && step === "processing" && (
               <div ref={processingRef}>
                 <StateCard state={processingState}>
-                  <h2 className="text-base font-semibold mb-4">Analysing Your Contract</h2>
-                  <div className="flex items-center justify-between border border-border rounded-lg px-3 py-2 mb-4">
-                    <div className="flex items-center gap-2 min-w-0">
+                  <h2 className="text-base font-semibold mb-orbit-base">Analysing Your Contract</h2>
+                  <div className="flex items-center justify-between border border-border rounded-lg px-orbit-base py-orbit-s mb-orbit-base">
+                    <div className="flex items-center gap-orbit-s min-w-0">
                       <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                       <span className="text-sm truncate">{file?.name ?? "Contract.pdf"}</span>
                     </div>
-                    <span className="text-xs font-medium text-success inline-flex items-center gap-1">
+                    <span className="text-xs font-medium text-success inline-flex items-center gap-orbit-xs">
                       <Check className="h-3.5 w-3.5" /> Uploaded
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 py-2">
+                  <div className="flex items-center gap-orbit-base py-orbit-s">
                     <Loader2 className="h-5 w-5 animate-spin text-ciq" />
                     <span className="text-sm font-medium">Finding clauses in your contract...</span>
                   </div>
                   <PlaybookDisclaimer variant="inline" parameter={selectedParameter} />
-                  <p className="text-xs text-muted-foreground mt-2">
+                  <p className="text-xs text-muted-foreground mt-orbit-s">
                     This may take a moment. We will notify you when the analysis is completed.
                   </p>
                 </StateCard>
@@ -498,7 +498,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
 
             {/* Results */}
             {resultsVisible && (
-              <div ref={resultRef} className="space-y-4">
+              <div ref={resultRef} className="space-y-orbit-base">
                 <ResultsContent
                   initiative={resultsInitiative}
                   layout={resultsLayout}
@@ -511,12 +511,12 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
                 />
                 {newAnalysisSectionVisible && <NewAnalysisDivider />}
                 {rerunUploadVisible && (
-                  <div ref={rerunUploadRef} className="space-y-4">
+                  <div ref={rerunUploadRef} className="space-y-orbit-base">
                     <StateCard state={rerunSelectedParameter ? "default" : "active"}>
-                      <h2 className="text-base font-semibold mb-1">Contract Analysis Parameters</h2>
+                      <h2 className="text-base font-semibold mb-orbit-xs">Contract Analysis Parameters</h2>
                       {!rerunSelectedParameter ? (
                         <>
-                          <p className="text-sm text-muted-foreground mb-4">
+                          <p className="text-sm text-muted-foreground mb-orbit-base">
                             Choose a parameter to analyse the next contract.
                           </p>
                           <ParameterSelection
@@ -527,7 +527,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
                           />
                         </>
                       ) : (
-                        <div className="mt-2">
+                        <div className="mt-orbit-s">
                           <SelectedSummaryRow
                             label={rerunSelectedParameter.label}
                             disabled={false}
@@ -540,10 +540,10 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
 
                     {rerunSelectedParameter && (
                       <StateCard state="active">
-                        <h2 className="text-base font-semibold mb-3">Upload Contract</h2>
+                        <h2 className="text-base font-semibold mb-orbit-base">Upload Contract</h2>
                         <PlaybookDisclaimer variant="callout" parameter={rerunSelectedParameter} />
                         <Dropzone onFile={validateAndSetFile} />
-                        <div className="mt-3 text-xs text-muted-foreground space-y-0.5">
+                        <div className="mt-orbit-base text-xs text-muted-foreground space-y-orbit-xxs">
                           <div>File types supported: PDF</div>
                           <div>Maximum upload file size: 100 MB</div>
                         </div>
@@ -553,22 +553,22 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
                 )}
                 {rerunProcessing && (
                   <StateCard state="active">
-                    <h2 className="text-base font-semibold mb-4">Analysing New Contract</h2>
-                    <div className="flex items-center justify-between border border-border rounded-lg px-3 py-2 mb-4">
-                      <div className="flex items-center gap-2 min-w-0">
+                    <h2 className="text-base font-semibold mb-orbit-base">Analysing New Contract</h2>
+                    <div className="flex items-center justify-between border border-border rounded-lg px-orbit-base py-orbit-s mb-orbit-base">
+                      <div className="flex items-center gap-orbit-s min-w-0">
                         <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                         <span className="text-sm truncate">{file?.name ?? "Contract.pdf"}</span>
                       </div>
-                      <span className="text-xs font-medium text-success inline-flex items-center gap-1">
+                      <span className="text-xs font-medium text-success inline-flex items-center gap-orbit-xs">
                         <Check className="h-3.5 w-3.5" /> Uploaded
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 py-2">
+                    <div className="flex items-center gap-orbit-base py-orbit-s">
                       <Loader2 className="h-5 w-5 animate-spin text-ciq" />
                       <span className="text-sm font-medium">Finding clauses in your new contract...</span>
                     </div>
                     <PlaybookDisclaimer variant="inline" parameter={rerunSelectedParameter ?? selectedParameter} />
-                    <p className="text-xs text-muted-foreground mt-2">
+                    <p className="text-xs text-muted-foreground mt-orbit-s">
                       The existing analysis history remains available above while this runs.
                     </p>
                   </StateCard>
@@ -614,8 +614,8 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
 
 function SummaryRow({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
-    <div className="flex items-start gap-2 text-sm text-foreground/90">
-      <span className="mt-0.5">{icon}</span>
+    <div className="flex items-start gap-orbit-s text-sm text-foreground/90">
+      <span className="mt-orbit-xxs">{icon}</span>
       <span>{text}</span>
     </div>
   );
@@ -623,9 +623,9 @@ function SummaryRow({ icon, text }: { icon: React.ReactNode; text: string }) {
 
 function NewAnalysisDivider() {
   return (
-    <div className="flex items-center gap-4 py-1">
+    <div className="flex items-center gap-orbit-base py-orbit-xs">
       <div className="h-px flex-1 bg-slate-300" />
-      <span className="rounded-md border border-primary bg-white px-3 py-1 text-sm font-medium text-primary shadow-sm">
+      <span className="rounded-md border border-primary bg-white px-orbit-base py-orbit-xs text-sm font-medium text-primary shadow-sm">
         New Analysis
       </span>
       <div className="h-px flex-1 bg-slate-300" />
@@ -647,11 +647,11 @@ function SelectedSummaryRow({
   return (
     <div
       className={cn(
-        "flex min-h-11 items-center justify-between gap-4 rounded-md border px-4 py-2",
+        "flex min-h-11 items-center justify-between gap-orbit-base rounded-md border px-orbit-base py-orbit-s",
         disabled ? "border-border bg-muted/50 text-muted-foreground" : "border-border bg-card text-foreground",
       )}
     >
-      <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-w-0 items-center gap-orbit-s">
         <Check className={cn("h-4 w-4 shrink-0", disabled ? "text-muted-foreground" : "text-success")} />
         <span className={cn("truncate text-sm font-medium", disabled ? "text-muted-foreground" : "text-foreground")}>
           {label}
@@ -660,7 +660,7 @@ function SelectedSummaryRow({
       {!disabled && (
         <button
           type="button"
-          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-ciq transition-colors hover:bg-ciq-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex h-8 shrink-0 items-center gap-orbit-xs rounded-md px-orbit-s text-sm font-medium text-ciq transition-colors hover:bg-ciq-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           onClick={onAction}
         >
           <Pencil className="h-3.5 w-3.5" />
@@ -686,8 +686,8 @@ function ParameterSelection({
   const filteredOptions = expandedOption ? expandedOption.options : [];
 
   return (
-    <div className="space-y-3">
-      <fieldset className="grid gap-2 sm:grid-cols-2">
+    <div className="space-y-orbit-base">
+      <fieldset className="grid gap-orbit-s sm:grid-cols-2">
         <legend className="sr-only">Contract analysis parameter type</legend>
         {options.map((option) => {
           const selected = option.kind === expandedKind;
@@ -695,18 +695,18 @@ function ParameterSelection({
             <label
               key={option.kind}
               className={cn(
-                "flex min-h-[88px] cursor-pointer flex-col items-start justify-between rounded-lg border p-3 text-left transition-colors",
+                "flex min-h-[88px] cursor-pointer flex-col items-start justify-between rounded-lg border p-orbit-base text-left transition-colors",
                 selected ? "border-ciq bg-ciq-soft text-foreground" : "border-border bg-card hover:border-ciq/40 hover:bg-muted/35",
               )}
             >
-              <span className="flex w-full items-start justify-between gap-2">
+              <span className="flex w-full items-start justify-between gap-orbit-s">
                 <span className="grid h-8 w-8 place-items-center rounded-md bg-primary/10 text-primary">
                   <ParameterIcon kind={option.kind} />
                 </span>
                 <span
                   aria-hidden="true"
                   className={cn(
-                    "mt-0.5 grid h-4 w-4 place-items-center rounded-full border transition-colors",
+                    "mt-orbit-xxs grid h-4 w-4 place-items-center rounded-full border transition-colors",
                     selected ? "border-ciq bg-ciq" : "border-muted-foreground/40 bg-background",
                   )}
                 >
@@ -735,9 +735,9 @@ function ParameterSelection({
           aria-label={`${expandedOption.label} options`}
           className="overflow-hidden rounded-lg border border-border bg-card"
         >
-          <div className="max-h-52 overflow-y-auto p-1">
+          <div className="max-h-52 overflow-y-auto p-orbit-xs">
             {filteredOptions.length === 0 ? (
-              <div className="px-3 py-4 text-center text-sm text-muted-foreground">No options available.</div>
+              <div className="px-orbit-base py-orbit-base text-center text-sm text-muted-foreground">No options available.</div>
             ) : (
               filteredOptions.map((value) => (
                 <button
@@ -745,7 +745,7 @@ function ParameterSelection({
                   type="button"
                   role="option"
                   aria-selected={false}
-                  className="w-full rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
+                  className="w-full rounded-md px-orbit-base py-orbit-s text-left text-sm transition-colors hover:bg-muted"
                   onClick={() => onSelect(expandedOption, value)}
                 >
                   {value}
@@ -775,15 +775,15 @@ function PlaybookDisclaimer({ variant, parameter }: { variant: "callout" | "inli
 
   if (variant === "inline") {
     return (
-      <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+      <p className="mt-orbit-xs text-[11px] leading-snug text-muted-foreground">
         {copy}
       </p>
     );
   }
 
   return (
-    <div className="mb-4 flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-[11px] leading-snug text-muted-foreground">
-      <Info className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
+    <div className="mb-orbit-base flex items-start gap-orbit-s rounded-md border border-primary/20 bg-primary/5 px-orbit-base py-orbit-s text-[11px] leading-snug text-muted-foreground">
+      <Info className="mt-orbit-xxs h-3 w-3 shrink-0 text-primary" />
       <span>{copy}</span>
     </div>
   );
@@ -791,7 +791,7 @@ function PlaybookDisclaimer({ variant, parameter }: { variant: "callout" | "inli
 
 function NextRow({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <button className="w-full flex items-center justify-between border-b border-border py-3 text-left hover:bg-muted/40 px-1 -mx-1 rounded transition-colors">
+    <button className="w-full flex items-center justify-between border-b border-border py-orbit-base text-left hover:bg-muted/40 px-orbit-xs -mx-orbit-xs rounded transition-colors">
       <div>
         <div className="text-sm font-medium">{title}</div>
         <div className="text-xs text-muted-foreground">{subtitle}</div>

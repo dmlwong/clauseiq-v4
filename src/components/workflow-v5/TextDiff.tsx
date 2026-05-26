@@ -22,17 +22,17 @@ export function TextDiff({ prev, curr, leftLabel, rightLabel }: Props) {
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 text-[10px] font-mono uppercase text-muted-foreground">
-        <span className="inline-flex items-center gap-1">
+    <div className="space-y-orbit-s">
+      <div className="flex items-center gap-orbit-s text-[10px] font-mono uppercase text-muted-foreground">
+        <span className="inline-flex items-center gap-orbit-xs">
           <Minus className="w-3 h-3 text-destructive" aria-hidden /> Removed in {leftLabel}: {removed}
         </span>
         <span aria-hidden>·</span>
-        <span className="inline-flex items-center gap-1">
+        <span className="inline-flex items-center gap-orbit-xs">
           <Plus className="w-3 h-3 text-success" aria-hidden /> Added in {rightLabel}: {added}
         </span>
       </div>
-      <p className="text-sm leading-relaxed font-serif rounded-md border border-border bg-card p-3">
+      <p className="text-sm leading-relaxed font-serif rounded-md border border-border bg-card p-orbit-base">
         {segments.map((s, i) => {
           if (s.type === "equal") return <span key={i}>{s.text}</span>;
           if (s.type === "added") {
@@ -41,7 +41,7 @@ export function TextDiff({ prev, curr, leftLabel, rightLabel }: Props) {
             return (
               <span
                 key={i}
-                className="bg-success/25 text-foreground dark:text-success underline decoration-success decoration-[3px] underline-offset-[3px] font-medium rounded-sm px-0.5"
+                className="bg-success/25 text-foreground dark:text-success underline decoration-success decoration-[3px] underline-offset-[3px] font-medium rounded-sm px-orbit-xxs"
                 aria-label={`added in ${rightLabel}`}
               >
                 {s.text}
@@ -51,7 +51,7 @@ export function TextDiff({ prev, curr, leftLabel, rightLabel }: Props) {
           return (
             <span
               key={i}
-              className="bg-destructive/25 text-foreground dark:text-destructive line-through decoration-destructive decoration-[3px] font-medium rounded-sm px-0.5"
+              className="bg-destructive/25 text-foreground dark:text-destructive line-through decoration-destructive decoration-[3px] font-medium rounded-sm px-orbit-xxs"
               aria-label={`removed from ${leftLabel}`}
             >
               {s.text}

@@ -17,6 +17,18 @@ export default {
       fontFamily: {
         sans: ['"Inter"', 'system-ui', '-apple-system', 'sans-serif'],
       },
+      spacing: {
+        "orbit-none": "var(--orbit-space-none)",
+        "orbit-micro": "var(--orbit-space-micro)",
+        "orbit-xxs": "var(--orbit-space-xxs)",
+        "orbit-xs": "var(--orbit-space-xs)",
+        "orbit-s": "var(--orbit-space-s)",
+        "orbit-base": "var(--orbit-space-base)",
+        "orbit-m": "var(--orbit-space-m)",
+        "orbit-l": "var(--orbit-space-l)",
+        "orbit-xxl": "var(--orbit-space-xxl)",
+        "orbit-mega": "var(--orbit-space-mega)",
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

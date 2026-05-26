@@ -60,19 +60,19 @@ export function NegotiationTrendStrip({ versions, allDecisions, activeVersion, o
   const maxBar = Math.max(1, ...points.map((p) => p.high + p.medium + p.openRequests));
 
   return (
-    <div className="rounded-lg border border-border bg-card px-4 py-3">
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+    <div className="rounded-lg border border-border bg-card px-orbit-base py-orbit-base">
+      <div className="mb-orbit-base flex flex-wrap items-start justify-between gap-orbit-base">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Negotiation trend</h3>
           <p className="text-xs text-muted-foreground">High / medium issues and open requests across all rounds.</p>
         </div>
-        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-          <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-destructive" /> High</span>
-          <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-warning" /> Medium</span>
-          <span className="inline-flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-primary" /> Open requests</span>
+        <div className="flex items-center gap-orbit-base text-[10px] text-muted-foreground">
+          <span className="inline-flex items-center gap-orbit-xs"><span className="w-2 h-2 rounded-sm bg-destructive" /> High</span>
+          <span className="inline-flex items-center gap-orbit-xs"><span className="w-2 h-2 rounded-sm bg-warning" /> Medium</span>
+          <span className="inline-flex items-center gap-orbit-xs"><span className="w-2 h-2 rounded-sm bg-primary" /> Open requests</span>
         </div>
       </div>
-      <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-orbit-s md:grid-cols-2 lg:grid-cols-4">
         {points.map((p) => {
           const isActive = p.version === activeVersion;
           return (
@@ -80,25 +80,25 @@ export function NegotiationTrendStrip({ versions, allDecisions, activeVersion, o
               key={p.version}
               type="button"
               onClick={() => onJump?.(p.version)}
-              className={`rounded-md border px-3 py-2 text-left text-xs transition-colors ${
+              className={`rounded-md border px-orbit-base py-orbit-s text-left text-xs transition-colors ${
                 isActive ? "border-primary bg-primary/5" : "border-border bg-background hover:bg-muted/40"
               }`}
             >
-              <div className="flex items-start justify-between gap-2">
+              <div className="flex items-start justify-between gap-orbit-s">
                 <span className="font-mono text-[11px] font-semibold text-foreground">{p.version}</span>
                 {p.supplierChanges > 0 && (
-                  <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold text-warning-foreground">
+                  <span className="rounded-full bg-warning/15 px-orbit-s py-orbit-xxs text-[10px] font-semibold text-warning-foreground">
                     +{p.supplierChanges} changes
                   </span>
                 )}
               </div>
-              <div className="mt-2 flex h-9 w-full items-end gap-1">
+              <div className="mt-orbit-s flex h-9 w-full items-end gap-orbit-xs">
                 <span className="flex-1 rounded-t bg-destructive" style={{ height: `${(p.high / maxBar) * 100}%` }} aria-label={`${p.high} high`} />
                 <span className="flex-1 rounded-t bg-warning" style={{ height: `${(p.medium / maxBar) * 100}%` }} aria-label={`${p.medium} medium`} />
                 <span className="flex-1 rounded-t bg-primary" style={{ height: `${(p.openRequests / maxBar) * 100}%` }} aria-label={`${p.openRequests} open`} />
                 <span className="flex-[4] border-b border-dashed border-border" aria-hidden />
               </div>
-              <div className="mt-2 grid grid-cols-3 gap-1 text-[10px] text-muted-foreground">
+              <div className="mt-orbit-s grid grid-cols-3 gap-orbit-xs text-[10px] text-muted-foreground">
                 <span><span className="font-semibold text-foreground">{p.high}</span> high</span>
                 <span><span className="font-semibold text-foreground">{p.medium}</span> med</span>
                 <span><span className="font-semibold text-foreground">{p.openRequests}</span> open</span>

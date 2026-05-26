@@ -36,7 +36,7 @@ export const RadioGroup = React.forwardRef<HTMLDivElement, RadioGroupProps>(func
 
   return (
     <RadioGroupContext.Provider value={{ value: currentValue, name, setValue }}>
-      <div ref={ref} className={cn("grid gap-2", className)} data-orbit-adapter="radio-group">
+      <div ref={ref} className={cn("grid gap-orbit-s", className)} data-orbit-adapter="radio-group">
         <OrbitRadioGroup value={currentValue} name={name} onChange={setValue}>
           {children}
         </OrbitRadioGroup>

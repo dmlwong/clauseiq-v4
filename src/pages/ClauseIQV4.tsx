@@ -439,13 +439,14 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
                   </StateCard>
                 ) : (
                   <StateCard
-                    state={parameterLocked ? "disabled" : "default"}
+                    state="default"
                     className={resultsVisible ? "mx-auto w-full max-w-[640px]" : undefined}
                   >
                     <h2 className="text-base font-semibold mb-3">Contract Analysis Parameters</h2>
                     <SelectedSummaryRow
                       label={selectedParameter.label}
                       disabled={parameterLocked}
+                      mutedWhenDisabled={false}
                       actionLabel={`Change ${selectedParameter.kind}`}
                       onAction={handleParameterEdit}
                     />
@@ -635,24 +636,28 @@ function NewAnalysisDivider() {
 function SelectedSummaryRow({
   label,
   disabled,
+  mutedWhenDisabled = true,
   actionLabel,
   onAction,
 }: {
   label: string;
   disabled: boolean;
+  mutedWhenDisabled?: boolean;
   actionLabel?: string;
   onAction?: () => void;
 }) {
+  const muted = disabled && mutedWhenDisabled;
+
   return (
     <div
       className={cn(
         "flex min-h-11 items-center justify-between gap-4 rounded-md border p-[16px]",
-        disabled ? "border-border bg-muted text-muted-foreground" : "border-border bg-card text-foreground",
+        muted ? "border-border bg-muted text-muted-foreground" : "border-border bg-card text-foreground",
       )}
     >
       <div className="flex min-w-0 items-center gap-2">
-        <Check className={cn("h-4 w-4 shrink-0", disabled ? "text-muted-foreground" : "text-success")} />
-        <span className={cn("truncate text-sm font-medium", disabled ? "text-muted-foreground" : "text-foreground")}>
+        <Check className={cn("h-4 w-4 shrink-0", muted ? "text-muted-foreground" : "text-success")} />
+        <span className={cn("truncate text-sm font-medium", muted ? "text-muted-foreground" : "text-foreground")}>
           {label}
         </span>
       </div>

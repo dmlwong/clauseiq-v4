@@ -18,7 +18,7 @@ export function V5InitiativeLinkButton({
       type="button"
       variant="ghost"
       className={cn(
-        "max-w-[min(42vw,420px)] gap-2 text-[#5B5BF7] hover:bg-[#E6F1FB] hover:text-[#4F46E5]",
+        "max-w-[min(42vw,420px)] gap-orbit-s text-[#5B5BF7] hover:bg-[#E6F1FB] hover:text-[#4F46E5]",
         className,
       )}
       onClick={onClick}

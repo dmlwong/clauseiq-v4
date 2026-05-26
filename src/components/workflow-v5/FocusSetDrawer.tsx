@@ -67,17 +67,17 @@ export function FocusSetDrawer({
       size="Large"
       height="Viewport"
     >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-orbit-s">
           <Target className="h-4 w-4 text-primary" />
           <Headings size="Heading 5">Tracked clauses</Headings>
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+        <div className="mt-orbit-base grid grid-cols-3 gap-orbit-s text-center">
           <Stat label="Tracked" value={entries.length} />
           <Stat label="Resolved" value={resolvedCount} tone="text-success" />
           <Stat label="Remaining" value={openCount} tone="text-warning" />
         </div>
 
-        <div className="mt-6 space-y-2">
+        <div className="mt-orbit-m space-y-orbit-s">
           {entries.length === 0 && (
             <Card type="Static" padding="Base" state="Default">
               <div className="text-center">
@@ -95,8 +95,8 @@ export function FocusSetDrawer({
             const Icon = CHANGE_ICON[change];
             return (
               <Card key={e.clauseId} type="Static" padding="Small" state="Default">
-                <div className="space-y-2">
-                <div className="flex items-start justify-between gap-2">
+                <div className="space-y-orbit-s">
+                <div className="flex items-start justify-between gap-orbit-s">
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-mono text-muted-foreground">
                       §{def?.number ?? e.clauseId.replace("c", "")} · {def?.category}
@@ -114,19 +114,19 @@ export function FocusSetDrawer({
                   </Button>
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-orbit-s flex-wrap">
                   {live && (
                     <Badge variant="outline" className={severityTone(live.severity)}>
                       {live.severity}
                     </Badge>
                   )}
-                  <Badge variant="outline" className="gap-1">
+                  <Badge variant="outline" className="gap-orbit-xs">
                     <Icon className={`w-3 h-3 ${CHANGE_TONE[change]}`} />
                     {change}
                   </Badge>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-orbit-s">
                   <div>
                     <label className="text-[10px] uppercase text-muted-foreground tracking-wider">Priority</label>
                     <Select
@@ -139,7 +139,7 @@ export function FocusSetDrawer({
                       <SelectContent>
                         {(["Critical", "Important", "Watchlist"] as ClausePriority[]).map((p) => (
                           <SelectItem key={p} value={p}>
-                            <span className={`inline-flex items-center gap-1.5`}>
+                            <span className={`inline-flex items-center gap-orbit-xs`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${dotTone(p)}`} />
                               {p}
                             </span>
@@ -180,7 +180,7 @@ export function FocusSetDrawer({
 
 function Stat({ label, value, tone = "text-foreground" }: { label: string; value: number; tone?: string }) {
   return (
-    <div className="border border-border rounded-md p-2 bg-card">
+    <div className="border border-border rounded-md p-orbit-s bg-card">
       <p className="text-[10px] uppercase text-muted-foreground tracking-wider">{label}</p>
       <p className={`text-lg font-bold font-mono ${tone}`}>{value}</p>
     </div>

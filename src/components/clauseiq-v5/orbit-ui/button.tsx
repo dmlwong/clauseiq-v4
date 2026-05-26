@@ -23,7 +23,7 @@ function orbitSize(size: ButtonSize | undefined) {
 }
 
 const fallbackButtonClass =
-  "inline-flex h-[var(--orbit-btn-height-medium)] items-center justify-center gap-2 rounded-[var(--orbit-radius-sm)] px-[var(--orbit-space-base)] text-[length:var(--orbit-text-button-size)] font-medium leading-[var(--orbit-text-button-leading)] transition-colors";
+  "inline-flex h-[var(--orbit-btn-height-medium)] items-center justify-center gap-orbit-s rounded-[var(--orbit-radius-sm)] px-orbit-base text-[length:var(--orbit-text-button-size)] font-medium leading-[var(--orbit-text-button-leading)] transition-colors";
 
 const buttonSizeOverridePattern =
   /^(h-|min-h-|max-h-|px-|py-|rounded(?:-|$)|text-(?:xs|sm)$|text-\[(?:\d|length:|var\())/;

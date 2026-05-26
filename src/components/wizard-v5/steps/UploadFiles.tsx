@@ -8,10 +8,10 @@ interface UploadFilesProps {
 
 export function UploadFiles({ file, onFileSelect, onClear }: UploadFilesProps) {
   return (
-    <div className="p-8 space-y-6">
+    <div className="p-orbit-l space-y-orbit-m">
       <div>
         <h2 className="text-lg font-semibold text-foreground">Upload Contract</h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-muted-foreground mt-orbit-xs">
           Upload the supplier contract you would like to analyse.
         </p>
       </div>

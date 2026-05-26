@@ -31,7 +31,7 @@ export function OptionMasterDetail({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.18 }}
-      className="space-y-5"
+      className="space-y-orbit-m"
     >
       <MasterSupplierRail state={state} mobile />
 
@@ -44,9 +44,9 @@ export function OptionMasterDetail({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.18 }}
-              className="space-y-4"
+              className="space-y-orbit-base"
             >
-              <div className="space-y-3">
+              <div className="space-y-orbit-base">
                 {newestFirst(selectedSupplier.analyses).map((analysis) => (
                   <AnalysisCard
                     key={analysis.id}
@@ -86,14 +86,14 @@ export function MasterSupplierRail({ state, mobile = false }: MasterSupplierRail
 
   if (mobile) {
     return (
-      <aside className="mb-4 rounded-lg border border-border bg-muted/20 p-3 md:hidden">
+      <aside className="mb-orbit-base rounded-lg border border-border bg-muted/20 p-orbit-base md:hidden">
         {content}
       </aside>
     );
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col p-3">
+    <div className="flex h-full min-h-0 flex-col p-orbit-base">
       {content}
     </div>
   );
@@ -104,23 +104,23 @@ function SupplierRailContent({ state }: { state: MasterDetailState }) {
 
   return (
     <>
-      <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="mb-orbit-base flex items-center justify-between gap-orbit-s">
         <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Suppliers ({filteredSuppliers.length})
         </div>
       </div>
-      <div className="relative mb-3">
+      <div className="relative mb-orbit-base">
         <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
           placeholder="Search suppliers..."
-          className="h-8 bg-card pl-8 text-xs"
+          className="h-8 bg-card pl-orbit-l text-xs"
         />
       </div>
 
       <div className="v5-hover-scrollbar min-h-0 flex-1 overflow-y-auto">
-        <div className="space-y-1 pb-2">
+        <div className="space-y-orbit-xs pb-orbit-s">
           {filteredSuppliers.map((supplier) => {
             const selected = selectedId === supplier.id;
             const deviations = aggregateDeviations(supplier.analyses);
@@ -132,7 +132,7 @@ function SupplierRailContent({ state }: { state: MasterDetailState }) {
                 type="button"
                 onClick={() => onSelect(supplier.id)}
                 className={cn(
-                  "relative flex w-full items-center gap-2 rounded-md border border-transparent px-2.5 py-2 text-left transition-colors hover:bg-background",
+                  "relative flex w-full items-center gap-orbit-s rounded-md border border-transparent px-orbit-s py-orbit-s text-left transition-colors hover:bg-background",
                   selected && "bg-background shadow-sm",
                 )}
               >
@@ -144,7 +144,7 @@ function SupplierRailContent({ state }: { state: MasterDetailState }) {
                   />
                 )}
                 <SupplierAvatar name={supplier.name} shortCode={supplier.shortCode} severity={severity} size="sm" />
-                <div className="min-w-0 flex-1 pl-0.5">
+                <div className="min-w-0 flex-1 pl-orbit-xxs">
                   <div className="truncate text-[13px] font-medium text-foreground">{supplier.name}</div>
                   <div className="text-[11px] text-muted-foreground">
                     {supplier.analyses.length} contract{supplier.analyses.length === 1 ? "" : "s"}
@@ -152,7 +152,7 @@ function SupplierRailContent({ state }: { state: MasterDetailState }) {
                 </div>
                 <span
                   className={cn(
-                    "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                    "rounded-full px-orbit-s py-orbit-xxs text-[10px] font-medium",
                     deviations.high > 0
                       ? "bg-destructive/10 text-destructive"
                       : "bg-success/10 text-success",

@@ -1,29 +1,27 @@
 import { useMemo, useState } from "react";
-import type { ReactNode } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   CalendarDays,
-  Check,
   DollarSign,
-  Download,
-  ExternalLink,
-  FileText,
   Info,
   Pencil,
-  RefreshCw,
   Settings,
   SlidersHorizontal,
   X,
 } from "lucide-react";
 
-import { ContentSearchTable } from "@/components/delivery-engine/ContentSearchTable";
-import { RagIndicator } from "@/components/delivery-engine/RagIndicator";
-import { StatusBadge } from "@/components/delivery-engine/StatusBadge";
-import { ToolCoverageCard } from "@/components/delivery-engine/ToolCoverageCard";
 import { V5InitiativeLinkButton } from "@/components/clauseiq-v5/V5InitiativeLinkButton";
 import { V5Shell } from "@/components/clauseiq-v5/V5Shell";
-import { Avatar } from "@orbit";
-import { Badge } from "@/components/clauseiq-v5/orbit-ui/badge";
+import {
+  CompletedToolActionCardV5,
+  ContentSearchTableV5,
+  InfoCardV5,
+  MetricV5,
+  RagIndicatorV5,
+  StatusBadgeV5,
+  ToolCoverageCardV5,
+} from "@/components/delivery-engine-v5/DeliveryEngineV5OrbitComponents";
+import { Avatar, Badge as OrbitBadge, Card, Headings, Text } from "@orbit";
 import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
 import { showV5OrbitToast as toast } from "@/components/clauseiq-v5/V5OrbitToast";
 import { getV4DeliveryInitiative } from "@/data/mock-delivery-engine-v4";
@@ -111,9 +109,11 @@ export default function InitiativeDetailPageV5() {
     return (
       <V5Shell title="Delivery Engine" subtitle="Manage and track procurement initiatives end-to-end">
         <div className="p-10">
-          <div className="rounded-lg border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
-            Initiative not found.
-          </div>
+          <Card type="Static" padding="Base">
+            <div className="py-10 text-center">
+              <Text size="Small" variant="Secondary">Initiative not found.</Text>
+            </div>
+          </Card>
         </div>
       </V5Shell>
     );
@@ -169,12 +169,16 @@ export default function InitiativeDetailPageV5() {
       <div className="min-h-full bg-slate-50 px-8 py-4">
         <div className="mx-auto max-w-[900px] space-y-3">
           {tab !== "overview" ? (
-            <div className="rounded-lg border border-dashed border-slate-200 bg-white py-24 text-center text-sm text-slate-500">
-              {tab === "benefits" ? "Benefits" : "Milestones"} — Coming soon
-            </div>
+            <Card type="Static" padding="Base" state="Accent">
+              <div className="py-24 text-center">
+                <Text size="Small" variant="Secondary">
+                  {tab === "benefits" ? "Benefits" : "Milestones"} - Coming soon
+                </Text>
+              </div>
+            </Card>
           ) : (
             <>
-              <section className="rounded-lg border border-slate-200 bg-white p-4">
+              <Card type="Static" padding="Base">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="flex min-w-0 items-start gap-3">
                     <div className="grid h-8 w-8 place-items-center rounded bg-[#EEF0FF] text-[#5B5BF7]">
@@ -208,7 +212,7 @@ export default function InitiativeDetailPageV5() {
                       <Info className="h-3.5 w-3.5" />
                       Initiative Status:
                     </span>
-                    <StatusBadge status={initiative.status} />
+                    <StatusBadgeV5 status={initiative.status} />
                     <Button
                       variant="outline"
                       className="h-8 gap-1.5 border-slate-400 bg-white text-xs"
@@ -217,21 +221,21 @@ export default function InitiativeDetailPageV5() {
                       Guidance
                     </Button>
                     <Button variant="outline" size="icon" className="h-8 w-10 border-slate-400 bg-white">
-                      <RagIndicator status={initiative.ragStatus} compact />
+                      <RagIndicatorV5 status={initiative.ragStatus} compact />
                     </Button>
                   </div>
                 </div>
-              </section>
+              </Card>
 
               <div className="grid gap-3 lg:grid-cols-2">
-                <InfoCard title="Timeline" icon={<CalendarDays className="h-4 w-4 text-[#5B5BF7]" />}>
+                <InfoCardV5 title="Timeline" icon={<CalendarDays className="h-4 w-4 text-[#5B5BF7]" />}>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <Metric label="Expected In-flight Date" value={initiative.timeline.expectedInflightDate} />
-                    <Metric label="Expected Completion Date" value={initiative.timeline.expectedCompletionDate} />
+                    <MetricV5 label="Expected In-flight Date" value={initiative.timeline.expectedInflightDate} />
+                    <MetricV5 label="Expected Completion Date" value={initiative.timeline.expectedCompletionDate} />
                   </div>
-                </InfoCard>
-                <InfoCard title="Spend & Savings" icon={<DollarSign className="h-4 w-4 text-[#5B5BF7]" />}>
-                  <Metric
+                </InfoCardV5>
+                <InfoCardV5 title="Spend & Savings" icon={<DollarSign className="h-4 w-4 text-[#5B5BF7]" />}>
+                  <MetricV5
                     label="Estimated Spend & Savings Known"
                     value={
                       <span className="inline-flex items-center gap-2">
@@ -240,32 +244,34 @@ export default function InitiativeDetailPageV5() {
                       </span>
                     }
                   />
-                </InfoCard>
+                </InfoCardV5>
               </div>
 
-              <section className="rounded-lg border border-slate-200 bg-white p-4">
+              <section className="space-y-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
                       <div className="grid h-7 w-7 place-items-center rounded-md bg-[#EEF0FF] text-[#5B5BF7]">
                         <Settings className="h-3.5 w-3.5" />
                       </div>
-                      <h2 className="text-sm font-semibold text-slate-950">Key Tool Coverage</h2>
+                      <Headings size="Heading 5">Key Tool Coverage</Headings>
                       <Info className="h-3.5 w-3.5 text-slate-400" />
                     </div>
-                    <p className="mt-2 text-xs text-slate-500">Track progress across critical initiative tools</p>
+                    <div className="mt-2">
+                      <Text as="p" size="Small" variant="Secondary">
+                        Track progress across critical initiative tools
+                      </Text>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-slate-600">
                     Tool Used:
-                    <Badge variant="outline" className="border-[#5B5BF7] bg-white text-[#5B5BF7]">
-                      {usedTools}/{initiative.toolCoverage.length}
-                    </Badge>
+                    <OrbitBadge label={`${usedTools}/${initiative.toolCoverage.length}`} status="Information" />
                   </div>
                 </div>
                 <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   {initiative.toolCoverage.map((tool, index) => (
                     tool.toolName === "ClauseIQ" ? (
-                      <CompletedToolActionCard
+                      <CompletedToolActionCardV5
                         key={tool.toolName}
                         toolName="ClauseIQ"
                         description="Contract analysis and insights"
@@ -278,7 +284,7 @@ export default function InitiativeDetailPageV5() {
                         onOpenResults={openClauseIqResults}
                       />
                     ) : tool.toolName === "MarketIQ" ? (
-                      <CompletedToolActionCard
+                      <CompletedToolActionCardV5
                         key={tool.toolName}
                         toolName="MarketIQ"
                         description={tool.description}
@@ -291,101 +297,17 @@ export default function InitiativeDetailPageV5() {
                         onOpenResults={openMarketIqResults}
                       />
                     ) : (
-                      <ToolCoverageCard key={tool.toolName} tool={tool} index={index} />
+                      <ToolCoverageCardV5 key={tool.toolName} tool={tool} index={index} />
                     )
                   ))}
                 </div>
               </section>
 
-              <ContentSearchTable documents={initiative.documents} />
+              <ContentSearchTableV5 documents={initiative.documents} />
             </>
           )}
         </div>
       </div>
     </V5Shell>
-  );
-}
-
-function InfoCard({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
-  return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <div className="grid h-7 w-7 place-items-center rounded-md bg-[#EEF0FF]">{icon}</div>
-        <h2 className="text-sm font-semibold text-slate-950">{title}</h2>
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div>
-      <p className="text-[11px] text-slate-500">{label}</p>
-      <p className="mt-1 text-xs font-semibold text-slate-950">{value}</p>
-    </div>
-  );
-}
-
-function CompletedToolActionCard({
-  toolName,
-  description,
-  initials,
-  timestamp,
-  downloadLabel,
-  uploadLabel,
-  onDownload,
-  onUpload,
-  onOpenResults,
-}: {
-  toolName: string;
-  description: string;
-  initials: string;
-  timestamp: string;
-  downloadLabel: string;
-  uploadLabel: string;
-  onDownload: () => void;
-  onUpload: () => void;
-  onOpenResults: () => void;
-}) {
-  return (
-    <div className="flex min-h-[216px] flex-col rounded-lg border border-emerald-300 bg-emerald-50/40 p-3 ring-1 ring-emerald-100">
-      <div className="flex items-start justify-between gap-2">
-        <div className="relative grid h-10 w-10 place-items-center rounded-lg border border-emerald-600 bg-white text-emerald-700">
-          <FileText className="h-5 w-5" />
-          <span className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-emerald-600 text-white">
-            <Check className="h-2.5 w-2.5" />
-          </span>
-        </div>
-        <Badge className="border-emerald-700 bg-white px-2.5 py-1 text-xs font-medium text-emerald-800 hover:bg-white">
-          Deliver
-        </Badge>
-      </div>
-
-      <div className="mt-4">
-        <h3 className="text-sm font-semibold text-slate-950">{toolName}</h3>
-        <p className="mt-1 min-h-[34px] text-xs leading-5 text-slate-500">{description}</p>
-      </div>
-
-      <div className="mt-3 flex items-center gap-2 text-xs text-slate-600">
-        <span className="grid h-6 w-6 place-items-center rounded-full bg-[#074653] text-[10px] font-semibold text-white">
-          {initials}
-        </span>
-        <span>{timestamp}</span>
-      </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <Button variant="outline" className="h-8 border-slate-400 bg-white" aria-label={downloadLabel} onClick={onDownload}>
-          <Download className="h-4 w-4" />
-        </Button>
-        <Button variant="outline" className="h-8 border-slate-400 bg-white" aria-label={uploadLabel} onClick={onUpload}>
-          <RefreshCw className="h-4 w-4" />
-        </Button>
-      </div>
-      <Button variant="outline" className="mt-2 h-8 gap-2 border-slate-400 bg-white text-sm" onClick={onOpenResults}>
-        <ExternalLink className="h-4 w-4" />
-        My results
-      </Button>
-    </div>
   );
 }

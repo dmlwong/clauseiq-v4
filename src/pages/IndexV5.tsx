@@ -113,6 +113,7 @@ const IndexV5 = () => {
     <V5Shell
       title="ClauseIQ"
       subtitle="AI tool for detailed contract analyses"
+      headerRightPlacement="title"
       headerRight={
         "initiativeId" in view ? (
           <V5InitiativeLinkButton

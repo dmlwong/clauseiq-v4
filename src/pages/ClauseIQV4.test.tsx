@@ -169,11 +169,12 @@ describe("ClauseIQ V4 flow", () => {
     expect(screen.getAllByText("Latest output").length).toBeGreaterThan(0);
     expect(screen.getByText("Choose a parameter to analyse the next contract.")).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Playbook" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "Category" })).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "Category" })).not.toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Governing Law" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("radio", { name: "Playbook" }));
+    expect(screen.queryByLabelText(/search playbook options/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("option", { name: CIQ_DEFAULT_PLAYBOOK }));
 
     const rerunParameterHeading = screen.getAllByRole("heading", { name: "Contract Analysis Parameters" }).at(-1);

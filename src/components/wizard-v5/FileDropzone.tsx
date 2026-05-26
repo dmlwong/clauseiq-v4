@@ -1,6 +1,4 @@
-import { useCallback, useState } from "react";
-import { Upload, FileText, X } from "lucide-react";
-import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
+import { Card, Dropzone, FaIcon, FileItem, IconButton, Text } from "@orbit";
 
 interface FileDropzoneProps {
   onFileSelect: (file: File) => void;
@@ -11,6 +9,16 @@ interface FileDropzoneProps {
   disabledMessage?: string;
 }
 
+function documentTypeFromName(name: string): "XLS" | "DOC" | "PDF" | "ZIP" | "IMG" | "Unknown" {
+  const extension = name.split(".").pop()?.toLowerCase();
+  if (extension === "pdf") return "PDF";
+  if (extension === "doc" || extension === "docx") return "DOC";
+  if (extension === "xls" || extension === "xlsx" || extension === "csv") return "XLS";
+  if (extension === "zip") return "ZIP";
+  if (extension === "png" || extension === "jpg" || extension === "jpeg" || extension === "webp") return "IMG";
+  return "Unknown";
+}
+
 export function FileDropzone({
   onFileSelect,
   selectedFile,
@@ -19,91 +27,48 @@ export function FileDropzone({
   accept = ".pdf",
   disabledMessage,
 }: FileDropzoneProps) {
-  const [dragOver, setDragOver] = useState(false);
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setDragOver(false);
-      if (disabled) return;
-      const file = e.dataTransfer.files[0];
-      if (file) onFileSelect(file);
-    },
-    [disabled, onFileSelect]
-  );
-
-  const handleInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) onFileSelect(file);
-    },
-    [onFileSelect]
-  );
-
   if (disabled && disabledMessage) {
     return (
-      <div className="border-2 border-dashed border-border rounded-lg p-12 text-center bg-muted/50">
-        <p className="text-muted-foreground text-sm">{disabledMessage}</p>
-      </div>
+      <Card type="Static" padding="Base" state="Disabled">
+        <div className="py-8 text-center">
+          <Text as="p" size="Small" variant="Disabled">
+            {disabledMessage}
+          </Text>
+        </div>
+      </Card>
     );
   }
 
   if (selectedFile) {
     return (
-      <div className="border border-border rounded-lg p-6 bg-card">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <FileText className="w-5 h-5 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{selectedFile.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-            </p>
-          </div>
-          {onClear && (
-            <Button variant="ghost" size="icon" onClick={onClear} className="shrink-0">
-              <X className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
-      </div>
+      <Card type="Static" padding="Base">
+        <FileItem
+          filename={`${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)`}
+          documentType={documentTypeFromName(selectedFile.name)}
+          trailing={
+            onClear ? (
+              <IconButton
+                variant="Tertiary"
+                size="Medium"
+                ariaLabel="Remove selected file"
+                icon={<FaIcon icon="\uf00d" />}
+                onClick={onClear}
+              />
+            ) : undefined
+          }
+        />
+      </Card>
     );
   }
 
   return (
-    <div
-      onDragOver={(e) => {
-        e.preventDefault();
-        setDragOver(true);
-      }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={handleDrop}
-      className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors cursor-pointer ${
-        dragOver ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40"
-      }`}
-    >
-      <label className="cursor-pointer flex flex-col items-center gap-3">
-        <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
-          <Upload className="w-5 h-5 text-muted-foreground" />
-        </div>
-        <div>
-          <p className="text-sm font-medium">
-            Drag & drop or{" "}
-            <span className="text-primary underline">choose files</span> to upload
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            File types supported: .pdf files.
-          </p>
-          <p className="text-xs text-muted-foreground">Maximum upload file size: 100 MB</p>
-        </div>
-        <input
-          type="file"
-          accept={accept}
-          className="hidden"
-          onChange={handleInputChange}
-        />
-      </label>
-    </div>
+    <Dropzone
+      ariaLabel="Upload contract file"
+      accept={accept}
+      disabled={disabled}
+      onFileSelected={onFileSelect}
+      acceptedFileTypesLabel="File types supported: .pdf files."
+      maxFileSizeLabel="Maximum upload file size: 100 MB"
+    />
   );
 }

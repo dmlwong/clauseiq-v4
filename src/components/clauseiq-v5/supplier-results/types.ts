@@ -5,6 +5,11 @@ export type ResultsLayout = "accordion" | "output-panel";
 export type SupplierOutputsPanelState = "empty" | "processing" | "filled";
 export type MasterDetailSupplier = Initiative["suppliers"][number];
 
+export interface AnalysisParameterItem {
+  label: string;
+  value: string;
+}
+
 export interface FilteredListControls {
   query: string;
   supplierId: string;
@@ -22,6 +27,9 @@ export interface ResultsViewProps {
   onRunAgain?: () => void;
   onDownload?: () => void;
   onViewResult?: () => void;
+  viewResultPrimary?: boolean;
+  highlightLatestOutput?: boolean;
+  analysisParameters?: AnalysisParameterItem[];
   layout?: ResultsLayout;
   outputState?: SupplierOutputsPanelState;
   filteredControls?: FilteredListControls;

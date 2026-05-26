@@ -19,11 +19,26 @@ function orbitVariant(variant: ButtonVariant | undefined) {
 }
 
 function orbitSize(size: ButtonSize | undefined) {
-  return size === "sm" ? "Small" : "Medium";
+  return "Medium";
 }
 
 const fallbackButtonClass =
-  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors";
+  "inline-flex h-[var(--orbit-btn-height-medium)] items-center justify-center gap-2 rounded-[var(--orbit-radius-sm)] px-[var(--orbit-space-base)] text-[length:var(--orbit-text-button-size)] font-medium leading-[var(--orbit-text-button-leading)] transition-colors";
+
+const buttonSizeOverridePattern =
+  /^(h-|min-h-|max-h-|px-|py-|rounded(?:-|$)|text-(?:xs|sm)$|text-\[(?:\d|length:|var\())/;
+const iconButtonSizeOverridePattern =
+  /^(h-|min-h-|max-h-|w-|min-w-|max-w-|px-|py-|rounded(?:-|$)|text-(?:xs|sm)$|text-\[(?:\d|length:|var\())/;
+
+function withoutSizeOverrides(className: string | undefined, iconOnly = false) {
+  if (!className) return undefined;
+  const pattern = iconOnly ? iconButtonSizeOverridePattern : buttonSizeOverridePattern;
+  const nextClassName = className
+    .split(/\s+/)
+    .filter((token) => token && !pattern.test(token))
+    .join(" ");
+  return nextClassName || undefined;
+}
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   { asChild = false, variant = "default", size = "default", className, children, disabled, "aria-label": ariaLabel, ...props },
@@ -44,10 +59,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
         {...props}
         ref={ref}
         variant={orbitVariant(variant)}
-        size="Small"
+        size="Medium"
         state={orbitState}
         disabled={disabled}
-        className={className}
+        className={withoutSizeOverrides(className, true)}
         icon={children}
         ariaLabel={ariaLabel || props.title || "Icon action"}
       />
@@ -63,7 +78,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
       state={orbitState}
       disabled={disabled}
       aria-label={ariaLabel}
-      className={className}
+      className={withoutSizeOverrides(className)}
     >
       {children}
     </OrbitButton>

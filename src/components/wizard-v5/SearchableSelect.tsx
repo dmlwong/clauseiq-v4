@@ -1,10 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { ChevronDown, Search, Info } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/clauseiq-v5/orbit-ui/tooltip";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Button, Card, FaIcon, Searchbox, Text, Tooltip } from "@orbit";
 
 interface Option {
   value: string;
@@ -37,87 +32,84 @@ export function SearchableSelect({
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    const handler = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const filtered = options.filter((o) =>
-    o.label.toLowerCase().includes(search.toLowerCase())
+  const filtered = useMemo(
+    () => options.filter((option) => option.label.toLowerCase().includes(search.toLowerCase())),
+    [options, search],
   );
 
-  const selectedLabel = options.find((o) => o.value === value)?.label;
+  const selectedLabel = options.find((option) => option.value === value)?.label;
 
   return (
     <div className="space-y-1.5" ref={ref}>
       <div className="flex items-center gap-1.5">
-        <label className="text-sm font-medium text-foreground">
+        <Text as="span" size="Small" variant="Bold">
           {label}
-          {required && <span className="text-destructive ml-0.5">*</span>}
-        </label>
-        {tooltip && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
-            </TooltipTrigger>
-            <TooltipContent className="max-w-[240px] text-xs">
-              {tooltip}
-            </TooltipContent>
+          {required ? " *" : ""}
+        </Text>
+        {tooltip ? (
+          <Tooltip content={tooltip}>
+            <span className="inline-flex h-4 w-4 cursor-help items-center justify-center">
+              <FaIcon icon="\uf05a" size={12} color="var(--orbit-color-text-secondary)" />
+            </span>
           </Tooltip>
-        )}
+        ) : null}
       </div>
+
       <div className="relative">
-        <button
-          type="button"
-          onClick={() => setOpen(!open)}
-          className="w-full flex items-center justify-between h-10 px-3 border border-input rounded-md bg-card text-sm hover:border-primary/40 transition-colors"
+        <Button
+          className="w-full justify-between"
+          variant="Secondary"
+          state={loading ? "Disabled" : "Default"}
+          iconRight={<FaIcon icon={open ? "\uf077" : "\uf078"} />}
+          onClick={() => setOpen((current) => !current)}
         >
-          <span className={selectedLabel ? "text-foreground" : "text-muted-foreground"}>
-            {loading ? "Loading..." : selectedLabel || placeholder}
-          </span>
-          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-        </button>
-        {open && (
-          <div className="absolute z-50 w-full mt-1 border border-border rounded-md bg-card shadow-lg">
-            <div className="p-2 border-b border-border">
-              <div className="flex items-center gap-2 px-2">
-                <Search className="w-3.5 h-3.5 text-muted-foreground" />
-                <input
-                  type="text"
+          {loading ? "Loading..." : selectedLabel || placeholder}
+        </Button>
+
+        {open ? (
+          <div className="absolute z-50 mt-1 w-full">
+            <Card type="Static" padding="Small">
+              <div className="space-y-2">
+                <Searchbox
+                  ariaLabel={`Search ${label}`}
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={setSearch}
                   placeholder="Search..."
-                  className="flex-1 text-sm outline-none bg-transparent placeholder:text-muted-foreground"
-                  autoFocus
                 />
+                <div className="v5-hover-scrollbar max-h-48 space-y-1 overflow-y-auto">
+                  {filtered.length === 0 ? (
+                    <div className="p-2 text-center">
+                      <Text size="Small" variant="Secondary">No results</Text>
+                    </div>
+                  ) : (
+                    filtered.map((option) => (
+                      <Button
+                        key={option.value}
+                        className="w-full justify-start"
+                        variant={option.value === value ? "Secondary" : "Tertiary"}
+                        size="Medium"
+                        onClick={() => {
+                          onChange(option.value);
+                          setOpen(false);
+                          setSearch("");
+                        }}
+                      >
+                        {option.label}
+                      </Button>
+                    ))
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="max-h-48 overflow-y-auto p-1">
-              {filtered.length === 0 ? (
-                <p className="text-xs text-muted-foreground p-2 text-center">No results</p>
-              ) : (
-                filtered.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => {
-                      onChange(opt.value);
-                      setOpen(false);
-                      setSearch("");
-                    }}
-                    className={`w-full text-left px-3 py-2 text-sm rounded hover:bg-accent transition-colors ${
-                      opt.value === value ? "bg-accent font-medium" : ""
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))
-              )}
-            </div>
+            </Card>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

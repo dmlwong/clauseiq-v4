@@ -1,40 +1,17 @@
-import {
-  BarChart3,
-  Bell,
-  ChevronDown,
-  ChevronRight,
-  ClipboardCheck,
-  Database,
-  Home,
-  Leaf,
-  MapPin,
-  Rocket,
-  Search,
-  Sparkles,
-  Target,
-} from "lucide-react";
-import { NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/clauseiq-v5/orbit-ui/select";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Dropdown, SideNav, Text } from "@orbit";
+
 import { showV5OrbitToast as toast } from "@/components/clauseiq-v5/V5OrbitToast";
-import { cn } from "@/lib/utils";
 
-const topNav = [
-  { label: "Notifications", icon: Bell, badge: "3" },
-  { label: "Data Tracker & Insights", icon: Database },
-  { label: "Content Search", icon: Search },
-];
-
-const deliverNav = [
-  { to: "/delivery-engine-v5/AAK01-1442", label: "Project Management", icon: Rocket },
-  { label: "Route to Market", icon: MapPin },
-  { label: "Sourcing Execution", icon: BarChart3 },
-];
+const ICON_BELL = "\uf0f3";
+const ICON_CHART = "\uf080";
+const ICON_DATABASE = "\uf1c0";
+const ICON_HOME = "\uf015";
+const ICON_LEAF = "\uf06c";
+const ICON_MAP = "\uf3c5";
+const ICON_ROCKET = "\uf135";
+const ICON_SEARCH = "\uf002";
+const ICON_TARGET = "\uf140";
 
 export function CiqSidebar() {
   const { pathname } = useLocation();
@@ -42,6 +19,10 @@ export function CiqSidebar() {
   const [searchParams] = useSearchParams();
   const showResultScenarioControl = pathname === "/clauseiq-v5/output-panel";
   const resultScenario = searchParams.get("resultScenario") === "history" ? "history" : "empty";
+
+  const goTo = (path: string) => {
+    navigate(path);
+  };
 
   const handleResultScenarioChange = (value: string) => {
     const nextParams = new URLSearchParams(searchParams);
@@ -54,168 +35,142 @@ export function CiqSidebar() {
     navigate(`${pathname}${nextSearch ? `?${nextSearch}` : ""}`);
   };
 
+  const comingSoon = (label: string) => {
+    toast({ title: `${label} - coming soon` });
+  };
+
   return (
-    <aside className="hidden h-screen w-[var(--orbit-sidenav-width)] shrink-0 flex-col border-r border-[var(--orbit-color-sidenav-divider)] bg-[var(--orbit-color-sidenav-bg)] text-white md:flex">
-      <div className="flex h-16 items-center gap-3 border-b border-[var(--orbit-color-sidenav-divider)] px-4">
-        <div className="grid h-8 w-8 place-items-center rounded bg-[var(--orbit-color-btn-primary-bg)] text-white">
-          <Sparkles className="h-4 w-4" />
-        </div>
-        <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-white">Connected Platform</div>
-          <div className="flex items-center gap-1 text-sm text-[var(--orbit-color-sidenav-muted)]">
-            Yorkshire Water <ChevronRight className="h-3.5 w-3.5" />
+    <div className="relative hidden h-screen shrink-0 md:block">
+      <SideNav
+        appName="Connected Platform"
+        clientName="Yorkshire Water"
+        navItems={[
+          {
+            id: "notifications",
+            icon: ICON_BELL,
+            label: "Notifications",
+            badge: 3,
+            onClick: () => comingSoon("Notifications"),
+          },
+          {
+            id: "data-tracker",
+            icon: ICON_DATABASE,
+            label: "Data Tracker & Insights",
+            onClick: () => comingSoon("Data Tracker & Insights"),
+          },
+          {
+            id: "content-search",
+            icon: ICON_SEARCH,
+            label: "Content Search",
+            onClick: () => comingSoon("Content Search"),
+          },
+        ]}
+        sections={[
+          {
+            id: "identify",
+            label: "Identify",
+            color: "var(--orbit-color-status-high-bg-information)",
+            showChevron: true,
+            onClick: () => comingSoon("Identify"),
+          },
+          {
+            id: "deliver",
+            label: "Deliver",
+            color: "var(--orbit-color-bright-green)",
+            expanded: true,
+            items: [
+              {
+                id: "project-management",
+                icon: ICON_ROCKET,
+                label: "Project Management",
+                active: pathname.startsWith("/delivery-engine-v5/AAK01-1442"),
+                onClick: () => goTo("/delivery-engine-v5/AAK01-1442"),
+              },
+              {
+                id: "route-to-market",
+                icon: ICON_MAP,
+                label: "Route to Market",
+                muted: true,
+                onClick: () => comingSoon("Route to Market"),
+              },
+              {
+                id: "sourcing-execution",
+                icon: ICON_CHART,
+                label: "Sourcing Execution",
+                muted: true,
+                onClick: () => comingSoon("Sourcing Execution"),
+              },
+            ],
+          },
+          {
+            id: "sustain",
+            label: "Sustain",
+            color: "var(--orbit-color-status-high-bg-warning)",
+            showChevron: true,
+            onClick: () => comingSoon("Sustain"),
+          },
+        ]}
+        workItems={[
+          {
+            id: "clauseiq",
+            title: "ClauseIQ",
+            subtitle: "2d ago | TestClientTaxonomyCreatedBy",
+            active: pathname.startsWith("/clauseiq-v5") || pathname.startsWith("/initiatives-v5"),
+            onClick: () => goTo("/clauseiq-v5"),
+          },
+          {
+            id: "usability-study",
+            title: "Usability Study",
+            subtitle: "Research hub",
+            onClick: () => comingSoon("Usability Study"),
+          },
+          {
+            id: "sustainability-review",
+            title: "Sustainability review",
+            subtitle: "Sustain",
+            onClick: () => comingSoon("Sustainability review"),
+          },
+          {
+            id: "pipeline-triage",
+            title: "Pipeline triage",
+            subtitle: "Identification",
+            onClick: () => comingSoon("Pipeline triage"),
+          },
+          {
+            id: "prototype-home",
+            title: "Prototype home",
+            subtitle: "Timeline",
+            active: pathname === "/",
+            onClick: () => goTo("/"),
+          },
+        ]}
+        onWorkSearch={() => comingSoon("Work search")}
+        workHeading="My Work"
+        userName="Derek Wong"
+        userInitials="DW"
+        profileMenuIcon={ICON_HOME}
+        profileMenuAriaLabel="Go to prototype home"
+        onProfileMenu={() => goTo("/")}
+      />
+
+      {showResultScenarioControl ? (
+        <div className="absolute bottom-16 left-3 right-3 rounded-md border border-[var(--orbit-color-sidenav-divider)] bg-[var(--orbit-color-sidenav-active-bg)] p-2 shadow-sm">
+          <Text as="div" size="Small" variant="Inverse">
+            Result scenario
+          </Text>
+          <div className="mt-2">
+            <Dropdown
+              ariaLabel="Result scenario"
+              value={resultScenario}
+              options={[
+                { label: "No previous analysis", value: "empty" },
+                { label: "Previous analysis", value: "history" },
+              ]}
+              onChange={handleResultScenarioChange}
+            />
           </div>
         </div>
-      </div>
-
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
-        <div className="space-y-1">
-          {topNav.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.label}
-                type="button"
-                className="flex w-full items-center gap-3 rounded-[var(--orbit-sidenav-nav-row-radius)] px-3 py-2 text-sm text-[var(--orbit-color-sidenav-muted)] transition-colors hover:bg-[var(--orbit-color-sidenav-active-bg)] hover:text-white"
-                onClick={() => toast({ title: `${item.label} — coming soon` })}
-              >
-                <Icon className="h-4 w-4 text-current" />
-                <span className="flex-1 text-left">{item.label}</span>
-                {item.badge && (
-                  <span className="grid h-4 w-4 place-items-center rounded-full bg-[var(--orbit-sidenav-badge-bg)] text-[10px] font-medium text-[var(--orbit-sidenav-badge-fg)]">
-                    {item.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="my-4 h-px bg-[var(--orbit-color-sidenav-divider)]" />
-
-        <button className="flex w-full items-center gap-3 rounded-[var(--orbit-sidenav-nav-row-radius)] px-3 py-2 text-sm text-[var(--orbit-color-sidenav-muted)] transition-colors hover:bg-[var(--orbit-color-sidenav-active-bg)] hover:text-white">
-          <span className="h-2 w-2 rounded-full bg-[var(--orbit-color-status-high-bg-information)]" />
-          <span className="flex-1 text-left">Identify</span>
-          <ChevronDown className="h-4 w-4" />
-        </button>
-
-        <div className="mt-1">
-          <button className="flex w-full items-center gap-3 rounded-[var(--orbit-sidenav-nav-row-radius)] px-3 py-2 text-sm text-white">
-            <span className="h-2 w-2 rounded-full bg-[var(--orbit-color-bright-green)]" />
-            <span className="flex-1 text-left">Deliver</span>
-            <ChevronDown className="h-4 w-4 rotate-180" />
-          </button>
-          <div className="mt-1 space-y-1 pl-5">
-            {deliverNav.map((item) => {
-              const Icon = item.icon;
-              const active = item.to ? pathname.startsWith(item.to) : false;
-              if (!item.to) {
-                return (
-                  <button
-                    key={item.label}
-                    type="button"
-                    onClick={() => toast({ title: `${item.label} — coming soon` })}
-                    className="flex w-full items-center gap-2 rounded-[var(--orbit-sidenav-subitem-radius)] px-3 py-2 text-sm text-[var(--orbit-color-sidenav-muted)] transition-colors hover:bg-[var(--orbit-color-sidenav-active-bg)] hover:text-white"
-                  >
-                    <Icon className="h-4 w-4 text-current" />
-                    {item.label}
-                  </button>
-                );
-              }
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-[var(--orbit-sidenav-subitem-radius)] px-3 py-2 text-sm transition-colors",
-                    active ? "bg-[var(--orbit-color-sidenav-active-bg)] font-medium text-white" : "text-[var(--orbit-color-sidenav-muted)] hover:bg-[var(--orbit-color-sidenav-active-bg)] hover:text-white",
-                  )}
-                >
-                  <Icon className="h-4 w-4 text-current" />
-                  {item.label}
-                </NavLink>
-              );
-            })}
-          </div>
-        </div>
-
-        <button className="mt-1 flex w-full items-center gap-3 rounded-[var(--orbit-sidenav-nav-row-radius)] px-3 py-2 text-sm text-[var(--orbit-color-sidenav-muted)] transition-colors hover:bg-[var(--orbit-color-sidenav-active-bg)] hover:text-white">
-          <span className="h-2 w-2 rounded-full bg-[var(--orbit-color-status-high-bg-warning)]" />
-          <span className="flex-1 text-left">Sustain</span>
-          <ChevronDown className="h-4 w-4" />
-        </button>
-
-        <div className="my-4 h-px bg-[var(--orbit-color-sidenav-divider)]" />
-
-        <div className="mb-2 flex items-center justify-between px-1 text-sm text-[var(--orbit-sidenav-work-heading-color)]">
-          <span>My Work</span>
-          <Search className="h-4 w-4" />
-        </div>
-        <div className="space-y-3 px-1">
-          <NavLink to="/clauseiq-v5" className="block rounded-md py-1 text-sm text-white hover:text-white">
-            ClauseIQ
-            <span className="block text-xs text-[var(--orbit-color-sidenav-muted)]">2d ago | TestClientTaxonomyCreatedBy</span>
-          </NavLink>
-          <button
-            type="button"
-            className="block w-full rounded-md py-1 text-left text-sm text-white hover:text-white"
-            onClick={() => toast({ title: "Usability Study — coming soon" })}
-          >
-            Usability Study
-            <span className="block text-xs text-[var(--orbit-color-sidenav-muted)]">Research hub</span>
-          </button>
-          <button
-            type="button"
-            className="block w-full rounded-md py-1 text-left text-sm text-white hover:text-white"
-            onClick={() => toast({ title: "Sustain — coming soon" })}
-          >
-            <span className="inline-flex items-center gap-2">
-              <Leaf className="h-3.5 w-3.5" />
-              Sustainability review
-            </span>
-          </button>
-          <button
-            type="button"
-            className="block w-full rounded-md py-1 text-left text-sm text-white hover:text-white"
-            onClick={() => toast({ title: "Identification — coming soon" })}
-          >
-            <span className="inline-flex items-center gap-2">
-              <Target className="h-3.5 w-3.5" />
-              Pipeline triage
-            </span>
-          </button>
-        </div>
-      </nav>
-
-      <div className="border-t border-[var(--orbit-color-sidenav-divider)] p-3">
-        <div className="mb-2 flex items-center gap-2 px-1 py-1">
-          <div className="grid h-6 w-6 place-items-center rounded-full bg-[var(--orbit-color-btn-primary-bg)] text-[10px] font-semibold text-white">DW</div>
-          <span className="text-sm text-white">Derek Wong</span>
-        </div>
-        <NavLink
-          to="/"
-          className="flex w-full items-center gap-2 rounded-[var(--orbit-sidenav-nav-row-radius)] px-3 py-2 text-sm font-medium text-[var(--orbit-color-sidenav-muted)] transition-colors hover:bg-[var(--orbit-color-sidenav-active-bg)] hover:text-white"
-        >
-          <Home className="h-4 w-4 text-current" />
-          <span>Prototype home</span>
-        </NavLink>
-        {showResultScenarioControl && (
-          <div className="mt-3 rounded-md border border-[var(--orbit-color-sidenav-divider)] bg-[var(--orbit-color-sidenav-active-bg)] p-2">
-            <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-[var(--orbit-color-sidenav-muted)]">
-              Result scenario
-            </label>
-            <Select value={resultScenario} onValueChange={handleResultScenarioChange}>
-              <SelectTrigger className="h-8 bg-white text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="empty">No previous analysis</SelectItem>
-                <SelectItem value="history">Previous analysis</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-      </div>
-    </aside>
+      ) : null}
+    </div>
   );
 }

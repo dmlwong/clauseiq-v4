@@ -26,10 +26,11 @@ function textFromNode(node: React.ReactNode): string {
 
 function chipVariant(variant: BadgeVariant | undefined, className?: string) {
   if (className) {
-    if (/\b(destructive|error|red|orange)\b/i.test(className)) return "Error";
-    if (/\b(warning|amber|yellow)\b/i.test(className)) return "Warning";
-    if (/\b(success|green|accepted)\b/i.test(className)) return "Success";
-    if (/\b(primary|ciq|info|blue)\b/i.test(className)) return "Information";
+    const toneClassName = className.toLowerCase();
+    if (/\b(destructive|error|red|rose)\b/i.test(className) || /#(?:a32d2d|f3b4b4|fff1f2|fcebeb|791f1f|e5484d)/i.test(toneClassName)) return "Error";
+    if (/\b(warning|amber|yellow|orange)\b/i.test(className) || /#(?:f1d29b|fff8e8|854f0b|faeeda|633806|f59e0b|ba7517)/i.test(toneClassName)) return "Warning";
+    if (/\b(success|green|accepted)\b/i.test(className) || /#(?:bfd6ab|eaf3de|27500a|3b6d11|1ba97f)/i.test(toneClassName)) return "Success";
+    if (/\b(primary|ciq|info|blue)\b/i.test(className) || /#(?:185fa5|e6f1fb|0c447c)/i.test(toneClassName)) return "Information";
     if (/\b(muted|secondary|slate|gray|background|border-border)\b/i.test(className)) return "No Status";
   }
   if (variant === "destructive") return "Error";

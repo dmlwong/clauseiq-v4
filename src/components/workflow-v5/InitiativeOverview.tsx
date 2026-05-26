@@ -64,7 +64,6 @@ export function InitiativeOverview({ initiativeId, onBack, onSelectSupplier, onC
       header: "Action",
       render: (supplier: typeof initiative.suppliers[number]) => (
         <Button
-          size="sm"
           variant="outline"
           onClick={(event) => {
             event.stopPropagation();
@@ -93,7 +92,7 @@ export function InitiativeOverview({ initiativeId, onBack, onSelectSupplier, onC
             <p className="text-muted-foreground">{initiative.description}</p>
           </div>
           {onCompare && initiative.suppliers.length >= 2 && (
-            <Button variant="outline" size="sm" onClick={onCompare}>Compare suppliers</Button>
+            <Button variant="outline" onClick={onCompare}>Compare suppliers</Button>
           )}
         </header>
 

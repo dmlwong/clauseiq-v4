@@ -164,11 +164,11 @@ export function CrossSupplierComparison({ initiativeId, onBack, onOpenSupplier, 
                   <Row label="Drill in">
                     {compared.map((c) => (
                       <div key={c.id} className="flex flex-col items-start gap-1">
-                        <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => onOpenSupplier(c.id)}>
+                        <Button variant="outline" className="h-7 text-[11px]" onClick={() => onOpenSupplier(c.id)}>
                           Open supplier <ArrowRight className="w-3 h-3 ml-1" />
                         </Button>
                         {c.firstContractId && (
-                          <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => onOpenContract(c.id, c.firstContractId!)}>
+                          <Button variant="ghost" className="h-7 text-[11px]" onClick={() => onOpenContract(c.id, c.firstContractId!)}>
                             Open evidence
                           </Button>
                         )}

@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi, beforeAll } from "vitest";
+import { afterEach, describe, expect, it, vi, beforeAll } from "vitest";
 
 import ClauseIQV5 from "./ClauseIQV5";
 import { CIQ_DEFAULT_PLAYBOOK } from "@/lib/clauseiq-v4-data";
@@ -30,6 +30,10 @@ beforeAll(() => {
     configurable: true,
     value: vi.fn(),
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("ClauseIQ V5 flow", () => {
@@ -63,6 +67,9 @@ describe("ClauseIQ V5 flow", () => {
     startAndSelectInitiative();
 
     expect(screen.getByRole("heading", { name: "Contract Analysis Parameters" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Playbook" })).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "Category" })).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Governing Law" })).toBeInTheDocument();
     expect(screen.queryByText("Logistics · Sarah Chen")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
   });
@@ -72,6 +79,7 @@ describe("ClauseIQ V5 flow", () => {
 
     startAndSelectInitiative();
     fireEvent.click(screen.getByRole("radio", { name: "Playbook" }));
+    expect(screen.queryByLabelText(/search playbook options/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("option", { name: CIQ_DEFAULT_PLAYBOOK }));
 
     expect(screen.getByText(CIQ_DEFAULT_PLAYBOOK)).toBeInTheDocument();
@@ -148,10 +156,74 @@ describe("ClauseIQ V5 flow", () => {
     expect(screen.queryByText("No outputs yet")).not.toBeInTheDocument();
   });
 
-  it("renders direct results routes with the default playbook selected", () => {
-    renderClauseIQ("/clauseiq-v5?view=results");
+  it("lets users select parameters before upload when running another output-panel analysis", () => {
+    renderClauseIQ("/clauseiq-v5/output-panel", { forceResults: true, resultsLayout: "output-panel" });
 
-    expect(screen.getByText(CIQ_DEFAULT_PLAYBOOK)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Run Another Analysis" }));
+
+    expect(screen.getByText("Choose a parameter to analyse the next contract.")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Playbook" })).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "Category" })).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Governing Law" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Playbook" }));
+    expect(screen.queryByLabelText(/search playbook options/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("option", { name: CIQ_DEFAULT_PLAYBOOK }));
+
+    const rerunParameterHeading = screen.getAllByRole("heading", { name: "Contract Analysis Parameters" }).at(-1);
+    const uploadHeading = screen.getByRole("heading", { name: "Upload Contract" });
+
+    expect(screen.getByRole("button", { name: /change playbook/i })).toBeInTheDocument();
+    expect(rerunParameterHeading).toBeTruthy();
+    expect(rerunParameterHeading!.compareDocumentPosition(uploadHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("keeps previous output and the New Analysis divider after rerun completion", async () => {
+    vi.useFakeTimers();
+    const { container } = renderClauseIQ("/clauseiq-v5/output-panel", {
+      forceResults: true,
+      resultsLayout: "output-panel",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Run Another Analysis" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Playbook" }));
+    fireEvent.click(screen.getByRole("option", { name: CIQ_DEFAULT_PLAYBOOK }));
+
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+    expect(input).toBeTruthy();
+
+    fireEvent.change(input!, {
+      target: {
+        files: [new File(["pdf"], "New_ThomsonReuters_contract.pdf", { type: "application/pdf" })],
+      },
+    });
+
+    expect(screen.getByText("New Analysis")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Analysing New Contract" })).toBeInTheDocument();
+    expect(screen.getAllByText("MSA_ThomsonReuters_v2.pdf").length).toBeGreaterThan(0);
+
+    await act(async () => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    expect(screen.getByText("New Analysis")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Analysing New Contract" })).not.toBeInTheDocument();
+    expect(screen.getAllByText("MSA_ThomsonReuters_v2.pdf").length).toBeGreaterThan(0);
+    expect(screen.getByText("New_ThomsonReuters_contract.pdf")).toBeInTheDocument();
+    expect(screen.getAllByText("Here is your Analysis Result").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("renders direct results routes with the default playbook selected", () => {
+    const { container } = renderClauseIQ("/clauseiq-v5?view=results");
+
+    expect(container.textContent).toContain(CIQ_DEFAULT_PLAYBOOK);
+    expect(screen.getAllByText("Parameter Applied").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("heading", { name: "Contract Analysis Parameters" })).not.toBeInTheDocument();
+    expect(screen.queryByText("All categories")).not.toBeInTheDocument();
+    expect(screen.queryByText("United Kingdom")).not.toBeInTheDocument();
     expect(screen.getAllByText(/Analysis Result/i).length).toBeGreaterThan(0);
   });
 });

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Sparkles, Search, Check, Pencil, UploadCloud, FileText, Loader2,
   ChevronRight, ListChecks, FileDown, Building2, Info,
-  BookOpen, Tag, Scale,
+  BookOpen, Scale,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
@@ -39,6 +39,7 @@ type Step = "welcome" | "select" | "parameters" | "upload" | "processing" | "res
 
 const PROCESSING_MS = 3_000;
 const DEFAULT_PARAMETER: CiqSelectedParameter = { kind: "Playbook", label: CIQ_DEFAULT_PLAYBOOK };
+const CIQ_V4_PARAMETER_OPTIONS = CIQ_PARAMETER_OPTIONS.filter((option) => option.kind !== "Category");
 const EMPTY_MOCK_INITIATIVE: Initiative = {
   ...mockInitiative,
   suppliers: mockInitiative.suppliers.map((supplier) => ({
@@ -99,13 +100,11 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
     resultsFromRoute ? DEFAULT_PARAMETER : null,
   );
   const [expandedParameter, setExpandedParameter] = useState<CiqParameterKind | null>(null);
-  const [parameterSearch, setParameterSearch] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [rerunUploadVisible, setRerunUploadVisible] = useState(rerunUploadFromRoute);
   const [rerunSelectedParameter, setRerunSelectedParameter] = useState<CiqSelectedParameter | null>(null);
   const [rerunExpandedParameter, setRerunExpandedParameter] = useState<CiqParameterKind | null>(null);
-  const [rerunParameterSearch, setRerunParameterSearch] = useState("");
   const [rerunProcessing, setRerunProcessing] = useState(false);
   const [pendingRerunAnalysis, setPendingRerunAnalysis] = useState<ClauseAnalysis | null>(null);
   const [pendingRerunParameter, setPendingRerunParameter] = useState<CiqSelectedParameter | null>(null);
@@ -192,7 +191,6 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
       setPendingRerunParameter(null);
       setRerunSelectedParameter(null);
       setRerunExpandedParameter(null);
-      setRerunParameterSearch("");
       setFile(null);
       toast.success("New analysis added as latest output.");
     }, PROCESSING_MS);
@@ -233,7 +231,6 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
     setInitiative(i);
     setSelectedParameter(null);
     setExpandedParameter(null);
-    setParameterSearch("");
     setFile(null);
     setModalOpen(false);
     setStep("parameters");
@@ -241,33 +238,28 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
 
   const handleParameterToggle = (kind: CiqParameterKind) => {
     setExpandedParameter((current) => current === kind ? null : kind);
-    setParameterSearch("");
   };
 
   const handleParameterSelect = (option: CiqParameterOption, value: string) => {
     setSelectedParameter({ kind: option.kind, label: value });
     setExpandedParameter(null);
-    setParameterSearch("");
     setFile(null);
     setStep("upload");
   };
 
   const handleRerunParameterToggle = (kind: CiqParameterKind) => {
     setRerunExpandedParameter((current) => current === kind ? null : kind);
-    setRerunParameterSearch("");
   };
 
   const handleRerunParameterSelect = (option: CiqParameterOption, value: string) => {
     setRerunSelectedParameter({ kind: option.kind, label: value });
     setRerunExpandedParameter(null);
-    setRerunParameterSearch("");
     setFile(null);
   };
 
   const handleRerunParameterEdit = () => {
     setRerunSelectedParameter(null);
     setRerunExpandedParameter(null);
-    setRerunParameterSearch("");
     setFile(null);
   };
 
@@ -275,7 +267,6 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
     if (parameterLocked) return;
     setSelectedParameter(null);
     setExpandedParameter(null);
-    setParameterSearch("");
     setFile(null);
     setStep("parameters");
   };
@@ -313,7 +304,6 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
     setCompletedRerunParameter(null);
     setRerunSelectedParameter(null);
     setRerunExpandedParameter(null);
-    setRerunParameterSearch("");
     setRerunUploadVisible(true);
     if (!forceResults) {
       const nextParams = new URLSearchParams(searchParams);
@@ -441,11 +431,9 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
                       Choose a parameter to analyse this contract.
                     </p>
                     <ParameterSelection
-                      options={CIQ_PARAMETER_OPTIONS}
+                      options={CIQ_V4_PARAMETER_OPTIONS}
                       expandedKind={expandedParameter}
-                      search={parameterSearch}
                       onToggle={handleParameterToggle}
-                      onSearchChange={setParameterSearch}
                       onSelect={handleParameterSelect}
                     />
                   </StateCard>
@@ -531,11 +519,9 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
                             Choose a parameter to analyse the next contract.
                           </p>
                           <ParameterSelection
-                            options={CIQ_PARAMETER_OPTIONS}
+                            options={CIQ_V4_PARAMETER_OPTIONS}
                             expandedKind={rerunExpandedParameter}
-                            search={rerunParameterSearch}
                             onToggle={handleRerunParameterToggle}
-                            onSearchChange={setRerunParameterSearch}
                             onSelect={handleRerunParameterSelect}
                           />
                         </>
@@ -687,26 +673,20 @@ function SelectedSummaryRow({
 function ParameterSelection({
   options,
   expandedKind,
-  search,
   onToggle,
-  onSearchChange,
   onSelect,
 }: {
   options: CiqParameterOption[];
   expandedKind: CiqParameterKind | null;
-  search: string;
   onToggle: (kind: CiqParameterKind) => void;
-  onSearchChange: (value: string) => void;
   onSelect: (option: CiqParameterOption, value: string) => void;
 }) {
   const expandedOption = options.find((option) => option.kind === expandedKind);
-  const filteredOptions = expandedOption
-    ? expandedOption.options.filter((value) => value.toLowerCase().includes(search.trim().toLowerCase()))
-    : [];
+  const filteredOptions = expandedOption ? expandedOption.options : [];
 
   return (
     <div className="space-y-3">
-      <fieldset className="grid gap-2 sm:grid-cols-3">
+      <fieldset className="grid gap-2 sm:grid-cols-2">
         <legend className="sr-only">Contract analysis parameter type</legend>
         {options.map((option) => {
           const selected = option.kind === expandedKind;
@@ -754,22 +734,9 @@ function ParameterSelection({
           aria-label={`${expandedOption.label} options`}
           className="overflow-hidden rounded-lg border border-border bg-card"
         >
-          <div className="border-b border-border p-[16px]">
-            <div className="flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <input
-                type="text"
-                value={search}
-                onChange={(event) => onSearchChange(event.target.value)}
-                placeholder={`Search ${expandedOption.label.toLowerCase()}...`}
-                className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                aria-label={`Search ${expandedOption.label.toLowerCase()} options`}
-              />
-            </div>
-          </div>
           <div className="max-h-52 overflow-y-auto p-1">
             {filteredOptions.length === 0 ? (
-              <div className="px-3 py-[16px] text-center text-sm text-muted-foreground">No options match your search.</div>
+              <div className="px-3 py-[16px] text-center text-sm text-muted-foreground">No options available.</div>
             ) : (
               filteredOptions.map((value) => (
                 <button
@@ -792,7 +759,6 @@ function ParameterSelection({
 }
 
 function ParameterIcon({ kind }: { kind: CiqParameterKind }) {
-  if (kind === "Category") return <Tag className="h-4 w-4" />;
   if (kind === "Governing Law") return <Scale className="h-4 w-4" />;
   return <BookOpen className="h-4 w-4" />;
 }

@@ -57,7 +57,7 @@ export function GenerateResults({
             Your contract has been analysed successfully. Download the results below.
           </p>
         </div>
-        <Button size="lg" onClick={() => window.open(analysisJob.resultDownloadUrl, "_blank")}>
+        <Button onClick={() => window.open(analysisJob.resultDownloadUrl, "_blank")}>
           <Download className="w-4 h-4 mr-2" />
           Download Results
         </Button>
@@ -145,7 +145,7 @@ export function GenerateResults({
       </div>
 
       <div className="flex justify-center pt-2">
-        <Button size="lg" onClick={onGenerate} className="px-10">
+        <Button onClick={onGenerate}>
           Generate Results
         </Button>
       </div>

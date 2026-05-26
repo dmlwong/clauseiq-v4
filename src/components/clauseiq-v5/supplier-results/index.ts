@@ -7,5 +7,6 @@ export { DeviationPills } from "./DeviationPills";
 export { SupplierAvatar } from "./SupplierAvatar";
 export { StatCard } from "./StatCard";
 export {
+  type AnalysisParameterItem,
   type MasterDetailState,
 } from "./types";

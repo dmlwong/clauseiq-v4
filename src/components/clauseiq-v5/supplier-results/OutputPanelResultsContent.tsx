@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { BarChart2, ChevronDown, Download, FileText, Loader2, RotateCw, Search } from "lucide-react";
-import { Card } from "@orbit";
+import { Card, MultiStateButton, MultiStateGroup } from "@orbit";
 import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/clauseiq-v5/orbit-ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/clauseiq-v5/orbit-ui/tooltip";
 import { Searchbox } from "@/components/clauseiq-v5/orbit-ui/searchbox";
 import type { ClauseAnalysis, Supplier } from "@/data/mock-clauseiq";
@@ -18,7 +17,15 @@ type OutputScope = "team" | "mine";
 
 const MINE_ANALYSIS_IDS = new Set(["a-001", "a-004", "a-007"]);
 
-export function OutputPanelResultsContent({ initiative, onRunAgain, onDownload, onViewResult }: ResultsViewProps) {
+export function OutputPanelResultsContent({
+  initiative,
+  onRunAgain,
+  onDownload,
+  onViewResult,
+  viewResultPrimary = true,
+  highlightLatestOutput = true,
+  analysisParameters,
+}: ResultsViewProps) {
   const rows = useMemo(() => {
     return flattenSupplierAnalyses(initiative.suppliers).sort(
       (a, b) => Date.parse(a.analysis.analysedAt) - Date.parse(b.analysis.analysedAt),
@@ -49,8 +56,10 @@ export function OutputPanelResultsContent({ initiative, onRunAgain, onDownload, 
               onRunAgain={onRunAgain}
               onDownload={onDownload}
               onViewResult={onViewResult}
-              viewResultPrimary={analysis.id === latestAnalysisId}
+              viewResultPrimary={viewResultPrimary && analysis.id === latestAnalysisId}
               isLatestOutput={analysis.id === latestAnalysisId}
+              highlighted={highlightLatestOutput && analysis.id === latestAnalysisId}
+              analysisParameters={analysisParameters}
             />
           ))
         )}
@@ -155,27 +164,24 @@ export function SupplierOutputsPanel({
             aria-label="Search supplier outputs"
           />
 
-          <Tabs
-            value={outputScope}
-            onValueChange={(value) => {
-              if (value === "team" || value === "mine") {
-                setOutputScope(value);
-              }
-            }}
-          >
-            <TabsList className="grid h-8 w-full grid-cols-2 rounded-md">
-              <TabsTrigger value="mine" className="h-6 px-2 text-xs">
-                Mine
-              </TabsTrigger>
-              <TabsTrigger value="team" className="h-6 px-2 text-xs">
-                Team
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="clauseiq-v5-output-scope-control">
+            <MultiStateGroup
+              ariaLabel="Output scope"
+              value={outputScope}
+              onValueChange={(value) => {
+                if (value === "mine" || value === "team") {
+                  setOutputScope(value);
+                }
+              }}
+            >
+              <MultiStateButton value="mine" label="Mine" />
+              <MultiStateButton value="team" label="Team" />
+            </MultiStateGroup>
+          </div>
         </div>
       )}
 
-      <div className="space-y-3">
+      <div id="supplier-outputs-panel" className="space-y-3">
         {suppliers.length === 0 ? (
           <>
             {hasOutputs ? (
@@ -222,37 +228,37 @@ function SupplierPanelEmptyState({
   loading: boolean;
 }) {
   return (
-    <div className="w-full px-2 text-center">
-      <Card type="Static" state={loading ? "Highlight" : "Default"} padding="Base">
-        <div className="mx-auto max-w-[260px]">
-          <div className="mx-auto h-24 w-32">
-            <div className="relative mx-auto h-full w-full">
-              <div className="absolute left-7 top-2 h-16 w-20 rounded-xl border border-slate-200 bg-white shadow-sm" />
-              <div className="absolute left-10 top-6 h-2 w-8 rounded bg-primary/20" />
-              <div className="absolute left-10 top-11 h-2 w-12 rounded bg-slate-200" />
-              <div className="absolute left-10 top-16 h-2 w-9 rounded bg-slate-200" />
-              <div className="absolute right-5 top-7 grid h-9 w-9 place-items-center rounded-full border border-primary/20 bg-primary/10 text-primary shadow-sm">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-              </div>
-              <div className="absolute bottom-2 left-4 grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm">
-                <FileText className="h-4 w-4" />
-              </div>
-              <div className="absolute bottom-3 right-8 grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm">
-                <BarChart2 className="h-3.5 w-3.5" />
-              </div>
+    <div className="w-full px-2 py-2 text-center">
+      <div className="mx-auto max-w-[260px]">
+        <div className="mx-auto h-24 w-32">
+          <div className="relative mx-auto h-full w-full">
+            <div className="absolute left-7 top-2 h-16 w-20 rounded-xl border border-slate-200 bg-white shadow-sm" />
+            <div className="absolute left-10 top-6 h-2 w-8 rounded bg-primary/20" />
+            <div className="absolute left-10 top-11 h-2 w-12 rounded bg-slate-200" />
+            <div className="absolute left-10 top-16 h-2 w-9 rounded bg-slate-200" />
+            <div className="absolute right-5 top-7 grid h-9 w-9 place-items-center rounded-full border border-primary/20 bg-primary/10 text-primary shadow-sm">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             </div>
-          </div>
-          <h3 className="mt-5 text-base font-semibold leading-tight text-foreground">{title}</h3>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{copy}</p>
-          <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-2">
-            <div className="grid h-8 grid-cols-2 rounded-md bg-white p-1 text-xs font-medium text-slate-500 shadow-sm">
-              <span className="grid place-items-center rounded bg-slate-100 text-slate-700">Mine</span>
-              <span className="grid place-items-center rounded text-slate-500">Team</span>
+            <div className="absolute bottom-2 left-4 grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm">
+              <FileText className="h-4 w-4" />
             </div>
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{scopeHint}</p>
+            <div className="absolute bottom-3 right-8 grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm">
+              <BarChart2 className="h-3.5 w-3.5" />
+            </div>
           </div>
         </div>
-      </Card>
+        <h3 className="mt-5 text-base font-semibold leading-tight text-foreground">{title}</h3>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{copy}</p>
+        <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-2">
+          <div className="clauseiq-v5-output-scope-control">
+            <MultiStateGroup ariaLabel="Output scope preview" defaultValue="mine">
+              <MultiStateButton value="mine" label="Mine" disabled />
+              <MultiStateButton value="team" label="Team" disabled />
+            </MultiStateGroup>
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{scopeHint}</p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -378,7 +384,7 @@ function CompactOutputRow({
 }) {
   return (
     <article>
-      <Card type="Static" state={isLatestOutput ? "Highlight" : "Default"} padding="Small">
+      <Card type="Static" state="Default" padding="Small">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-xs font-medium text-foreground">{analysis.fileName}</p>
@@ -426,7 +432,6 @@ function CompactActionButton({
       <TooltipTrigger asChild>
         <Button
           variant="outline"
-          size="sm"
           className="h-7 w-full px-0"
           aria-label={label}
           title={label}

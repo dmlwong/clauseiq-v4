@@ -8,7 +8,7 @@ import { AnalysisCard } from "./AnalysisCard";
 import { SupplierAvatar } from "./SupplierAvatar";
 import type { ResultsViewProps } from "./types";
 
-export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResult }: ResultsViewProps) {
+export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResult, analysisParameters }: ResultsViewProps) {
   const suppliers = useMemo(() => sortByLatestChange(initiative.suppliers), [initiative.suppliers]);
   const latestAnalysisId = useMemo(() => latestAnalysis(initiative.suppliers)?.id, [initiative.suppliers]);
   const [openIds, setOpenIds] = useState<string[]>(() => {
@@ -87,6 +87,7 @@ export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResu
                           onViewResult={onViewResult}
                           viewResultPrimary={analysis.id === latestAnalysisId}
                           isLatestOutput={analysis.id === latestAnalysisId}
+                          analysisParameters={analysisParameters}
                         />
                       ))}
                     </div>

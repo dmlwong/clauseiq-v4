@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  Sparkles, Search, Check, Pencil, UploadCloud, FileText, Loader2,
+  Sparkles, Search, Check, Pencil, FileText, Loader2,
   ChevronRight, ListChecks, FilePlus2, Building2, Info,
-  BookOpen, Tag, MapPin,
+  BookOpen, Scale,
 } from "lucide-react";
+import { Dropzone as OrbitDropzone } from "@orbit";
 import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
 import { showV5OrbitToast as toast } from "@/components/clauseiq-v5/V5OrbitToast";
 import { V5Shell } from "@/components/clauseiq-v5/V5Shell";
@@ -22,18 +23,24 @@ import {
   type CiqSelectedParameter,
 } from "@/lib/clauseiq-v4-data";
 import { cn } from "@/lib/utils";
-import { mockInitiative, type Initiative } from "@/data/mock-clauseiq";
+import { mockInitiative, type ClauseAnalysis, type Initiative } from "@/data/mock-clauseiq";
 import { V4_DELIVERY_INITIATIVE_ID } from "@/data/mock-delivery-engine-v4";
 import {
+  AnalysisCard,
   ResultsContent,
   SupplierOutputsPanel,
 } from "@/components/clauseiq-v5/supplier-results";
-import type { ResultsLayout, SupplierOutputsPanelState } from "@/components/clauseiq-v5/supplier-results/types";
+import type {
+  AnalysisParameterItem,
+  ResultsLayout,
+  SupplierOutputsPanelState,
+} from "@/components/clauseiq-v5/supplier-results/types";
 
 type Step = "welcome" | "select" | "parameters" | "upload" | "processing" | "results";
 
 const PROCESSING_MS = 3_000;
 const DEFAULT_PARAMETER: CiqSelectedParameter = { kind: "Playbook", label: CIQ_DEFAULT_PLAYBOOK };
+const CIQ_V5_PARAMETER_OPTIONS = CIQ_PARAMETER_OPTIONS.filter((option) => option.kind !== "Category");
 const EMPTY_MOCK_INITIATIVE: Initiative = {
   ...mockInitiative,
   suppliers: mockInitiative.suppliers.map((supplier) => ({
@@ -48,8 +55,29 @@ const FIRST_RUN_MOCK_INITIATIVE: Initiative = {
     analyses: supplier.analyses.slice(0, 1),
   })),
 };
+const createRerunAnalysis = (fileName: string): ClauseAnalysis => ({
+  id: "a-rerun-latest",
+  contractName: "New supplier contract",
+  fileName,
+  analysedAt: "2026-05-22T11:00:00Z",
+  clausesReviewed: 47,
+  status: "completed",
+  deviations: { missing: 8, high: 6, medium: 4, low: 10 },
+});
 const LATEST_V5_RESULTS_ROUTE =
   "/initiatives-v5?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=first-analysis";
+
+const buildAnalysisParameters = (
+  selected: CiqSelectedParameter | null,
+): AnalysisParameterItem[] => {
+  const parameter = selected ?? DEFAULT_PARAMETER;
+  return [
+    {
+      label: parameter.kind,
+      value: parameter.label,
+    },
+  ];
+};
 
 interface ClauseIQV5Props {
   forceResults?: boolean;
@@ -73,11 +101,16 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
     resultsFromRoute ? DEFAULT_PARAMETER : null,
   );
   const [expandedParameter, setExpandedParameter] = useState<CiqParameterKind | null>(null);
-  const [parameterSearch, setParameterSearch] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [rerunUploadVisible, setRerunUploadVisible] = useState(rerunUploadFromRoute);
+  const [rerunSelectedParameter, setRerunSelectedParameter] = useState<CiqSelectedParameter | null>(null);
+  const [rerunExpandedParameter, setRerunExpandedParameter] = useState<CiqParameterKind | null>(null);
   const [rerunProcessing, setRerunProcessing] = useState(false);
+  const [pendingRerunAnalysis, setPendingRerunAnalysis] = useState<ClauseAnalysis | null>(null);
+  const [pendingRerunParameter, setPendingRerunParameter] = useState<CiqSelectedParameter | null>(null);
+  const [completedRerunAnalysis, setCompletedRerunAnalysis] = useState<ClauseAnalysis | null>(null);
+  const [completedRerunParameter, setCompletedRerunParameter] = useState<CiqSelectedParameter | null>(null);
 
   const selectRef = useRef<HTMLDivElement>(null);
   const parametersRef = useRef<HTMLDivElement>(null);
@@ -93,6 +126,12 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
     }, delay);
   }, []);
 
+  const scrollRerunWorkflowIntoView = useCallback((delay = 120) => {
+    window.setTimeout(() => {
+      rerunUploadRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, delay);
+  }, []);
+
   useEffect(() => {
     if (!forceResults && searchParams.get("view") === "results" && !rerunUploadFromRoute) {
       navigate("/clauseiq-v5/output-panel", { replace: true });
@@ -105,9 +144,9 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
     setStep("results");
     if (rerunUploadFromRoute) {
       setRerunUploadVisible(true);
-      scrollLatestOutputIntoView(160);
+      scrollRerunWorkflowIntoView(160);
     }
-  }, [defaultCompletedInitiative, forceResults, navigate, rerunUploadFromRoute, resultsFromRoute, scrollLatestOutputIntoView, searchParams]);
+  }, [defaultCompletedInitiative, forceResults, navigate, rerunUploadFromRoute, resultsFromRoute, scrollRerunWorkflowIntoView, searchParams]);
 
   // Auto-scroll the active card into view
   useEffect(() => {
@@ -124,8 +163,12 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
 
   useEffect(() => {
     if (step !== "results") return;
+    if (rerunUploadVisible) {
+      scrollRerunWorkflowIntoView(140);
+      return;
+    }
     scrollLatestOutputIntoView(140);
-  }, [rerunProcessing, rerunUploadVisible, scrollLatestOutputIntoView, step]);
+  }, [rerunProcessing, rerunUploadVisible, scrollLatestOutputIntoView, scrollRerunWorkflowIntoView, step]);
 
   // Simulated processing
   useEffect(() => {
@@ -143,11 +186,17 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
     if (!rerunProcessing) return;
     const t = setTimeout(() => {
       setRerunProcessing(false);
+      setCompletedRerunAnalysis(pendingRerunAnalysis ?? createRerunAnalysis("New_Contract.pdf"));
+      setCompletedRerunParameter(pendingRerunParameter ?? selectedParameter ?? DEFAULT_PARAMETER);
+      setPendingRerunAnalysis(null);
+      setPendingRerunParameter(null);
+      setRerunSelectedParameter(null);
+      setRerunExpandedParameter(null);
       setFile(null);
       toast.success("New analysis added as latest output.");
     }, PROCESSING_MS);
     return () => clearTimeout(t);
-  }, [rerunProcessing]);
+  }, [pendingRerunAnalysis, pendingRerunParameter, rerunProcessing, selectedParameter]);
 
   // ---- state helpers ----
   const stepIndex = (["welcome", "select", "parameters", "upload", "processing", "results"] as Step[]).indexOf(step);
@@ -164,6 +213,10 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
   const outputPanelResultsVisible = resultsVisible && resultsLayout === "output-panel";
   const resultsInitiative =
     outputPanelResultsVisible && resultScenario === "empty" ? FIRST_RUN_MOCK_INITIATIVE : mockInitiative;
+  const rerunSupplier = resultsInitiative.suppliers[0];
+  const newAnalysisSectionVisible = rerunUploadVisible || rerunProcessing || completedRerunAnalysis !== null;
+  const selectedAnalysisParameters = buildAnalysisParameters(selectedParameter);
+  const completedRerunAnalysisParameters = buildAnalysisParameters(completedRerunParameter ?? selectedParameter);
   const supplierOutputPanelState: SupplierOutputsPanelState = resultsVisible
     ? "filled"
     : step === "processing"
@@ -179,7 +232,6 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
     setInitiative(i);
     setSelectedParameter(null);
     setExpandedParameter(null);
-    setParameterSearch("");
     setFile(null);
     setModalOpen(false);
     setStep("parameters");
@@ -187,22 +239,35 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
 
   const handleParameterToggle = (kind: CiqParameterKind) => {
     setExpandedParameter((current) => current === kind ? null : kind);
-    setParameterSearch("");
   };
 
   const handleParameterSelect = (option: CiqParameterOption, value: string) => {
     setSelectedParameter({ kind: option.kind, label: value });
     setExpandedParameter(null);
-    setParameterSearch("");
     setFile(null);
     setStep("upload");
+  };
+
+  const handleRerunParameterToggle = (kind: CiqParameterKind) => {
+    setRerunExpandedParameter((current) => current === kind ? null : kind);
+  };
+
+  const handleRerunParameterSelect = (option: CiqParameterOption, value: string) => {
+    setRerunSelectedParameter({ kind: option.kind, label: value });
+    setRerunExpandedParameter(null);
+    setFile(null);
+  };
+
+  const handleRerunParameterEdit = () => {
+    setRerunSelectedParameter(null);
+    setRerunExpandedParameter(null);
+    setFile(null);
   };
 
   const handleParameterEdit = () => {
     if (parameterLocked) return;
     setSelectedParameter(null);
     setExpandedParameter(null);
-    setParameterSearch("");
     setFile(null);
     setStep("parameters");
   };
@@ -219,6 +284,11 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
     }
     setFile(f);
     if (resultsVisible && rerunUploadVisible) {
+      const parameterForRun = rerunSelectedParameter ?? selectedParameter ?? DEFAULT_PARAMETER;
+      setPendingRerunAnalysis(createRerunAnalysis(f.name));
+      setPendingRerunParameter(parameterForRun);
+      setCompletedRerunAnalysis(null);
+      setCompletedRerunParameter(null);
       setRerunUploadVisible(false);
       setRerunProcessing(true);
       return;
@@ -229,11 +299,19 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
   const showRunAgainUpload = () => {
     setFile(null);
     setRerunProcessing(false);
+    setPendingRerunAnalysis(null);
+    setPendingRerunParameter(null);
+    setCompletedRerunAnalysis(null);
+    setCompletedRerunParameter(null);
+    setRerunSelectedParameter(null);
+    setRerunExpandedParameter(null);
     setRerunUploadVisible(true);
     if (!forceResults) {
-      navigate("/clauseiq-v5/output-panel?rerun=upload");
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set("rerun", "upload");
+      navigate(`/clauseiq-v5/output-panel?${nextParams.toString()}`);
     }
-    scrollLatestOutputIntoView(120);
+    scrollRerunWorkflowIntoView(120);
   };
 
   const handleDownload = () => {
@@ -248,6 +326,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
     <V5Shell
       title="ClauseIQ"
       subtitle="AI tool for detailed contract analyses"
+      mainClassName="clauseiq-v5-canvas-grid"
       headerRight={
         resultsVisible ? (
           <V5InitiativeLinkButton
@@ -292,7 +371,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
                 Upload a contract and ClauseIQ will review it against your initiative's playbook,
                 surfacing deviations, missing clauses and negotiation actions in seconds.
               </p>
-              <div className="rounded-lg bg-muted/50 border border-border p-4 mb-5 space-y-3">
+              <div className={cn("rounded-lg bg-muted/50 border border-border p-4 space-y-3", step === "welcome" && "mb-5")}>
                 <div className="text-sm font-medium text-foreground mb-1">Summary</div>
                 <SummaryRow icon={<ListChecks className="h-4 w-4 text-ciq" />} text="Reviews every clause against your benchmark playbook." />
                 <SummaryRow icon={<Building2 className="h-4 w-4 text-ciq" />} text="Tied to a chosen initiative for traceable governance." />
@@ -328,7 +407,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
                   </StateCard>
                 ) : (
                   <StateCard
-                    state={initiativeLocked ? "disabled" : "default"}
+                    state="default"
                     className={resultsVisible ? "mx-auto w-full max-w-[640px]" : undefined}
                   >
                     <h2 className="text-base font-semibold mb-3">Initiative Selected</h2>
@@ -344,7 +423,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
             )}
 
             {/* Contract Analysis Parameters */}
-            {parametersVisible && (
+            {parametersVisible && !resultsVisible && (
               <div ref={parametersRef}>
                 {!selectedParameter ? (
                   <StateCard state={parametersState}>
@@ -353,11 +432,9 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
                       Choose a parameter to analyse this contract.
                     </p>
                     <ParameterSelection
-                      options={CIQ_PARAMETER_OPTIONS}
+                      options={CIQ_V5_PARAMETER_OPTIONS}
                       expandedKind={expandedParameter}
-                      search={parameterSearch}
                       onToggle={handleParameterToggle}
-                      onSearchChange={setParameterSearch}
                       onSelect={handleParameterSelect}
                     />
                   </StateCard>
@@ -428,19 +505,50 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
                   onRunAgain={showRunAgainUpload}
                   onDownload={resultsLayout === "output-panel" ? undefined : handleDownload}
                   onViewResult={handleViewResult}
+                  viewResultPrimary={!newAnalysisSectionVisible}
+                  highlightLatestOutput={!newAnalysisSectionVisible}
+                  analysisParameters={selectedAnalysisParameters}
                 />
-                {(rerunUploadVisible || rerunProcessing) && <NewAnalysisDivider />}
+                {newAnalysisSectionVisible && <NewAnalysisDivider />}
                 {rerunUploadVisible && (
-                  <div ref={rerunUploadRef}>
-                    <StateCard state="active">
-                      <h2 className="text-base font-semibold mb-3">Upload Contract</h2>
-                      <PlaybookDisclaimer variant="callout" parameter={selectedParameter} />
-                      <Dropzone onFile={validateAndSetFile} />
-                      <div className="mt-3 text-xs text-muted-foreground space-y-0.5">
-                        <div>File types supported: PDF</div>
-                        <div>Maximum upload file size: 100 MB</div>
-                      </div>
+                  <div ref={rerunUploadRef} className="space-y-4">
+                    <StateCard state={rerunSelectedParameter ? "default" : "active"}>
+                      <h2 className="text-base font-semibold mb-1">Contract Analysis Parameters</h2>
+                      {!rerunSelectedParameter ? (
+                        <>
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Choose a parameter to analyse the next contract.
+                          </p>
+                          <ParameterSelection
+                            options={CIQ_V5_PARAMETER_OPTIONS}
+                            expandedKind={rerunExpandedParameter}
+                            onToggle={handleRerunParameterToggle}
+                            onSelect={handleRerunParameterSelect}
+                          />
+                        </>
+                      ) : (
+                        <div className="mt-2">
+                          <SelectedSummaryRow
+                            label={rerunSelectedParameter.label}
+                            disabled={false}
+                            actionLabel={`Change ${rerunSelectedParameter.kind}`}
+                            onAction={handleRerunParameterEdit}
+                          />
+                        </div>
+                      )}
                     </StateCard>
+
+                    {rerunSelectedParameter && (
+                      <StateCard state="active">
+                        <h2 className="text-base font-semibold mb-3">Upload Contract</h2>
+                        <PlaybookDisclaimer variant="callout" parameter={rerunSelectedParameter} />
+                        <Dropzone onFile={validateAndSetFile} />
+                        <div className="mt-3 text-xs text-muted-foreground space-y-0.5">
+                          <div>File types supported: PDF</div>
+                          <div>Maximum upload file size: 100 MB</div>
+                        </div>
+                      </StateCard>
+                    )}
                   </div>
                 )}
                 {rerunProcessing && (
@@ -459,11 +567,24 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
                       <Loader2 className="h-5 w-5 animate-spin text-ciq" />
                       <span className="text-sm font-medium">Finding clauses in your new contract...</span>
                     </div>
-                    <PlaybookDisclaimer variant="inline" parameter={selectedParameter} />
+                    <PlaybookDisclaimer variant="inline" parameter={rerunSelectedParameter ?? selectedParameter} />
                     <p className="text-xs text-muted-foreground mt-2">
                       The existing analysis history remains available above while this runs.
                     </p>
                   </StateCard>
+                )}
+                {completedRerunAnalysis && rerunSupplier && (
+                  <AnalysisCard
+                    analysis={completedRerunAnalysis}
+                    supplier={rerunSupplier}
+                    showSupplier
+                    onRunAgain={showRunAgainUpload}
+                    onViewResult={handleViewResult}
+                    viewResultPrimary
+                    isLatestOutput
+                    highlighted
+                    analysisParameters={completedRerunAnalysisParameters}
+                  />
                 )}
                 <div ref={latestOutputRef} className="h-[304px]" aria-hidden="true" />
               </div>
@@ -553,26 +674,20 @@ function SelectedSummaryRow({
 function ParameterSelection({
   options,
   expandedKind,
-  search,
   onToggle,
-  onSearchChange,
   onSelect,
 }: {
   options: CiqParameterOption[];
   expandedKind: CiqParameterKind | null;
-  search: string;
   onToggle: (kind: CiqParameterKind) => void;
-  onSearchChange: (value: string) => void;
   onSelect: (option: CiqParameterOption, value: string) => void;
 }) {
   const expandedOption = options.find((option) => option.kind === expandedKind);
-  const filteredOptions = expandedOption
-    ? expandedOption.options.filter((value) => value.toLowerCase().includes(search.trim().toLowerCase()))
-    : [];
+  const filteredOptions = expandedOption ? expandedOption.options : [];
 
   return (
     <div className="space-y-3">
-      <fieldset className="grid gap-2 sm:grid-cols-3">
+      <fieldset className="grid gap-2 sm:grid-cols-2">
         <legend className="sr-only">Contract analysis parameter type</legend>
         {options.map((option) => {
           const selected = option.kind === expandedKind;
@@ -620,22 +735,9 @@ function ParameterSelection({
           aria-label={`${expandedOption.label} options`}
           className="overflow-hidden rounded-lg border border-border bg-card"
         >
-          <div className="border-b border-border p-3">
-            <div className="flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <input
-                type="text"
-                value={search}
-                onChange={(event) => onSearchChange(event.target.value)}
-                placeholder={`Search ${expandedOption.label.toLowerCase()}...`}
-                className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                aria-label={`Search ${expandedOption.label.toLowerCase()} options`}
-              />
-            </div>
-          </div>
           <div className="max-h-52 overflow-y-auto p-1">
             {filteredOptions.length === 0 ? (
-              <div className="px-3 py-4 text-center text-sm text-muted-foreground">No options match your search.</div>
+              <div className="px-3 py-4 text-center text-sm text-muted-foreground">No options available.</div>
             ) : (
               filteredOptions.map((value) => (
                 <button
@@ -658,8 +760,7 @@ function ParameterSelection({
 }
 
 function ParameterIcon({ kind }: { kind: CiqParameterKind }) {
-  if (kind === "Category") return <Tag className="h-4 w-4" />;
-  if (kind === "Governing Law") return <MapPin className="h-4 w-4" />;
+  if (kind === "Governing Law") return <Scale className="h-4 w-4" />;
   return <BookOpen className="h-4 w-4" />;
 }
 
@@ -701,39 +802,13 @@ function NextRow({ title, subtitle }: { title: string; subtitle: string }) {
 }
 
 function Dropzone({ onFile }: { onFile: (f: File | null) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [hover, setHover] = useState(false);
   return (
-    <div
-      onDragOver={(e) => { e.preventDefault(); setHover(true); }}
-      onDragLeave={() => setHover(false)}
-      onDrop={(e) => {
-        e.preventDefault(); setHover(false);
-        onFile(e.dataTransfer.files?.[0] ?? null);
-      }}
-      className={`rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors ${
-        hover ? "border-ciq bg-ciq-soft" : "border-border bg-muted/30"
-      }`}
-    >
-      <UploadCloud className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-      <div className="text-sm">
-        Drag &amp; drop or{" "}
-        <button
-          type="button"
-          className="text-ciq font-medium hover:underline"
-          onClick={() => inputRef.current?.click()}
-        >
-          choose files
-        </button>{" "}
-        to upload
-      </div>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="application/pdf,.pdf"
-        className="hidden"
-        onChange={(e) => onFile(e.target.files?.[0] ?? null)}
-      />
-    </div>
+    <OrbitDropzone
+      ariaLabel="Upload contract PDF"
+      accept="application/pdf,.pdf"
+      onFileSelected={(file) => onFile(file)}
+      acceptedFileTypesLabel="File types supported: .pdf files."
+      maxFileSizeLabel="Maximum upload file size: 100 MB"
+    />
   );
 }

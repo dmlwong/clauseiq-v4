@@ -23,6 +23,7 @@ export function OptionFilteredList({
   onRunAgain,
   onDownload,
   onViewResult,
+  analysisParameters,
   filteredControls,
 }: ResultsViewProps) {
   const controls = filteredControls ?? DEFAULT_FILTERED_LIST_CONTROLS;
@@ -79,6 +80,7 @@ export function OptionFilteredList({
               onRunAgain={onRunAgain}
               onDownload={onDownload}
               onViewResult={onViewResult}
+              analysisParameters={analysisParameters}
             />
           ))}
         </AnimatePresence>

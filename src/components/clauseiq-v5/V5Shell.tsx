@@ -1,16 +1,21 @@
 import { ReactNode } from "react";
+import { HeaderPresets, PageHeader } from "@orbit";
+
 import { CiqSidebar } from "@/components/clauseiq-v5/Sidebar";
 import { V5OrbitRoot } from "@/components/clauseiq-v5/V5OrbitRoot";
+import { cn } from "@/lib/utils";
 
 interface Props {
   title?: string;
   subtitle?: string;
   titleIcon?: ReactNode;
   headerRight?: ReactNode;
+  headerRightPlacement?: "end" | "title";
   subheader?: ReactNode;
   subheaderClassName?: string;
   sidePanel?: ReactNode;
   rightPanel?: ReactNode;
+  mainClassName?: string;
   children: ReactNode;
 }
 
@@ -20,12 +25,16 @@ export function V5Shell({
   subtitle,
   titleIcon,
   headerRight,
+  headerRightPlacement = "end",
   subheader,
   subheaderClassName,
   sidePanel,
   rightPanel,
+  mainClassName,
   children,
 }: Props) {
+  const headerIcon = titleIcon ? "\uf013" : "\uf15b";
+
   return (
     <V5OrbitRoot>
       <div
@@ -41,15 +50,26 @@ export function V5Shell({
         </div>
         <div className="flex-1 flex flex-col min-w-0 h-screen">
           {(title || headerRight) && (
-            <header className="h-16 shrink-0 border-b border-border bg-card flex items-center justify-between px-6 gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                {titleIcon}
-                <div className="min-w-0">
-                  {title && <div className="font-semibold text-foreground leading-tight truncate">{title}</div>}
-                  {subtitle && <div className="text-xs text-muted-foreground leading-tight truncate">{subtitle}</div>}
+            <header className="relative shrink-0 bg-[var(--orbit-color-card-bg-default)]">
+              <PageHeader
+                type="tool"
+                title={title ?? ""}
+                subtitle={subtitle}
+                icon={headerIcon}
+                {...HeaderPresets.deliver}
+              />
+              {headerRight && headerRightPlacement === "end" && (
+                <div className="pointer-events-none absolute inset-y-0 right-0 z-10 flex items-center px-6">
+                  <div className="pointer-events-auto flex max-w-[min(42vw,480px)] items-center justify-end">
+                    {headerRight}
+                  </div>
                 </div>
-              </div>
-              {headerRight && <div className="flex items-center gap-2">{headerRight}</div>}
+              )}
+              {headerRight && headerRightPlacement === "title" && (
+                <div className="pointer-events-none absolute left-[140px] top-2 z-10 flex max-w-[min(44vw,420px)] items-center">
+                  <div className="pointer-events-auto min-w-0">{headerRight}</div>
+                </div>
+              )}
             </header>
           )}
           {subheader && (
@@ -63,7 +83,9 @@ export function V5Shell({
                 {sidePanel}
               </aside>
             )}
-            <main className="v5-hover-scrollbar flex-1 overflow-y-auto min-h-0">{children}</main>
+            <main className={cn("v5-hover-scrollbar flex-1 overflow-y-auto min-h-0", mainClassName)}>
+              {children}
+            </main>
             {rightPanel && (
               <aside className="v5-hover-scrollbar hidden w-[360px] shrink-0 overflow-y-auto border-l border-border bg-white lg:block">
                 {rightPanel}

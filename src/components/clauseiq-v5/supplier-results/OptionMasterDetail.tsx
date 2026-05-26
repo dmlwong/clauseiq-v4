@@ -17,6 +17,7 @@ export function OptionMasterDetail({
   onRunAgain,
   onDownload,
   onViewResult,
+  analysisParameters,
   masterDetailState,
 }: ResultsViewProps) {
   const fallbackState = useMasterDetailState(initiative);
@@ -53,6 +54,7 @@ export function OptionMasterDetail({
                     onRunAgain={onRunAgain}
                     onDownload={onDownload}
                     onViewResult={onViewResult}
+                    analysisParameters={analysisParameters}
                   />
                 ))}
               </div>

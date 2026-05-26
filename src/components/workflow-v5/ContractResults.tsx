@@ -10,8 +10,13 @@ import {
 import {
   Card,
   Chip,
+  Dropzone,
+  FileItem,
+  MultiStateButton,
+  MultiStateGroup,
   QuickFilterGroup,
   QuickFilterItem,
+  Searchbox,
   Table as OrbitTable,
   Text,
 } from "@orbit";
@@ -794,11 +799,6 @@ export function ContractResults({
     setActiveCategories(activeCategories.filter((active) => active !== category));
   };
   const clearActiveCategories = () => setActiveCategories([]);
-  const setCategorySort = (sort: CategorySortKey) => {
-    const params = new URLSearchParams(searchParams);
-    params.set("catSort", sort);
-    setSearchParams(params, { replace: false });
-  };
   useEffect(() => {
     if (searchParams.get("catSort") === categorySort) return;
     const params = new URLSearchParams(searchParams);
@@ -991,7 +991,7 @@ export function ContractResults({
 
   const scoringModel = useMemo(() => computeContractScoring(versions), [versions]);
 
-  // R3 DI-18: undo helpers — 8s sonner toast + per-row 30s undo affordance.
+  // R3 DI-18: undo helpers use the V5 Orbit toast plus per-row 30s undo affordance.
   const [recentlyClosed, setRecentlyClosed] = useState<Record<string, number>>({});
   const closeWithUndo = (id: string, label: string, prev: ClosureDecision | undefined) => {
     if (!rightVersion) return;
@@ -1238,7 +1238,6 @@ export function ContractResults({
       total={comparisonCategoryTotal}
       activeCategories={activeCategories}
       sort={categorySort}
-      onSortChange={setCategorySort}
       onSelectCategory={toggleActiveCategory}
       variant="panel"
     />
@@ -1249,7 +1248,6 @@ export function ContractResults({
       total={comparisonCategoryTotal}
       activeCategories={activeCategories}
       sort={categorySort}
-      onSortChange={setCategorySort}
       onSelectCategory={toggleActiveCategory}
       variant="panel"
     />
@@ -1401,7 +1399,6 @@ export function ContractResults({
       total={historyCategoryTotal}
       activeCategories={activeCategories}
       sort={categorySort}
-      onSortChange={setCategorySort}
       onSelectCategory={toggleActiveCategory}
       variant="panel"
     />
@@ -1412,7 +1409,6 @@ export function ContractResults({
       total={historyCategoryTotal}
       activeCategories={activeCategories}
       sort={categorySort}
-      onSortChange={setCategorySort}
       onSelectCategory={toggleActiveCategory}
     />
   );
@@ -1830,10 +1826,6 @@ export function ContractResults({
             backLabel={compactBackLabel}
             onBack={onBack}
             contractName={contract.name}
-            contractType={contract.type}
-            viewingVersion={mode === "comparison" ? (rightVersion?.version ?? latest?.version ?? "v1") : undefined}
-            supplierId={supplierId}
-            supplierName={supplier.name}
             firstAnalysisDemo={firstAnalysisDemo}
             demoAvailable={availableVersions.length >= 2}
             onFirstAnalysisDemoChange={toggleFirstAnalysisDemo}
@@ -1841,7 +1833,7 @@ export function ContractResults({
           <ModeSwitcher
             mode={mode}
             onChange={switchMode}
-            comparisonLabel={firstAnalysisDemo ? "V1 Analysis" : "Review"}
+            comparisonLabel="Review"
             historyDisabled={firstAnalysisDemo || versions.length < 2}
             onApplyAllRecommendations={() => applyAllRecommendations(firstAnalysisRecommendationTargets)}
             applyAllRecommendationsDisabled={!firstAnalysisDemo || firstAnalysisRecommendationTargets.length === 0}
@@ -1866,7 +1858,6 @@ export function ContractResults({
                   <SupplierGroupingPopover supplierId={supplierId} supplierName={supplier.name} />
                   {firstAnalysisDemo && mode === "comparison" && (
                     <Button
-                      size="sm"
                       className="h-9 gap-1.5 bg-[#1a2744] text-white hover:bg-[#243454]"
                       disabled={firstAnalysisRecommendationTargets.length === 0}
                       onClick={() => applyAllRecommendations(firstAnalysisRecommendationTargets)}
@@ -1880,7 +1871,6 @@ export function ContractResults({
                     </Button>
                   )}
                   <Button
-                    size="sm"
                     variant="outline"
                     className="h-9 gap-1.5"
                     disabled={!activeRequestVersion || pendingRequestItems.length === 0}
@@ -1889,11 +1879,10 @@ export function ContractResults({
                     <Download className="w-3.5 h-3.5" />
                     Review &amp; Generate{pendingRequestItems.length > 0 ? ` (${pendingRequestItems.length})` : ""}
                   </Button>
-                  <Button size="sm" variant="default" className="h-9 gap-1.5" onClick={() => setUploadOpen(true)}>
+                  <Button variant="default" className="h-9 gap-1.5" onClick={() => setUploadOpen(true)}>
                     <Upload className="w-3.5 h-3.5" /> Upload New Version
                   </Button>
                   <Button
-                    size="sm"
                     variant="outline"
                     className="h-9 gap-1.5"
                     disabled={versions.length === 0}
@@ -2007,7 +1996,6 @@ export function ContractResults({
             total={categoryTotal}
             activeCategories={activeCategories}
             sort={categorySort}
-            onSortChange={setCategorySort}
             onSelectCategory={toggleActiveCategory}
           />
 
@@ -2317,6 +2305,11 @@ function UploadVersionDialog({
     setProcessing(true);
     setTimeout(() => { onConfirm(file, label); setProcessing(false); }, 900);
   };
+  const documentType: "PDF" | "DOC" | "Unknown" = file?.name.toLowerCase().endsWith(".pdf")
+    ? "PDF"
+    : file?.name.toLowerCase().endsWith(".docx")
+      ? "DOC"
+      : "Unknown";
 
   return (
     <V5OrbitOverlay
@@ -2345,19 +2338,25 @@ function UploadVersionDialog({
           </div>
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold text-muted-foreground uppercase">Contract file</label>
-            <label className="flex items-center justify-between gap-3 rounded-md border border-dashed border-border bg-card px-3 py-3 text-sm cursor-pointer hover:border-primary/40">
-              <div className="flex items-center gap-2 min-w-0">
-                <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
-                <span className="truncate text-foreground">{file ? file.name : "Choose a PDF, DOCX, or TXT file"}</span>
-              </div>
-              <span className="text-xs text-primary font-semibold shrink-0">Browse</span>
-              <input
-                type="file"
-                accept=".pdf,.docx,.txt"
-                className="hidden"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            {file ? (
+              <FileItem
+                filename={file.name}
+                documentType={documentType}
+                trailing={
+                  <Button variant="ghost" onClick={() => setFile(null)}>
+                    Change
+                  </Button>
+                }
               />
-            </label>
+            ) : (
+              <Dropzone
+                ariaLabel="Upload contract version"
+                accept=".pdf,.docx,.txt"
+                onFileSelected={setFile}
+                acceptedFileTypesLabel="File types supported: PDF, DOCX, or TXT."
+                maxFileSizeLabel="Maximum upload file size: 100 MB"
+              />
+            )}
           </div>
         </div>
     </V5OrbitOverlay>
@@ -2374,10 +2373,6 @@ function CompactContractTopbar({
   backLabel,
   onBack,
   contractName,
-  contractType,
-  viewingVersion,
-  supplierId,
-  supplierName,
   firstAnalysisDemo,
   demoAvailable,
   onFirstAnalysisDemoChange,
@@ -2385,10 +2380,6 @@ function CompactContractTopbar({
   backLabel: string;
   onBack: () => void;
   contractName: string;
-  contractType: string;
-  viewingVersion?: string;
-  supplierId: string;
-  supplierName: string;
   firstAnalysisDemo: boolean;
   demoAvailable: boolean;
   onFirstAnalysisDemoChange: (enabled: boolean) => void;
@@ -2404,11 +2395,6 @@ function CompactContractTopbar({
       <div className="h-3.5 w-px bg-border" aria-hidden />
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <h1 className="min-w-[120px] truncate text-sm font-medium text-foreground">{contractName}</h1>
-        <Badge variant="outline" className="h-5 rounded-full bg-muted/50 px-2 text-[9px] font-medium">
-          {contractType}
-        </Badge>
-        {viewingVersion && <ViewingVersionChip version={viewingVersion} />}
-        <SupplierGroupingLink supplierId={supplierId} supplierName={supplierName} />
       </div>
       {demoAvailable && (
         <FirstAnalysisDemoToggle
@@ -2417,15 +2403,6 @@ function CompactContractTopbar({
         />
       )}
     </div>
-  );
-}
-
-function ViewingVersionChip({ version }: { version: string }) {
-  return (
-    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[rgba(230,241,251,0.5)] px-2 py-0.5 text-[10px] font-medium text-[#0C447C]">
-      <IconEye size={11} stroke={1.8} aria-hidden />
-      Viewing {version} · Current
-    </span>
   );
 }
 
@@ -2514,39 +2491,24 @@ function ModeSwitcher({
 }) {
   return (
     <div className="flex min-w-0 items-center gap-3 border-b border-[rgba(0,0,0,0.08)] bg-white px-3 py-1.5">
-      <div className="inline-flex overflow-hidden rounded-md border border-border">
-        {([
-          ["comparison", <IconArrowsDiff key="comparison-icon" size={13} stroke={1.8} />, comparisonLabel],
-          ["history", <IconTimeline key="history-icon" size={13} stroke={1.8} />, "History"],
-        ] as const).map(([value, icon, label]) => {
-          const active = mode === value;
-          const disabled = value === "history" && historyDisabled;
-          return (
-            <button
-              key={value}
-              type="button"
-              disabled={disabled}
-              title={disabled ? "History is available after another analysis version is added." : undefined}
-              onClick={() => {
-                if (!disabled) onChange(value);
-              }}
-              className={cn(
-                "inline-flex h-7 items-center gap-1.5 border-r border-border px-3 text-[11px] font-medium last:border-r-0",
-                active ? "bg-[#1a2744] text-white" : "bg-white text-muted-foreground hover:text-foreground",
-                disabled && "cursor-not-allowed bg-muted/40 text-muted-foreground/45 hover:text-muted-foreground/45",
-              )}
-            >
-              {icon}
-              {label}
-            </button>
-          );
-        })}
-      </div>
+      <MultiStateGroup
+        ariaLabel="Analysis mode"
+        value={mode}
+        onValueChange={(value) => onChange(value as ClauseIqMode)}
+      >
+        <MultiStateButton
+          value="comparison"
+          label={comparisonLabel}
+        />
+        <MultiStateButton
+          value="history"
+          label="History"
+          disabled={historyDisabled}
+        />
+      </MultiStateGroup>
       <div className="ml-auto flex shrink-0 items-center gap-2">
         {onApplyAllRecommendations && (
           <Button
-            size="sm"
-            className="h-7 gap-1.5 bg-[#1a2744] px-3 text-xs text-white hover:bg-[#243454]"
             disabled={applyAllRecommendationsDisabled}
             onClick={onApplyAllRecommendations}
           >
@@ -2563,7 +2525,6 @@ function ModeSwitcher({
           </Button>
         )}
         <Button
-          size="sm"
           variant="outline"
           className="h-7 gap-1.5 px-3 text-xs"
           disabled={reviewGenerateDisabled}
@@ -2779,7 +2740,7 @@ function ComparisonToolbarControls({
               <SelectItem value="unmarked">Unmarked clauses</SelectItem>
             </SelectContent>
           </Select>
-          <Button size="sm" variant="ghost" className="h-8 shrink-0 text-[11px] text-muted-foreground" onClick={onResetToLatest}>
+          <Button variant="ghost" className="h-8 shrink-0 text-[11px] text-muted-foreground" onClick={onResetToLatest}>
             Reset to latest
           </Button>
         </>
@@ -3174,11 +3135,10 @@ function ScoringPanelFooter({
         </>
       )}
       <div className="ml-auto flex items-center gap-2">
-        <Button size="sm" variant="outline" className="h-7 rounded-[5px] px-3 text-[10px]" onClick={onRequestChanges}>
+        <Button variant="outline" className="h-7 rounded-[5px] px-3 text-[10px]" onClick={onRequestChanges}>
           Request changes
         </Button>
         <Button
-          size="sm"
           className="h-7 rounded-[5px] px-3 text-[10px]"
           onClick={onAcceptVersion}
         >
@@ -3886,7 +3846,6 @@ function CategorySidebar({
   total,
   activeCategories,
   sort,
-  onSortChange,
   onSelectCategory,
   variant = "rail",
 }: {
@@ -3894,7 +3853,6 @@ function CategorySidebar({
   total: number;
   activeCategories: string[];
   sort: CategorySortKey;
-  onSortChange: (sort: CategorySortKey) => void;
   onSelectCategory: (category: string | null) => void;
   variant?: "rail" | "panel";
 }) {
@@ -3927,12 +3885,6 @@ function CategorySidebar({
           Categories
         </p>
       )}
-
-      <QuickFilterGroup ariaLabel="Sort categories">
-        <QuickFilterItem label="Risk" selected={sort === "risk"} onClick={() => onSortChange("risk")} />
-        <QuickFilterItem label="A-Z" selected={sort === "az"} onClick={() => onSortChange("az")} />
-        <QuickFilterItem label="#" selected={sort === "count"} onClick={() => onSortChange("count")} />
-      </QuickFilterGroup>
 
       <div className="space-y-1">
         <button
@@ -4028,7 +3980,6 @@ function CategoryStrip({
           type="button"
           aria-expanded={panelOpen}
           variant="outline"
-          size="sm"
           className="shrink-0"
           onClick={() => setPanelOpen((current) => !current)}
         >
@@ -4159,11 +4110,10 @@ function ClauseRequestForm({
           Request will stay editable in review until submitted to the supplier.
         </p>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" className={cn("h-8 text-xs", compact && "h-7 text-[11px]")} onClick={onCancel}>
+          <Button variant="outline" className={cn("h-8 text-xs", compact && "h-7 text-[11px]")} onClick={onCancel}>
             Cancel
           </Button>
           <Button
-            size="sm"
             className={cn("h-8 gap-1.5 bg-[#1a2744] text-xs text-white hover:bg-[#243454]", compact && "h-7 text-[11px]")}
             disabled={!requestValue.trim()}
             onClick={onSubmit}
@@ -4380,16 +4330,15 @@ function ClauseDecisionCard({
               <span className="font-semibold">Request:</span> {requestPreview}
             </p>
             <div className="flex shrink-0 items-center gap-1.5">
-              <Button size="sm" variant="outline" className="h-7 px-2.5 text-[10px]" onClick={onEditRequest}>
+              <Button variant="outline" className="h-7 px-2.5 text-[10px]" onClick={onEditRequest}>
                 Edit request
               </Button>
               {onRemoveRequest && (
-                <Button size="sm" variant="outline" className="h-7 px-2.5 text-[10px] text-muted-foreground" onClick={onRemoveRequest}>
+                <Button variant="outline" className="h-7 px-2.5 text-[10px] text-muted-foreground" onClick={onRemoveRequest}>
                   Remove
                 </Button>
               )}
               <Button
-                size="sm"
                 variant="ghost"
                 className="h-7 gap-1 px-2.5 text-[10px] text-primary hover:bg-white/70"
                 onClick={() => setQueuedExpanded((current) => !current)}
@@ -4418,7 +4367,6 @@ function ClauseDecisionCard({
       {showRequestActions && (
         <div className="mt-2 flex items-center gap-1.5 pl-[30px]" onClick={(event) => event.stopPropagation()}>
           <Button
-            size="sm"
             variant="secondary"
             className="h-8 gap-1.5 rounded-[5px] px-3 text-[11px] font-normal"
             onClick={onRequest}
@@ -4426,7 +4374,6 @@ function ClauseDecisionCard({
             <Sparkles className="h-3 w-3" /> {primaryActionLabel}
           </Button>
           <Button
-            size="sm"
             variant={noActionIsPrimary ? "default" : "outline"}
             className={cn("h-8 rounded-[5px] px-3 text-[11px] font-normal gap-1.5", noActionIsPrimary && "bg-[#1a2744] text-white hover:bg-[#243454]")}
             onClick={onNoAction}
@@ -4628,7 +4575,6 @@ function ClauseRowScaleCard({
       {requestForm ?? (
         <div className="mt-3 flex flex-wrap items-center gap-2" onClick={(event) => event.stopPropagation()}>
           <Button
-            size="sm"
             variant="outline"
             className="h-8 rounded-[5px] bg-white px-3 text-[11px]"
             disabled={!actionabilityText || !onUseRecommendation}
@@ -4637,7 +4583,6 @@ function ClauseRowScaleCard({
             <Sparkles className="h-3 w-3" /> Use Recommendation
           </Button>
           <Button
-            size="sm"
             variant="outline"
             className="h-8 rounded-[5px] bg-white px-3 text-[11px]"
             onClick={(event) => runAction(event, onRequest)}
@@ -4645,7 +4590,6 @@ function ClauseRowScaleCard({
             <Pencil className="h-3 w-3" /> Edit Request
           </Button>
           <Button
-            size="sm"
             variant="outline"
             className="h-8 rounded-[5px] bg-white px-3 text-[11px]"
             onClick={(event) => runAction(event, onNoAction)}
@@ -4869,51 +4813,48 @@ function ClauseReviewModalCard({
         </p>
       </div>
 
-      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-semibold text-foreground">{title}</p>
-          <p className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-muted-foreground">
-            {request.requestedChange || "No requested change entered yet."}
+      <div className="mt-2 min-w-0">
+        <p className="truncate text-[13px] font-semibold text-foreground">{title}</p>
+        <p className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-muted-foreground">
+          {request.requestedChange || "No requested change entered yet."}
+        </p>
+        {request.rationale && (
+          <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-muted-foreground">
+            <span className="font-medium text-foreground">Rationale:</span> {request.rationale}
           </p>
-          {request.rationale && (
-            <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-muted-foreground">
-              <span className="font-medium text-foreground">Rationale:</span> {request.rationale}
-            </p>
+        )}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2" onClick={(event) => event.stopPropagation()}>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-8 gap-1.5 rounded-[5px] bg-white px-3 text-[11px]"
+          onClick={() => {
+            if (editMode === "external") {
+              onEditRequest?.();
+              return;
+            }
+            setEditing((current) => !current);
+          }}
+        >
+          <Pencil className="h-3.5 w-3.5" />
+          Edit Request
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className={cn(
+            "h-8 gap-1.5 rounded-[5px] px-3 text-[11px]",
+            secondaryActionTone === "danger"
+              ? "text-muted-foreground hover:border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
+              : "bg-white text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
-        </div>
-        <div className="flex shrink-0 items-center gap-2" onClick={(event) => event.stopPropagation()}>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 gap-1.5 rounded-[5px] bg-white px-3 text-[11px]"
-            onClick={() => {
-              if (editMode === "external") {
-                onEditRequest?.();
-                return;
-              }
-              setEditing((current) => !current);
-            }}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            Edit Request
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className={cn(
-              "h-8 gap-1.5 rounded-[5px] px-3 text-[11px]",
-              secondaryActionTone === "danger"
-                ? "text-muted-foreground hover:border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
-                : "bg-white text-muted-foreground hover:bg-muted hover:text-foreground",
-            )}
-            onClick={onRemove}
-          >
-            {secondaryActionIcon === undefined ? <Trash2 className="h-3.5 w-3.5" /> : secondaryActionIcon}
-            {secondaryActionLabel}
-          </Button>
-        </div>
+          onClick={onRemove}
+        >
+          {secondaryActionIcon === undefined ? <Trash2 className="h-3.5 w-3.5" /> : secondaryActionIcon}
+          {secondaryActionLabel}
+        </Button>
       </div>
 
       {editing && editMode === "inline" && (
@@ -4938,12 +4879,11 @@ function ClauseReviewModalCard({
             </label>
           </div>
           <div className="mt-3 flex justify-end gap-2">
-            <Button type="button" variant="outline" size="sm" className="h-8" onClick={() => setEditing(false)}>
+            <Button type="button" variant="outline" className="h-8" onClick={() => setEditing(false)}>
               Cancel
             </Button>
             <Button
               type="button"
-              size="sm"
               className="h-8 bg-[#1a2744] text-white hover:bg-[#243454]"
               disabled={!canSave}
               onClick={saveDraft}
@@ -5067,7 +5007,6 @@ function RequestReviewDialog({
           </p>
           {requestCount > 0 && (
             <Button
-              size="sm"
               className="gap-1.5 bg-[#1a2744] text-white hover:bg-[#243454]"
               onClick={submitRequests}
             >
@@ -5228,6 +5167,7 @@ function ReviewScreen({
   onOpenDetail: (id: string) => void;
   highlightedId?: string | null;
 }) {
+  const [pendingDraftCancelId, setPendingDraftCancelId] = useState<string | null>(null);
   const q = search.trim().toLowerCase();
   const versionLabel = version.version;
   const activeCategorySet = new Set(activeCategories);
@@ -5277,7 +5217,10 @@ function ReviewScreen({
           ? { ...own, requestedChange: own.requestedChange?.trim() || c.actionability.trim() }
           : own;
         const cancelDraft = () => {
-          if (draftHasText && !window.confirm("Discard this draft request?")) return;
+          if (draftHasText) {
+            setPendingDraftCancelId(c.id);
+            return;
+          }
           onCancelDraft(c.id);
         };
 
@@ -5317,6 +5260,20 @@ function ReviewScreen({
           No clauses match this category.
         </div>
       )}
+      <V5OrbitConfirmOverlay
+        open={Boolean(pendingDraftCancelId)}
+        onOpenChange={(open) => {
+          if (!open) setPendingDraftCancelId(null);
+        }}
+        title="Discard draft request?"
+        description="This will remove the request text you have drafted for this clause."
+        confirmLabel="Discard draft"
+        destructive
+        onConfirm={() => {
+          if (pendingDraftCancelId) onCancelDraft(pendingDraftCancelId);
+          setPendingDraftCancelId(null);
+        }}
+      />
     </div>
   );
 }
@@ -5360,6 +5317,7 @@ function ComparisonSection({
 }) {
   const [open, setOpen] = useState(false);
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
+  const [pendingDraftCancelId, setPendingDraftCancelId] = useState<string | null>(null);
   if (!visible) return null;
   const accentBar =
     accent === "primary" ? "bg-primary"
@@ -5429,7 +5387,10 @@ function ComparisonSection({
           (r.actionState === "drafting" || expandedRequestId === r.id);
         const draft = draftOf?.(r.id) ?? {};
         const cancelDraft = () => {
-          if ((draft.requestedChange?.trim() || draft.rationale?.trim()) && !window.confirm("Discard this draft request?")) return;
+          if (draft.requestedChange?.trim() || draft.rationale?.trim()) {
+            setPendingDraftCancelId(r.id);
+            return;
+          }
           onCancelDraft?.(r.id);
           setExpandedRequestId(null);
         };
@@ -5457,13 +5418,12 @@ function ComparisonSection({
         const rowActions =
           bucket === "new" ? undefined :
             bucket === "closed" ? (
-              <Button size="sm" variant="outline" className="h-8 text-[11px]" onClick={() => onKeepOpen(r.id)}>
+              <Button variant="outline" className="h-8 text-[11px]" onClick={() => onKeepOpen(r.id)}>
                 Reopen
               </Button>
             ) : (
               <>
                 <Button
-                  size="sm"
                   variant={closure === "closed" ? "default" : "outline"}
                   className="h-8 text-[11px]"
                   onClick={() => onClose(r.id)}
@@ -5471,7 +5431,6 @@ function ComparisonSection({
                   {classifyChange(r.prev, r.curr) === "material" ? "Close" : "Close anyway"}
                 </Button>
                 <Button
-                  size="sm"
                   variant={closure === "follow-up" ? "secondary" : "outline"}
                   className="h-8 text-[11px]"
                   onClick={() => {
@@ -5482,7 +5441,6 @@ function ComparisonSection({
                   Follow-up
                 </Button>
                 <Button
-                  size="sm"
                   variant={closure === "keep-open" ? "secondary" : "outline"}
                   className="h-8 text-[11px]"
                   onClick={() => onKeepOpen(r.id)}
@@ -5558,10 +5516,58 @@ function ComparisonSection({
     </div>
   );
 
+  const confirmOverlay = (
+    <V5OrbitConfirmOverlay
+      open={Boolean(pendingDraftCancelId)}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) setPendingDraftCancelId(null);
+      }}
+      title="Discard draft request?"
+      description="This will remove the request text you have drafted for this clause."
+      confirmLabel="Discard draft"
+      destructive
+      onConfirm={() => {
+        if (pendingDraftCancelId) onCancelDraft?.(pendingDraftCancelId);
+        setExpandedRequestId(null);
+        setPendingDraftCancelId(null);
+      }}
+    />
+  );
+
   if (layout === "plain") {
     return (
+      <>
+        <section className={`overflow-hidden rounded-lg border ${accentBorder} bg-card`}>
+          <div className={`flex items-start gap-3 p-4 ${accentBg}`}>
+            <span className={`w-1 self-stretch rounded ${accentBar}`} />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className={`text-sm font-semibold ${accentText}`}>
+                  {title} · <span className="font-mono text-foreground">{displayedStats.total}</span>
+                </h3>
+                {bucketSummary && (
+                  <span className="text-[11px] font-medium text-muted-foreground">{bucketSummary}</span>
+                )}
+              </div>
+              <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+            </div>
+          </div>
+          {rowsContent}
+        </section>
+        {confirmOverlay}
+      </>
+    );
+  }
+
+  return (
+    <>
       <section className={`overflow-hidden rounded-lg border ${accentBorder} bg-card`}>
-        <div className={`flex items-start gap-3 p-4 ${accentBg}`}>
+        <button
+          type="button"
+          aria-expanded={open}
+          className={`flex w-full items-start gap-3 p-4 text-left transition-colors ${accentBg}`}
+          onClick={() => setOpen((current) => !current)}
+        >
           <span className={`w-1 self-stretch rounded ${accentBar}`} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -5574,36 +5580,12 @@ function ComparisonSection({
             </div>
             <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
           </div>
-        </div>
-        {rowsContent}
+          <ChevronDown className={`mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+        {open && rowsContent}
       </section>
-    );
-  }
-
-  return (
-    <section className={`overflow-hidden rounded-lg border ${accentBorder} bg-card`}>
-      <button
-        type="button"
-        aria-expanded={open}
-        className={`flex w-full items-start gap-3 p-4 text-left transition-colors ${accentBg}`}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <span className={`w-1 self-stretch rounded ${accentBar}`} />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className={`text-sm font-semibold ${accentText}`}>
-              {title} · <span className="font-mono text-foreground">{displayedStats.total}</span>
-            </h3>
-            {bucketSummary && (
-              <span className="text-[11px] font-medium text-muted-foreground">{bucketSummary}</span>
-            )}
-          </div>
-          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
-        </div>
-        <ChevronDown className={`mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && rowsContent}
-    </section>
+      {confirmOverlay}
+    </>
   );
 }
 
@@ -5634,6 +5616,7 @@ function UnmarkedSection({
   const [open, setOpen] = useState(defaultOpen);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [localSearch, setLocalSearch] = useState("");
+  const [pendingDraftCancelId, setPendingDraftCancelId] = useState<string | null>(null);
   useEffect(() => { if (defaultOpen) setOpen(true); }, [defaultOpen]);
   const q = localSearch.trim().toLowerCase();
   const filteredRows = q
@@ -5648,7 +5631,8 @@ function UnmarkedSection({
     : rows;
   if (!visible) return null;
   return (
-    <div className="bg-card border border-border rounded-lg overflow-hidden">
+    <>
+      <div className="bg-card border border-border rounded-lg overflow-hidden">
           <button
             type="button"
             aria-expanded={open}
@@ -5674,13 +5658,12 @@ function UnmarkedSection({
           ) : (
             <>
               <div className="p-3 border-b border-border bg-muted/20 flex items-center gap-2">
-                <div className="relative flex-1 max-w-md">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <Input
+                <div className="flex-1 max-w-md">
+                  <Searchbox
+                    ariaLabel="Search unmarked clauses"
                     value={localSearch}
-                    onChange={(e) => setLocalSearch(e.target.value)}
+                    onChange={setLocalSearch}
                     placeholder={`Search ${rows.length} unmarked clauses…`}
-                    className="pl-9 h-8 text-sm"
                   />
                 </div>
                 <span className="text-[11px] text-muted-foreground font-mono">
@@ -5702,7 +5685,10 @@ function UnmarkedSection({
                     const draft = draftOf(r.id);
                     const isExpanded = expandedId === r.id || drafting;
                     const cancelDraft = () => {
-                      if ((draft.requestedChange?.trim() || draft.rationale?.trim()) && !window.confirm("Discard this draft request?")) return;
+                      if (draft.requestedChange?.trim() || draft.rationale?.trim()) {
+                        setPendingDraftCancelId(r.id);
+                        return;
+                      }
                       onCancelDraft(r.id);
                       setExpandedId(null);
                     };
@@ -5758,7 +5744,23 @@ function UnmarkedSection({
             </>
           )
         )}
-    </div>
+      </div>
+      <V5OrbitConfirmOverlay
+        open={Boolean(pendingDraftCancelId)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setPendingDraftCancelId(null);
+        }}
+        title="Discard draft request?"
+        description="This will remove the request text you have drafted for this clause."
+        confirmLabel="Discard draft"
+        destructive
+        onConfirm={() => {
+          if (pendingDraftCancelId) onCancelDraft(pendingDraftCancelId);
+          setExpandedId(null);
+          setPendingDraftCancelId(null);
+        }}
+      />
+    </>
   );
 }
 
@@ -5996,7 +5998,7 @@ function ClauseSlideOver({
         </div>
 
         <div className="flex shrink-0 items-center gap-2 border-t border-border px-3.5 py-2.5">
-          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => toast({ title: "Full text", description: display.excerpt })}>
+          <Button variant="outline" className="h-8 text-xs" onClick={() => toast({ title: "Full text", description: display.excerpt })}>
             View full text
           </Button>
           <SlideOverPrimaryAction
@@ -6045,11 +6047,11 @@ function SlideOverPrimaryAction({
   onMarkNewIssue: () => void;
 }) {
   const className = "ml-auto h-8 bg-[#1a2744] px-3 text-xs text-white hover:bg-[#243454]";
-  if (status === "regressed") return <Button size="sm" className={className} onClick={onMarkNewIssue}>Request revert</Button>;
-  if (status === "new" || status === "improved") return <Button size="sm" className={className} onClick={onCloseClause}>Accept</Button>;
-  if (status === "met") return <Button size="sm" className={className} onClick={onCloseClause}>Mark resolved</Button>;
-  if (status === "not_met") return <Button size="sm" className={className} onClick={onKeepOpen}>Re-request</Button>;
-  return <Button size="sm" className={className} onClick={onMarkNewIssue}>Request change</Button>;
+  if (status === "regressed") return <Button className={className} onClick={onMarkNewIssue}>Request revert</Button>;
+  if (status === "new" || status === "improved") return <Button className={className} onClick={onCloseClause}>Accept</Button>;
+  if (status === "met") return <Button className={className} onClick={onCloseClause}>Mark resolved</Button>;
+  if (status === "not_met") return <Button className={className} onClick={onKeepOpen}>Re-request</Button>;
+  return <Button className={className} onClick={onMarkNewIssue}>Request change</Button>;
 }
 
 function detailCalloutForStatus(status: ChangePillStatus | null): {
@@ -6228,40 +6230,40 @@ function ClauseDetailPanel({
             <div className="flex items-center gap-2">
               {changePill.status === "improved" ? (
                 <>
-                  <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => onCloseClause(clauseId)}>
+                  <Button className="h-8 gap-1.5 text-xs" onClick={() => onCloseClause(clauseId)}>
                     <CheckCircle2 className="w-3.5 h-3.5" /> Accept
                   </Button>
-                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onMarkNewIssue(clauseId)}>
+                  <Button variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onMarkNewIssue(clauseId)}>
                     Challenge change
                   </Button>
                 </>
               ) : changePill.status === "regressed" ? (
                 <>
-                  <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => onMarkNewIssue(clauseId)}>
+                  <Button className="h-8 gap-1.5 text-xs" onClick={() => onMarkNewIssue(clauseId)}>
                     <AlertTriangle className="w-3.5 h-3.5" /> Request revert
                   </Button>
-                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onCloseClause(clauseId)}>
+                  <Button variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onCloseClause(clauseId)}>
                     Accept change
                   </Button>
                 </>
               ) : changePill.status === "new" ? (
                 <>
-                  <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => onCloseClause(clauseId)}>
+                  <Button className="h-8 gap-1.5 text-xs" onClick={() => onCloseClause(clauseId)}>
                     <CheckCircle2 className="w-3.5 h-3.5" /> Accept
                   </Button>
-                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onMarkNewIssue(clauseId)}>
+                  <Button variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onMarkNewIssue(clauseId)}>
                     Request removal
                   </Button>
                 </>
               ) : (
                 <>
-                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onKeepOpen(clauseId)}>
+                  <Button variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onKeepOpen(clauseId)}>
                     <ArrowRight className="w-3.5 h-3.5" /> Keep Open
                   </Button>
-                  <Button size="sm" variant="default" className="h-8 text-xs gap-1.5" onClick={() => onCloseClause(clauseId)}>
+                  <Button variant="default" className="h-8 text-xs gap-1.5" onClick={() => onCloseClause(clauseId)}>
                     <CheckCircle2 className="w-3.5 h-3.5" /> Close
                   </Button>
-                  <Button size="sm" variant="secondary" className="h-8 text-xs gap-1.5" onClick={() => onMarkNewIssue(clauseId)}>
+                  <Button variant="secondary" className="h-8 text-xs gap-1.5" onClick={() => onMarkNewIssue(clauseId)}>
                     <AlertTriangle className="w-3.5 h-3.5" /> Mark as New Issue
                   </Button>
                 </>
@@ -6335,7 +6337,7 @@ function SupplierGroupingPopover({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button size="sm" variant="outline" className={`${compact ? "h-7 px-2 text-xs" : "h-9"} gap-1.5`}>
+        <Button variant="outline" className={`${compact ? "h-7 px-2 text-xs" : "h-9"} gap-1.5`}>
           <Info className="w-3.5 h-3.5" /> Why grouped?
           <Badge variant="outline" className={`${compact ? "hidden 2xl:inline-flex" : ""} ${isManual ? "bg-secondary text-secondary-foreground border-border ml-1" : "bg-success/10 text-success border-success/20 ml-1"}`}>
             {isManual ? "Manual" : `Auto · ${(g.confidence * 100).toFixed(0)}%`}
@@ -6343,28 +6345,6 @@ function SupplierGroupingPopover({
         </Button>
       </TooltipTrigger>
       <TooltipContent>{groupingDetails}</TooltipContent>
-    </Tooltip>
-  );
-}
-
-function SupplierGroupingLink({ supplierId, supplierName }: { supplierId: string; supplierName: string }) {
-  const g = getSupplierGrouping(supplierId);
-  const isManual = g.source === "manual";
-  const groupingDetails = `Why is this grouped under ${supplierName}? ${g.matchBasis} Source: ${g.source}. Confidence: ${(g.confidence * 100).toFixed(0)}%.`;
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          className="inline-flex shrink-0 items-center gap-1 border-b border-dotted border-muted-foreground/60 text-[11px] font-medium text-muted-foreground hover:border-primary hover:text-primary"
-        >
-          <IconInfoCircle size={12} stroke={1.8} />
-          Why grouped?
-        </button>
-      </TooltipTrigger>
-      <TooltipContent>
-        {groupingDetails} {isManual ? "Manual grouping." : "Automatic grouping."}
-      </TooltipContent>
     </Tooltip>
   );
 }

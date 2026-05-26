@@ -14,6 +14,7 @@ import {
 
 import { V5Shell } from "@/components/clauseiq-v5/V5Shell";
 import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
+import { Card, Chip, Text } from "@orbit";
 import { cn } from "@/lib/utils";
 
 type SeverityTier = "high" | "medium" | "low";
@@ -693,7 +694,6 @@ export default function ClauseIQV5DeviationProminence() {
         <>
           <Button
             type="button"
-            size="sm"
             className="h-8 rounded-[5px] bg-[#1A2744] px-3 text-xs text-white hover:bg-[#243454]"
             onClick={() => navigate(fullInteractionPath)}
           >
@@ -702,7 +702,6 @@ export default function ClauseIQV5DeviationProminence() {
           <Button
             type="button"
             variant="outline"
-            size="sm"
             className="h-8 gap-1.5 rounded-[5px] bg-white text-xs"
             onClick={() => navigate("/clauseiq-v5")}
           >
@@ -836,13 +835,12 @@ function HighScaleRow({ clause }: { clause: DeviationClause }) {
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button
           type="button"
-          size="sm"
           className="h-8 rounded-[5px] px-3 text-[11px] font-medium text-white hover:opacity-90"
           style={{ backgroundColor: severityTokens.high.color }}
         >
           Request change
         </Button>
-        <Button type="button" variant="outline" size="sm" className="h-8 rounded-[5px] bg-white px-3 text-[11px]">
+        <Button type="button" variant="outline" className="h-8 rounded-[5px] bg-white px-3 text-[11px]">
           View clause
         </Button>
       </div>
@@ -859,7 +857,7 @@ function MediumScaleRow({ clause }: { clause: DeviationClause }) {
           {clause.section} · {clause.title}
         </p>
         <p className="min-w-0 flex-1 truncate text-[12px] text-muted-foreground">{clause.summary}</p>
-        <Button type="button" variant="outline" size="sm" className="h-7 rounded-[5px] bg-white px-2.5 text-[11px]">
+        <Button type="button" variant="outline" className="h-7 rounded-[5px] bg-white px-2.5 text-[11px]">
           Review
         </Button>
       </div>
@@ -986,19 +984,21 @@ function SectionNavGroup({
 
 function SectionCard({ clause }: { clause: DeviationClause }) {
   return (
-    <article className="rounded-[6px] border-[0.5px] border-border bg-white px-3.5 py-3">
+    <Card type="Static" padding="Small">
       <div className="flex min-w-0 items-center gap-3">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[14px] font-medium text-foreground">
+          <Text as="div" size="Paragraph" variant="Bold">
             {clause.title} <span className="text-[12px] font-normal text-muted-foreground">{clause.section}</span>
-          </h2>
-          <p className="mt-1 truncate text-[12px] text-muted-foreground">{clause.summary}</p>
+          </Text>
+          <div className="mt-1 truncate">
+            <Text as="span" size="Small" variant="Secondary">{clause.summary}</Text>
+          </div>
         </div>
-        <Button type="button" variant="outline" size="sm" className="h-7 rounded-[5px] bg-white px-2.5 text-[11px]">
+        <Button type="button" variant="outline" className="h-7 rounded-[5px] bg-white px-2.5 text-[11px]">
           Review
         </Button>
       </div>
-    </article>
+    </Card>
   );
 }
 
@@ -1090,7 +1090,7 @@ function MediumDiffCard({
           {clause.title} <span className="text-[11px] font-normal text-muted-foreground">{clause.section}</span>
         </h2>
         <p className="hidden min-w-0 flex-[1.2] truncate text-[12px] text-muted-foreground lg:block">{clause.summary}</p>
-        <Button type="button" variant="outline" size="sm" className="h-7 rounded-[5px] bg-white px-2.5 text-[11px]" onClick={onToggleMedium}>
+        <Button type="button" variant="outline" className="h-7 rounded-[5px] bg-white px-2.5 text-[11px]" onClick={onToggleMedium}>
           {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
           Show change
         </Button>
@@ -1181,16 +1181,15 @@ function DiffActions({ tier }: { tier: SeverityTier }) {
     <div className="mt-3 flex flex-wrap items-center gap-2">
       <Button
         type="button"
-        size="sm"
         className="h-8 rounded-[5px] px-3 text-[11px] font-medium text-white hover:opacity-90"
         style={{ backgroundColor: primaryColor }}
       >
         {label}
       </Button>
-      <Button type="button" variant="outline" size="sm" className="h-8 rounded-[5px] bg-white px-3 text-[11px]">
+      <Button type="button" variant="outline" className="h-8 rounded-[5px] bg-white px-3 text-[11px]">
         Accept
       </Button>
-      <Button type="button" variant="outline" size="sm" className="h-8 rounded-[5px] bg-white px-3 text-[11px]">
+      <Button type="button" variant="outline" className="h-8 rounded-[5px] bg-white px-3 text-[11px]">
         Flag for legal
       </Button>
     </div>
@@ -1208,30 +1207,27 @@ function CardShell({
 }) {
   const token = severityTokens[clause.tier];
   return (
-    <article
-      className={cn("relative overflow-hidden rounded-[6px] border-[0.5px] border-border bg-white pl-[18px]", className)}
-      style={{ backgroundColor: clause.tier === "high" ? token.rowWash : undefined }}
+    <Card
+      type="Static"
+      padding="Small"
+      state={clause.tier === "high" ? "Warning" : "Default"}
+      style={{ padding: 0, backgroundColor: clause.tier === "high" ? token.rowWash : undefined }}
     >
-      <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: token.color }} />
-      {children}
-    </article>
+      <article className={cn("relative overflow-hidden pl-[18px]", className)}>
+        <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: token.color }} />
+        {children}
+      </article>
+    </Card>
   );
 }
 
 function SeverityPill({ tier }: { tier: SeverityTier }) {
-  const token = severityTokens[tier];
-  const Icon = token.icon as ComponentType<{ className?: string }>;
-
   return (
-    <span
-      className="inline-flex shrink-0 items-center gap-1 rounded-[4px] px-2 py-[3px] text-[11px] font-medium leading-none"
-      style={{ backgroundColor: token.pillBackground, color: token.pillText }}
-    >
-      {/* Open question: icons give a second channel beyond colour and label; remove this Icon if review finds the pill too busy. */}
-      <Icon className="h-3 w-3" />
-      {/* Open question: sentence case is per spec; casing can be switched here if uppercase scans better in review. */}
-      {token.label}
-    </span>
+    <Chip
+      label={severityTokens[tier].label}
+      size="Small"
+      variant={tier === "high" ? "Error" : tier === "medium" ? "Warning" : "No Status"}
+    />
   );
 }
 

@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 import { motion } from "framer-motion";
-import { BarChart2, Download, RotateCw } from "lucide-react";
+import { BarChart2, Download, RotateCw, SlidersHorizontal } from "lucide-react";
 import { Card } from "@orbit";
 import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
 import { Badge } from "@/components/clauseiq-v5/orbit-ui/badge";
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { supplierSeverity } from "@/lib/clauseiq-utils";
 import { DeviationPills } from "./DeviationPills";
 import { SupplierAvatar } from "./SupplierAvatar";
+import type { AnalysisParameterItem } from "./types";
 
 interface Props {
   analysis: ClauseAnalysis;
@@ -22,6 +23,8 @@ interface Props {
   onViewResult?: () => void;
   viewResultPrimary?: boolean;
   isLatestOutput?: boolean;
+  highlighted?: boolean;
+  analysisParameters?: AnalysisParameterItem[];
 }
 
 export function AnalysisCard({
@@ -33,6 +36,8 @@ export function AnalysisCard({
   onViewResult,
   viewResultPrimary = true,
   isLatestOutput = false,
+  highlighted = isLatestOutput,
+  analysisParameters = [],
 }: Props) {
   const [saveToDocuments, setSaveToDocuments] = useState(false);
   const deviationSummaryId = useId();
@@ -43,7 +48,7 @@ export function AnalysisCard({
       layout
       transition={{ type: "spring", stiffness: 320, damping: 28 }}
     >
-      <Card type="Static" state={isLatestOutput ? "Highlight" : "Default"} padding="Base">
+      <Card type="Static" state={highlighted ? "Highlight" : "Default"} padding="Base">
         {showSupplier && supplier && (
           <div className="mb-4 flex items-center gap-2 border-b border-border/70 pb-3">
             <SupplierAvatar
@@ -89,6 +94,7 @@ export function AnalysisCard({
               status="Uploaded"
               tone="neutral"
             />
+            {analysisParameters.length > 0 && <AnalysisParametersSummary parameters={analysisParameters} />}
             <StatusLine
               icon={<StatusIndicator status={statusIndicatorFromTone(status.tone)} size="Small" ariaLabel={status.label} />}
               label={`Reviewed ${analysis.clausesReviewed} clauses`}
@@ -140,6 +146,21 @@ export function AnalysisCard({
         </div>
       </Card>
     </motion.article>
+  );
+}
+
+function AnalysisParametersSummary({ parameters }: { parameters: AnalysisParameterItem[] }) {
+  const parameter = parameters[0];
+
+  if (!parameter) return null;
+
+  return (
+    <StatusLine
+      icon={<SlidersHorizontal className="h-4 w-4" />}
+      label={`${parameter.label} · ${parameter.value}`}
+      status="Parameter Applied"
+      tone="neutral"
+    />
   );
 }
 

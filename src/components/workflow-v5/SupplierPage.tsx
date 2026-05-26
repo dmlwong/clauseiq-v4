@@ -114,11 +114,11 @@ function ContractCard({
       </div>
       <div className="flex gap-2">
         {latest && (
-          <Button variant="outline" size="sm" onClick={onView} className="gap-1.5">
+          <Button variant="outline" onClick={onView} className="gap-1.5">
             <Eye className="w-4 h-4" /> View Results
           </Button>
         )}
-        <Button size="sm" onClick={onRun} className="gap-1.5">
+        <Button onClick={onRun} className="gap-1.5">
           <Play className="w-4 h-4" /> Run ClauseIQ
         </Button>
       </div>

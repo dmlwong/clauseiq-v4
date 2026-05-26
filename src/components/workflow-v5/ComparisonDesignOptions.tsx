@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ArrowRight, Columns3, List } from "lucide-react";
 import {
   Badge,
@@ -379,7 +379,7 @@ function ActiveFilterBar({
         />
       ))}
       {filterCount > 1 && onClearAllMetrics && (
-        <Button type="button" variant="Tertiary" size="Small" onClick={onClearAllMetrics}>
+        <Button type="button" variant="Tertiary" size="Medium" onClick={onClearAllMetrics}>
           Clear All
         </Button>
       )}
@@ -1112,6 +1112,7 @@ function MetricCell({
   onClick?: () => void;
 }) {
   const interactive = Boolean(onClick);
+  const [isHovered, setIsHovered] = useState(false);
   const content = (
     <>
       <Text as="p" size="Small" variant="Secondary">{label}</Text>
@@ -1133,12 +1134,17 @@ function MetricCell({
       <button
         type="button"
         onClick={onClick}
+        aria-pressed={active}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onFocus={() => setIsHovered(true)}
+        onBlur={() => setIsHovered(false)}
         className={cn(
-          "text-left transition-colors",
+          "w-full cursor-pointer rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#185FA5]/35",
           active && "shadow-[inset_3px_0_0_var(--orbit-color-efficio-blue)]",
         )}
       >
-        <Card type="Dynamic" padding="Small" state={active ? "Accent" : "Default"}>
+        <Card type="Static" padding="Small" state={active ? "Accent" : isHovered ? "Highlight" : "Default"}>
           {content}
         </Card>
       </button>

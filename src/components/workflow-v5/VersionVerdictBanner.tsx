@@ -160,19 +160,18 @@ export function VersionVerdictBanner({
 
         <div className="flex items-center gap-2 shrink-0">
           {decision ? (
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => onDecision(null)}>
+            <Button variant="outline" className="gap-1.5" onClick={() => onDecision(null)}>
               <RotateCcw className="h-3.5 w-3.5" /> Undo
             </Button>
           ) : (
             <>
               <Button
                 variant="outline"
-                size="sm"
                 onClick={() => onDecision("changes-requested")}
               >
                 Request changes
               </Button>
-              <Button size="sm" onClick={() => onDecision("accepted")}>
+              <Button onClick={() => onDecision("accepted")}>
                 <CheckCircle2 className="h-4 w-4 mr-1.5" /> Accept version
               </Button>
             </>

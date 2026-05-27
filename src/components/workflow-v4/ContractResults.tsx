@@ -4871,21 +4871,21 @@ const rowScaleSeverityThemes: Record<
 > = {
   high: {
     accent: "var(--orbit-color-status-low-border-error)",
-    background: "var(--orbit-color-status-low-bg-error)",
+    background: "color-mix(in srgb, var(--orbit-color-status-low-bg-error) 30%, white)",
   },
   medium: {
     accent: "var(--orbit-color-status-low-border-warning)",
-    background: "var(--orbit-color-status-low-bg-warning)",
+    background: "color-mix(in srgb, var(--orbit-color-status-low-bg-warning) 30%, white)",
   },
   low: {
     accent: "var(--orbit-color-status-low-border-no-status)",
-    background: "var(--orbit-color-status-low-bg-no-status)",
+    background: "color-mix(in srgb, var(--orbit-color-status-low-bg-no-status) 30%, white)",
   },
 };
 
 const rowScaleMissingClauseTheme = {
   accent: "var(--orbit-color-status-low-border-information)",
-  background: "var(--orbit-color-status-low-bg-information)",
+  background: "color-mix(in srgb, var(--orbit-color-status-low-bg-information) 30%, white)",
 };
 
 function FindingCallout({ text }: { text: string }) {

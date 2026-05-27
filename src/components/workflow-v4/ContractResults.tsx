@@ -1205,6 +1205,9 @@ export function ContractResults({
     quickFilter !== "open-items" &&
     quickFilter !== "met";
   const compactBackLabel = backLabel ?? `Back to ${supplier.name}`;
+  const dashboardSupplierName = searchParams.get("source") === "clauseiq" ? "Thomson Reuters" : supplier.name;
+  const dashboardAnalysisLabel = firstAnalysisDemo ? "V1" : (latest?.version ?? "v1").toUpperCase();
+  const dashboardReferenceLine = `Supplier: ${dashboardSupplierName} · Contract type: ${contract.type} · Analysis: ${dashboardAnalysisLabel}`;
   const switchMode = (nextMode: ClauseIqMode) => {
     const params = new URLSearchParams(searchParams);
     params.set("mode", nextMode);
@@ -1884,6 +1887,7 @@ export function ContractResults({
             onBack={onBack}
             contractName={contract.name}
             contractType={contract.type}
+            referenceLine={dashboardReferenceLine}
             supplierId={supplierId}
             supplierName={supplier.name}
             firstAnalysisDemo={firstAnalysisDemo}
@@ -1982,6 +1986,9 @@ export function ContractResults({
                     <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">{contract.name}</h1>
                     <Badge variant="outline">{contract.type}</Badge>
                   </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {dashboardReferenceLine}
+                  </p>
                   <div className="mt-2 flex items-center gap-2 flex-wrap">
                     <span className="text-sm text-muted-foreground">
                       {versions.length} round{versions.length !== 1 ? "s" : ""}
@@ -2468,6 +2475,7 @@ function CompactContractTopbar({
   onBack,
   contractName,
   contractType,
+  referenceLine,
   supplierId,
   supplierName,
   firstAnalysisDemo,
@@ -2478,6 +2486,7 @@ function CompactContractTopbar({
   onBack: () => void;
   contractName: string;
   contractType: string;
+  referenceLine: string;
   supplierId: string;
   supplierName: string;
   firstAnalysisDemo: boolean;
@@ -2485,7 +2494,7 @@ function CompactContractTopbar({
   onFirstAnalysisDemoChange: (enabled: boolean) => void;
 }) {
   return (
-    <div className="flex h-10 items-center gap-3 border-b border-[rgba(0,0,0,0.08)] px-3">
+    <div className="flex min-h-14 items-center gap-3 border-b border-[rgba(0,0,0,0.08)] px-3 py-2">
       <button
         onClick={onBack}
         className="inline-flex shrink-0 items-center gap-1 text-[13px] font-medium text-primary hover:underline"
@@ -2493,12 +2502,17 @@ function CompactContractTopbar({
         <ChevronLeft className="h-3.5 w-3.5" /> {backLabel}
       </button>
       <div className="h-3.5 w-px bg-border" aria-hidden />
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <h1 className="min-w-[120px] truncate text-sm font-medium text-foreground">{contractName}</h1>
-        <Badge variant="outline" className="h-5 rounded-full bg-muted/50 px-2 text-[9px] font-medium">
-          {contractType}
-        </Badge>
-        <SupplierGroupingLink supplierId={supplierId} supplierName={supplierName} />
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 items-center gap-2">
+          <h1 className="min-w-[120px] truncate text-sm font-medium text-foreground">{contractName}</h1>
+          <Badge variant="outline" className="h-5 rounded-full bg-muted/50 px-2 text-[9px] font-medium">
+            {contractType}
+          </Badge>
+          <SupplierGroupingLink supplierId={supplierId} supplierName={supplierName} />
+        </div>
+        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+          {referenceLine}
+        </p>
       </div>
       {demoAvailable && (
         <FirstAnalysisDemoToggle

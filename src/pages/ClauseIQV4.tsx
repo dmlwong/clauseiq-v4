@@ -3,9 +3,10 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Sparkles, Search, Check, Pencil, UploadCloud, FileText, Loader2,
   ChevronRight, ListChecks, FileDown, Building2, Info,
-  BookOpen, Scale,
+  BookOpen, Scale, ClipboardList, BadgeCheck, ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "@/components/ui/sonner";
 import { V4Shell } from "@/components/clauseiq-v4/V4Shell";
 import { V4InitiativeLinkButton } from "@/components/clauseiq-v4/V4InitiativeLinkButton";
@@ -15,11 +16,9 @@ import {
   CIQ_DEFAULT_PLAYBOOK,
   CIQ_INITIATIVES,
   CIQ_PARAMETER_OPTIONS,
-  PLAYBOOK_SCOPE_DISCLAIMER,
   type CiqInitiative,
   type CiqParameterKind,
   type CiqParameterOption,
-  type CiqSelectedParameter,
 } from "@/lib/clauseiq-v4-data";
 import { cn } from "@/lib/utils";
 import { mockInitiative, type ClauseAnalysis, type Initiative } from "@/data/mock-clauseiq";
@@ -36,10 +35,30 @@ import type {
 } from "@/components/clauseiq-v4/supplier-results/types";
 
 type Step = "welcome" | "select" | "parameters" | "upload" | "processing" | "results";
+type AnalysisBasisKind = Exclude<CiqParameterKind, "Category">;
+
+interface AnalysisBasisSelection {
+  kind: AnalysisBasisKind;
+  label: string;
+}
+
+interface AnalysisParameterSelection {
+  basis: AnalysisBasisSelection | null;
+  category: string | null;
+}
 
 const PROCESSING_MS = 3_000;
-const DEFAULT_PARAMETER: CiqSelectedParameter = { kind: "Playbook", label: CIQ_DEFAULT_PLAYBOOK };
-const CIQ_V4_PARAMETER_OPTIONS = CIQ_PARAMETER_OPTIONS.filter((option) => option.kind !== "Category");
+const DEFAULT_BASIS_SELECTION: AnalysisBasisSelection = { kind: "Playbook", label: CIQ_DEFAULT_PLAYBOOK };
+const DEFAULT_CATEGORY = "Services";
+const BASIS_PARAMETER_OPTIONS = CIQ_PARAMETER_OPTIONS.filter(
+  (option): option is CiqParameterOption & { kind: AnalysisBasisKind } => option.kind !== "Category",
+);
+const CATEGORY_PARAMETER_OPTION = CIQ_PARAMETER_OPTIONS.find((option) => option.kind === "Category");
+const NEXT_ACTION_MILESTONES = Array.from({ length: 5 }, (_, index) => ({
+  id: `gate-${index + 1}`,
+  label: `Gate ${index + 1}`,
+  dueDate: "21/05/2026",
+}));
 const EMPTY_MOCK_INITIATIVE: Initiative = {
   ...mockInitiative,
   suppliers: mockInitiative.suppliers.map((supplier) => ({
@@ -61,21 +80,37 @@ const createRerunAnalysis = (fileName: string): ClauseAnalysis => ({
   analysedAt: "2026-05-22T11:00:00Z",
   clausesReviewed: 47,
   status: "completed",
-  deviations: { missing: 8, high: 6, medium: 4, low: 10 },
+  deviations: { missing: 8, high: 6, medium: 4, low: 10, none: 19 },
 });
 const LATEST_V4_RESULTS_ROUTE =
   "/initiatives-v4?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=first-analysis";
 
+const createDefaultParameterSelection = (): AnalysisParameterSelection => ({
+  basis: { ...DEFAULT_BASIS_SELECTION },
+  category: DEFAULT_CATEGORY,
+});
+
 const buildAnalysisParameters = (
-  selected: CiqSelectedParameter | null,
+  selected: AnalysisParameterSelection | null,
 ): AnalysisParameterItem[] => {
-  const parameter = selected ?? DEFAULT_PARAMETER;
-  return [
-    {
-      label: parameter.kind,
-      value: parameter.label,
-    },
-  ];
+  const parameter = selected ?? createDefaultParameterSelection();
+  const rows: AnalysisParameterItem[] = [];
+
+  if (parameter.basis) {
+    rows.push({ label: parameter.basis.kind, value: parameter.basis.label });
+  }
+
+  if (parameter.category) {
+    rows.push({ label: "Category", value: parameter.category });
+  }
+
+  return rows;
+};
+
+const hasCompleteAnalysisParameters = (
+  selected: AnalysisParameterSelection | null,
+): selected is AnalysisParameterSelection & { basis: AnalysisBasisSelection; category: string } => {
+  return Boolean(selected?.basis && selected.category);
 };
 
 interface ClauseIQV4Props {
@@ -96,20 +131,20 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   const [initiative, setInitiative] = useState<CiqInitiative | null>(
     resultsFromRoute ? defaultCompletedInitiative : null,
   );
-  const [selectedParameter, setSelectedParameter] = useState<CiqSelectedParameter | null>(
-    resultsFromRoute ? DEFAULT_PARAMETER : null,
+  const [selectedParameter, setSelectedParameter] = useState<AnalysisParameterSelection | null>(
+    resultsFromRoute ? createDefaultParameterSelection() : null,
   );
-  const [expandedParameter, setExpandedParameter] = useState<CiqParameterKind | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [rerunUploadVisible, setRerunUploadVisible] = useState(rerunUploadFromRoute);
-  const [rerunSelectedParameter, setRerunSelectedParameter] = useState<CiqSelectedParameter | null>(null);
-  const [rerunExpandedParameter, setRerunExpandedParameter] = useState<CiqParameterKind | null>(null);
+  const [rerunSelectedParameter, setRerunSelectedParameter] = useState<AnalysisParameterSelection | null>(null);
   const [rerunProcessing, setRerunProcessing] = useState(false);
   const [pendingRerunAnalysis, setPendingRerunAnalysis] = useState<ClauseAnalysis | null>(null);
-  const [pendingRerunParameter, setPendingRerunParameter] = useState<CiqSelectedParameter | null>(null);
+  const [pendingRerunParameter, setPendingRerunParameter] = useState<AnalysisParameterSelection | null>(null);
   const [completedRerunAnalysis, setCompletedRerunAnalysis] = useState<ClauseAnalysis | null>(null);
-  const [completedRerunParameter, setCompletedRerunParameter] = useState<CiqSelectedParameter | null>(null);
+  const [completedRerunParameter, setCompletedRerunParameter] = useState<AnalysisParameterSelection | null>(null);
+  const [completedMilestoneIds, setCompletedMilestoneIds] = useState<string[]>([]);
+  const [initiativeCompleted, setInitiativeCompleted] = useState(false);
 
   const selectRef = useRef<HTMLDivElement>(null);
   const parametersRef = useRef<HTMLDivElement>(null);
@@ -121,7 +156,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
 
   const scrollLatestOutputIntoView = useCallback((delay = 120) => {
     window.setTimeout(() => {
-      latestOutputRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      latestOutputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, delay);
   }, []);
 
@@ -139,7 +174,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
 
     if (!resultsFromRoute) return;
     setInitiative((current) => current ?? defaultCompletedInitiative);
-    setSelectedParameter((current) => current ?? DEFAULT_PARAMETER);
+    setSelectedParameter((current) => current ?? createDefaultParameterSelection());
     setStep("results");
     if (rerunUploadFromRoute) {
       setRerunUploadVisible(true);
@@ -186,11 +221,10 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
     const t = setTimeout(() => {
       setRerunProcessing(false);
       setCompletedRerunAnalysis(pendingRerunAnalysis ?? createRerunAnalysis("New_Contract.pdf"));
-      setCompletedRerunParameter(pendingRerunParameter ?? selectedParameter ?? DEFAULT_PARAMETER);
+      setCompletedRerunParameter(pendingRerunParameter ?? selectedParameter ?? createDefaultParameterSelection());
       setPendingRerunAnalysis(null);
       setPendingRerunParameter(null);
       setRerunSelectedParameter(null);
-      setRerunExpandedParameter(null);
       setFile(null);
       toast.success("New analysis added as latest output.");
     }, PROCESSING_MS);
@@ -210,6 +244,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   const processingState: CardState = step === "processing" ? "active" : "default";
   const resultsVisible = step === "results";
   const outputPanelResultsVisible = resultsVisible && resultsLayout === "output-panel";
+  const showPostAnalysisActions = resultsVisible && !rerunUploadVisible && !rerunProcessing;
   const resultsInitiative =
     outputPanelResultsVisible && resultScenario === "empty" ? FIRST_RUN_MOCK_INITIATIVE : mockInitiative;
   const rerunSupplier = resultsInitiative.suppliers[0];
@@ -230,43 +265,95 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   const handleSelect = (i: CiqInitiative) => {
     setInitiative(i);
     setSelectedParameter(null);
-    setExpandedParameter(null);
     setFile(null);
     setModalOpen(false);
     setStep("parameters");
   };
 
-  const handleParameterToggle = (kind: CiqParameterKind) => {
-    setExpandedParameter((current) => current === kind ? null : kind);
+  const handleStartAnotherInitiative = () => {
+    setInitiative(null);
+    setSelectedParameter(null);
+    setFile(null);
+    setModalOpen(false);
+    setRerunUploadVisible(false);
+    setRerunSelectedParameter(null);
+    setRerunProcessing(false);
+    setPendingRerunAnalysis(null);
+    setPendingRerunParameter(null);
+    setCompletedRerunAnalysis(null);
+    setCompletedRerunParameter(null);
+    setCompletedMilestoneIds([]);
+    setInitiativeCompleted(false);
+    setStep("welcome");
+    navigate("/clauseiq-v4");
   };
 
-  const handleParameterSelect = (option: CiqParameterOption, value: string) => {
-    setSelectedParameter({ kind: option.kind, label: value });
-    setExpandedParameter(null);
+  const handleMilestoneComplete = (milestoneId: string) => {
+    setCompletedMilestoneIds((current) => (
+      current.includes(milestoneId) ? current : [...current, milestoneId]
+    ));
+  };
+
+  const handleCompleteInitiative = () => {
+    setInitiativeCompleted(true);
+  };
+
+  const handleBasisSelect = (option: CiqParameterOption, value: string) => {
+    if (option.kind === "Category") return;
+    setSelectedParameter((current) => ({
+      basis: { kind: option.kind, label: value },
+      category: current?.category ?? null,
+    }));
+    setFile(null);
+    setStep((currentStep) => (currentStep === "upload" && selectedParameter?.category ? "upload" : "parameters"));
+  };
+
+  const handleCategorySelect = (_option: CiqParameterOption, value: string) => {
+    setSelectedParameter((current) => ({
+      basis: current?.basis ?? null,
+      category: value,
+    }));
     setFile(null);
     setStep("upload");
   };
 
-  const handleRerunParameterToggle = (kind: CiqParameterKind) => {
-    setRerunExpandedParameter((current) => current === kind ? null : kind);
-  };
-
-  const handleRerunParameterSelect = (option: CiqParameterOption, value: string) => {
-    setRerunSelectedParameter({ kind: option.kind, label: value });
-    setRerunExpandedParameter(null);
+  const handleRerunBasisSelect = (option: CiqParameterOption, value: string) => {
+    if (option.kind === "Category") return;
+    setRerunSelectedParameter((current) => ({
+      basis: { kind: option.kind, label: value },
+      category: current?.category ?? null,
+    }));
     setFile(null);
   };
 
-  const handleRerunParameterEdit = () => {
-    setRerunSelectedParameter(null);
-    setRerunExpandedParameter(null);
+  const handleRerunCategorySelect = (_option: CiqParameterOption, value: string) => {
+    setRerunSelectedParameter((current) => ({
+      basis: current?.basis ?? null,
+      category: value,
+    }));
     setFile(null);
   };
 
-  const handleParameterEdit = () => {
+  const handleRerunBasisEdit = () => {
+    setRerunSelectedParameter((current) => current ? { ...current, basis: null } : null);
+    setFile(null);
+  };
+
+  const handleRerunCategoryEdit = () => {
+    setRerunSelectedParameter((current) => current ? { ...current, category: null } : null);
+    setFile(null);
+  };
+
+  const handleBasisEdit = () => {
     if (parameterLocked) return;
-    setSelectedParameter(null);
-    setExpandedParameter(null);
+    setSelectedParameter((current) => current ? { ...current, basis: null } : null);
+    setFile(null);
+    setStep("parameters");
+  };
+
+  const handleCategoryEdit = () => {
+    if (parameterLocked) return;
+    setSelectedParameter((current) => current ? { ...current, category: null } : null);
     setFile(null);
     setStep("parameters");
   };
@@ -283,7 +370,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
     }
     setFile(f);
     if (resultsVisible && rerunUploadVisible) {
-      const parameterForRun = rerunSelectedParameter ?? selectedParameter ?? DEFAULT_PARAMETER;
+      const parameterForRun = rerunSelectedParameter ?? selectedParameter ?? createDefaultParameterSelection();
       setPendingRerunAnalysis(createRerunAnalysis(f.name));
       setPendingRerunParameter(parameterForRun);
       setCompletedRerunAnalysis(null);
@@ -303,7 +390,6 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
     setCompletedRerunAnalysis(null);
     setCompletedRerunParameter(null);
     setRerunSelectedParameter(null);
-    setRerunExpandedParameter(null);
     setRerunUploadVisible(true);
     if (!forceResults) {
       const nextParams = new URLSearchParams(searchParams);
@@ -423,40 +509,21 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
 
             {/* Contract Analysis Parameters */}
             {parametersVisible && !resultsVisible && (
-              <div ref={parametersRef}>
-                {!selectedParameter ? (
-                  <StateCard state={parametersState}>
-                    <h2 className="text-base font-semibold mb-1">Contract Analysis Parameters</h2>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Choose a parameter to analyse this contract.
-                    </p>
-                    <ParameterSelection
-                      options={CIQ_V4_PARAMETER_OPTIONS}
-                      expandedKind={expandedParameter}
-                      onToggle={handleParameterToggle}
-                      onSelect={handleParameterSelect}
-                    />
-                  </StateCard>
-                ) : (
-                  <StateCard
-                    state="default"
-                    className={resultsVisible ? "mx-auto w-full max-w-[640px]" : undefined}
-                  >
-                    <h2 className="text-base font-semibold mb-3">Contract Analysis Parameters</h2>
-                    <SelectedSummaryRow
-                      label={selectedParameter.label}
-                      disabled={parameterLocked}
-                      mutedWhenDisabled={false}
-                      actionLabel={`Change ${selectedParameter.kind}`}
-                      onAction={handleParameterEdit}
-                    />
-                  </StateCard>
-                )}
+              <div ref={parametersRef} className="space-y-4">
+                <AnalysisParameterCards
+                  selectedParameter={selectedParameter}
+                  cardState={parametersState}
+                  locked={parameterLocked}
+                  onBasisSelect={handleBasisSelect}
+                  onCategorySelect={handleCategorySelect}
+                  onBasisEdit={handleBasisEdit}
+                  onCategoryEdit={handleCategoryEdit}
+                />
               </div>
             )}
 
             {/* Upload Contract */}
-            {uploadVisible && selectedParameter && step !== "processing" && step !== "results" && (
+            {uploadVisible && hasCompleteAnalysisParameters(selectedParameter) && step !== "processing" && step !== "results" && (
               <div ref={uploadRef}>
                 <StateCard state={uploadState}>
                   <h2 className="text-base font-semibold mb-3">Upload Contract</h2>
@@ -499,46 +566,31 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
             {/* Results */}
             {resultsVisible && (
               <div ref={resultRef} className="space-y-4">
-                <ResultsContent
-                  initiative={resultsInitiative}
-                  layout={resultsLayout}
-                  onRunAgain={showRunAgainUpload}
-                  onDownload={resultsLayout === "output-panel" ? undefined : handleDownload}
-                  onViewResult={handleViewResult}
-                  viewResultPrimary={!newAnalysisSectionVisible}
-                  highlightLatestOutput={!newAnalysisSectionVisible}
-                  analysisParameters={selectedAnalysisParameters}
-                />
+                <div ref={completedRerunAnalysis ? undefined : latestOutputRef}>
+                  <ResultsContent
+                    initiative={resultsInitiative}
+                    layout={resultsLayout}
+                    onRunAgain={showRunAgainUpload}
+                    onDownload={resultsLayout === "output-panel" ? undefined : handleDownload}
+                    onViewResult={handleViewResult}
+                    viewResultPrimary={!newAnalysisSectionVisible}
+                    highlightLatestOutput={!newAnalysisSectionVisible}
+                    analysisParameters={selectedAnalysisParameters}
+                  />
+                </div>
                 {newAnalysisSectionVisible && <NewAnalysisDivider />}
                 {rerunUploadVisible && (
                   <div ref={rerunUploadRef} className="space-y-4">
-                    <StateCard state={rerunSelectedParameter ? "default" : "active"}>
-                      <h2 className="text-base font-semibold mb-1">Contract Analysis Parameters</h2>
-                      {!rerunSelectedParameter ? (
-                        <>
-                          <p className="text-sm text-muted-foreground mb-4">
-                            Choose a parameter to analyse the next contract.
-                          </p>
-                          <ParameterSelection
-                            options={CIQ_V4_PARAMETER_OPTIONS}
-                            expandedKind={rerunExpandedParameter}
-                            onToggle={handleRerunParameterToggle}
-                            onSelect={handleRerunParameterSelect}
-                          />
-                        </>
-                      ) : (
-                        <div className="mt-2">
-                          <SelectedSummaryRow
-                            label={rerunSelectedParameter.label}
-                            disabled={false}
-                            actionLabel={`Change ${rerunSelectedParameter.kind}`}
-                            onAction={handleRerunParameterEdit}
-                          />
-                        </div>
-                      )}
-                    </StateCard>
+                    <AnalysisParameterCards
+                      selectedParameter={rerunSelectedParameter}
+                      cardState={hasCompleteAnalysisParameters(rerunSelectedParameter) ? "default" : "active"}
+                      onBasisSelect={handleRerunBasisSelect}
+                      onCategorySelect={handleRerunCategorySelect}
+                      onBasisEdit={handleRerunBasisEdit}
+                      onCategoryEdit={handleRerunCategoryEdit}
+                    />
 
-                    {rerunSelectedParameter && (
+                    {hasCompleteAnalysisParameters(rerunSelectedParameter) && (
                       <StateCard state="active">
                         <h2 className="text-base font-semibold mb-3">Upload Contract</h2>
                         <PlaybookDisclaimer variant="callout" parameter={rerunSelectedParameter} />
@@ -574,19 +626,30 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
                   </StateCard>
                 )}
                 {completedRerunAnalysis && rerunSupplier && (
-                  <AnalysisCard
-                    analysis={completedRerunAnalysis}
-                    supplier={rerunSupplier}
-                    showSupplier
-                    onRunAgain={showRunAgainUpload}
-                    onViewResult={handleViewResult}
-                    viewResultPrimary
-                    isLatestOutput
-                    highlighted
-                    analysisParameters={completedRerunAnalysisParameters}
+                  <div ref={latestOutputRef}>
+                    <AnalysisCard
+                      analysis={completedRerunAnalysis}
+                      supplier={rerunSupplier}
+                      showSupplier
+                      onRunAgain={showRunAgainUpload}
+                      onViewResult={handleViewResult}
+                      viewResultPrimary
+                      isLatestOutput
+                      highlighted
+                      analysisParameters={completedRerunAnalysisParameters}
+                    />
+                  </div>
+                )}
+                {showPostAnalysisActions && (
+                  <PostAnalysisNextActions
+                    completedMilestoneIds={completedMilestoneIds}
+                    initiativeCompleted={initiativeCompleted}
+                    onStartAnotherInitiative={handleStartAnotherInitiative}
+                    onMilestoneComplete={handleMilestoneComplete}
+                    onCompleteInitiative={handleCompleteInitiative}
                   />
                 )}
-                <div ref={latestOutputRef} className="h-[304px]" aria-hidden="true" />
+                <div className="h-[304px]" aria-hidden="true" />
               </div>
             )}
 
@@ -633,6 +696,289 @@ function NewAnalysisDivider() {
   );
 }
 
+function PostAnalysisNextActions({
+  completedMilestoneIds,
+  initiativeCompleted,
+  onStartAnotherInitiative,
+  onMilestoneComplete,
+  onCompleteInitiative,
+}: {
+  completedMilestoneIds: string[];
+  initiativeCompleted: boolean;
+  onStartAnotherInitiative: () => void;
+  onMilestoneComplete: (milestoneId: string) => void;
+  onCompleteInitiative: () => void;
+}) {
+  return (
+    <StateCard state="default" className="space-y-6">
+      <h2 className="text-base font-semibold text-foreground">Next, you can...</h2>
+
+      <button
+        type="button"
+        className="flex w-full items-center gap-4 rounded-xl border border-border bg-card p-[16px] text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        onClick={onStartAnotherInitiative}
+      >
+        <Sparkles className="h-6 w-6 shrink-0 text-primary" />
+        <span className="min-w-0">
+          <span className="block text-lg font-semibold text-foreground">
+            Analyse Contract on Another Initiative
+          </span>
+          <span className="mt-1 block text-base text-muted-foreground">
+            Start fresh with a new initiative.
+          </span>
+        </span>
+      </button>
+
+      <div className="h-px bg-border" />
+
+      <section className="rounded-xl border border-border bg-card p-[16px]" aria-labelledby="v4-update-milestone-title">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-3">
+            <ClipboardList className="mt-1 h-5 w-5 shrink-0 text-primary" />
+            <div>
+              <h3 id="v4-update-milestone-title" className="text-lg font-semibold text-foreground">
+                Update Milestone
+              </h3>
+              <p className="mt-1 text-base text-muted-foreground">Track your initiative progress.</p>
+            </div>
+          </div>
+          <ChevronUp className="mt-1 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        </div>
+
+        <div className="mt-5 overflow-x-auto rounded-xl border border-border">
+          <table className="w-full min-w-[560px] border-collapse text-left text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <th scope="col" className="px-5 py-4 text-base font-semibold text-foreground">Milestone</th>
+                <th scope="col" className="px-5 py-4 text-base font-semibold text-foreground">Due Date</th>
+                <th scope="col" className="px-5 py-4 text-base font-semibold text-foreground">Status</th>
+                <th scope="col" className="px-5 py-4 text-base font-semibold text-foreground">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {NEXT_ACTION_MILESTONES.map((milestone) => {
+                const completed = completedMilestoneIds.includes(milestone.id);
+
+                return (
+                  <tr key={milestone.id} className="border-b border-border last:border-b-0">
+                    <td className="px-5 py-4 text-base text-foreground">{milestone.label}</td>
+                    <td className="px-5 py-4 text-base text-foreground">{milestone.dueDate}</td>
+                    <td className={cn("px-5 py-4 text-base", completed ? "font-medium text-success" : "text-foreground")}>
+                      {completed ? "Completed" : "Pending"}
+                    </td>
+                    <td className="px-5 py-3">
+                      {completed ? (
+                        <Button variant="outline" className="h-9 gap-2" disabled>
+                          <Check className="h-4 w-4" />
+                          Completed
+                        </Button>
+                      ) : (
+                        <Button variant="outline" className="h-9" onClick={() => onMilestoneComplete(milestone.id)}>
+                          Mark Complete
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {!initiativeCompleted && (
+        <button
+          type="button"
+          className="flex w-full items-center gap-4 rounded-xl border border-border bg-card p-[16px] text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          onClick={onCompleteInitiative}
+        >
+          <BadgeCheck className="h-6 w-6 shrink-0 text-primary" />
+          <span className="min-w-0">
+            <span className="block text-lg font-semibold text-foreground">Complete Initiative</span>
+            <span className="mt-1 block text-base text-muted-foreground">
+              Mark this initiative as complete.
+            </span>
+          </span>
+        </button>
+      )}
+    </StateCard>
+  );
+}
+
+function AnalysisParameterCards({
+  selectedParameter,
+  cardState,
+  locked = false,
+  onBasisSelect,
+  onCategorySelect,
+  onBasisEdit,
+  onCategoryEdit,
+}: {
+  selectedParameter: AnalysisParameterSelection | null;
+  cardState: CardState;
+  locked?: boolean;
+  onBasisSelect: (option: CiqParameterOption, value: string) => void;
+  onCategorySelect: (option: CiqParameterOption, value: string) => void;
+  onBasisEdit: () => void;
+  onCategoryEdit: () => void;
+}) {
+  const basisSelected = Boolean(selectedParameter?.basis);
+  const categorySelected = Boolean(selectedParameter?.category);
+  const [activeBasisKind, setActiveBasisKind] = useState<AnalysisBasisKind>("Playbook");
+
+  useEffect(() => {
+    if (selectedParameter?.basis) {
+      setActiveBasisKind(selectedParameter.basis.kind);
+    }
+  }, [selectedParameter?.basis?.kind]);
+
+  return (
+    <>
+      <StateCard state={basisSelected ? "default" : cardState}>
+        <h2 className="text-base font-semibold mb-1">Contract Analysis Parameters</h2>
+        {!basisSelected ? (
+          <>
+            <p className="text-sm text-muted-foreground mb-4">
+              Choose whether ClauseIQ should analyse against a playbook or governing law.
+            </p>
+            <ParameterKindSelector
+              activeKind={activeBasisKind}
+              options={BASIS_PARAMETER_OPTIONS}
+              onActiveKindChange={setActiveBasisKind}
+              onSelect={onBasisSelect}
+            />
+          </>
+        ) : (
+          <div className="mt-3">
+            <SelectedSummaryRow
+              label={`${selectedParameter!.basis!.kind} · ${selectedParameter!.basis!.label}`}
+              disabled={locked}
+              actionLabel={`Change ${selectedParameter!.basis!.kind}`}
+              onAction={onBasisEdit}
+            />
+          </div>
+        )}
+      </StateCard>
+
+      {basisSelected && (
+        <StateCard state={categorySelected ? "default" : "active"}>
+          <h2 className="text-base font-semibold mb-1">Category</h2>
+          {!categorySelected ? (
+            <>
+              <p className="text-sm text-muted-foreground mb-4">
+                Select the category ClauseIQ should use for this analysis.
+              </p>
+              {CATEGORY_PARAMETER_OPTION && (
+                <ParameterOptionsList option={CATEGORY_PARAMETER_OPTION} onSelect={onCategorySelect} />
+              )}
+            </>
+          ) : (
+            <div className="mt-3">
+              <SelectedSummaryRow
+                label={`Category · ${selectedParameter!.category!}`}
+                disabled={locked}
+                actionLabel="Change Category"
+                onAction={onCategoryEdit}
+              />
+            </div>
+          )}
+        </StateCard>
+      )}
+    </>
+  );
+}
+
+function ParameterOptionsList({
+  option,
+  onSelect,
+  variant = "framed",
+}: {
+  option: CiqParameterOption;
+  onSelect: (option: CiqParameterOption, value: string) => void;
+  variant?: "framed" | "plain";
+}) {
+  const framed = variant === "framed";
+
+  return (
+    <div
+      role="listbox"
+      aria-label={`${option.label} options`}
+      className={cn(
+        "rounded-lg",
+        framed ? "overflow-hidden border border-border bg-card" : "max-h-52 overflow-y-auto",
+      )}
+    >
+      <div className={cn(framed ? "max-h-52 overflow-y-auto p-1" : "space-y-1")}>
+        {option.options.map((value) => (
+          <button
+            key={value}
+            type="button"
+            role="option"
+            aria-selected={false}
+            className="w-full rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
+            onClick={() => onSelect(option, value)}
+          >
+            {value}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ParameterKindSelector({
+  activeKind,
+  options,
+  onActiveKindChange,
+  onSelect,
+}: {
+  activeKind: AnalysisBasisKind;
+  options: Array<CiqParameterOption & { kind: AnalysisBasisKind }>;
+  onActiveKindChange: (kind: AnalysisBasisKind) => void;
+  onSelect: (option: CiqParameterOption, value: string) => void;
+}) {
+  const activeOption = options.find((option) => option.kind === activeKind) ?? options[0];
+
+  if (!activeOption) return null;
+
+  return (
+    <div className="space-y-3">
+      <RadioGroup
+        value={activeOption.kind}
+        onValueChange={(value) => onActiveKindChange(value as AnalysisBasisKind)}
+        className="grid gap-3 sm:grid-cols-2"
+        aria-label="Contract analysis parameter type"
+      >
+        {options.map((option) => {
+          const selected = option.kind === activeOption.kind;
+          const optionId = `ciq-parameter-kind-${option.kind.toLowerCase().replace(/\s+/g, "-")}`;
+
+          return (
+            <label
+              key={option.kind}
+              htmlFor={optionId}
+              className={cn(
+                "flex min-h-16 cursor-pointer items-center gap-3 rounded-lg border bg-card px-4 py-3 text-sm transition-colors",
+                selected
+                  ? "border-primary/60 text-foreground shadow-sm ring-1 ring-primary/20"
+                  : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
+              )}
+            >
+              <RadioGroupItem id={optionId} value={option.kind} />
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+                <ParameterIcon kind={option.kind} />
+              </span>
+              <span className="min-w-0 flex-1 truncate font-medium">{option.label}</span>
+            </label>
+          );
+        })}
+      </RadioGroup>
+
+      <ParameterOptionsList option={activeOption} onSelect={onSelect} />
+    </div>
+  );
+}
+
 function SelectedSummaryRow({
   label,
   disabled,
@@ -651,7 +997,7 @@ function SelectedSummaryRow({
   return (
     <div
       className={cn(
-        "flex min-h-11 items-center justify-between gap-4 rounded-md border p-[16px]",
+        "flex min-h-11 items-center justify-between gap-4 rounded-md border px-[16px] py-[8px]",
         muted ? "border-border bg-muted text-muted-foreground" : "border-border bg-card text-foreground",
       )}
     >
@@ -675,106 +1021,25 @@ function SelectedSummaryRow({
   );
 }
 
-function ParameterSelection({
-  options,
-  expandedKind,
-  onToggle,
-  onSelect,
-}: {
-  options: CiqParameterOption[];
-  expandedKind: CiqParameterKind | null;
-  onToggle: (kind: CiqParameterKind) => void;
-  onSelect: (option: CiqParameterOption, value: string) => void;
-}) {
-  const expandedOption = options.find((option) => option.kind === expandedKind);
-  const filteredOptions = expandedOption ? expandedOption.options : [];
-
-  return (
-    <div className="space-y-3">
-      <fieldset className="grid gap-2 sm:grid-cols-2">
-        <legend className="sr-only">Contract analysis parameter type</legend>
-        {options.map((option) => {
-          const selected = option.kind === expandedKind;
-          return (
-            <label
-              key={option.kind}
-              className={cn(
-                "flex min-h-[88px] cursor-pointer flex-col items-start justify-between rounded-lg border p-[16px] text-left transition-colors",
-                selected ? "border-ciq bg-ciq-soft text-foreground" : "border-border bg-card hover:border-ciq/40 hover:bg-muted/35",
-              )}
-            >
-              <span className="flex w-full items-start justify-between gap-2">
-                <span className="grid h-8 w-8 place-items-center rounded-md bg-primary/10 text-primary">
-                  <ParameterIcon kind={option.kind} />
-                </span>
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "mt-0.5 grid h-4 w-4 place-items-center rounded-full border transition-colors",
-                    selected ? "border-ciq bg-ciq" : "border-muted-foreground/40 bg-background",
-                  )}
-                >
-                  {selected && <span className="h-1.5 w-1.5 rounded-full bg-primary-foreground" />}
-                </span>
-              </span>
-              <input
-                type="radio"
-                name="ciq-parameter-kind"
-                value={option.kind}
-                checked={selected}
-                onChange={() => onToggle(option.kind)}
-                aria-controls={`ciq-parameter-options-${option.kind}`}
-                className="sr-only"
-              />
-              <span className="text-sm font-medium">{option.label}</span>
-            </label>
-          );
-        })}
-      </fieldset>
-
-      {expandedOption && (
-        <div
-          id={`ciq-parameter-options-${expandedOption.kind}`}
-          role="listbox"
-          aria-label={`${expandedOption.label} options`}
-          className="overflow-hidden rounded-lg border border-border bg-card"
-        >
-          <div className="max-h-52 overflow-y-auto p-1">
-            {filteredOptions.length === 0 ? (
-              <div className="px-3 py-[16px] text-center text-sm text-muted-foreground">No options available.</div>
-            ) : (
-              filteredOptions.map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="option"
-                  aria-selected={false}
-                  className="w-full rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
-                  onClick={() => onSelect(expandedOption, value)}
-                >
-                  {value}
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function ParameterIcon({ kind }: { kind: CiqParameterKind }) {
   if (kind === "Governing Law") return <Scale className="h-4 w-4" />;
+  if (kind === "Category") return <ListChecks className="h-4 w-4" />;
   return <BookOpen className="h-4 w-4" />;
 }
 
-function parameterDisclaimer(parameter: CiqSelectedParameter | null) {
-  if (!parameter || parameter.kind === "Playbook") return PLAYBOOK_SCOPE_DISCLAIMER;
-  const noun = parameter.kind.toLowerCase();
-  return `Analysis is based on the ${noun} selected. Clauses outside the ${noun} scope won't appear in results.`;
+function parameterDisclaimer(parameter: AnalysisParameterSelection | null) {
+  if (!hasCompleteAnalysisParameters(parameter)) {
+    return "Analysis is based on the selected playbook or governing law, plus the required category.";
+  }
+
+  if (parameter.basis.kind === "Playbook") {
+    return `Analysis is based on the selected playbook and ${parameter.category} category. Clauses outside that combined scope won't appear in results.`;
+  }
+
+  return `Analysis is based on the selected governing law and ${parameter.category} category. Clauses outside that combined scope won't appear in results.`;
 }
 
-function PlaybookDisclaimer({ variant, parameter }: { variant: "callout" | "inline"; parameter: CiqSelectedParameter | null }) {
+function PlaybookDisclaimer({ variant, parameter }: { variant: "callout" | "inline"; parameter: AnalysisParameterSelection | null }) {
   const copy = parameterDisclaimer(parameter);
 
   if (variant === "inline") {

@@ -76,10 +76,10 @@ export function AnalysisCard({
             <span className="shrink-0 text-sm text-muted-foreground">{formatAnalysisTimestamp(analysis.analysedAt)}</span>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h3 className="text-xl font-semibold leading-tight text-foreground">Here is your Analysis Result</h3>
+            <h3 className="text-base font-semibold text-foreground">Here is your Analysis Result</h3>
             <label className="flex items-center gap-2 text-sm font-medium text-foreground">
-              <span>Save To My Documents</span>
-              <Switch checked={saveToDocuments} onCheckedChange={setSaveToDocuments} aria-label="Save To My Documents" />
+              <span>Save To Content Search</span>
+              <Switch checked={saveToDocuments} onCheckedChange={setSaveToDocuments} aria-label="Save To Content Search" />
             </label>
           </div>
         </div>
@@ -107,7 +107,7 @@ export function AnalysisCard({
               : "Summary shown below. View the result for full details."}
           </p>
           <div className="space-y-2" role="group" aria-labelledby={deviationSummaryId}>
-            <p id={deviationSummaryId} className="text-sm font-medium text-muted-foreground">
+            <p id={deviationSummaryId} className="text-base text-muted-foreground">
               Missing Clauses and deviation levels
             </p>
             <div className="flex flex-nowrap items-center gap-1 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -126,6 +126,7 @@ export function AnalysisCard({
                 tone="medium"
               />
               <DeviationChip label="Low" fullLabel="Low deviation" value={analysis.deviations.low} tone="low" />
+              <DeviationChip label="None" fullLabel="No deviation" value={analysis.deviations.none} tone="none" />
             </div>
           </div>
         </div>
@@ -162,21 +163,26 @@ export function AnalysisCard({
 }
 
 function AnalysisParametersSummary({ parameters }: { parameters: AnalysisParameterItem[] }) {
-  const parameter = parameters[0];
-
-  if (!parameter) return null;
+  if (parameters.length === 0) return null;
 
   return (
-    <div className="flex min-h-10 items-center justify-between gap-3 rounded-lg bg-muted px-3 text-sm text-foreground">
-      <div className="flex min-w-0 items-center gap-2">
-        <SlidersHorizontal className="h-4 w-4 shrink-0" />
-        <span className="min-w-0 truncate font-medium text-foreground">
-          <span className="font-medium text-foreground">{parameter.label}</span>
-          {" · "}
-          {parameter.value}
-        </span>
-      </div>
-      <span className="shrink-0 font-medium text-foreground">Parameter Applied</span>
+    <div className="space-y-2">
+      {parameters.map((parameter) => (
+        <div
+          key={`${parameter.label}-${parameter.value}`}
+          className="flex min-h-10 items-center justify-between gap-3 rounded-lg bg-muted px-3 text-sm text-foreground"
+        >
+          <div className="flex min-w-0 items-center gap-2">
+            <SlidersHorizontal className="h-4 w-4 shrink-0" />
+            <span className="min-w-0 truncate font-medium text-foreground">
+              <span className="font-medium text-foreground">{parameter.label}</span>
+              {" · "}
+              {parameter.value}
+            </span>
+          </div>
+          <span className="shrink-0 font-medium text-foreground">Parameter Applied</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -222,7 +228,7 @@ function DeviationChip({
   wideLabel?: string;
   fullLabel?: string;
   value: number;
-  tone: "missing" | "high" | "medium" | "low";
+  tone: "missing" | "high" | "medium" | "low" | "none";
 }) {
   return (
     <Badge
@@ -234,6 +240,7 @@ function DeviationChip({
         tone === "high" && "border-destructive bg-destructive/10 text-destructive",
         tone === "medium" && "border-warning bg-warning/10 text-warning-foreground",
         tone === "low" && "border-success bg-success/10 text-success",
+        tone === "none" && "border-slate-300 bg-background text-muted-foreground",
       )}
     >
       {wideLabel ? (

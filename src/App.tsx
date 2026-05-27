@@ -12,6 +12,7 @@ import ClauseIQV2 from "./pages/ClauseIQV2.tsx";
 import ClauseIQV3 from "./pages/ClauseIQV3.tsx";
 import ClauseIQV4 from "./pages/ClauseIQV4.tsx";
 import ClauseIQV5 from "./pages/ClauseIQV5.tsx";
+import ClauseIQV5Test from "./pages/ClauseIQV5Test.tsx";
 import ClauseIQV4DeviationProminence from "./pages/ClauseIQV4DeviationProminence.tsx";
 import ClauseIQV4OrbitPreview from "./pages/ClauseIQV4OrbitPreview.tsx";
 import ClauseIQV5DeviationProminence from "./pages/ClauseIQV5DeviationProminence.tsx";
@@ -52,6 +53,7 @@ const App = () => (
           <Route path="/clauseiq-v4/deviation-prominence" element={<ClauseIQV4DeviationProminence />} />
           <Route path="/clauseiq-v4/orbit-preview" element={<ClauseIQV4OrbitPreview />} />
           <Route path="/clauseiq-v5" element={<ClauseIQV5 />} />
+          <Route path="/clauseiq-v5/test" element={<ClauseIQV5Test />} />
           <Route path="/clauseiq-v5/output-panel" element={<ClauseIQV5 forceResults resultsLayout="output-panel" />} />
           <Route path="/clauseiq-v5/deviation-prominence" element={<ClauseIQV5DeviationProminence />} />
           <Route path="/usability-v2" element={<UsabilityStudyV2 />} />

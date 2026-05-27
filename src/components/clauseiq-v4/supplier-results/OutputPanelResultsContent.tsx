@@ -115,13 +115,11 @@ export function SupplierOutputsPanel({
       ? {
           title: "Analysis In Progress",
           copy: "ClauseIQ is reviewing the uploaded contract. Supplier outputs will appear here once the analysis is complete.",
-          scopeHint: "When it finishes, you can switch between Mine and Team to compare your output with the wider team view.",
           loading: true,
         }
       : {
           title: "No Supplier Outputs Yet",
           copy: "Upload a contract and run ClauseIQ. Completed analyses will appear here, grouped by supplier.",
-          scopeHint: "Once outputs are available, you can switch between Mine and Team to review your own results or the team's results.",
           loading: false,
         };
 
@@ -226,12 +224,10 @@ export function SupplierOutputsPanel({
 function SupplierPanelEmptyState({
   title,
   copy,
-  scopeHint,
   loading,
 }: {
   title: string;
   copy: string;
-  scopeHint: string;
   loading: boolean;
 }) {
   return (
@@ -256,13 +252,6 @@ function SupplierPanelEmptyState({
         </div>
         <h3 className="mt-5 text-base font-semibold leading-tight text-foreground">{title}</h3>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{copy}</p>
-        <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-[16px]">
-          <div className="grid h-8 grid-cols-2 rounded-md bg-white p-1 text-xs font-medium text-slate-500 shadow-sm">
-            <span className="grid place-items-center rounded bg-slate-100 text-slate-700">Mine</span>
-            <span className="grid place-items-center rounded text-slate-500">Team</span>
-          </div>
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{scopeHint}</p>
-        </div>
       </div>
     </div>
   );
@@ -313,9 +302,10 @@ function SupplierOutputGroup({
     <section className="overflow-hidden rounded-lg border border-border bg-card">
       <button
         type="button"
-        className="flex w-full items-center gap-2 p-[16px] text-left transition-colors hover:bg-muted/40"
+        className="group flex w-full cursor-pointer items-center gap-2 p-[16px] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         aria-expanded={open}
         aria-controls={contentId}
+        aria-label={`${open ? "Collapse" : "Expand"} ${supplier.name} outputs`}
         onClick={onToggle}
       >
         <SupplierAvatar
@@ -336,14 +326,16 @@ function SupplierOutputGroup({
           )}
           <span>{supplier.analyses.length} {supplier.analyses.length === 1 ? "output" : "outputs"}</span>
         </div>
-        <motion.span
-          animate={{ rotate: open ? 180 : 0 }}
-          transition={{ duration: 0.16 }}
-          className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted-foreground"
-          aria-hidden="true"
-        >
-          <ChevronDown className="h-4 w-4" />
-        </motion.span>
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors group-hover:bg-muted group-hover:text-foreground group-focus-visible:bg-muted group-focus-visible:text-foreground">
+          <motion.span
+            animate={{ rotate: open ? 180 : 0 }}
+            transition={{ duration: 0.16 }}
+            className="grid h-4 w-4 place-items-center"
+            aria-hidden="true"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </motion.span>
+        </span>
       </button>
 
       <AnimatePresence initial={false}>
@@ -356,7 +348,7 @@ function SupplierOutputGroup({
             transition={{ duration: 0.18, ease: "easeOut" }}
             className="overflow-hidden"
           >
-            <div className="space-y-2 px-[16px] pb-[16px]">
+            <div className="px-[16px] pb-2">
               {analyses.map((analysis) => (
                 <CompactOutputRow
                   key={analysis.id}
@@ -389,7 +381,7 @@ function CompactOutputRow({
   onViewResult?: () => void;
 }) {
   return (
-    <article className="rounded-md border border-border bg-background px-3 py-2">
+    <article className="border-t border-border/70 py-2">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-xs font-medium text-foreground">{analysis.fileName}</p>
@@ -403,11 +395,11 @@ function CompactOutputRow({
         </time>
       </div>
 
-      <div className="mt-2">
-        <DeviationPills deviations={analysis.deviations} compact />
+      <div className="mt-[8px]">
+        <DeviationPills deviations={analysis.deviations} compact singleLine />
       </div>
 
-      <div className="mt-2 grid grid-cols-3 gap-1">
+      <div className="mt-[8px] grid grid-cols-3 gap-[8px]">
         <CompactActionButton label="View Results" onClick={onViewResult}>
           <Eye className="h-3.5 w-3.5" />
         </CompactActionButton>

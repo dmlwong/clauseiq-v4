@@ -87,7 +87,7 @@ export function V5Shell({
               {children}
             </main>
             {rightPanel && (
-              <aside className="v5-hover-scrollbar hidden w-[360px] shrink-0 overflow-y-auto border-l border-border bg-white lg:block">
+              <aside className="v5-hover-scrollbar hidden w-[400px] shrink-0 overflow-y-auto border-l border-border bg-white lg:block">
                 {rightPanel}
               </aside>
             )}

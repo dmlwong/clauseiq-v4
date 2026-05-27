@@ -61,7 +61,7 @@ export function V4Shell({
             {children}
           </main>
           {rightPanel && (
-            <aside className="v4-hover-scrollbar hidden w-[360px] shrink-0 overflow-y-auto border-l border-border bg-white lg:block">
+            <aside className="v4-hover-scrollbar hidden w-[368px] shrink-0 overflow-y-auto border-l border-border bg-white xl:w-[400px] lg:block">
               {rightPanel}
             </aside>
           )}

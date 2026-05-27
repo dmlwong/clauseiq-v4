@@ -1,38 +1,24 @@
-import { Badge } from "@/components/ui/badge";
+import { Chip } from "@orbit";
 import type { DeviationCounts } from "@/data/mock-clauseiq";
-import { cn } from "@/lib/utils";
 
 interface Props {
   deviations: DeviationCounts;
   compact?: boolean;
+  singleLine?: boolean;
 }
 
-export function DeviationPills({ deviations, compact = false }: Props) {
-  const pillClass = cn(
-    "rounded-full font-medium",
-    compact ? "px-2 py-0 text-[10px]" : "px-2.5 py-0.5 text-xs",
-  );
+export function DeviationPills({ deviations, compact = false, singleLine = false }: Props) {
+  const size = compact ? "Mini" : "Small";
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <Badge variant="outline" className={cn(pillClass, "border-border bg-muted text-muted-foreground")}>
-        Missing {deviations.missing}
-      </Badge>
-      <Badge
-        variant="outline"
-        className={cn(pillClass, "border-destructive/25 bg-destructive/10 text-destructive")}
-      >
-        High {deviations.high}
-      </Badge>
-      <Badge
-        variant="outline"
-        className={cn(pillClass, "border-warning/30 bg-warning/15 text-warning-foreground")}
-      >
-        Med {deviations.medium}
-      </Badge>
-      <Badge variant="outline" className={cn(pillClass, "border-border bg-background text-muted-foreground")}>
-        Low {deviations.low}
-      </Badge>
+    <div className={compact ? `flex ${singleLine ? "flex-nowrap gap-[8px]" : "flex-wrap gap-1"}` : "flex flex-wrap gap-2"}>
+      <Chip label={`Missing ${deviations.missing}`} size={size} variant="Information" />
+      <Chip label={`High ${deviations.high}`} size={size} variant="Error" />
+      <Chip label={`Med ${deviations.medium}`} size={size} variant="Warning" />
+      <span className="inline-flex [&>span]:!border [&>span]:!border-solid [&>span]:!border-[var(--orbit-color-status-low-border-no-status)]">
+        <Chip label={`Low ${deviations.low}`} size={size} variant="No Status" />
+      </span>
+      <Chip label={`None ${deviations.none}`} size={size} variant="Outline" />
     </div>
   );
 }

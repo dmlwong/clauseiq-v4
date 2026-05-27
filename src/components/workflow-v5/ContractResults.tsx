@@ -1942,7 +1942,7 @@ export function ContractResults({
 
       {/* Verdict banner — only when at least 2 versions exist */}
       {!compactHeader && versions.length >= 2 && leftVersion && rightVersion && leftVersion.version !== rightVersion.version && (
-        <div className="max-w-[1600px] mx-auto px-orbit-m pt-orbit-m">
+        <div className="max-w-[1600px] mx-auto px-orbit-base pt-orbit-m">
           <VersionVerdictBanner
             leftVersion={leftVersion}
             rightVersion={rightVersion}
@@ -1968,7 +1968,7 @@ export function ContractResults({
 
       {/* Negotiation trend strip — V1 → Vn (TASK-07) */}
       {!compactHeader && versions.length >= 2 && (
-        <div className="max-w-[1600px] mx-auto px-orbit-m pt-orbit-base">
+        <div className="max-w-[1600px] mx-auto px-orbit-base pt-orbit-base">
           <NegotiationTrendStrip
             versions={versions}
             allDecisions={allDecisions}
@@ -1990,7 +1990,7 @@ export function ContractResults({
       ) : comparisonDesignContent ? (
         comparisonDesignContent
       ) : (
-        <div className="mx-auto grid max-w-[1600px] grid-cols-[240px_minmax(0,1fr)] gap-orbit-m px-orbit-m py-orbit-m">
+        <div className="mx-auto grid max-w-[1600px] grid-cols-[240px_minmax(0,1fr)] gap-orbit-m px-orbit-base py-orbit-m">
           <CategorySidebar
             categories={comparisonCategoryItems}
             total={categoryTotal}
@@ -2440,7 +2440,7 @@ function FirstAnalysisDemoToggle({
 function FirstAnalysisContextBanner() {
   return (
     <section className="bg-background">
-      <div className="mx-auto w-full max-w-[1500px] px-orbit-m pt-orbit-base pb-orbit-none">
+      <div className="mx-auto w-full max-w-[1500px] px-orbit-base pt-orbit-base pb-orbit-none">
         <div className="rounded-lg border border-border bg-card px-orbit-base py-orbit-base shadow-sm">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-orbit-s">
@@ -3841,6 +3841,15 @@ function PairSelector({
   );
 }
 
+const categorySidebarRowClassName = (active: boolean, disabled = false) => cn(
+  "flex w-full items-center rounded-md border px-orbit-s py-orbit-xs text-left text-[11px] transition-colors",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]",
+  active
+    ? "border-[var(--orbit-color-card-border-selected)] bg-[var(--orbit-color-card-bg-selected)] font-medium text-[var(--orbit-color-text-primary)]"
+    : "border-transparent text-[var(--orbit-color-text-secondary)] hover:border-[var(--orbit-color-card-border-hover)] hover:bg-[var(--orbit-color-btn-secondary-bg-hover)] hover:text-[var(--orbit-color-text-primary)]",
+  disabled && "opacity-60",
+);
+
 function CategorySidebar({
   categories,
   total,
@@ -3880,7 +3889,7 @@ function CategorySidebar({
       {variant === "rail" && (
         <p
           tabIndex={0}
-          className="mb-orbit-xs rounded-md px-orbit-s py-orbit-xs text-[9px] font-medium uppercase tracking-[0.04em] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          className="mb-orbit-xs rounded-md px-orbit-s py-orbit-xs text-[9px] font-medium uppercase tracking-[0.04em] text-[var(--orbit-color-text-secondary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]"
         >
           Categories
         </p>
@@ -3893,17 +3902,14 @@ function CategorySidebar({
           }}
           type="button"
           role="button"
+          aria-pressed={activeCategories.length === 0}
           aria-label={`Clear category filters, ${total} clauses`}
           onClick={() => onSelectCategory(null)}
           onKeyDown={(event) => handleRowKeyDown(event, 0)}
-          className={`flex w-full items-center justify-between rounded-md px-orbit-s py-orbit-xs text-left text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
-            activeCategories.length === 0
-              ? "bg-[#E6F1FB]/50 font-medium text-foreground"
-              : "text-muted-foreground hover:bg-[#f8f7f5]"
-          }`}
+          className={cn(categorySidebarRowClassName(activeCategories.length === 0), "justify-between")}
         >
           <span>All</span>
-          <Chip label={String(total)} size="Mini" variant={activeCategories.length === 0 ? "Information" : "No Status"} />
+          <Chip label={String(total)} size="Mini" variant="No Status" selected={activeCategories.length === 0} />
         </button>
 
         {sortedCategories.map((category, index) => {
@@ -3921,16 +3927,10 @@ function CategorySidebar({
               aria-label={`${active ? "Remove" : "Add"} ${category.name} category filter, ${category.count} clauses`}
               onClick={() => onSelectCategory(category.name)}
               onKeyDown={(event) => handleRowKeyDown(event, rowIndex)}
-              className={`flex w-full items-center gap-orbit-s rounded-md px-orbit-s py-orbit-xs text-left text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
-                category.count === 0 ? "opacity-60" : ""
-              } ${
-                active
-                  ? "bg-[#E6F1FB]/50 font-medium text-foreground"
-                  : "text-muted-foreground hover:bg-[#f8f7f5]"
-              }`}
+              className={cn(categorySidebarRowClassName(active, category.count === 0), "gap-orbit-s")}
             >
               <span className="min-w-0 flex-1 truncate">{category.name}</span>
-              <Chip label={String(category.count)} size="Mini" variant={active ? "Information" : "No Status"} />
+              <Chip label={String(category.count)} size="Mini" variant="No Status" selected={active} />
             </button>
           );
         })}
@@ -6374,7 +6374,7 @@ function HistoryDesignContent({
 
   if (option === "side-by-side") {
     return (
-      <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-m py-orbit-base xl:grid-cols-[360px_minmax(0,1fr)] xl:items-start">
+      <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-base py-orbit-base xl:grid-cols-[360px_minmax(0,1fr)] xl:items-start">
         <aside className="self-start xl:sticky xl:top-[104px] xl:max-h-[calc(100vh-128px)] xl:overflow-y-auto">
           <section className="overflow-hidden rounded-lg border border-border bg-card">
             <HistoryRailTabs active={railTab} onChange={setRailTab} />
@@ -6400,7 +6400,7 @@ function HistoryDesignContent({
   }
 
   return (
-    <div className="mx-auto grid max-w-[1600px] grid-cols-[240px_minmax(0,1fr)] gap-orbit-m px-orbit-m py-orbit-m">
+    <div className="mx-auto grid max-w-[1600px] grid-cols-[240px_minmax(0,1fr)] gap-orbit-m px-orbit-base py-orbit-m">
       {categoryRail}
       <HistoryRoundTable
         versions={versions}

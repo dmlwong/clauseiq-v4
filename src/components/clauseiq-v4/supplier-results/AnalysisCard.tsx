@@ -1,13 +1,14 @@
 import { useId, useState } from "react";
 import { motion } from "framer-motion";
 import { Check, Download, Eye, FileText, RotateCw, SlidersHorizontal } from "lucide-react";
+import { Chip } from "@orbit";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import type { ClauseAnalysis, Supplier } from "@/data/mock-clauseiq";
 import { cn } from "@/lib/utils";
 import { supplierSeverity } from "@/lib/clauseiq-utils";
 import { SupplierAvatar } from "./SupplierAvatar";
+import { DeviationPills } from "./DeviationPills";
 import type { AnalysisParameterItem } from "./types";
 
 interface Props {
@@ -64,13 +65,9 @@ export function AnalysisCard({
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <Badge variant="outline" className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground">
-                Analysis Result
-              </Badge>
+              <ResultStatusChip tone="neutral">Analysis Result</ResultStatusChip>
               {isLatestOutput && (
-                <Badge variant="outline" className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground">
-                  Latest output
-                </Badge>
+                <ResultStatusChip tone="neutral">Latest output</ResultStatusChip>
               )}
             </div>
             <span className="shrink-0 text-sm text-muted-foreground">{formatAnalysisTimestamp(analysis.analysedAt)}</span>
@@ -110,24 +107,7 @@ export function AnalysisCard({
             <p id={deviationSummaryId} className="text-base text-muted-foreground">
               Missing Clauses and deviation levels
             </p>
-            <div className="flex flex-nowrap items-center gap-1 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <DeviationChip
-                label="Missing"
-                wideLabel="Missing Clauses"
-                fullLabel="Missing Clauses"
-                value={analysis.deviations.missing}
-                tone="missing"
-              />
-              <DeviationChip label="High" fullLabel="High deviation" value={analysis.deviations.high} tone="high" />
-              <DeviationChip
-                label="Medium"
-                fullLabel="Medium deviation"
-                value={analysis.deviations.medium}
-                tone="medium"
-              />
-              <DeviationChip label="Low" fullLabel="Low deviation" value={analysis.deviations.low} tone="low" />
-              <DeviationChip label="None" fullLabel="No deviation" value={analysis.deviations.none} tone="none" />
-            </div>
+            <DeviationPills deviations={analysis.deviations} compact />
           </div>
         </div>
 
@@ -180,7 +160,7 @@ function AnalysisParametersSummary({ parameters }: { parameters: AnalysisParamet
               {parameter.value}
             </span>
           </div>
-          <span className="shrink-0 font-medium text-foreground">Parameter Applied</span>
+          <span className="shrink-0 font-medium text-foreground">Selected</span>
         </div>
       ))}
     </div>
@@ -217,42 +197,24 @@ function StatusLine({
   );
 }
 
-function DeviationChip({
-  label,
-  wideLabel,
-  fullLabel = label,
-  value,
+function ResultStatusChip({
   tone,
+  children,
 }: {
-  label: string;
-  wideLabel?: string;
-  fullLabel?: string;
-  value: number;
-  tone: "missing" | "high" | "medium" | "low" | "none";
+  tone: "neutral" | "success" | "warning" | "destructive";
+  children: React.ReactNode;
 }) {
+  const label = String(children);
+  const variant =
+    tone === "success" ? "Success" :
+      tone === "warning" ? "Warning" :
+        tone === "destructive" ? "Error" :
+          "Outline";
+
   return (
-    <Badge
-      variant="outline"
-      aria-label={`${fullLabel}: ${value}`}
-      className={cn(
-        "shrink-0 gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-xs font-medium leading-5",
-        tone === "missing" && "border-slate-400 bg-muted/50 text-foreground",
-        tone === "high" && "border-destructive bg-destructive/10 text-destructive",
-        tone === "medium" && "border-warning bg-warning/10 text-warning-foreground",
-        tone === "low" && "border-success bg-success/10 text-success",
-        tone === "none" && "border-slate-300 bg-background text-muted-foreground",
-      )}
-    >
-      {wideLabel ? (
-        <>
-          <span className="sm:hidden">{label}</span>
-          <span className="hidden sm:inline">{wideLabel}</span>
-        </>
-      ) : (
-        <span>{label}</span>
-      )}
-      <span className="tabular-nums">{value}</span>
-    </Badge>
+    <span className="shrink-0">
+      <Chip label={label} size="Mini" variant={variant} />
+    </span>
   );
 }
 

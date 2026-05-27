@@ -220,7 +220,7 @@ describe("ClauseIQ V5 flow", () => {
     const { container } = renderClauseIQ("/clauseiq-v5?view=results");
 
     expect(container.textContent).toContain(CIQ_DEFAULT_PLAYBOOK);
-    expect(screen.getAllByText("Parameter Applied").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Selected").length).toBeGreaterThan(0);
     expect(screen.queryByRole("heading", { name: "Contract Analysis Parameters" })).not.toBeInTheDocument();
     expect(screen.queryByText("All categories")).not.toBeInTheDocument();
     expect(screen.queryByText("United Kingdom")).not.toBeInTheDocument();

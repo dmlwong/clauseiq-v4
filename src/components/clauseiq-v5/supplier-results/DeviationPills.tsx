@@ -15,6 +15,7 @@ export function DeviationPills({ deviations, compact = false }: Props) {
       <Chip label={`High ${deviations.high}`} size={size} variant="Error" />
       <Chip label={`Medium ${deviations.medium}`} size={size} variant="Warning" />
       <Chip label={`Low ${deviations.low}`} size={size} variant="Success" />
+      <Chip label={`None ${deviations.none}`} size={size} variant="No Status" />
     </div>
   );
 }

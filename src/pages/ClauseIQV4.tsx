@@ -49,7 +49,6 @@ interface AnalysisParameterSelection {
 
 const PROCESSING_MS = 3_000;
 const DEFAULT_BASIS_SELECTION: AnalysisBasisSelection = { kind: "Playbook", label: CIQ_DEFAULT_PLAYBOOK };
-const DEFAULT_CATEGORY = "Services";
 const BASIS_PARAMETER_OPTIONS = CIQ_PARAMETER_OPTIONS.filter(
   (option): option is CiqParameterOption & { kind: AnalysisBasisKind } => option.kind !== "Category",
 );
@@ -87,7 +86,7 @@ const LATEST_V4_RESULTS_ROUTE =
 
 const createDefaultParameterSelection = (): AnalysisParameterSelection => ({
   basis: { ...DEFAULT_BASIS_SELECTION },
-  category: DEFAULT_CATEGORY,
+  category: null,
 });
 
 const buildAnalysisParameters = (
@@ -109,8 +108,10 @@ const buildAnalysisParameters = (
 
 const hasCompleteAnalysisParameters = (
   selected: AnalysisParameterSelection | null,
-): selected is AnalysisParameterSelection & { basis: AnalysisBasisSelection; category: string } => {
-  return Boolean(selected?.basis && selected.category);
+): selected is AnalysisParameterSelection & { basis: AnalysisBasisSelection } => {
+  if (!selected?.basis) return false;
+  if (selected.basis.kind === "Playbook") return true;
+  return Boolean(selected.category);
 };
 
 interface ClauseIQV4Props {
@@ -302,10 +303,10 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
     if (option.kind === "Category") return;
     setSelectedParameter((current) => ({
       basis: { kind: option.kind, label: value },
-      category: current?.category ?? null,
+      category: option.kind === "Governing Law" ? current?.category ?? null : null,
     }));
     setFile(null);
-    setStep((currentStep) => (currentStep === "upload" && selectedParameter?.category ? "upload" : "parameters"));
+    setStep(option.kind === "Playbook" ? "upload" : "parameters");
   };
 
   const handleCategorySelect = (_option: CiqParameterOption, value: string) => {
@@ -321,7 +322,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
     if (option.kind === "Category") return;
     setRerunSelectedParameter((current) => ({
       basis: { kind: option.kind, label: value },
-      category: current?.category ?? null,
+      category: option.kind === "Governing Law" ? current?.category ?? null : null,
     }));
     setFile(null);
   };
@@ -335,7 +336,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   };
 
   const handleRerunBasisEdit = () => {
-    setRerunSelectedParameter((current) => current ? { ...current, basis: null } : null);
+    setRerunSelectedParameter((current) => current ? { ...current, basis: null, category: null } : null);
     setFile(null);
   };
 
@@ -346,7 +347,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
 
   const handleBasisEdit = () => {
     if (parameterLocked) return;
-    setSelectedParameter((current) => current ? { ...current, basis: null } : null);
+    setSelectedParameter((current) => current ? { ...current, basis: null, category: null } : null);
     setFile(null);
     setStep("parameters");
   };
@@ -456,7 +457,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
                 Upload a contract and ClauseIQ will review it against your initiative's playbook,
                 surfacing deviations, missing clauses and negotiation actions in seconds.
               </p>
-              <div className="rounded-lg bg-muted/50 border border-border p-[16px] mb-5 space-y-3">
+              <div className={cn("rounded-lg bg-muted/50 border border-border p-[16px] space-y-3", step === "welcome" && "mb-5")}>
                 <div className="text-sm font-medium text-foreground mb-1">Summary</div>
                 <SummaryRow icon={<ListChecks className="h-4 w-4 text-ciq" />} text="Reviews every clause against your benchmark playbook." />
                 <SummaryRow icon={<Building2 className="h-4 w-4 text-ciq" />} text="Tied to a chosen initiative for traceable governance." />
@@ -720,7 +721,7 @@ function PostAnalysisNextActions({
       >
         <Sparkles className="h-6 w-6 shrink-0 text-primary" />
         <span className="min-w-0">
-          <span className="block text-lg font-semibold text-foreground">
+          <span className="block text-sm font-medium text-foreground">
             Analyse Contract on Another Initiative
           </span>
           <span className="mt-1 block text-base text-muted-foreground">
@@ -736,7 +737,7 @@ function PostAnalysisNextActions({
           <div className="flex min-w-0 items-start gap-3">
             <ClipboardList className="mt-1 h-5 w-5 shrink-0 text-primary" />
             <div>
-              <h3 id="v4-update-milestone-title" className="text-lg font-semibold text-foreground">
+              <h3 id="v4-update-milestone-title" className="text-sm font-medium text-foreground">
                 Update Milestone
               </h3>
               <p className="mt-1 text-base text-muted-foreground">Track your initiative progress.</p>
@@ -794,7 +795,7 @@ function PostAnalysisNextActions({
         >
           <BadgeCheck className="h-6 w-6 shrink-0 text-primary" />
           <span className="min-w-0">
-            <span className="block text-lg font-semibold text-foreground">Complete Initiative</span>
+            <span className="block text-sm font-medium text-foreground">Complete Initiative</span>
             <span className="mt-1 block text-base text-muted-foreground">
               Mark this initiative as complete.
             </span>
@@ -823,6 +824,7 @@ function AnalysisParameterCards({
   onCategoryEdit: () => void;
 }) {
   const basisSelected = Boolean(selectedParameter?.basis);
+  const categoryRequired = selectedParameter?.basis?.kind === "Governing Law";
   const categorySelected = Boolean(selectedParameter?.category);
   const [activeBasisKind, setActiveBasisKind] = useState<AnalysisBasisKind>("Playbook");
 
@@ -860,7 +862,7 @@ function AnalysisParameterCards({
         )}
       </StateCard>
 
-      {basisSelected && (
+      {basisSelected && categoryRequired && (
         <StateCard state={categorySelected ? "default" : "active"}>
           <h2 className="text-base font-semibold mb-1">Category</h2>
           {!categorySelected ? (
@@ -1033,7 +1035,7 @@ function parameterDisclaimer(parameter: AnalysisParameterSelection | null) {
   }
 
   if (parameter.basis.kind === "Playbook") {
-    return `Analysis is based on the selected playbook and ${parameter.category} category. Clauses outside that combined scope won't appear in results.`;
+    return "Analysis is based on the selected playbook. Clauses outside that playbook scope won't appear in results.";
   }
 
   return `Analysis is based on the selected governing law and ${parameter.category} category. Clauses outside that combined scope won't appear in results.`;

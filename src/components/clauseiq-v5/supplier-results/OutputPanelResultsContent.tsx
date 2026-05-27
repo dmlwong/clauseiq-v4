@@ -309,13 +309,7 @@ function SupplierOutputGroup({
   return (
     <section className="overflow-hidden">
       <Card type="Static" state="Default" padding="Small">
-      <button
-        type="button"
-        className="flex w-full items-center gap-orbit-s rounded-md px-orbit-s py-orbit-s text-left transition-colors hover:bg-muted/40"
-        aria-expanded={open}
-        aria-controls={contentId}
-        onClick={onToggle}
-      >
+      <div className="flex w-full items-center gap-orbit-s py-orbit-s text-left">
         <SupplierAvatar
           name={supplier.name}
           shortCode={supplier.shortCode}
@@ -329,15 +323,23 @@ function SupplierOutputGroup({
             {containsLatestOutput && <span className="font-medium"> - Latest output</span>}
           </p>
         </div>
-        <motion.span
-          animate={{ rotate: open ? 180 : 0 }}
-          transition={{ duration: 0.16 }}
-          className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted-foreground"
-          aria-hidden="true"
+        <button
+          type="button"
+          className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-expanded={open}
+          aria-controls={contentId}
+          aria-label={`${open ? "Collapse" : "Expand"} ${supplier.name} outputs`}
+          onClick={onToggle}
         >
-          <ChevronDown className="h-4 w-4" />
-        </motion.span>
-      </button>
+          <motion.span
+            animate={{ rotate: open ? 180 : 0 }}
+            transition={{ duration: 0.16 }}
+            aria-hidden="true"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </motion.span>
+        </button>
+      </div>
 
       <AnimatePresence initial={false}>
         {open && (
@@ -349,7 +351,7 @@ function SupplierOutputGroup({
             transition={{ duration: 0.18, ease: "easeOut" }}
             className="overflow-hidden"
           >
-            <div className="space-y-orbit-s px-orbit-s pb-orbit-s">
+            <div className="divide-y divide-border/70 border-t border-border/70">
               {analyses.map((analysis) => (
                 <CompactOutputRow
                   key={analysis.id}
@@ -383,8 +385,7 @@ function CompactOutputRow({
   onViewResult?: () => void;
 }) {
   return (
-    <article>
-      <Card type="Static" state="Default" padding="Small">
+    <article className="pt-orbit-s">
       <div className="flex items-start justify-between gap-orbit-s">
         <div className="min-w-0">
           <p className="truncate text-xs font-medium text-foreground">{analysis.fileName}</p>
@@ -413,7 +414,6 @@ function CompactOutputRow({
           <Download className="h-3.5 w-3.5" />
         </CompactActionButton>
       </div>
-      </Card>
     </article>
   );
 }

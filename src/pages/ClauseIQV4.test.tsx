@@ -62,10 +62,10 @@ describe("ClauseIQ V4 flow", () => {
         .length,
     ).toBeGreaterThan(0);
     expect(
-      screen.getAllByText(
+      screen.queryByText(
         "Once outputs are available, you can switch between Mine and Team to review your own results or the team's results.",
-      ).length,
-    ).toBeGreaterThan(0);
+      ),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /get started/i }));
 
@@ -89,7 +89,7 @@ describe("ClauseIQ V4 flow", () => {
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
   });
 
-  it("selects a playbook parameter, then category, and then shows upload", async () => {
+  it("selects a playbook parameter and shows upload without category", async () => {
     renderClauseIQ();
 
     startAndSelectInitiative();
@@ -97,15 +97,8 @@ describe("ClauseIQ V4 flow", () => {
 
     expect(screen.getByText(`Playbook · ${CIQ_DEFAULT_PLAYBOOK}`)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /change playbook/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Category" })).toBeInTheDocument();
-    expect(screen.getByRole("listbox", { name: "Category options" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Services" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
-
-    selectServicesCategory();
-
-    expect(screen.getByText("Category · Services")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /change category/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Category" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("listbox", { name: "Category options" })).not.toBeInTheDocument();
     expect(screen.queryByText("Logistics · Sarah Chen")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Upload Contract" })).toBeInTheDocument();
   });
@@ -145,11 +138,11 @@ describe("ClauseIQ V4 flow", () => {
     renderClauseIQ();
 
     startAndSelectInitiative();
-    selectDefaultPlaybook();
+    selectUnitedKingdomLaw();
     selectServicesCategory();
     fireEvent.click(screen.getByRole("button", { name: /change category/i }));
 
-    expect(screen.getByText(`Playbook · ${CIQ_DEFAULT_PLAYBOOK}`)).toBeInTheDocument();
+    expect(screen.getByText("Governing Law · United Kingdom")).toBeInTheDocument();
     expect(screen.getByRole("listbox", { name: "Category options" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Services" })).toBeInTheDocument();
     expect(screen.queryByText("Category · Services")).not.toBeInTheDocument();
@@ -161,7 +154,6 @@ describe("ClauseIQ V4 flow", () => {
 
     startAndSelectInitiative();
     selectDefaultPlaybook();
-    selectServicesCategory();
 
     const input = container.querySelector<HTMLInputElement>('input[type="file"]');
     expect(input).toBeTruthy();
@@ -181,7 +173,6 @@ describe("ClauseIQ V4 flow", () => {
 
     startAndSelectInitiative();
     selectDefaultPlaybook();
-    selectServicesCategory();
 
     const input = container.querySelector<HTMLInputElement>('input[type="file"]');
     expect(input).toBeTruthy();
@@ -195,7 +186,7 @@ describe("ClauseIQ V4 flow", () => {
     expect(screen.getByRole("heading", { name: "Analysing Your Contract" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Next, you can..." })).not.toBeInTheDocument();
     expect(screen.getByText(`Playbook · ${CIQ_DEFAULT_PLAYBOOK}`).closest(".min-h-11")).toHaveClass("bg-muted");
-    expect(screen.getByText("Category · Services").closest(".min-h-11")).toHaveClass("bg-muted");
+    expect(screen.queryByText("Category · Services")).not.toBeInTheDocument();
     expect(screen.getAllByText("Analysis In Progress").length).toBeGreaterThan(0);
     expect(
       screen.getAllByText(
@@ -289,11 +280,7 @@ describe("ClauseIQ V4 flow", () => {
     expect(screen.queryByLabelText(/search playbook options/i)).not.toBeInTheDocument();
     expect(screen.getByText(`Playbook · ${CIQ_DEFAULT_PLAYBOOK}`)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /change playbook/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Category" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
-
-    selectServicesCategory();
-    expect(screen.getByText("Category · Services")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Category" })).not.toBeInTheDocument();
     const uploadHeading = screen.getByRole("heading", { name: "Upload Contract" });
 
     expect(screen.getByRole("button", { name: /change playbook/i }).compareDocumentPosition(uploadHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -308,7 +295,6 @@ describe("ClauseIQ V4 flow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Run Another Analysis" }));
     selectDefaultPlaybook();
-    selectServicesCategory();
 
     const input = container.querySelector<HTMLInputElement>('input[type="file"]');
     expect(input).toBeTruthy();
@@ -338,7 +324,7 @@ describe("ClauseIQ V4 flow", () => {
     const { container } = renderClauseIQ("/clauseiq-v4?view=results");
 
     expect(container.textContent).toContain(CIQ_DEFAULT_PLAYBOOK);
-    expect(screen.getAllByText("Parameter Applied").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Selected").length).toBeGreaterThan(0);
     expect(screen.queryByRole("heading", { name: "Contract Analysis Parameters" })).not.toBeInTheDocument();
     expect(screen.queryByText("All categories")).not.toBeInTheDocument();
     expect(screen.queryByText("Services")).not.toBeInTheDocument();

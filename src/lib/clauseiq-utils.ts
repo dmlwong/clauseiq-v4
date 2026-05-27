@@ -9,8 +9,9 @@ export function aggregateDeviations(analyses: ClauseAnalysis[]): DeviationCounts
       high: acc.high + analysis.deviations.high,
       medium: acc.medium + analysis.deviations.medium,
       low: acc.low + analysis.deviations.low,
+      none: acc.none + analysis.deviations.none,
     }),
-    { missing: 0, high: 0, medium: 0, low: 0 },
+    { missing: 0, high: 0, medium: 0, low: 0, none: 0 },
   );
 }
 

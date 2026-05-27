@@ -166,7 +166,7 @@ export function ComparisonDesignOptions({
 
   if (option === "side-by-side" || option === "row-scale") {
     return (
-      <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-m py-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
+      <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-base py-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
         <aside className="xl:sticky xl:top-[100px] xl:max-h-[calc(100vh-180px)] xl:self-start xl:overflow-y-auto">
           <section className="overflow-hidden rounded-lg border border-border bg-card p-orbit-base">
             <ComparisonSummaryRail
@@ -197,7 +197,7 @@ export function ComparisonDesignOptions({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] space-y-orbit-base px-orbit-m py-orbit-base">
+    <div className="mx-auto w-full max-w-[1500px] space-y-orbit-base px-orbit-base py-orbit-base">
       <section className="grid items-stretch gap-orbit-base xl:grid-cols-2">
         <NarrativeSummary
           stripStats={stripStats}
@@ -287,7 +287,7 @@ export function FirstAnalysisDesignOptions({
 
   if (option === "side-by-side" || option === "row-scale") {
     return (
-      <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-m py-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
+      <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-base py-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
         <aside className="xl:sticky xl:top-[100px] xl:max-h-[calc(100vh-180px)] xl:self-start xl:overflow-y-auto">
           <section className="overflow-hidden rounded-lg border border-border bg-card p-orbit-base">
             <FirstAnalysisReviewCountPanel visibleCount={visibleCount} />
@@ -308,7 +308,7 @@ export function FirstAnalysisDesignOptions({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] space-y-orbit-base px-orbit-m py-orbit-base">
+    <div className="mx-auto w-full max-w-[1500px] space-y-orbit-base px-orbit-base py-orbit-base">
       <section className="grid items-stretch gap-orbit-base xl:grid-cols-2">
         <InitialAnalysisSummaryCard
           metrics={metrics}

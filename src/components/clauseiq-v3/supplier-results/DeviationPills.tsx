@@ -33,6 +33,9 @@ export function DeviationPills({ deviations, compact = false }: Props) {
       <Badge variant="outline" className={cn(pillClass, "border-border bg-background text-muted-foreground")}>
         Low {deviations.low}
       </Badge>
+      <Badge variant="outline" className={cn(pillClass, "border-border bg-background text-muted-foreground")}>
+        None {deviations.none}
+      </Badge>
     </div>
   );
 }

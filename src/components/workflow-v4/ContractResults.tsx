@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
+import { Chip } from "@orbit";
 import {
   ChevronLeft, AlertTriangle, CheckCircle2, Search, MapPin, Lightbulb,
   GitCompare, History, X, ArrowRight, Upload, Trash2, FileText, Loader2,
@@ -67,7 +68,7 @@ import {
 } from "@/hooks/use-clause-decisions";
 import { cn } from "@/lib/utils";
 import { CLAUSE_FRAMEWORK } from "@/lib/clauses-framework";
-import { classifyChange, materialChangeLabel, materialChangeTone } from "@/lib/material-change";
+import { classifyChange, materialChangeLabel, type MaterialChangeKind } from "@/lib/material-change";
 import {
   CHANGE_DIRECTION_CONFIDENCE_THRESHOLD,
   NEW_CHANGE_LABEL,
@@ -81,7 +82,6 @@ import { VersionVerdictBanner } from "./VersionVerdictBanner";
 import { TextDiff } from "./TextDiff";
 import { NegotiationTrendStrip } from "./NegotiationTrendStrip";
 import { getClauseAudit, confidenceLabel } from "@/lib/audit-trail";
-import { getSupplierGrouping } from "@/lib/supplier-grouping";
 import { downloadCsv } from "@/lib/csv-export";
 import {
   deriveComparisonModel,
@@ -210,8 +210,79 @@ const severityTone = (s: ClauseResult["severity"] | undefined) =>
     : s === "low" ? "bg-success/10 text-success border-success/20"
     : "bg-muted text-muted-foreground border-border";
 
-const firstAnalysisDeviationBadgeClass =
-  "shrink-0 rounded-full border-[#F3B4B4] bg-[#FFF1F2] px-1.5 py-0.5 text-[9px] font-medium text-[#A32D2D]";
+type DashboardChipVariant = "Information" | "Success" | "Warning" | "Error" | "No Status" | "Outline";
+
+function DashboardChip({
+  label,
+  variant,
+  borderedNoStatus = false,
+}: {
+  label: string;
+  variant: DashboardChipVariant;
+  borderedNoStatus?: boolean;
+}) {
+  const chip = <Chip label={label} size="Mini" variant={variant} />;
+
+  if (borderedNoStatus) {
+    return (
+      <span className="inline-flex shrink-0 [&>span]:!border [&>span]:!border-solid [&>span]:!border-[var(--orbit-color-status-low-border-no-status)]">
+        {chip}
+      </span>
+    );
+  }
+
+  return <span className="inline-flex shrink-0">{chip}</span>;
+}
+
+function dashboardSeverityChipVariant(severity?: ClauseResult["severity"]): DashboardChipVariant {
+  if (severity === "high") return "Error";
+  if (severity === "medium") return "Warning";
+  if (severity === "low") return "No Status";
+  return "Outline";
+}
+
+function DashboardSeverityChip({
+  severity,
+  label,
+}: {
+  severity?: ClauseResult["severity"];
+  label?: string;
+}) {
+  return (
+    <DashboardChip
+      label={label ?? `${titleCaseSeverity(severity)} Deviation`}
+      variant={dashboardSeverityChipVariant(severity)}
+      borderedNoStatus={severity === "low"}
+    />
+  );
+}
+
+function dashboardStatusToneVariant(tone: "blue" | "green" | "neutral"): DashboardChipVariant {
+  if (tone === "green") return "Success";
+  if (tone === "blue") return "Information";
+  return "Outline";
+}
+
+function dashboardRoundOutcomeVariant(label: RoundOutcome["label"]): DashboardChipVariant {
+  if (label === "Closed") return "Success";
+  if (label === "Still Open") return "Warning";
+  if (label === "New Change") return "Error";
+  if (label === "Requested Change" || label === "Updated") return "Information";
+  return "Outline";
+}
+
+function dashboardRoundStatusVariant(status: RoundStatus): DashboardChipVariant {
+  if (status === "met") return "Success";
+  if (status === "not_met") return "Error";
+  if (status === "open" || status === "regressed") return "Warning";
+  if (status === "requested" || status === "new") return "Information";
+  return "Outline";
+}
+
+function dashboardMaterialChangeVariant(change: MaterialChangeKind): DashboardChipVariant {
+  if (change === "material") return "No Status";
+  return "Outline";
+}
 
 const SEVERITY_WEIGHTS: Record<"high" | "medium" | "low", number> = {
   high: 9,
@@ -640,6 +711,7 @@ export function ContractResults({
   const mode = firstAnalysisDemo ? "comparison" : normalizeMode(searchParams.get("mode"));
   const designOption = normalizeComparisonDesignOption(searchParams.get("design"));
   const decisionContractId = firstAnalysisDemo ? `${contractId}:first-analysis-demo` : contractId;
+  const generatedCsvStoragePrefix = `ciq-v4-generated-csv:${supplierId}:${decisionContractId}:`;
   const firstAnalysisResetKeyRef = useRef<string | null>(null);
 
   // Local mutable copy of versions so the user can simulate uploading a new
@@ -665,11 +737,21 @@ export function ContractResults({
     const resetKey = `${supplierId}:${decisionContractId}`;
     if (firstAnalysisResetKeyRef.current === resetKey) return;
     decisions.resetContract(supplierId, decisionContractId);
+    setGeneratedCsvSignatures((current) => Object.fromEntries(
+      Object.entries(current).filter(([key]) => !key.startsWith(generatedCsvStoragePrefix)),
+    ));
+    try {
+      Object.keys(localStorage)
+        .filter((key) => key.startsWith(generatedCsvStoragePrefix))
+        .forEach((key) => localStorage.removeItem(key));
+    } catch {
+      // Local persistence is best-effort in the prototype.
+    }
     setBulkReviewSelection(null);
     setBulkAppliedRecommendationIds([]);
     setBulkAppliedRecommendationScopeLabel(null);
     firstAnalysisResetKeyRef.current = resetKey;
-  }, [decisionContractId, decisions, firstAnalysisDemo, supplierId]);
+  }, [decisionContractId, decisions, firstAnalysisDemo, generatedCsvStoragePrefix, supplierId]);
 
   // Seed plausible round-1 request decisions for the demo focus clauses.
   useEffect(() => {
@@ -889,23 +971,49 @@ export function ContractResults({
   const pendingRequestItems = useMemo<BasketRequestItem[]>(() => {
     if (mode !== "comparison" || !activeRequestVersion) return [];
     return decisions.getPendingRequests(supplierId, decisionContractId, activeRequestVersion.version).map((item) => {
-      const clause =
-        activeRequestVersion.clauses.find((candidate) => candidate.id === item.clauseId) ??
-        leftVersion?.clauses.find((candidate) => candidate.id === item.clauseId);
-      const def = CLAUSE_FRAMEWORK.find((candidate) => candidate.id === item.clauseId);
-      return {
-        clauseId: item.clauseId,
-        clauseTitle: clause?.title ?? def?.title ?? item.clauseId.toUpperCase(),
-        category: clause?.category,
-        severity: clause?.severity,
-        missingClause: clause?.missingClause,
-        sourceDeviationLevel: clause?.sourceDeviationLevel,
-        request: item.request,
-      };
+      return buildBasketRequestItem(item.clauseId, item.request, activeRequestVersion, leftVersion);
     });
   }, [activeRequestVersion, decisionContractId, decisions, leftVersion, mode, supplierId]);
+  const currentRequestItems = useMemo<BasketRequestItem[]>(() => {
+    if (mode !== "comparison" || !activeRequestVersion) return [];
+
+    return Object.entries(allDecisions)
+      .filter(([, state]) => state.roundDecisions[activeRequestVersion.version] === "request-update")
+      .map(([clauseId, state]) => {
+        const request = state.requests[activeRequestVersion.version];
+        if (!request?.requestedChange?.trim()) return null;
+        return buildBasketRequestItem(clauseId, request, activeRequestVersion, leftVersion);
+      })
+      .filter((item): item is BasketRequestItem => Boolean(item))
+      .sort((a, b) => versionClauseIndex(activeRequestVersion, a.clauseId) - versionClauseIndex(activeRequestVersion, b.clauseId));
+  }, [activeRequestVersion, allDecisions, leftVersion, mode]);
+  const currentReviewSignature = useMemo(
+    () => activeRequestVersion ? buildReviewDecisionSignature(activeRequestVersion, allDecisions) : "",
+    [activeRequestVersion, allDecisions],
+  );
+  const generatedCsvStorageKey = activeRequestVersion
+    ? `${generatedCsvStoragePrefix}${activeRequestVersion.version}`
+    : null;
+  const [generatedCsvSignatures, setGeneratedCsvSignatures] = useState<Record<string, string | null>>({});
+  useEffect(() => {
+    if (!generatedCsvStorageKey || generatedCsvSignatures[generatedCsvStorageKey] !== undefined) return;
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(generatedCsvStorageKey);
+    } catch {
+      stored = null;
+    }
+    setGeneratedCsvSignatures((current) => (
+      current[generatedCsvStorageKey] !== undefined ? current : { ...current, [generatedCsvStorageKey]: stored }
+    ));
+  }, [generatedCsvSignatures, generatedCsvStorageKey]);
+  const lastGeneratedCsvSignature = generatedCsvStorageKey ? generatedCsvSignatures[generatedCsvStorageKey] : null;
+  const hasGeneratedCsv = lastGeneratedCsvSignature !== undefined && lastGeneratedCsvSignature !== null;
+  const csvNeedsUpdate = hasGeneratedCsv && lastGeneratedCsvSignature !== currentReviewSignature;
+  const reviewGenerateRequestItems = csvNeedsUpdate ? currentRequestItems : pendingRequestItems;
+  const reviewGenerateDisabled = !activeRequestVersion || (!csvNeedsUpdate && pendingRequestItems.length === 0);
   const generateRequestedChangesCsv = () => {
-    if (!activeRequestVersion || pendingRequestItems.length === 0) return;
+    if (!activeRequestVersion || reviewGenerateDisabled) return;
     const csv = exportRequestChangeCsv(
       {
         initiativeName: initiative.name,
@@ -914,19 +1022,29 @@ export function ContractResults({
         versionLabel: activeRequestVersion.version,
       },
       activeRequestVersion,
-      pendingRequestItems,
+      reviewGenerateRequestItems,
     );
     downloadCsv(
       `${supplier.name}-${contract.name}-${activeRequestVersion.version}-requested-changes.csv`,
       csv,
     );
     decisions.submitPendingRequests(supplierId, decisionContractId, activeRequestVersion.version);
+    if (generatedCsvStorageKey) {
+      setGeneratedCsvSignatures((current) => ({ ...current, [generatedCsvStorageKey]: currentReviewSignature }));
+      try {
+        localStorage.setItem(generatedCsvStorageKey, currentReviewSignature);
+      } catch {
+        // Local persistence is best-effort in the prototype.
+      }
+    }
     setBulkAppliedRecommendationIds([]);
     setBulkAppliedRecommendationScopeLabel(null);
     setBulkReviewSelection(null);
     toast({
       title: "CSV generated",
-      description: `${pendingRequestItems.length} requested change${pendingRequestItems.length === 1 ? "" : "s"} exported for supplier negotiation.`,
+      description: reviewGenerateRequestItems.length > 0
+        ? `${reviewGenerateRequestItems.length} requested change${reviewGenerateRequestItems.length === 1 ? "" : "s"} exported for supplier negotiation.`
+        : "No requested changes remain. The generated CSV reflects the latest review decisions.",
     });
   };
   const bulkReviewClauseIdSet = new Set(bulkReviewSelection?.clauseIds ?? []);
@@ -934,9 +1052,9 @@ export function ContractResults({
     bulkReviewSelection &&
       activeRequestVersion &&
       bulkReviewSelection.version === activeRequestVersion.version &&
-      pendingRequestItems.length > 0 &&
-      pendingRequestItems.length === bulkReviewClauseIdSet.size &&
-      pendingRequestItems.every((item) => bulkReviewClauseIdSet.has(item.clauseId)),
+      reviewGenerateRequestItems.length > 0 &&
+      reviewGenerateRequestItems.length === bulkReviewClauseIdSet.size &&
+      reviewGenerateRequestItems.every((item) => bulkReviewClauseIdSet.has(item.clauseId)),
   );
 
   const onUploadVersion = (file: File | null, label: string) => {
@@ -1206,8 +1324,7 @@ export function ContractResults({
     quickFilter !== "met";
   const compactBackLabel = backLabel ?? `Back to ${supplier.name}`;
   const dashboardSupplierName = searchParams.get("source") === "clauseiq" ? "Thomson Reuters" : supplier.name;
-  const dashboardAnalysisLabel = firstAnalysisDemo ? "V1" : (latest?.version ?? "v1").toUpperCase();
-  const dashboardReferenceLine = `Supplier: ${dashboardSupplierName} · Contract type: ${contract.type} · Analysis: ${dashboardAnalysisLabel}`;
+  const dashboardReferenceLine = `Supplier: ${dashboardSupplierName}`;
   const switchMode = (nextMode: ClauseIqMode) => {
     const params = new URLSearchParams(searchParams);
     params.set("mode", nextMode);
@@ -1885,18 +2002,14 @@ export function ContractResults({
           <CompactContractTopbar
             backLabel={compactBackLabel}
             onBack={onBack}
-            contractName={contract.name}
-            contractType={contract.type}
             referenceLine={dashboardReferenceLine}
-            supplierId={supplierId}
-            supplierName={supplier.name}
             firstAnalysisDemo={firstAnalysisDemo}
             demoAvailable={availableVersions.length >= 2}
             onFirstAnalysisDemoChange={toggleFirstAnalysisDemo}
           />
-          <ModeSwitcher
-            mode={mode}
-            onChange={switchMode}
+	          <ModeSwitcher
+	            mode={mode}
+	            onChange={switchMode}
 	            comparisonLabel={firstAnalysisDemo ? "V1 Analysis" : "Review"}
 	            historyDisabled={firstAnalysisDemo || versions.length < 2}
 	            onApplyAllRecommendations={() => applyAllRecommendations(firstAnalysisRecommendationTargets)}
@@ -1906,7 +2019,7 @@ export function ContractResults({
 	              !firstAnalysisDemo ||
 	              (!canUndoFirstAnalysisRecommendations && firstAnalysisRecommendationTargets.length === 0)
 	            }
-            applyAllRecommendationsQueued={firstAnalysisDemo && firstAnalysisRecommendationsQueued}
+	            applyAllRecommendationsQueued={firstAnalysisDemo && firstAnalysisRecommendationsQueued}
 	            applyAllRecommendationsReviewed={firstAnalysisDemo && firstAnalysisRecommendationsReviewed}
 	            applyAllRecommendationsUndoable={canUndoFirstAnalysisRecommendations}
 	            recommendationApplyOptions={firstAnalysisRecommendationApplyOptions}
@@ -1914,9 +2027,9 @@ export function ContractResults({
 	            undoRecommendationCount={firstAnalysisUndoRecommendationCount}
 	            undoRecommendationScopeLabel={bulkAppliedRecommendationScopeLabel}
 	            onReviewGenerate={() => setRequestReviewOpen(true)}
-            reviewGenerateDisabled={!activeRequestVersion || pendingRequestItems.length === 0}
-            requestCount={pendingRequestItems.length}
-          />
+	            reviewGenerateDisabled={reviewGenerateDisabled}
+	            requestCount={reviewGenerateRequestItems.length}
+	          />
         </div>
       ) : (
         <>
@@ -1928,9 +2041,8 @@ export function ContractResults({
                   <ChevronLeft className="w-4 h-4" /> {backLabel ?? `Back to ${supplier.name}`}
                 </button>
                 <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
-                  <SupplierGroupingPopover supplierId={supplierId} supplierName={supplier.name} />
                   {firstAnalysisDemo && mode === "comparison" && (
-	                    <Button
+		                    <Button
 	                      size="sm"
 	                      variant="outline"
 	                      className="h-9 gap-1.5 bg-white"
@@ -1955,13 +2067,13 @@ export function ContractResults({
                   )}
                   <Button
                     size="sm"
-                    variant={!activeRequestVersion || pendingRequestItems.length === 0 ? "outline" : "default"}
+                    variant={reviewGenerateDisabled ? "outline" : "default"}
                     className="h-9 gap-1.5"
-                    disabled={!activeRequestVersion || pendingRequestItems.length === 0}
+                    disabled={reviewGenerateDisabled}
                     onClick={() => setRequestReviewOpen(true)}
                   >
                     <FileCheck2 className="w-3.5 h-3.5" />
-                    Review &amp; Generate{pendingRequestItems.length > 0 ? ` (${pendingRequestItems.length})` : ""}
+                    Review &amp; Generate{reviewGenerateRequestItems.length > 0 ? ` (${reviewGenerateRequestItems.length})` : ""}
                   </Button>
                   <Button size="sm" variant="default" className="h-9 gap-1.5" onClick={() => setUploadOpen(true)}>
                     <Upload className="w-3.5 h-3.5" /> Upload New Version
@@ -1982,10 +2094,6 @@ export function ContractResults({
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     {initiative.name} · {initiative.reference} · {supplier.name}
                   </p>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
-                    <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">{contract.name}</h1>
-                    <Badge variant="outline">{contract.type}</Badge>
-                  </div>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {dashboardReferenceLine}
                   </p>
@@ -2319,10 +2427,11 @@ export function ContractResults({
       <RequestReviewDialog
         open={requestReviewOpen}
         onOpenChange={setRequestReviewOpen}
-        requests={pendingRequestItems}
+        requests={reviewGenerateRequestItems}
         supplierName={supplier.name}
         bulkSummaryMode={firstAnalysisDemo && bulkReviewSummaryMode}
         reviewProgress={firstAnalysisDemo ? firstAnalysisReviewProgress : undefined}
+        csvNeedsUpdate={csvNeedsUpdate}
         onSubmit={() => {
           generateRequestedChangesCsv();
         }}
@@ -2473,22 +2582,14 @@ function formatShortDate(date: string) {
 function CompactContractTopbar({
   backLabel,
   onBack,
-  contractName,
-  contractType,
   referenceLine,
-  supplierId,
-  supplierName,
   firstAnalysisDemo,
   demoAvailable,
   onFirstAnalysisDemoChange,
 }: {
   backLabel: string;
   onBack: () => void;
-  contractName: string;
-  contractType: string;
   referenceLine: string;
-  supplierId: string;
-  supplierName: string;
   firstAnalysisDemo: boolean;
   demoAvailable: boolean;
   onFirstAnalysisDemoChange: (enabled: boolean) => void;
@@ -2502,17 +2603,10 @@ function CompactContractTopbar({
         <ChevronLeft className="h-3.5 w-3.5" /> {backLabel}
       </button>
       <div className="h-3.5 w-px bg-border" aria-hidden />
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-2">
-          <h1 className="min-w-[120px] truncate text-sm font-medium text-foreground">{contractName}</h1>
-          <Badge variant="outline" className="h-5 rounded-full bg-muted/50 px-2 text-[9px] font-medium">
-            {contractType}
-          </Badge>
-          <SupplierGroupingLink supplierId={supplierId} supplierName={supplierName} />
-        </div>
-        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+      <div className="flex min-w-0 flex-1 items-center">
+        <h2 className="truncate text-base font-semibold text-foreground">
           {referenceLine}
-        </p>
+        </h2>
       </div>
       {demoAvailable && (
         <FirstAnalysisDemoToggle
@@ -2561,15 +2655,9 @@ function FirstAnalysisContextBanner() {
       <div className="mx-auto w-full max-w-[1500px] px-6 pt-4 pb-0">
         <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-base font-semibold text-foreground">
-                Validate ClauseIQ recommendations before supplier negotiation
-              </h2>
-              <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-[#185FA5]/20 bg-white px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#0C447C]">
-                <Info className="h-3 w-3" />
-                V1 Analysis review
-              </span>
-            </div>
+            <h2 className="text-base font-semibold text-foreground">
+              Validate ClauseIQ recommendations before supplier negotiation
+            </h2>
             <p className="mt-1 max-w-none whitespace-nowrap text-xs leading-5 text-muted-foreground">
               Review each clause, decide whether to use the recommended actionability, edit your own requested change, or mark no action. Requested changes are collected for review and generated as a CSV negotiation log.
             </p>
@@ -2969,51 +3057,41 @@ function CompactDivider() {
 
 const changePillConfig: Record<ChangePillStatus, {
   label: string;
-  className: string;
-  Icon: typeof IconCircleCheck;
+  variant: DashboardChipVariant;
 }> = {
   met: {
     label: "Met",
-    className: "bg-[#EAF3DE] text-[#27500A]",
-    Icon: IconCircleCheck,
+    variant: "Success",
   },
   not_met: {
     label: "Not met",
-    className: "bg-[#FCEBEB] text-[#791F1F]",
-    Icon: IconCircleX,
+    variant: "Error",
   },
   improved: {
     label: "Improved",
-    className: "bg-[#E1F5EE] text-[#085041]",
-    Icon: IconTrendingUp,
+    variant: "Success",
   },
   regressed: {
     label: "Regressed",
-    className: "bg-[#FAEEDA] text-[#633806]",
-    Icon: IconTrendingDown,
+    variant: "Warning",
   },
   new: {
     label: NEW_CHANGE_LABEL,
-    className: "bg-[#E6F1FB] text-[#0C447C]",
-    Icon: IconPlus,
+    variant: "Information",
   },
 };
 
 function ChangePillBadge({ result }: { result: ChangePillResult }) {
   if (!result.status) return null;
   const config = changePillConfig[result.status];
-  const Icon = config.Icon;
   const lowConfidence =
     (result.status === "improved" || result.status === "regressed") &&
     typeof result.confidence === "number" &&
     result.confidence < CHANGE_DIRECTION_CONFIDENCE_THRESHOLD;
 
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-[10px] px-1.5 py-px text-[9px] font-medium ${config.className}`}
-    >
-      <Icon size={11} stroke={1.8} />
-      {config.label}
+    <span className="inline-flex items-center gap-1">
+      <DashboardChip label={config.label} variant={config.variant} />
       {lowConfidence && (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -3032,39 +3110,19 @@ function ChangePillBadge({ result }: { result: ChangePillResult }) {
 
 function DecisionBadge({ decision }: { decision: RoundDecision }) {
   if (decision === "request-update") {
-    return (
-      <span className="inline-flex cursor-default items-center gap-1 rounded-full bg-primary px-2 py-1 text-[10px] font-medium text-primary-foreground">
-        <MessageSquarePlus className="h-3 w-3" />
-        Requested
-      </span>
-    );
+    return <DashboardChip label="Requested" variant="Information" />;
   }
 
-  return (
-    <span className="inline-flex cursor-default items-center gap-1 rounded-full bg-[#EAF3DE] px-2 py-1 text-[10px] font-medium text-[#27500A]">
-      <CircleMinus className="h-3 w-3" />
-      No Action
-    </span>
-  );
+  return <DashboardChip label="No Action" variant="Outline" />;
 }
 
 function RequestLifecycleBadge({ request }: { request?: ClauseRequest }) {
   if (request?.state === "pending") {
-    return (
-      <span className="inline-flex cursor-default items-center gap-1 rounded-full border border-[#185FA5]/25 bg-[#E6F1FB] px-2 py-1 text-[10px] font-medium text-[#0C447C]">
-        <ClipboardList className="h-3 w-3" />
-        Added to Review
-      </span>
-    );
+    return <DashboardChip label="Added to Review" variant="Information" />;
   }
 
   if (request?.state === "submitted") {
-    return (
-      <span className="inline-flex cursor-default items-center gap-1 rounded-full border border-[#BFD6AB] bg-[#EAF3DE] px-2 py-1 text-[10px] font-medium text-[#27500A]">
-        <CheckCircle2 className="h-3 w-3" />
-        Reviewed
-      </span>
-    );
+    return <DashboardChip label="Reviewed" variant="Success" />;
   }
 
   return <DecisionBadge decision="request-update" />;
@@ -4434,9 +4492,6 @@ function ClauseDecisionCard({
   const showRequestActions = !settled && !actions && !pendingBasketRequest;
   const useFirstAnalysisDeviationStyle = neutralActions && hideSubclauseReference && clause.severity === "high";
   const severityBadgeLabel = useFirstAnalysisDeviationStyle ? "High Deviation" : clause.severity;
-  const severityBadgeClass = useFirstAnalysisDeviationStyle
-    ? firstAnalysisDeviationBadgeClass
-    : `${severityTone(clause.severity)} shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium`;
   const showSeverityBadge = !isPureMissingClause(clause);
 
   if (displayMode === "row-scale" && !actions) {
@@ -4501,19 +4556,8 @@ function ClauseDecisionCard({
           {metaPrefix}{hideSubclauseReference ? clause.category : `${clause.subclause} · ${clause.category}`}
         </span>
         {changePill?.status && <ChangePillBadge result={changePill} />}
-        {missingClause && (
-          <Badge
-            variant="outline"
-            className={firstAnalysisDeviationBadgeClass}
-          >
-            Missing Clause
-          </Badge>
-        )}
-        {showSeverityBadge && (
-          <Badge variant="outline" className={severityBadgeClass}>
-            {severityBadgeLabel}
-          </Badge>
-        )}
+        {missingClause && <DashboardChip label="Missing Clause" variant="Information" />}
+        {showSeverityBadge && <DashboardSeverityChip severity={clause.severity} label={severityBadgeLabel} />}
         {stateBadge}
         {pendingBasketRequest && <RequestLifecycleBadge request={request} />}
         {settled && !pendingBasketRequest && (
@@ -4541,11 +4585,7 @@ function ClauseDecisionCard({
             </button>
           </>
         )}
-        {isDrafting && (
-          <Badge variant="outline" className="bg-[#E6F1FB] text-[#0C447C] border-[#185FA5]/25 text-[10px]">
-            Drafting request
-          </Badge>
-        )}
+        {isDrafting && <DashboardChip label="Drafting request" variant="Information" />}
       </div>
 
       {showQueuedCompact && (
@@ -4693,8 +4733,9 @@ function ClauseRowScaleCard({
 }) {
   const tier = clause.severity;
   const theme = rowScaleSeverityThemes[tier];
-  const cardBackground = missingClause ? rowScaleMissingClauseBackground : theme.background;
-  const accentColor = missingClause ? "#A32D2D" : theme.accent;
+  const cardTone = missingClause ? rowScaleMissingClauseTheme : theme;
+  const cardBackground = cardTone.background;
+  const accentColor = cardTone.accent;
   const severityLabel = hideSubclauseReference ? `${titleCaseSeverity(tier)} Deviation` : titleCaseSeverity(tier);
   const showSeverityBadge = !isPureMissingClause(clause);
   const metadata = hideSubclauseReference ? clause.category : `${clause.subclause} · ${clause.category}`;
@@ -4777,21 +4818,9 @@ function ClauseRowScaleCard({
       <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: accentColor }} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          {missingClause && (
-            <Badge variant="outline" className={firstAnalysisDeviationBadgeClass}>
-              Missing Clause
-            </Badge>
-          )}
-          {showSeverityBadge && (
-            <Badge variant="outline" className={theme.badgeClass}>
-              {severityLabel}
-            </Badge>
-          )}
-          {isDrafting && (
-            <Badge variant="outline" className="rounded-full border-[#185FA5]/25 bg-[#E6F1FB] px-1.5 py-0.5 text-[9px] font-medium text-[#0C447C]">
-              Drafting request
-            </Badge>
-          )}
+          {missingClause && <DashboardChip label="Missing Clause" variant="Information" />}
+          {showSeverityBadge && <DashboardSeverityChip severity={tier} label={severityLabel} />}
+          {isDrafting && <DashboardChip label="Drafting request" variant="Information" />}
         </div>
         <p className="text-[11px] text-muted-foreground">
           {id.toUpperCase()} · {metadata}
@@ -4838,27 +4867,26 @@ const rowScaleSeverityThemes: Record<
   {
     accent: string;
     background: string;
-    badgeClass: string;
   }
 > = {
   high: {
-    accent: "#A32D2D",
-    background: "#FFF6F4",
-    badgeClass: firstAnalysisDeviationBadgeClass,
+    accent: "var(--orbit-color-status-low-border-error)",
+    background: "var(--orbit-color-status-low-bg-error)",
   },
   medium: {
-    accent: "#BA7517",
-    background: "#FFF9EC",
-    badgeClass: "shrink-0 rounded-full border-[#F1D29B] bg-[#FFF8E8] px-1.5 py-0.5 text-[9px] font-medium text-[#854F0B]",
+    accent: "var(--orbit-color-status-low-border-warning)",
+    background: "var(--orbit-color-status-low-bg-warning)",
   },
   low: {
-    accent: "#3B6D11",
-    background: "#F4FAEE",
-    badgeClass: "shrink-0 rounded-full border-[#BFD6AB] bg-[#EAF3DE] px-1.5 py-0.5 text-[9px] font-medium text-[#27500A]",
+    accent: "var(--orbit-color-status-low-border-no-status)",
+    background: "var(--orbit-color-status-low-bg-no-status)",
   },
 };
 
-const rowScaleMissingClauseBackground = "#FFF6F4";
+const rowScaleMissingClauseTheme = {
+  accent: "var(--orbit-color-status-low-border-information)",
+  background: "var(--orbit-color-status-low-bg-information)",
+};
 
 function FindingCallout({ text }: { text: string }) {
   return (
@@ -4927,6 +4955,51 @@ interface BasketRequestItem {
   missingClause?: boolean;
   sourceDeviationLevel?: ClauseResult["sourceDeviationLevel"];
   request: ClauseRequest;
+}
+
+function versionClauseIndex(version: ContractVersion, clauseId: string) {
+  const index = version.clauses.findIndex((clause) => clause.id === clauseId);
+  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+}
+
+function buildBasketRequestItem(
+  clauseId: string,
+  request: ClauseRequest,
+  version: ContractVersion,
+  fallbackVersion?: ContractVersion | null,
+): BasketRequestItem {
+  const clause =
+    version.clauses.find((candidate) => candidate.id === clauseId) ??
+    fallbackVersion?.clauses.find((candidate) => candidate.id === clauseId);
+  const def = CLAUSE_FRAMEWORK.find((candidate) => candidate.id === clauseId);
+
+  return {
+    clauseId,
+    clauseTitle: clause?.title ?? def?.title ?? clauseId.toUpperCase(),
+    category: clause?.category,
+    severity: clause?.severity,
+    missingClause: clause?.missingClause,
+    sourceDeviationLevel: clause?.sourceDeviationLevel,
+    request,
+  };
+}
+
+function buildReviewDecisionSignature(
+  version: ContractVersion,
+  decisionsByClause: Record<string, ClauseDecisionState>,
+) {
+  return version.clauses
+    .map((clause) => {
+      const state = decisionsByClause[clause.id];
+      const decision = state?.roundDecisions?.[version.version] ?? "";
+      const request = state?.requests?.[version.version];
+      const requestedChange = request?.requestedChange?.trim() ?? "";
+      const rationale = request?.rationale?.trim() ?? "";
+      if (!decision && !requestedChange && !rationale) return null;
+      return [clause.id, decision, requestedChange, rationale].map((part) => part.replace(/\|/g, "\\|")).join("|");
+    })
+    .filter((item): item is string => Boolean(item))
+    .join("\n");
 }
 
 interface RecommendationTargetItem {
@@ -5005,11 +5078,35 @@ function targetMatchesRecommendationScope(target: RecommendationTargetItem, scop
   return sourceDeviationLevel === scope || (!sourceDeviationLevel && target.severity === scope);
 }
 
-function reviewClauseCardTone(severity?: ClauseResult["severity"]) {
-  if (severity === "high") return "border-l-[#E5484D] bg-[#FFF7F7]";
-  if (severity === "medium") return "border-l-[#F59E0B] bg-[#FFFBEB]";
-  if (severity === "low") return "border-l-[#1BA97F] bg-[#F8FCFA]";
-  return "border-l-border bg-white";
+function reviewClauseCardTone(tone?: ClauseResult["severity"] | "missing") {
+  if (tone === "missing") {
+    return {
+      backgroundColor: "var(--orbit-color-status-low-bg-information)",
+      borderLeftColor: "var(--orbit-color-status-low-border-information)",
+    };
+  }
+  if (tone === "high") {
+    return {
+      backgroundColor: "var(--orbit-color-status-low-bg-error)",
+      borderLeftColor: "var(--orbit-color-status-low-border-error)",
+    };
+  }
+  if (tone === "medium") {
+    return {
+      backgroundColor: "var(--orbit-color-status-low-bg-warning)",
+      borderLeftColor: "var(--orbit-color-status-low-border-warning)",
+    };
+  }
+  if (tone === "low") {
+    return {
+      backgroundColor: "var(--orbit-color-status-low-bg-no-status)",
+      borderLeftColor: "var(--orbit-color-status-low-border-no-status)",
+    };
+  }
+  return {
+    backgroundColor: "white",
+    borderLeftColor: "hsl(var(--border))",
+  };
 }
 
 function ClauseReviewModalCard({
@@ -5054,6 +5151,7 @@ function ClauseReviewModalCard({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<ClauseRequest>(request);
   const pureMissing = Boolean(missingClause && sourceDeviationLevel === "None");
+  const cardTone = reviewClauseCardTone(pureMissing ? "missing" : severity);
 
   useEffect(() => {
     if (!editing) setDraft(request);
@@ -5074,36 +5172,15 @@ function ClauseReviewModalCard({
       id={domId}
       className={cn(
         "rounded-lg border border-l-4 px-3 py-2.5 shadow-sm",
-        reviewClauseCardTone(pureMissing ? "high" : severity),
         highlighted && "ring-2 ring-primary/40",
       )}
+      style={cardTone}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
-          {pureMissing && (
-            <Badge variant="outline" className={firstAnalysisDeviationBadgeClass}>
-              Missing Clause
-            </Badge>
-          )}
-          {severity && !pureMissing && (
-            <Badge
-              variant="outline"
-              className={cn("h-5 rounded-full px-2 text-[9px] font-medium", severityTone(severity))}
-            >
-              {titleCaseSeverity(severity)} Deviation
-            </Badge>
-          )}
-          <Badge
-            variant="outline"
-            className={cn(
-              "h-5 rounded-full px-2 text-[9px] font-medium",
-              statusTone === "blue" && "border-[#185FA5]/20 bg-[#E6F1FB]/60 text-[#0C447C]",
-              statusTone === "green" && "border-[#BFD6AB] bg-[#EAF3DE] text-[#27500A]",
-              statusTone === "neutral" && "border-border bg-white text-muted-foreground",
-            )}
-          >
-            {statusLabel}
-          </Badge>
+          {pureMissing && <DashboardChip label="Missing Clause" variant="Information" />}
+          {severity && !pureMissing && <DashboardSeverityChip severity={severity} />}
+          <DashboardChip label={statusLabel} variant={dashboardStatusToneVariant(statusTone)} />
         </div>
         <p className="shrink-0 text-[10px] text-muted-foreground">
           {itemId.toUpperCase()}{category ? ` · ${category}` : ""}
@@ -5268,6 +5345,7 @@ function RequestReviewDialog({
   supplierName,
   bulkSummaryMode = false,
   reviewProgress,
+  csvNeedsUpdate = false,
   onSubmit,
 }: {
   open: boolean;
@@ -5276,24 +5354,26 @@ function RequestReviewDialog({
   supplierName: string;
   bulkSummaryMode?: boolean;
   reviewProgress?: FirstAnalysisReviewProgress;
+  csvNeedsUpdate?: boolean;
   onSubmit: () => void;
 }) {
   const requestCount = requests.length;
+  const canGenerate = requestCount > 0 || csvNeedsUpdate;
 
   useEffect(() => {
-    if (requestCount === 0 && open) onOpenChange(false);
-  }, [onOpenChange, open, requestCount]);
+    if (!canGenerate && open) onOpenChange(false);
+  }, [canGenerate, onOpenChange, open]);
 
   const submitRequests = () => {
-    if (requestCount === 0) return;
+    if (!canGenerate) return;
     onSubmit();
     onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-[680px] gap-0 overflow-hidden p-0 [&>button.absolute.right-4.top-4]:hidden">
-          <DialogHeader className="border-b border-border px-5 py-4 text-left">
+        <DialogContent className="max-w-[680px] gap-0 overflow-hidden p-0">
+          <DialogHeader className="border-b border-border px-5 py-4 pr-12 text-left">
             <DialogTitle>
               {bulkSummaryMode ? "Generate CSV from applied recommendations" : "Review and generate selected clauses"}
             </DialogTitle>
@@ -5310,13 +5390,18 @@ function RequestReviewDialog({
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#185FA5] text-white">
                   <FileCheck2 className="h-5 w-5" />
                 </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-[#0C447C]">
-                    {bulkSummaryMode ? "Ready to generate supplier change log" : "Ready to generate selected clauses"}
-                  </p>
+	                <div className="min-w-0">
+	                  <p className="text-sm font-semibold text-[#0C447C]">
+	                    {bulkSummaryMode ? "Ready to generate supplier change log" : "Ready to generate selected clauses"}
+	                  </p>
                   <p className="mt-1 text-xs leading-5 text-[#0C447C]/80">
                     The CSV will include clause IDs, titles, categories, severity, ClauseIQ findings, requested changes, and rationale so you can take it back to the supplier for negotiation. Are you ready to generate it?
                   </p>
+                  {csvNeedsUpdate && (
+                    <p className="mt-2 text-xs font-medium leading-5 text-[#0C447C]">
+                      Changes have been made since the last generated CSV. Generate again to update the negotiation log.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -5331,8 +5416,8 @@ function RequestReviewDialog({
           <DialogFooter className="border-t border-border bg-muted/30 px-5 py-3 sm:items-center sm:justify-between">
             <p className="text-xs text-muted-foreground">
               Confirm to generate the CSV. Nothing is sent to the supplier from this prototype.
-            </p>
-            {requestCount > 0 && (
+	            </p>
+	            {canGenerate && (
               <Button
                 size="sm"
                 className="gap-1.5 bg-[#1a2744] text-white hover:bg-[#243454]"
@@ -6066,12 +6151,12 @@ function RoundTracker({
                   const o = roundOutcome(def.id, v.version, versions, state);
                   return (
                     <TableCell key={v.version} className="text-center">
-                      <Badge variant="outline" className={`${o.tone} text-[10px]`}>{o.label}</Badge>
+                      <DashboardChip label={o.label} variant={dashboardRoundOutcomeVariant(o.label)} />
                     </TableCell>
                   );
                 })}
                 <TableCell className="text-center">
-                  <Badge variant="outline" className={`${latest.tone} text-[10px]`}>{latest.label}</Badge>
+                  <DashboardChip label={latest.label} variant={dashboardRoundOutcomeVariant(latest.label)} />
                 </TableCell>
               </TableRow>
             );
@@ -6137,7 +6222,7 @@ function ClauseSlideOver({
               <p className="text-[9px] font-medium uppercase text-muted-foreground">{clauseId.toUpperCase()} · {def.category}</p>
               <h2 className="mt-1 truncate text-[13px] font-medium text-foreground">{display.title}</h2>
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                <Badge variant="outline" className={`${severityTone(display.severity)} text-[9px]`}>{display.severity}</Badge>
+                <DashboardSeverityChip severity={display.severity} label={display.severity} />
                 {changePill.status ? <ChangePillBadge result={changePill} /> : <RoundStatusPill status={historyRow.currentStatus}>{roundStatusLabel(historyRow.currentStatus)}</RoundStatusPill>}
                 <button
                   type="button"
@@ -6407,14 +6492,14 @@ function ClauseDetailPanel({
             <div className="rounded-md border border-border bg-card p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase">{leftLabel}</span>
-                <Badge variant="outline" className={severityTone((prev ?? display).severity)}>{prev?.severity ?? "—"}</Badge>
+                <DashboardSeverityChip severity={prev?.severity} label={prev?.severity ?? "—"} />
               </div>
               <LocationsList items={prev?.locations} />
             </div>
             <div className="rounded-md border border-border bg-card p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase">{rightLabel}</span>
-                <Badge variant="outline" className={severityTone((curr ?? display).severity)}>{curr?.severity ?? "—"}</Badge>
+                <DashboardSeverityChip severity={curr?.severity} label={curr?.severity ?? "—"} />
               </div>
               <LocationsList items={curr?.locations} />
             </div>
@@ -6459,7 +6544,11 @@ function ClauseDetailPanel({
               {changePill.status ? (
                 <ChangePillBadge result={changePill} />
               ) : (
-                <Badge variant="outline" className={`${materialChangeTone(change)} text-[10px]`}>{materialChangeLabel(change)}</Badge>
+                <DashboardChip
+                  label={materialChangeLabel(change)}
+                  variant={dashboardMaterialChangeVariant(change)}
+                  borderedNoStatus={change === "material"}
+                />
               )}
               {state.closures[targetVersion] && (
                 <span>· status <span className="font-semibold text-foreground">{state.closures[targetVersion]}</span></span>
@@ -6524,7 +6613,7 @@ function SidePanel({ label, clause, highlight }: { label: string; clause?: Claus
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase">{label}</span>
         {clause && (
-          <Badge variant="outline" className={severityTone(clause.severity)}>{clause.severity}</Badge>
+          <DashboardSeverityChip severity={clause.severity} label={clause.severity} />
         )}
       </div>
       <p className="text-sm text-foreground">{clause?.deviation ?? "— Not present —"}</p>
@@ -6555,74 +6644,6 @@ function LocationsList({ items }: { items?: string[] }) {
         </li>
       ))}
     </ul>
-  );
-}
-
-// ---- Supplier grouping provenance popover (TASK-04) ------------------------
-
-function SupplierGroupingPopover({
-  supplierId,
-  supplierName,
-  compact = false,
-}: {
-  supplierId: string;
-  supplierName: string;
-  compact?: boolean;
-}) {
-  const g = getSupplierGrouping(supplierId);
-  const isManual = g.source === "manual";
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button size="sm" variant="outline" className={`${compact ? "h-7 px-2 text-xs" : "h-9"} gap-1.5`}>
-          <Info className="w-3.5 h-3.5" /> Why grouped?
-          <Badge variant="outline" className={`${compact ? "hidden 2xl:inline-flex" : ""} ${isManual ? "bg-secondary text-secondary-foreground border-border ml-1" : "bg-success/10 text-success border-success/20 ml-1"}`}>
-            {isManual ? "Manual" : `Auto · ${(g.confidence * 100).toFixed(0)}%`}
-          </Badge>
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 space-y-2">
-        <p className="text-sm font-semibold text-foreground">Why is this grouped under {supplierName}?</p>
-        <p className="text-xs text-muted-foreground">{g.matchBasis}</p>
-        <div className="flex items-center justify-between pt-2 border-t border-border text-[11px] text-muted-foreground">
-          <span>Source: <span className="font-semibold text-foreground capitalize">{g.source}</span></span>
-          <span>Confidence: <span className="font-mono text-foreground">{(g.confidence * 100).toFixed(0)}%</span></span>
-        </div>
-        {g.lastOverride && (
-          <p className="text-[11px] text-muted-foreground">
-            Last manual override: <span className="text-foreground">{g.lastOverride.user}</span> on {g.lastOverride.date}
-          </p>
-        )}
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function SupplierGroupingLink({ supplierId, supplierName }: { supplierId: string; supplierName: string }) {
-  const g = getSupplierGrouping(supplierId);
-  const isManual = g.source === "manual";
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="inline-flex shrink-0 items-center gap-1 border-b border-dotted border-muted-foreground/60 text-[11px] font-medium text-muted-foreground hover:border-primary hover:text-primary"
-        >
-          <IconInfoCircle size={12} stroke={1.8} />
-          Why grouped?
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-80 space-y-2">
-        <p className="text-sm font-semibold text-foreground">Why is this grouped under {supplierName}?</p>
-        <p className="text-xs text-muted-foreground">{g.matchBasis}</p>
-        <div className="flex items-center justify-between border-t border-border pt-2 text-[11px] text-muted-foreground">
-          <span>Source: <span className="font-semibold capitalize text-foreground">{g.source}</span></span>
-          <Badge variant="outline" className={isManual ? "bg-secondary text-secondary-foreground" : "bg-success/10 text-success border-success/20"}>
-            {isManual ? "Manual" : `Auto · ${(g.confidence * 100).toFixed(0)}%`}
-          </Badge>
-        </div>
-      </PopoverContent>
-    </Popover>
   );
 }
 
@@ -6819,11 +6840,7 @@ function HistoryRoundTable({
 }
 
 function RoundStatusPill({ status, children }: { status: RoundStatus; children: ReactNode }) {
-  return (
-    <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[9px] font-medium ${roundStatusTone(status)}`}>
-      {children}
-    </span>
-  );
+  return <DashboardChip label={String(children)} variant={dashboardRoundStatusVariant(status)} />;
 }
 
 function roundStatusTone(status: RoundStatus) {

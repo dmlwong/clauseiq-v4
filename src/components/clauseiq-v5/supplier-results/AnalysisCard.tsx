@@ -81,8 +81,8 @@ export function AnalysisCard({
             <div className="flex flex-wrap items-center justify-between gap-orbit-base">
               <h3 className="text-xl font-semibold leading-tight text-foreground">Here is your Analysis Result</h3>
               <label className="flex items-center gap-orbit-s text-sm font-medium text-foreground">
-                <span>Save To My Documents</span>
-                <Switch checked={saveToDocuments} onCheckedChange={setSaveToDocuments} aria-label="Save To My Documents" />
+                <span>Save To Content Search</span>
+                <Switch checked={saveToDocuments} onCheckedChange={setSaveToDocuments} aria-label="Save To Content Search" />
               </label>
             </div>
           </div>
@@ -110,7 +110,7 @@ export function AnalysisCard({
                 : "Summary shown below. View the result for full details."}
             </p>
             <div className="space-y-orbit-s" role="group" aria-labelledby={deviationSummaryId}>
-              <p id={deviationSummaryId} className="text-sm font-medium text-muted-foreground">
+              <p id={deviationSummaryId} className="text-base text-muted-foreground">
                 Missing Clauses and deviation levels
               </p>
               <DeviationPills deviations={analysis.deviations} />
@@ -158,7 +158,7 @@ function AnalysisParametersSummary({ parameters }: { parameters: AnalysisParamet
     <StatusLine
       icon={<SlidersHorizontal className="h-4 w-4" />}
       label={`${parameter.label} · ${parameter.value}`}
-      status="Parameter Applied"
+      status="Selected"
       tone="neutral"
     />
   );

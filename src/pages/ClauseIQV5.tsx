@@ -62,7 +62,7 @@ const createRerunAnalysis = (fileName: string): ClauseAnalysis => ({
   analysedAt: "2026-05-22T11:00:00Z",
   clausesReviewed: 47,
   status: "completed",
-  deviations: { missing: 8, high: 6, medium: 4, low: 10 },
+  deviations: { missing: 8, high: 6, medium: 4, low: 10, none: 19 },
 });
 const LATEST_V5_RESULTS_ROUTE =
   "/initiatives-v5?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=first-analysis";
@@ -122,7 +122,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
 
   const scrollLatestOutputIntoView = useCallback((delay = 120) => {
     window.setTimeout(() => {
-      latestOutputRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      latestOutputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, delay);
   }, []);
 
@@ -499,16 +499,18 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
             {/* Results */}
             {resultsVisible && (
               <div ref={resultRef} className="space-y-orbit-base">
-                <ResultsContent
-                  initiative={resultsInitiative}
-                  layout={resultsLayout}
-                  onRunAgain={showRunAgainUpload}
-                  onDownload={resultsLayout === "output-panel" ? undefined : handleDownload}
-                  onViewResult={handleViewResult}
-                  viewResultPrimary={!newAnalysisSectionVisible}
-                  highlightLatestOutput={!newAnalysisSectionVisible}
-                  analysisParameters={selectedAnalysisParameters}
-                />
+                <div ref={completedRerunAnalysis ? undefined : latestOutputRef}>
+                  <ResultsContent
+                    initiative={resultsInitiative}
+                    layout={resultsLayout}
+                    onRunAgain={showRunAgainUpload}
+                    onDownload={resultsLayout === "output-panel" ? undefined : handleDownload}
+                    onViewResult={handleViewResult}
+                    viewResultPrimary={!newAnalysisSectionVisible}
+                    highlightLatestOutput={!newAnalysisSectionVisible}
+                    analysisParameters={selectedAnalysisParameters}
+                  />
+                </div>
                 {newAnalysisSectionVisible && <NewAnalysisDivider />}
                 {rerunUploadVisible && (
                   <div ref={rerunUploadRef} className="space-y-orbit-base">
@@ -574,19 +576,21 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
                   </StateCard>
                 )}
                 {completedRerunAnalysis && rerunSupplier && (
-                  <AnalysisCard
-                    analysis={completedRerunAnalysis}
-                    supplier={rerunSupplier}
-                    showSupplier
-                    onRunAgain={showRunAgainUpload}
-                    onViewResult={handleViewResult}
-                    viewResultPrimary
-                    isLatestOutput
-                    highlighted
-                    analysisParameters={completedRerunAnalysisParameters}
-                  />
+                  <div ref={latestOutputRef}>
+                    <AnalysisCard
+                      analysis={completedRerunAnalysis}
+                      supplier={rerunSupplier}
+                      showSupplier
+                      onRunAgain={showRunAgainUpload}
+                      onViewResult={handleViewResult}
+                      viewResultPrimary
+                      isLatestOutput
+                      highlighted
+                      analysisParameters={completedRerunAnalysisParameters}
+                    />
+                  </div>
                 )}
-                <div ref={latestOutputRef} className="h-[304px]" aria-hidden="true" />
+                <div className="h-[304px]" aria-hidden="true" />
               </div>
             )}
 

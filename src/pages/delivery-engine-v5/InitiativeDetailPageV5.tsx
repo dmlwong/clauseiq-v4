@@ -185,7 +185,7 @@ export default function InitiativeDetailPageV5() {
                       <SlidersHorizontal className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
-                      <h1 className="truncate text-lg font-semibold text-slate-950">
+                      <h1 className="v5-orbit-heading-4 truncate text-slate-950">
                         {initiative.id} | {initiative.name}
                       </h1>
                       <div className="mt-orbit-base space-y-orbit-s text-xs text-slate-600">

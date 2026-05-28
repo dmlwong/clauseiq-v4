@@ -75,17 +75,17 @@ export function CrossSupplierComparison({ initiativeId, onBack, onOpenSupplier, 
     {
       id: "score",
       header: "ClauseIQ Score",
-      render: (supplier: ReturnType<typeof deriveSupplierStats>) => <span className="font-mono">{supplier.score ?? "—"}</span>,
+      render: (supplier: ReturnType<typeof deriveSupplierStats>) => <span className="tabular-nums">{supplier.score ?? "—"}</span>,
     },
     {
       id: "high",
       header: "High issues",
-      render: (supplier: ReturnType<typeof deriveSupplierStats>) => <span className="font-mono">{supplier.high}</span>,
+      render: (supplier: ReturnType<typeof deriveSupplierStats>) => <span className="tabular-nums">{supplier.high}</span>,
     },
     {
       id: "requests",
       header: "Open requests",
-      render: (supplier: ReturnType<typeof deriveSupplierStats>) => <span className="font-mono">{supplier.openRequests}</span>,
+      render: (supplier: ReturnType<typeof deriveSupplierStats>) => <span className="tabular-nums">{supplier.openRequests}</span>,
     },
     {
       id: "latest",
@@ -102,10 +102,10 @@ export function CrossSupplierComparison({ initiativeId, onBack, onOpenSupplier, 
         </button>
 
         <header className="space-y-orbit-xs">
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Compare suppliers — {initiative.name}</h1>
+          <h1 className="v5-orbit-heading-2">Compare suppliers — {initiative.name}</h1>
           <p className="text-sm text-muted-foreground">
             Tick up to {MAX_COMPARE} suppliers to evaluate side-by-side, then drill into evidence.
-            <span className="ml-orbit-s text-xs font-mono text-muted-foreground">{selected.size}/{MAX_COMPARE} selected</span>
+            <span className="ml-orbit-s text-xs tabular-nums text-muted-foreground">{selected.size}/{MAX_COMPARE} selected</span>
           </p>
         </header>
 
@@ -128,7 +128,7 @@ export function CrossSupplierComparison({ initiativeId, onBack, onOpenSupplier, 
         {compared.length >= 2 && (
           <div className="bg-card border border-primary/30 rounded-xl overflow-hidden">
             <div className="px-orbit-m py-orbit-base border-b border-border">
-              <h2 className="text-sm font-semibold">Side-by-side comparison ({compared.length})</h2>
+              <h2 className="v5-orbit-heading-strong">Side-by-side comparison ({compared.length})</h2>
               <p className="text-xs text-muted-foreground">Drill into a supplier or jump to a contract for the underlying clause evidence. Scroll horizontally to see all suppliers.</p>
             </div>
             {/* DI-20: horizontal scroll + sticky first column for portfolio-scale comparisons */}
@@ -136,9 +136,9 @@ export function CrossSupplierComparison({ initiativeId, onBack, onOpenSupplier, 
               <table className="w-full text-sm border-separate border-spacing-0 min-w-[640px]">
                 <thead className="bg-muted/30">
                   <tr>
-                    <th className="text-left px-orbit-base py-orbit-s font-semibold text-muted-foreground sticky left-0 bg-muted/30 z-10 border-b border-border min-w-[180px]">Metric</th>
+                    <th className="v5-orbit-heading-strong sticky left-0 z-10 min-w-[180px] border-b border-border bg-muted/30 px-orbit-base py-orbit-s text-left text-muted-foreground">Metric</th>
                     {compared.map((c) => (
-                      <th key={c.id} className="text-left px-orbit-base py-orbit-s font-semibold border-b border-border min-w-[180px]">{c.name}</th>
+                      <th key={c.id} className="v5-orbit-heading-strong min-w-[180px] border-b border-border px-orbit-base py-orbit-s text-left">{c.name}</th>
                     ))}
                   </tr>
                 </thead>
@@ -147,16 +147,16 @@ export function CrossSupplierComparison({ initiativeId, onBack, onOpenSupplier, 
                     {compared.map((c) => <Badge key={c.id} variant="outline" className={statusTone(c.status)}>{c.status}</Badge>)}
                   </Row>
                   <Row label="ClauseIQ Score">
-                    {compared.map((c) => <span key={c.id} className="font-mono">{c.score ?? "—"}/100</span>)}
+                    {compared.map((c) => <span key={c.id} className="tabular-nums">{c.score ?? "—"}/100</span>)}
                   </Row>
                   <Row label="High-severity issues">
-                    {compared.map((c) => <span key={c.id} className="font-mono text-destructive">{c.high}</span>)}
+                    {compared.map((c) => <span key={c.id} className="tabular-nums text-destructive">{c.high}</span>)}
                   </Row>
                   <Row label="Medium-severity issues">
-                    {compared.map((c) => <span key={c.id} className="font-mono text-warning">{c.medium}</span>)}
+                    {compared.map((c) => <span key={c.id} className="tabular-nums text-warning">{c.medium}</span>)}
                   </Row>
                   <Row label="Open requests">
-                    {compared.map((c) => <span key={c.id} className="font-mono">{c.openRequests}</span>)}
+                    {compared.map((c) => <span key={c.id} className="tabular-nums">{c.openRequests}</span>)}
                   </Row>
                   <Row label="Top risk">
                     {compared.map((c) => <span key={c.id} className="text-xs">{c.topRisk}</span>)}

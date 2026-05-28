@@ -10,12 +10,7 @@ interface Props {
   className?: string;
 }
 
-const severityColor: Record<SupplierSeverity, string> = {
-  high: "var(--orbit-color-status-high-bg-error)",
-  medium: "var(--orbit-color-status-high-bg-warning)",
-  low: "var(--orbit-color-status-high-bg-information)",
-  clean: "var(--orbit-color-status-high-bg-success)",
-};
+const PRIMARY_AVATAR_COLOR = "var(--orbit-color-btn-primary-bg)";
 
 const sizeMap = {
   sm: "Extra Small",
@@ -23,14 +18,14 @@ const sizeMap = {
   lg: "Medium",
 } as const;
 
-export function SupplierAvatar({ name, shortCode, severity, size = "md", className }: Props) {
+export function SupplierAvatar({ name, shortCode, size = "md", className }: Props) {
   const avatar = (
     <Avatar
       style="Text"
       name={name}
       initials={shortCode}
       size={sizeMap[size]}
-      color={severityColor[severity]}
+      color={PRIMARY_AVATAR_COLOR}
     />
   );
 

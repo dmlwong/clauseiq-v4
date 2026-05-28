@@ -45,7 +45,7 @@ export function V5Shell({
           fontFamily: "var(--orbit-font-family-sans)",
         }}
       >
-        <div className="hidden md:flex h-screen sticky top-0">
+        <div className="hidden md:flex h-screen sticky top-orbit-none">
           <CiqSidebar />
         </div>
         <div className="flex-1 flex flex-col min-w-0 h-screen">
@@ -59,14 +59,14 @@ export function V5Shell({
                 {...HeaderPresets.deliver}
               />
               {headerRight && headerRightPlacement === "end" && (
-                <div className="pointer-events-none absolute inset-y-0 right-0 z-10 flex items-center px-orbit-m">
+                <div className="pointer-events-none absolute inset-y-orbit-none right-orbit-none z-10 flex items-center px-orbit-m">
                   <div className="pointer-events-auto flex max-w-[min(42vw,480px)] items-center justify-end">
                     {headerRight}
                   </div>
                 </div>
               )}
               {headerRight && headerRightPlacement === "title" && (
-                <div className="pointer-events-none absolute left-[140px] top-2 z-10 flex max-w-[min(44vw,420px)] items-center">
+                <div className="pointer-events-none absolute left-[calc(var(--orbit-space-mega)+var(--orbit-space-mega)+var(--orbit-space-s)+var(--orbit-space-xs))] top-orbit-s z-10 flex max-w-[min(44vw,420px)] items-center">
                   <div className="pointer-events-auto min-w-0">{headerRight}</div>
                 </div>
               )}

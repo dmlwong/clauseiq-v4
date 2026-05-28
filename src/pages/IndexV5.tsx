@@ -67,7 +67,7 @@ const IndexV5 = () => {
     firstAnalysisDefaultAppliedRef.current = true;
     if (
       searchParams.get("scenario") === "first-analysis" &&
-      searchParams.get("mode") === "comparison" &&
+      (searchParams.get("mode") === "comparison" || searchParams.get("mode") === "history") &&
       searchParams.get("design") === "row-scale" &&
       searchParams.get("catSort") === "risk"
     ) {
@@ -76,7 +76,9 @@ const IndexV5 = () => {
 
     const params = new URLSearchParams(searchParams);
     params.set("scenario", "first-analysis");
-    params.set("mode", "comparison");
+    if (params.get("mode") !== "comparison" && params.get("mode") !== "history") {
+      params.set("mode", "comparison");
+    }
     params.set("design", "row-scale");
     params.set("catSort", "risk");
     if (!params.has("tab")) params.set("tab", "changes");

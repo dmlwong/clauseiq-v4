@@ -110,7 +110,7 @@ function SupplierRailContent({ state }: { state: MasterDetailState }) {
         </div>
       </div>
       <div className="relative mb-orbit-base">
-        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Search className="absolute left-[calc(var(--orbit-space-s)+var(--orbit-space-xxs))] top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
@@ -139,7 +139,7 @@ function SupplierRailContent({ state }: { state: MasterDetailState }) {
                 {selected && (
                   <motion.span
                     layoutId="selected-supplier-master-accent"
-                    className="absolute bottom-2 left-0 top-2 w-0.5 rounded-full bg-primary"
+                    className="absolute bottom-orbit-s left-orbit-none top-orbit-s w-0.5 rounded-full bg-primary"
                     transition={{ type: "spring", stiffness: 420, damping: 32 }}
                   />
                 )}

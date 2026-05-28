@@ -23,7 +23,7 @@ export function TextDiff({ prev, curr, leftLabel, rightLabel }: Props) {
 
   return (
     <div className="space-y-orbit-s">
-      <div className="flex items-center gap-orbit-s text-[10px] font-mono uppercase text-muted-foreground">
+      <div className="flex items-center gap-orbit-s text-[10px] tabular-nums uppercase text-muted-foreground">
         <span className="inline-flex items-center gap-orbit-xs">
           <Minus className="w-3 h-3 text-destructive" aria-hidden /> Removed in {leftLabel}: {removed}
         </span>
@@ -32,7 +32,7 @@ export function TextDiff({ prev, curr, leftLabel, rightLabel }: Props) {
           <Plus className="w-3 h-3 text-success" aria-hidden /> Added in {rightLabel}: {added}
         </span>
       </div>
-      <p className="text-sm leading-relaxed font-serif rounded-md border border-border bg-card p-orbit-base">
+      <p className="text-sm leading-relaxed rounded-md border border-border bg-card p-orbit-base">
         {segments.map((s, i) => {
           if (s.type === "equal") return <span key={i}>{s.text}</span>;
           if (s.type === "added") {

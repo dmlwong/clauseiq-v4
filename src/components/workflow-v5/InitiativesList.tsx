@@ -14,7 +14,7 @@ export function InitiativesList({ onSelect }: Props) {
         <header className="flex items-end justify-between gap-orbit-base">
           <div className="space-y-orbit-s">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Connected Platform</p>
-            <h1 className="text-3xl font-bold text-foreground tracking-tight">Initiatives</h1>
+            <h1 className="v5-orbit-heading-1">Initiatives</h1>
             <p className="text-muted-foreground">Select an initiative to view its suppliers and contracts.</p>
           </div>
           <Button variant="outline" asChild>
@@ -36,8 +36,8 @@ export function InitiativesList({ onSelect }: Props) {
                 <div className="flex items-start justify-between gap-orbit-m">
                   <div className="space-y-orbit-base flex-1">
                     <div className="flex items-center gap-orbit-s">
-                      <h2 className="text-lg font-semibold text-foreground">{init.name}</h2>
-                      <Badge variant="outline" className="font-mono text-xs">{init.reference}</Badge>
+                      <h2 className="v5-orbit-heading-4">{init.name}</h2>
+                      <Badge variant="outline" className="tabular-nums text-xs">{init.reference}</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground max-w-2xl">{init.description}</p>
                     <div className="flex gap-orbit-m text-sm pt-orbit-xs">

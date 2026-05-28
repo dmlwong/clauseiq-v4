@@ -78,7 +78,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
       state={orbitState}
       disabled={disabled}
       aria-label={ariaLabel}
-      className={withoutSizeOverrides(className)}
+      className={cn("clauseiq-v5-action-button", withoutSizeOverrides(className))}
     >
       {children}
     </OrbitButton>

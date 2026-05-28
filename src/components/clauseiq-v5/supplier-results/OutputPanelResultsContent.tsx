@@ -116,13 +116,11 @@ export function SupplierOutputsPanel({
       ? {
           title: "Analysis In Progress",
           copy: "ClauseIQ is reviewing the uploaded contract. Supplier outputs will appear here once the analysis is complete.",
-          scopeHint: "When it finishes, you can switch between Mine and Team to compare your output with the wider team view.",
           loading: true,
         }
       : {
           title: "No Supplier Outputs Yet",
           copy: "Upload a contract and run ClauseIQ. Completed analyses will appear here, grouped by supplier.",
-          scopeHint: "Once outputs are available, you can switch between Mine and Team to review your own results or the team's results.",
           loading: false,
         };
 
@@ -149,9 +147,9 @@ export function SupplierOutputsPanel({
     >
       {hasOutputs && (
         <div className="space-y-orbit-base">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">Supplier Outputs</h2>
-            <p className="mt-orbit-xxs text-xs text-muted-foreground">
+          <div className="flex w-full items-baseline justify-between gap-orbit-s">
+            <h2 className="v5-orbit-heading-strong">Supplier Outputs</h2>
+            <p className="shrink-0 text-right text-xs text-muted-foreground">
               {supplierCount} {supplierCount === 1 ? "supplier" : "suppliers"} &middot; {outputCount}{" "}
               {outputCount === 1 ? "output" : "outputs"}
             </p>
@@ -192,7 +190,6 @@ export function SupplierOutputsPanel({
               <SupplierPanelEmptyState
                 title={emptyState.title}
                 copy={emptyState.copy}
-                scopeHint={emptyState.scopeHint}
                 loading={emptyState.loading}
               />
             )}
@@ -219,12 +216,10 @@ export function SupplierOutputsPanel({
 function SupplierPanelEmptyState({
   title,
   copy,
-  scopeHint,
   loading,
 }: {
   title: string;
   copy: string;
-  scopeHint: string;
   loading: boolean;
 }) {
   return (
@@ -232,32 +227,23 @@ function SupplierPanelEmptyState({
       <div className="mx-auto max-w-[260px]">
         <div className="mx-auto h-24 w-32">
           <div className="relative mx-auto h-full w-full">
-            <div className="absolute left-7 top-2 h-16 w-20 rounded-xl border border-slate-200 bg-white shadow-sm" />
-            <div className="absolute left-10 top-6 h-2 w-8 rounded bg-primary/20" />
-            <div className="absolute left-10 top-11 h-2 w-12 rounded bg-slate-200" />
-            <div className="absolute left-10 top-16 h-2 w-9 rounded bg-slate-200" />
-            <div className="absolute right-5 top-7 grid h-9 w-9 place-items-center rounded-full border border-primary/20 bg-primary/10 text-primary shadow-sm">
+            <div className="absolute left-[calc(var(--orbit-space-m)+var(--orbit-space-xs))] top-orbit-s h-16 w-20 rounded-xl border border-slate-200 bg-white shadow-sm" />
+            <div className="absolute left-[calc(var(--orbit-space-l)+var(--orbit-space-s))] top-orbit-m h-2 w-8 rounded bg-primary/20" />
+            <div className="absolute left-[calc(var(--orbit-space-l)+var(--orbit-space-s))] top-[calc(var(--orbit-space-l)+var(--orbit-space-s)+var(--orbit-space-xs))] h-2 w-12 rounded bg-slate-200" />
+            <div className="absolute left-[calc(var(--orbit-space-l)+var(--orbit-space-s))] top-orbit-mega h-2 w-9 rounded bg-slate-200" />
+            <div className="absolute right-[calc(var(--orbit-space-base)+var(--orbit-space-xs))] top-[calc(var(--orbit-space-m)+var(--orbit-space-xs))] grid h-9 w-9 place-items-center rounded-full border border-primary/20 bg-primary/10 text-primary shadow-sm">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             </div>
-            <div className="absolute bottom-2 left-4 grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm">
+            <div className="absolute bottom-orbit-s left-orbit-base grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm">
               <FileText className="h-4 w-4" />
             </div>
-            <div className="absolute bottom-3 right-8 grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm">
+            <div className="absolute bottom-[calc(var(--orbit-space-s)+var(--orbit-space-xs))] right-orbit-l grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm">
               <BarChart2 className="h-3.5 w-3.5" />
             </div>
           </div>
         </div>
-        <h3 className="mt-orbit-m text-base font-semibold leading-tight text-foreground">{title}</h3>
+        <h3 className="v5-orbit-heading-5 mt-orbit-m">{title}</h3>
         <p className="mt-orbit-s text-sm leading-relaxed text-muted-foreground">{copy}</p>
-        <div className="mt-orbit-m rounded-lg border border-slate-200 bg-slate-50 p-orbit-s">
-          <div className="clauseiq-v5-output-scope-control">
-            <MultiStateGroup ariaLabel="Output scope preview" defaultValue="mine">
-              <MultiStateButton value="mine" label="Mine" disabled />
-              <MultiStateButton value="team" label="Team" disabled />
-            </MultiStateGroup>
-          </div>
-          <p className="mt-orbit-s text-xs leading-relaxed text-muted-foreground">{scopeHint}</p>
-        </div>
       </div>
     </div>
   );
@@ -270,7 +256,7 @@ function NoPreviousAnalysisState({ onRunAgain }: { onRunAgain?: () => void }) {
         <div className="mx-auto grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary">
           <FileText className="h-5 w-5" />
         </div>
-        <h3 className="mt-orbit-base text-base font-semibold text-foreground">No analysis outputs yet</h3>
+        <h3 className="v5-orbit-heading-5 mt-orbit-base">No analysis outputs yet</h3>
         <p className="mx-auto mt-orbit-s max-w-sm text-sm text-muted-foreground">
           Once the first supplier contract is analysed, the result card will appear here with the supplier output summary.
         </p>
@@ -317,7 +303,7 @@ function SupplierOutputGroup({
           size="sm"
         />
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-sm font-medium text-foreground">{supplier.name}</h3>
+          <h3 className="v5-orbit-heading-label truncate">{supplier.name}</h3>
           <p className="text-xs text-muted-foreground">
             {supplier.analyses.length} {supplier.analyses.length === 1 ? "output" : "outputs"}
             {containsLatestOutput && <span className="font-medium"> - Latest output</span>}
@@ -399,11 +385,11 @@ function CompactOutputRow({
         </time>
       </div>
 
-      <div className="mt-orbit-s">
+      <div className="mt-orbit-base">
         <DeviationPills deviations={analysis.deviations} compact />
       </div>
 
-      <div className="mt-orbit-s grid grid-cols-3 gap-orbit-xs">
+      <div className="mt-orbit-base grid grid-cols-3 gap-orbit-xs">
         <CompactActionButton label="View Results" onClick={onViewResult}>
           <BarChart2 className="h-3.5 w-3.5" />
         </CompactActionButton>

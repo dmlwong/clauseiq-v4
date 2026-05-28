@@ -756,7 +756,7 @@ export default function ClauseIQV5DeviationProminence() {
       <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-orbit-base px-orbit-m py-orbit-m">
         <div className="flex flex-wrap items-end justify-between gap-orbit-base">
           <div>
-            <h1 className="text-lg font-semibold text-foreground">{visibleVariant.label}</h1>
+            <h1 className="v5-orbit-heading-4">{visibleVariant.label}</h1>
             <p className="mt-orbit-xs max-w-[720px] text-xs leading-5 text-muted-foreground">
               Same clause set, different severity treatment. Use the switcher to compare how quickly the high-risk work rises to the surface.
             </p>
@@ -830,7 +830,7 @@ function HighScaleRow({ clause }: { clause: DeviationClause }) {
           {clause.issueCount} issues · {clause.section} · {clause.category}
         </p>
       </div>
-      <h2 className="mt-orbit-s text-[15px] font-medium text-foreground">{clause.title}</h2>
+      <h2 className="v5-orbit-heading-label mt-orbit-s text-foreground">{clause.title}</h2>
       <p className="mt-orbit-xs text-[13px] leading-5 text-muted-foreground">{clause.summary}</p>
       <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-s">
         <Button
@@ -1086,7 +1086,7 @@ function MediumDiffCard({
     <CardShell clause={clause} className="p-orbit-base">
       <div className="flex min-w-0 items-center gap-orbit-s">
         <SeverityPill tier={clause.tier} />
-        <h2 className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
+        <h2 className="v5-orbit-heading-label min-w-0 flex-1 truncate text-foreground">
           {clause.title} <span className="text-[11px] font-normal text-muted-foreground">{clause.section}</span>
         </h2>
         <p className="hidden min-w-0 flex-[1.2] truncate text-[12px] text-muted-foreground lg:block">{clause.summary}</p>
@@ -1122,7 +1122,7 @@ function DiffHeader({ clause }: { clause: DeviationClause }) {
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-orbit-s">
       <SeverityPill tier={clause.tier} />
-      <h2 className="min-w-0 text-[13px] font-medium text-foreground">{clause.title}</h2>
+      <h2 className="v5-orbit-heading-label min-w-0 text-foreground">{clause.title}</h2>
       <span className="text-[11px] text-muted-foreground">{clause.section}</span>
     </div>
   );

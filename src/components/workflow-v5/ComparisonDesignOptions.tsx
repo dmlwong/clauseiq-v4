@@ -6,6 +6,7 @@ import {
   Card,
   Chip,
   Filter as OrbitFilter,
+  Headings,
   RadialIndicator,
   TabButton,
   Text,
@@ -411,9 +412,9 @@ function CategoryFiltersSection({
 }) {
   return (
     <div className="mt-orbit-base border-t border-border pt-orbit-base">
-      <p className="mb-orbit-s text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-        Categories
-      </p>
+      <div className="mb-orbit-s">
+        <Text as="p" size="Small" variant="Secondary">CATEGORIES</Text>
+      </div>
       <SidebarFiltersPanel activeFilterChips={activeFilterChips}>{children}</SidebarFiltersPanel>
     </div>
   );
@@ -423,9 +424,9 @@ function ActiveFiltersSection({ children }: { children?: ReactNode }) {
   if (!children) return null;
   return (
     <div className="border-t border-border pt-orbit-base">
-      <p className="mb-orbit-s text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-        Active filters
-      </p>
+      <div className="mb-orbit-s">
+        <Text as="p" size="Small" variant="Secondary">ACTIVE FILTERS</Text>
+      </div>
       {children}
     </div>
   );
@@ -508,8 +509,7 @@ function FirstAnalysisSummaryPanel({
     <section className="rounded-none border-0 bg-card p-orbit-none">
       <Card type="Static" padding={compact ? "Small" : "Base"} state="Accent">
         <div className="flex items-center justify-between gap-orbit-s">
-          <Text as="p" size="Small" variant="Secondary">{analysisLabel}</Text>
-          <Badge label={metrics.versionLabel} status="Information" />
+          <Chip label={analysisLabel} size="Mini" variant="Information" />
         </div>
         <div className="mt-orbit-s flex items-center gap-orbit-s">
           <RadialIndicator
@@ -519,11 +519,11 @@ function FirstAnalysisSummaryPanel({
             ariaLabel={`${metrics.score} score`}
           />
           <div className="flex items-end gap-orbit-s">
-            <span className="text-3xl font-semibold leading-none text-foreground">{metrics.score}</span>
+            <Headings size="Heading 1">{metrics.score}</Headings>
             <Text as="span" size="Small" variant="Secondary">score</Text>
           </div>
         </div>
-        <DistributionBar distribution={metrics.distribution} className="mt-orbit-base" />
+        <FirstAnalysisMetricBar metrics={metrics} className="mt-orbit-base" />
       </Card>
       <FirstAnalysisMetricGrid
         metrics={metrics}
@@ -540,7 +540,7 @@ function FirstAnalysisReviewCountPanel({ visibleCount }: { visibleCount: number 
   return (
     <div className="mb-orbit-base px-orbit-xs">
       <div className="flex items-center justify-between gap-orbit-s">
-        <Text as="p" size="Small" variant="Secondary">Clauses to review</Text>
+        <Headings size="Heading 4">Clauses to Review</Headings>
         <Chip label={String(visibleCount)} size="Mini" variant="Outline" />
       </div>
     </div>
@@ -954,9 +954,9 @@ const metricDefinitions: Array<{
   { key: "met", label: "Met", value: "met", tone: "success", group: "workflow" },
   { key: "changes", label: "Supplier changes", value: "supplierChanges", tone: "warning", group: "workflow" },
   { key: "need-action", label: "Need review", value: "needReview", tone: "destructive", group: "workflow" },
-  { key: "high", label: "High", value: "high", tone: "destructive", group: "risk" },
-  { key: "medium", label: "Medium", value: "medium", tone: "warning", group: "risk" },
-  { key: "low", label: "Low", value: "low", group: "risk" },
+  { key: "high", label: "High Deviation", value: "high", tone: "destructive", group: "risk" },
+  { key: "medium", label: "Medium Deviation", value: "medium", tone: "warning", group: "risk" },
+  { key: "low", label: "Low Deviation", value: "low", group: "risk" },
   { key: "total", label: "Total clauses", value: "totalClauses", group: "risk" },
 ];
 
@@ -965,12 +965,15 @@ const firstAnalysisMetricDefinitions: Array<{
   label: string;
   value: keyof Pick<FirstAnalysisMetrics, "high" | "medium" | "low" | "missingClauses">;
   tone?: "success" | "warning" | "destructive";
+  color: string;
+  barColor?: string;
+  barBorderColor?: string;
   group: "workflow" | "risk";
 }> = [
-  { key: "high", label: "High", value: "high", tone: "destructive", group: "risk" },
-  { key: "medium", label: "Medium", value: "medium", tone: "warning", group: "risk" },
-  { key: "low", label: "Low", value: "low", group: "risk" },
-  { key: "missing", label: "Missing Clauses", value: "missingClauses", tone: "destructive", group: "risk" },
+  { key: "high", label: "High Deviation", value: "high", tone: "destructive", color: "hsl(var(--destructive))", group: "risk" },
+  { key: "medium", label: "Medium Deviation", value: "medium", tone: "warning", color: "#F0AB00", group: "risk" },
+  { key: "low", label: "Low Deviation", value: "low", color: "#5F5E5A", group: "risk" },
+  { key: "missing", label: "Missing Clauses", value: "missingClauses", color: "hsl(var(--foreground))", barColor: "#ffffff", barBorderColor: "hsl(var(--border))", group: "risk" },
 ];
 
 function FirstAnalysisMetricGrid({
@@ -988,14 +991,13 @@ function FirstAnalysisMetricGrid({
 }) {
   const activeMetricSet = new Set(activeMetrics ?? []);
   const renderMetric = (definition: (typeof firstAnalysisMetricDefinitions)[number]) => (
-    <MetricCell
-      key={definition.key}
-      label={definition.label}
-      value={metrics[definition.value]}
-      tone={definition.tone}
-      active={activeMetricSet.has(definition.key)}
-      onClick={onMetricSelect ? () => onMetricSelect(definition.key) : undefined}
-    />
+      <MetricCell
+        key={definition.key}
+        label={definition.label}
+        value={metrics[definition.value]}
+        active={activeMetricSet.has(definition.key)}
+        onClick={onMetricSelect ? () => onMetricSelect(definition.key) : undefined}
+      />
   );
 
   if (grouped) {
@@ -1004,10 +1006,10 @@ function FirstAnalysisMetricGrid({
     if (workflowMetrics.length === 0) {
       return (
         <div className="mt-orbit-base rounded-lg border border-border/70 bg-white/60 p-orbit-s">
-          <p className="mb-orbit-s text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Risk
-          </p>
-          <div className="grid grid-cols-2 gap-orbit-s text-[11px]">
+          <div className="mb-orbit-s">
+            <Text as="p" size="Small" variant="Secondary">RISK</Text>
+          </div>
+          <div className="grid grid-cols-2 gap-orbit-s">
             {riskMetrics.map(renderMetric)}
           </div>
         </div>
@@ -1016,18 +1018,18 @@ function FirstAnalysisMetricGrid({
     return (
       <div className="mt-orbit-base grid gap-orbit-base lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]">
         <div className="rounded-lg border border-border/70 bg-white/60 p-orbit-s">
-          <p className="mb-orbit-s text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Workflow
-          </p>
-          <div className="grid gap-orbit-s text-[11px]">
+          <div className="mb-orbit-s">
+            <Text as="p" size="Small" variant="Secondary">WORKFLOW</Text>
+          </div>
+          <div className="grid gap-orbit-s">
             {workflowMetrics.map(renderMetric)}
           </div>
         </div>
         <div className="rounded-lg border border-border/70 bg-white/60 p-orbit-s">
-          <p className="mb-orbit-s text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Risk
-          </p>
-          <div className="grid grid-cols-2 gap-orbit-s text-[11px]">
+          <div className="mb-orbit-s">
+            <Text as="p" size="Small" variant="Secondary">RISK</Text>
+          </div>
+          <div className="grid grid-cols-2 gap-orbit-s">
             {riskMetrics.map(renderMetric)}
           </div>
         </div>
@@ -1038,7 +1040,7 @@ function FirstAnalysisMetricGrid({
   return (
     <div
       className={cn(
-        "mt-orbit-base grid gap-orbit-s text-[11px]",
+        "mt-orbit-base grid gap-orbit-s",
         density === "rail" ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-5",
       )}
     >
@@ -1077,7 +1079,7 @@ function MetricGrid({
         {(["workflow", "risk"] as const).map((group) => (
           <div key={group} className="rounded-lg border border-border/70 bg-white/60 p-orbit-s">
             <Text as="p" size="Small" variant="Secondary">{group === "workflow" ? "Workflow" : "Risk"}</Text>
-            <div className="grid grid-cols-2 gap-orbit-s text-[11px]">
+            <div className="grid grid-cols-2 gap-orbit-s">
               {metricDefinitions.filter((definition) => definition.group === group).map(renderMetric)}
             </div>
           </div>
@@ -1089,11 +1091,40 @@ function MetricGrid({
   return (
     <div
       className={cn(
-        "mt-orbit-base grid gap-orbit-s text-[11px]",
+        "mt-orbit-base grid gap-orbit-s",
         density === "rail" ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4",
       )}
     >
       {metricDefinitions.map(renderMetric)}
+    </div>
+  );
+}
+
+function FirstAnalysisMetricBar({ metrics, className }: { metrics: FirstAnalysisMetrics; className?: string }) {
+  const total = Math.max(
+    1,
+    firstAnalysisMetricDefinitions.reduce((sum, definition) => sum + metrics[definition.value], 0),
+  );
+
+  return (
+    <div className={cn("flex h-2 overflow-hidden rounded-full bg-muted", className)}>
+      {firstAnalysisMetricDefinitions.map((definition) => {
+        const value = metrics[definition.value];
+        if (value <= 0) return null;
+
+        return (
+          <span
+            key={definition.key}
+            className="h-full"
+            aria-label={`${definition.label}: ${value}`}
+            style={{
+              width: `${(value / total) * 100}%`,
+              backgroundColor: definition.barColor ?? definition.color,
+              border: definition.barBorderColor ? `1px solid ${definition.barBorderColor}` : undefined,
+            }}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -1113,19 +1144,13 @@ function MetricCell({
 }) {
   const interactive = Boolean(onClick);
   const [isHovered, setIsHovered] = useState(false);
+  const valueVariant = tone === "destructive" ? "Error" : tone === "warning" ? "Warning" : "Bold";
   const content = (
     <>
       <Text as="p" size="Small" variant="Secondary">{label}</Text>
-      <p
-        className={cn(
-          "mt-orbit-xs text-sm font-semibold text-foreground",
-          tone === "success" && "text-success",
-          tone === "warning" && "text-warning-foreground",
-          tone === "destructive" && "text-destructive",
-        )}
-      >
-        {value}
-      </p>
+      <div className="mt-orbit-xs">
+        <Text as="p" size="Paragraph" variant={valueVariant}>{value}</Text>
+      </div>
     </>
   );
 

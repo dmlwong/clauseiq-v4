@@ -58,7 +58,7 @@ export function V5OrbitToastHost() {
   if (!current) return null;
 
   return (
-    <div className="pointer-events-none fixed right-4 top-4 z-[100] max-w-[380px]">
+    <div className="pointer-events-none fixed right-orbit-base top-orbit-base z-[100] max-w-[380px]">
       <div className="pointer-events-auto">
         <Toast
           key={current.id}

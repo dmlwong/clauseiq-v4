@@ -37,21 +37,21 @@ export function InitiativeOverview({ initiativeId, onBack, onSelectSupplier, onC
       id: "commercial",
       header: "Commercial",
       render: (supplier: typeof initiative.suppliers[number]) => (
-        <span className="font-mono text-sm">{supplier.commercialScore != null ? `${supplier.commercialScore}/100` : "—"}</span>
+        <span className="tabular-nums text-sm">{supplier.commercialScore != null ? `${supplier.commercialScore}/100` : "—"}</span>
       ),
     },
     {
       id: "capability",
       header: "Capability",
       render: (supplier: typeof initiative.suppliers[number]) => (
-        <span className="font-mono text-sm">{supplier.capabilityScore != null ? `${supplier.capabilityScore}/100` : "—"}</span>
+        <span className="tabular-nums text-sm">{supplier.capabilityScore != null ? `${supplier.capabilityScore}/100` : "—"}</span>
       ),
     },
     {
       id: "score",
       header: "ClauseIQ Score",
       render: (supplier: typeof initiative.suppliers[number]) => (
-        <span className="font-mono text-sm font-medium">{supplier.overallScore != null ? `${supplier.overallScore}/100` : "—"}</span>
+        <span className="tabular-nums text-sm font-medium">{supplier.overallScore != null ? `${supplier.overallScore}/100` : "—"}</span>
       ),
     },
     {
@@ -86,8 +86,8 @@ export function InitiativeOverview({ initiativeId, onBack, onSelectSupplier, onC
         <header className="space-y-orbit-s flex items-start justify-between gap-orbit-base">
           <div className="space-y-orbit-s">
             <div className="flex items-center gap-orbit-s">
-              <h1 className="text-2xl font-bold text-foreground tracking-tight">{initiative.name}</h1>
-              <Badge variant="outline" className="font-mono text-xs">{initiative.reference}</Badge>
+              <h1 className="v5-orbit-heading-2">{initiative.name}</h1>
+              <Badge variant="outline" className="tabular-nums text-xs">{initiative.reference}</Badge>
             </div>
             <p className="text-muted-foreground">{initiative.description}</p>
           </div>
@@ -98,7 +98,7 @@ export function InitiativeOverview({ initiativeId, onBack, onSelectSupplier, onC
 
         <div className="bg-card border border-border rounded-xl overflow-hidden">
           <div className="px-orbit-m py-orbit-base border-b border-border">
-            <h2 className="text-sm font-semibold text-foreground">Suppliers ({initiative.suppliers.length})</h2>
+            <h2 className="v5-orbit-heading-strong text-foreground">Suppliers ({initiative.suppliers.length})</h2>
           </div>
           <OrbitTable
             ariaLabel={`Suppliers for ${initiative.name}`}

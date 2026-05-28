@@ -98,7 +98,7 @@ export function FocusSetDrawer({
                 <div className="space-y-orbit-s">
                 <div className="flex items-start justify-between gap-orbit-s">
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-mono text-muted-foreground">
+                    <p className="text-xs tabular-nums text-muted-foreground">
                       §{def?.number ?? e.clauseId.replace("c", "")} · {def?.category}
                     </p>
                     <p className="text-sm font-semibold text-foreground truncate">{def?.title}</p>
@@ -182,7 +182,7 @@ function Stat({ label, value, tone = "text-foreground" }: { label: string; value
   return (
     <div className="border border-border rounded-md p-orbit-s bg-card">
       <p className="text-[10px] uppercase text-muted-foreground tracking-wider">{label}</p>
-      <p className={`text-lg font-bold font-mono ${tone}`}>{value}</p>
+      <p className={`text-lg font-bold tabular-nums ${tone}`}>{value}</p>
     </div>
   );
 }

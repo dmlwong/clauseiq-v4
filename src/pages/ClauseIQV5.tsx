@@ -1,11 +1,20 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+  type MouseEvent,
+  type RefObject,
+} from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Sparkles, Search, Check, Pencil, FileText, Loader2,
   ChevronRight, ListChecks, FilePlus2, Building2, Info,
-  BookOpen, Scale,
+  BookOpen, Scale, ClipboardList, BadgeCheck, ChevronUp, Upload,
 } from "lucide-react";
-import { Dropzone as OrbitDropzone } from "@orbit";
+import { LinkText, Text } from "@orbit";
 import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
 import { showV5OrbitToast as toast } from "@/components/clauseiq-v5/V5OrbitToast";
 import { V5Shell } from "@/components/clauseiq-v5/V5Shell";
@@ -20,7 +29,6 @@ import {
   type CiqInitiative,
   type CiqParameterKind,
   type CiqParameterOption,
-  type CiqSelectedParameter,
 } from "@/lib/clauseiq-v4-data";
 import { cn } from "@/lib/utils";
 import { mockInitiative, type ClauseAnalysis, type Initiative } from "@/data/mock-clauseiq";
@@ -37,10 +45,29 @@ import type {
 } from "@/components/clauseiq-v5/supplier-results/types";
 
 type Step = "welcome" | "select" | "parameters" | "upload" | "processing" | "results";
+type AnalysisBasisKind = Exclude<CiqParameterKind, "Category">;
+
+interface AnalysisBasisSelection {
+  kind: AnalysisBasisKind;
+  label: string;
+}
+
+interface AnalysisParameterSelection {
+  basis: AnalysisBasisSelection | null;
+  category: string | null;
+}
 
 const PROCESSING_MS = 3_000;
-const DEFAULT_PARAMETER: CiqSelectedParameter = { kind: "Playbook", label: CIQ_DEFAULT_PLAYBOOK };
-const CIQ_V5_PARAMETER_OPTIONS = CIQ_PARAMETER_OPTIONS.filter((option) => option.kind !== "Category");
+const DEFAULT_BASIS_SELECTION: AnalysisBasisSelection = { kind: "Playbook", label: CIQ_DEFAULT_PLAYBOOK };
+const BASIS_PARAMETER_OPTIONS = CIQ_PARAMETER_OPTIONS.filter(
+  (option): option is CiqParameterOption & { kind: AnalysisBasisKind } => option.kind !== "Category",
+);
+const CATEGORY_PARAMETER_OPTION = CIQ_PARAMETER_OPTIONS.find((option) => option.kind === "Category");
+const NEXT_ACTION_MILESTONES = Array.from({ length: 5 }, (_, index) => ({
+  id: `gate-${index + 1}`,
+  label: `Gate ${index + 1}`,
+  dueDate: "21/05/2026",
+}));
 const EMPTY_MOCK_INITIATIVE: Initiative = {
   ...mockInitiative,
   suppliers: mockInitiative.suppliers.map((supplier) => ({
@@ -67,16 +94,34 @@ const createRerunAnalysis = (fileName: string): ClauseAnalysis => ({
 const LATEST_V5_RESULTS_ROUTE =
   "/initiatives-v5?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=first-analysis";
 
+const createDefaultParameterSelection = (): AnalysisParameterSelection => ({
+  basis: { ...DEFAULT_BASIS_SELECTION },
+  category: null,
+});
+
 const buildAnalysisParameters = (
-  selected: CiqSelectedParameter | null,
+  selected: AnalysisParameterSelection | null,
 ): AnalysisParameterItem[] => {
-  const parameter = selected ?? DEFAULT_PARAMETER;
-  return [
-    {
-      label: parameter.kind,
-      value: parameter.label,
-    },
-  ];
+  const parameter = selected ?? createDefaultParameterSelection();
+  const rows: AnalysisParameterItem[] = [];
+
+  if (parameter.basis) {
+    rows.push({ label: parameter.basis.kind, value: parameter.basis.label });
+  }
+
+  if (parameter.category) {
+    rows.push({ label: "Category", value: parameter.category });
+  }
+
+  return rows;
+};
+
+const hasCompleteAnalysisParameters = (
+  selected: AnalysisParameterSelection | null,
+): selected is AnalysisParameterSelection & { basis: AnalysisBasisSelection } => {
+  if (!selected?.basis) return false;
+  if (selected.basis.kind === "Playbook") return true;
+  return Boolean(selected.category);
 };
 
 interface ClauseIQV5Props {
@@ -97,20 +142,20 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
   const [initiative, setInitiative] = useState<CiqInitiative | null>(
     resultsFromRoute ? defaultCompletedInitiative : null,
   );
-  const [selectedParameter, setSelectedParameter] = useState<CiqSelectedParameter | null>(
-    resultsFromRoute ? DEFAULT_PARAMETER : null,
+  const [selectedParameter, setSelectedParameter] = useState<AnalysisParameterSelection | null>(
+    resultsFromRoute ? createDefaultParameterSelection() : null,
   );
-  const [expandedParameter, setExpandedParameter] = useState<CiqParameterKind | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [rerunUploadVisible, setRerunUploadVisible] = useState(rerunUploadFromRoute);
-  const [rerunSelectedParameter, setRerunSelectedParameter] = useState<CiqSelectedParameter | null>(null);
-  const [rerunExpandedParameter, setRerunExpandedParameter] = useState<CiqParameterKind | null>(null);
+  const [rerunSelectedParameter, setRerunSelectedParameter] = useState<AnalysisParameterSelection | null>(null);
   const [rerunProcessing, setRerunProcessing] = useState(false);
   const [pendingRerunAnalysis, setPendingRerunAnalysis] = useState<ClauseAnalysis | null>(null);
-  const [pendingRerunParameter, setPendingRerunParameter] = useState<CiqSelectedParameter | null>(null);
+  const [pendingRerunParameter, setPendingRerunParameter] = useState<AnalysisParameterSelection | null>(null);
   const [completedRerunAnalysis, setCompletedRerunAnalysis] = useState<ClauseAnalysis | null>(null);
-  const [completedRerunParameter, setCompletedRerunParameter] = useState<CiqSelectedParameter | null>(null);
+  const [completedRerunParameter, setCompletedRerunParameter] = useState<AnalysisParameterSelection | null>(null);
+  const [completedMilestoneIds, setCompletedMilestoneIds] = useState<string[]>([]);
+  const [initiativeCompleted, setInitiativeCompleted] = useState(false);
 
   const selectRef = useRef<HTMLDivElement>(null);
   const parametersRef = useRef<HTMLDivElement>(null);
@@ -140,7 +185,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
 
     if (!resultsFromRoute) return;
     setInitiative((current) => current ?? defaultCompletedInitiative);
-    setSelectedParameter((current) => current ?? DEFAULT_PARAMETER);
+    setSelectedParameter((current) => current ?? createDefaultParameterSelection());
     setStep("results");
     if (rerunUploadFromRoute) {
       setRerunUploadVisible(true);
@@ -187,11 +232,10 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
     const t = setTimeout(() => {
       setRerunProcessing(false);
       setCompletedRerunAnalysis(pendingRerunAnalysis ?? createRerunAnalysis("New_Contract.pdf"));
-      setCompletedRerunParameter(pendingRerunParameter ?? selectedParameter ?? DEFAULT_PARAMETER);
+      setCompletedRerunParameter(pendingRerunParameter ?? selectedParameter ?? createDefaultParameterSelection());
       setPendingRerunAnalysis(null);
       setPendingRerunParameter(null);
       setRerunSelectedParameter(null);
-      setRerunExpandedParameter(null);
       setFile(null);
       toast.success("New analysis added as latest output.");
     }, PROCESSING_MS);
@@ -211,6 +255,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
   const processingState: CardState = step === "processing" ? "active" : "default";
   const resultsVisible = step === "results";
   const outputPanelResultsVisible = resultsVisible && resultsLayout === "output-panel";
+  const showPostAnalysisActions = resultsVisible && !rerunUploadVisible && !rerunProcessing;
   const resultsInitiative =
     outputPanelResultsVisible && resultScenario === "empty" ? FIRST_RUN_MOCK_INITIATIVE : mockInitiative;
   const rerunSupplier = resultsInitiative.suppliers[0];
@@ -231,43 +276,95 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
   const handleSelect = (i: CiqInitiative) => {
     setInitiative(i);
     setSelectedParameter(null);
-    setExpandedParameter(null);
     setFile(null);
     setModalOpen(false);
     setStep("parameters");
   };
 
-  const handleParameterToggle = (kind: CiqParameterKind) => {
-    setExpandedParameter((current) => current === kind ? null : kind);
+  const handleStartAnotherInitiative = () => {
+    setInitiative(null);
+    setSelectedParameter(null);
+    setFile(null);
+    setModalOpen(false);
+    setRerunUploadVisible(false);
+    setRerunSelectedParameter(null);
+    setRerunProcessing(false);
+    setPendingRerunAnalysis(null);
+    setPendingRerunParameter(null);
+    setCompletedRerunAnalysis(null);
+    setCompletedRerunParameter(null);
+    setCompletedMilestoneIds([]);
+    setInitiativeCompleted(false);
+    setStep("welcome");
+    navigate("/clauseiq-v5");
   };
 
-  const handleParameterSelect = (option: CiqParameterOption, value: string) => {
-    setSelectedParameter({ kind: option.kind, label: value });
-    setExpandedParameter(null);
+  const handleMilestoneComplete = (milestoneId: string) => {
+    setCompletedMilestoneIds((current) => (
+      current.includes(milestoneId) ? current : [...current, milestoneId]
+    ));
+  };
+
+  const handleCompleteInitiative = () => {
+    setInitiativeCompleted(true);
+  };
+
+  const handleBasisSelect = (option: CiqParameterOption, value: string) => {
+    if (option.kind === "Category") return;
+    setSelectedParameter((current) => ({
+      basis: { kind: option.kind, label: value },
+      category: option.kind === "Governing Law" ? current?.category ?? null : null,
+    }));
+    setFile(null);
+    setStep(option.kind === "Playbook" ? "upload" : "parameters");
+  };
+
+  const handleCategorySelect = (_option: CiqParameterOption, value: string) => {
+    setSelectedParameter((current) => ({
+      basis: current?.basis ?? null,
+      category: value,
+    }));
     setFile(null);
     setStep("upload");
   };
 
-  const handleRerunParameterToggle = (kind: CiqParameterKind) => {
-    setRerunExpandedParameter((current) => current === kind ? null : kind);
-  };
-
-  const handleRerunParameterSelect = (option: CiqParameterOption, value: string) => {
-    setRerunSelectedParameter({ kind: option.kind, label: value });
-    setRerunExpandedParameter(null);
+  const handleRerunBasisSelect = (option: CiqParameterOption, value: string) => {
+    if (option.kind === "Category") return;
+    setRerunSelectedParameter((current) => ({
+      basis: { kind: option.kind, label: value },
+      category: option.kind === "Governing Law" ? current?.category ?? null : null,
+    }));
     setFile(null);
   };
 
-  const handleRerunParameterEdit = () => {
-    setRerunSelectedParameter(null);
-    setRerunExpandedParameter(null);
+  const handleRerunCategorySelect = (_option: CiqParameterOption, value: string) => {
+    setRerunSelectedParameter((current) => ({
+      basis: current?.basis ?? null,
+      category: value,
+    }));
     setFile(null);
   };
 
-  const handleParameterEdit = () => {
+  const handleRerunBasisEdit = () => {
+    setRerunSelectedParameter((current) => current ? { ...current, basis: null, category: null } : null);
+    setFile(null);
+  };
+
+  const handleRerunCategoryEdit = () => {
+    setRerunSelectedParameter((current) => current ? { ...current, category: null } : null);
+    setFile(null);
+  };
+
+  const handleBasisEdit = () => {
     if (parameterLocked) return;
-    setSelectedParameter(null);
-    setExpandedParameter(null);
+    setSelectedParameter((current) => current ? { ...current, basis: null, category: null } : null);
+    setFile(null);
+    setStep("parameters");
+  };
+
+  const handleCategoryEdit = () => {
+    if (parameterLocked) return;
+    setSelectedParameter((current) => current ? { ...current, category: null } : null);
     setFile(null);
     setStep("parameters");
   };
@@ -284,7 +381,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
     }
     setFile(f);
     if (resultsVisible && rerunUploadVisible) {
-      const parameterForRun = rerunSelectedParameter ?? selectedParameter ?? DEFAULT_PARAMETER;
+      const parameterForRun = rerunSelectedParameter ?? selectedParameter ?? createDefaultParameterSelection();
       setPendingRerunAnalysis(createRerunAnalysis(f.name));
       setPendingRerunParameter(parameterForRun);
       setCompletedRerunAnalysis(null);
@@ -304,7 +401,6 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
     setCompletedRerunAnalysis(null);
     setCompletedRerunParameter(null);
     setRerunSelectedParameter(null);
-    setRerunExpandedParameter(null);
     setRerunUploadVisible(true);
     if (!forceResults) {
       const nextParams = new URLSearchParams(searchParams);
@@ -354,7 +450,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
     >
       <div
         className={cn(
-          "mx-auto px-orbit-base pt-orbit-xxl space-y-orbit-m transition-[max-width] duration-300",
+          "mx-auto px-orbit-base pt-orbit-xxl space-y-orbit-base transition-[max-width] duration-300",
           "pb-orbit-xxl",
           "max-w-[640px]",
         )}
@@ -365,7 +461,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
                 <div className="h-10 w-10 rounded-lg bg-primary text-primary-foreground grid place-items-center">
                   <Sparkles className="h-5 w-5" />
                 </div>
-                <h1 className="text-xl font-semibold">ClauseIQ</h1>
+                <h1 className="v5-orbit-heading-4">ClauseIQ</h1>
               </div>
               <p className="text-sm text-muted-foreground mb-orbit-m">
                 Upload a contract and ClauseIQ will review it against your initiative's playbook,
@@ -393,7 +489,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
               <div ref={selectRef}>
                 {!initiative ? (
                   <StateCard state={selectState}>
-                    <h2 className="text-base font-semibold mb-orbit-xs">Select Initiative</h2>
+                    <h2 className="v5-orbit-heading-5 mb-orbit-xs">Select Initiative</h2>
                     <p className="text-sm text-muted-foreground mb-orbit-base">
                       Choose the initiative to analyse the contract against.
                     </p>
@@ -410,7 +506,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
                     state="default"
                     className={resultsVisible ? "mx-auto w-full max-w-[640px]" : undefined}
                   >
-                    <h2 className="text-base font-semibold mb-orbit-base">Initiative Selected</h2>
+                    <h2 className="v5-orbit-heading-5 mb-orbit-base">Initiative Selected</h2>
                     <SelectedSummaryRow
                       label={initiative.name}
                       disabled={initiativeLocked}
@@ -424,48 +520,26 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
 
             {/* Contract Analysis Parameters */}
             {parametersVisible && !resultsVisible && (
-              <div ref={parametersRef}>
-                {!selectedParameter ? (
-                  <StateCard state={parametersState}>
-                    <h2 className="text-base font-semibold mb-orbit-xs">Contract Analysis Parameters</h2>
-                    <p className="text-sm text-muted-foreground mb-orbit-base">
-                      Choose a parameter to analyse this contract.
-                    </p>
-                    <ParameterSelection
-                      options={CIQ_V5_PARAMETER_OPTIONS}
-                      expandedKind={expandedParameter}
-                      onToggle={handleParameterToggle}
-                      onSelect={handleParameterSelect}
-                    />
-                  </StateCard>
-                ) : (
-                  <StateCard
-                    state={parameterLocked ? "disabled" : "default"}
-                    className={resultsVisible ? "mx-auto w-full max-w-[640px]" : undefined}
-                  >
-                    <h2 className="text-base font-semibold mb-orbit-base">Contract Analysis Parameters</h2>
-                    <SelectedSummaryRow
-                      label={selectedParameter.label}
-                      disabled={parameterLocked}
-                      actionLabel={`Change ${selectedParameter.kind}`}
-                      onAction={handleParameterEdit}
-                    />
-                  </StateCard>
-                )}
+              <div ref={parametersRef} className="space-y-orbit-base">
+                <AnalysisParameterCards
+                  selectedParameter={selectedParameter}
+                  cardState={parametersState}
+                  locked={parameterLocked}
+                  onBasisSelect={handleBasisSelect}
+                  onCategorySelect={handleCategorySelect}
+                  onBasisEdit={handleBasisEdit}
+                  onCategoryEdit={handleCategoryEdit}
+                />
               </div>
             )}
 
             {/* Upload Contract */}
-            {uploadVisible && selectedParameter && step !== "processing" && step !== "results" && (
+            {uploadVisible && hasCompleteAnalysisParameters(selectedParameter) && step !== "processing" && step !== "results" && (
               <div ref={uploadRef}>
                 <StateCard state={uploadState}>
-                  <h2 className="text-base font-semibold mb-orbit-base">Upload Contract</h2>
+                  <h2 className="v5-orbit-heading-5 mb-orbit-base">Upload Contract</h2>
                   <PlaybookDisclaimer variant="callout" parameter={selectedParameter} />
                   <Dropzone onFile={validateAndSetFile} />
-                  <div className="mt-orbit-base text-xs text-muted-foreground space-y-orbit-xxs">
-                    <div>File types supported: PDF</div>
-                    <div>Maximum upload file size: 100 MB</div>
-                  </div>
                 </StateCard>
               </div>
             )}
@@ -474,7 +548,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
             {processingVisible && step === "processing" && (
               <div ref={processingRef}>
                 <StateCard state={processingState}>
-                  <h2 className="text-base font-semibold mb-orbit-base">Analysing Your Contract</h2>
+                  <h2 className="v5-orbit-heading-5 mb-orbit-base">Analysing Your Contract</h2>
                   <div className="flex items-center justify-between border border-border rounded-lg px-orbit-base py-orbit-s mb-orbit-base">
                     <div className="flex items-center gap-orbit-s min-w-0">
                       <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -514,48 +588,27 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
                 {newAnalysisSectionVisible && <NewAnalysisDivider />}
                 {rerunUploadVisible && (
                   <div ref={rerunUploadRef} className="space-y-orbit-base">
-                    <StateCard state={rerunSelectedParameter ? "default" : "active"}>
-                      <h2 className="text-base font-semibold mb-orbit-xs">Contract Analysis Parameters</h2>
-                      {!rerunSelectedParameter ? (
-                        <>
-                          <p className="text-sm text-muted-foreground mb-orbit-base">
-                            Choose a parameter to analyse the next contract.
-                          </p>
-                          <ParameterSelection
-                            options={CIQ_V5_PARAMETER_OPTIONS}
-                            expandedKind={rerunExpandedParameter}
-                            onToggle={handleRerunParameterToggle}
-                            onSelect={handleRerunParameterSelect}
-                          />
-                        </>
-                      ) : (
-                        <div className="mt-orbit-s">
-                          <SelectedSummaryRow
-                            label={rerunSelectedParameter.label}
-                            disabled={false}
-                            actionLabel={`Change ${rerunSelectedParameter.kind}`}
-                            onAction={handleRerunParameterEdit}
-                          />
-                        </div>
-                      )}
-                    </StateCard>
+                    <AnalysisParameterCards
+                      selectedParameter={rerunSelectedParameter}
+                      cardState={hasCompleteAnalysisParameters(rerunSelectedParameter) ? "default" : "active"}
+                      onBasisSelect={handleRerunBasisSelect}
+                      onCategorySelect={handleRerunCategorySelect}
+                      onBasisEdit={handleRerunBasisEdit}
+                      onCategoryEdit={handleRerunCategoryEdit}
+                    />
 
-                    {rerunSelectedParameter && (
+                    {hasCompleteAnalysisParameters(rerunSelectedParameter) && (
                       <StateCard state="active">
-                        <h2 className="text-base font-semibold mb-orbit-base">Upload Contract</h2>
+                        <h2 className="v5-orbit-heading-5 mb-orbit-base">Upload Contract</h2>
                         <PlaybookDisclaimer variant="callout" parameter={rerunSelectedParameter} />
                         <Dropzone onFile={validateAndSetFile} />
-                        <div className="mt-orbit-base text-xs text-muted-foreground space-y-orbit-xxs">
-                          <div>File types supported: PDF</div>
-                          <div>Maximum upload file size: 100 MB</div>
-                        </div>
                       </StateCard>
                     )}
                   </div>
                 )}
                 {rerunProcessing && (
                   <StateCard state="active">
-                    <h2 className="text-base font-semibold mb-orbit-base">Analysing New Contract</h2>
+                    <h2 className="v5-orbit-heading-5 mb-orbit-base">Analysing New Contract</h2>
                     <div className="flex items-center justify-between border border-border rounded-lg px-orbit-base py-orbit-s mb-orbit-base">
                       <div className="flex items-center gap-orbit-s min-w-0">
                         <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -589,6 +642,15 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
                       analysisParameters={completedRerunAnalysisParameters}
                     />
                   </div>
+                )}
+                {showPostAnalysisActions && (
+                  <PostAnalysisNextActions
+                    completedMilestoneIds={completedMilestoneIds}
+                    initiativeCompleted={initiativeCompleted}
+                    onStartAnotherInitiative={handleStartAnotherInitiative}
+                    onMilestoneComplete={handleMilestoneComplete}
+                    onCompleteInitiative={handleCompleteInitiative}
+                  />
                 )}
                 <div className="h-[304px]" aria-hidden="true" />
               </div>
@@ -637,6 +699,207 @@ function NewAnalysisDivider() {
   );
 }
 
+function PostAnalysisNextActions({
+  completedMilestoneIds,
+  initiativeCompleted,
+  onStartAnotherInitiative,
+  onMilestoneComplete,
+  onCompleteInitiative,
+}: {
+  completedMilestoneIds: string[];
+  initiativeCompleted: boolean;
+  onStartAnotherInitiative: () => void;
+  onMilestoneComplete: (milestoneId: string) => void;
+  onCompleteInitiative: () => void;
+}) {
+  return (
+    <StateCard state="default">
+      <div className="space-y-orbit-base">
+        <h2 className="v5-orbit-heading-5">Next, you can...</h2>
+
+        <button
+          type="button"
+          className="flex w-full items-center gap-orbit-base rounded-lg border border-border bg-card p-orbit-base text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          onClick={onStartAnotherInitiative}
+        >
+          <Sparkles className="h-6 w-6 shrink-0 text-primary" />
+          <span className="min-w-0">
+            <span className="block text-sm font-medium text-foreground">
+              Analyse Contract on Another Initiative
+            </span>
+            <span className="mt-orbit-xs block text-base text-muted-foreground">
+              Start fresh with a new initiative.
+            </span>
+          </span>
+        </button>
+
+        <div className="h-px bg-border" />
+
+        <section className="rounded-lg border border-border bg-card p-orbit-base" aria-labelledby="v5-update-milestone-title">
+          <div className="flex items-start justify-between gap-orbit-base">
+            <div className="flex min-w-0 items-start gap-orbit-s">
+              <ClipboardList className="mt-orbit-xs h-5 w-5 shrink-0 text-primary" />
+              <div>
+                <h3 id="v5-update-milestone-title" className="v5-orbit-heading-label">
+                  Update Milestone
+                </h3>
+                <p className="mt-orbit-xs text-base text-muted-foreground">Track your initiative progress.</p>
+              </div>
+            </div>
+            <ChevronUp className="mt-orbit-xs h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          </div>
+
+          <div className="mt-orbit-m rounded-lg border border-border">
+            <table className="w-full table-fixed border-collapse text-left text-sm">
+              <colgroup>
+                <col className="w-[23%]" />
+                <col className="w-[25%]" />
+                <col className="w-[20%]" />
+                <col className="w-[32%]" />
+              </colgroup>
+              <thead>
+                <tr className="border-b border-border">
+                  <th scope="col" className="v5-orbit-heading-strong px-orbit-base py-orbit-base">Milestone</th>
+                  <th scope="col" className="v5-orbit-heading-strong px-orbit-base py-orbit-base">Due Date</th>
+                  <th scope="col" className="v5-orbit-heading-strong px-orbit-base py-orbit-base">Status</th>
+                  <th scope="col" className="v5-orbit-heading-strong px-orbit-base py-orbit-base">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {NEXT_ACTION_MILESTONES.map((milestone) => {
+                  const completed = completedMilestoneIds.includes(milestone.id);
+
+                  return (
+                    <tr key={milestone.id} className="border-b border-border last:border-b-0">
+                      <td className="px-orbit-base py-orbit-base text-base text-foreground">{milestone.label}</td>
+                      <td className="px-orbit-base py-orbit-base text-base text-foreground">{milestone.dueDate}</td>
+                      <td className={cn("px-orbit-base py-orbit-base text-base", completed ? "font-medium text-success" : "text-foreground")}>
+                        {completed ? "Completed" : "Pending"}
+                      </td>
+                      <td className="px-orbit-base py-orbit-s">
+                        {completed ? (
+                          <Button variant="outline" className="h-9 gap-orbit-s" disabled>
+                            <Check className="h-4 w-4" />
+                            Completed
+                          </Button>
+                        ) : (
+                          <Button variant="outline" className="h-9" onClick={() => onMilestoneComplete(milestone.id)}>
+                            Mark Complete
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {!initiativeCompleted && (
+          <button
+            type="button"
+            className="flex w-full items-center gap-orbit-base rounded-lg border border-border bg-card p-orbit-base text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            onClick={onCompleteInitiative}
+          >
+            <BadgeCheck className="h-6 w-6 shrink-0 text-primary" />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-foreground">Complete Initiative</span>
+              <span className="mt-orbit-xs block text-base text-muted-foreground">
+                Mark this initiative as complete.
+              </span>
+            </span>
+          </button>
+        )}
+      </div>
+    </StateCard>
+  );
+}
+
+function AnalysisParameterCards({
+  selectedParameter,
+  cardState,
+  locked = false,
+  onBasisSelect,
+  onCategorySelect,
+  onBasisEdit,
+  onCategoryEdit,
+}: {
+  selectedParameter: AnalysisParameterSelection | null;
+  cardState: CardState;
+  locked?: boolean;
+  onBasisSelect: (option: CiqParameterOption, value: string) => void;
+  onCategorySelect: (option: CiqParameterOption, value: string) => void;
+  onBasisEdit: () => void;
+  onCategoryEdit: () => void;
+}) {
+  const basisSelected = Boolean(selectedParameter?.basis);
+  const categoryRequired = selectedParameter?.basis?.kind === "Governing Law";
+  const categorySelected = Boolean(selectedParameter?.category);
+  const [activeBasisKind, setActiveBasisKind] = useState<AnalysisBasisKind>("Playbook");
+
+  useEffect(() => {
+    if (selectedParameter?.basis) {
+      setActiveBasisKind(selectedParameter.basis.kind);
+    }
+  }, [selectedParameter?.basis?.kind]);
+
+  return (
+    <>
+      <StateCard state={basisSelected ? "default" : cardState}>
+        <h2 className="v5-orbit-heading-5 mb-orbit-xs">Contract Analysis Parameters</h2>
+        {!basisSelected ? (
+          <>
+            <p className="text-sm text-muted-foreground mb-orbit-base">
+              Choose whether ClauseIQ should analyse against a playbook or governing law.
+            </p>
+            <ParameterKindSelector
+              activeKind={activeBasisKind}
+              options={BASIS_PARAMETER_OPTIONS}
+              onActiveKindChange={setActiveBasisKind}
+              onSelect={onBasisSelect}
+            />
+          </>
+        ) : (
+          <div className="mt-orbit-s">
+            <SelectedSummaryRow
+              label={`${selectedParameter!.basis!.kind} · ${selectedParameter!.basis!.label}`}
+              disabled={locked}
+              actionLabel={`Change ${selectedParameter!.basis!.kind}`}
+              onAction={onBasisEdit}
+            />
+          </div>
+        )}
+      </StateCard>
+
+      {basisSelected && categoryRequired && (
+        <StateCard state={categorySelected ? "default" : "active"}>
+          <h2 className="v5-orbit-heading-5 mb-orbit-xs">Category</h2>
+          {!categorySelected ? (
+            <>
+              <p className="text-sm text-muted-foreground mb-orbit-base">
+                Select the category ClauseIQ should use for this analysis.
+              </p>
+              {CATEGORY_PARAMETER_OPTION && (
+                <ParameterOptionsList option={CATEGORY_PARAMETER_OPTION} onSelect={onCategorySelect} />
+              )}
+            </>
+          ) : (
+            <div className="mt-orbit-s">
+              <SelectedSummaryRow
+                label={`Category · ${selectedParameter!.category!}`}
+                disabled={locked}
+                actionLabel="Change Category"
+                onAction={onCategoryEdit}
+              />
+            </div>
+          )}
+        </StateCard>
+      )}
+    </>
+  );
+}
+
 function SelectedSummaryRow({
   label,
   disabled,
@@ -675,106 +938,125 @@ function SelectedSummaryRow({
   );
 }
 
-function ParameterSelection({
+function ParameterOptionsList({
+  option,
+  onSelect,
+  variant = "framed",
+}: {
+  onSelect: (option: CiqParameterOption, value: string) => void;
+  option: CiqParameterOption;
+  variant?: "framed" | "plain";
+}) {
+  const framed = variant === "framed";
+
+  return (
+    <div
+      role="listbox"
+      aria-label={`${option.label} options`}
+      className={cn(
+        "rounded-lg",
+        framed ? "overflow-hidden border border-border bg-card" : "max-h-52 overflow-y-auto",
+      )}
+    >
+      <div className={cn(framed ? "max-h-52 overflow-y-auto p-orbit-xs" : "space-y-orbit-xs")}>
+        {option.options.map((value) => (
+          <button
+            key={value}
+            type="button"
+            role="option"
+            aria-selected={false}
+            className="w-full rounded-md px-orbit-base py-orbit-s text-left text-sm transition-colors hover:bg-muted"
+            onClick={() => onSelect(option, value)}
+          >
+            {value}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ParameterKindSelector({
+  activeKind,
   options,
-  expandedKind,
-  onToggle,
+  onActiveKindChange,
   onSelect,
 }: {
-  options: CiqParameterOption[];
-  expandedKind: CiqParameterKind | null;
-  onToggle: (kind: CiqParameterKind) => void;
+  activeKind: AnalysisBasisKind;
+  options: Array<CiqParameterOption & { kind: AnalysisBasisKind }>;
+  onActiveKindChange: (kind: AnalysisBasisKind) => void;
   onSelect: (option: CiqParameterOption, value: string) => void;
 }) {
-  const expandedOption = options.find((option) => option.kind === expandedKind);
-  const filteredOptions = expandedOption ? expandedOption.options : [];
+  const activeOption = options.find((option) => option.kind === activeKind) ?? options[0];
+
+  if (!activeOption) return null;
 
   return (
     <div className="space-y-orbit-base">
-      <fieldset className="grid gap-orbit-s sm:grid-cols-2">
-        <legend className="sr-only">Contract analysis parameter type</legend>
+      <div
+        role="radiogroup"
+        aria-label="Contract analysis parameter type"
+        className="grid grid-cols-2 gap-orbit-s"
+      >
         {options.map((option) => {
-          const selected = option.kind === expandedKind;
+          const selected = option.kind === activeOption.kind;
+
           return (
-            <label
+            <button
               key={option.kind}
+              type="button"
+              role="radio"
+              aria-checked={selected}
               className={cn(
-                "flex min-h-[88px] cursor-pointer flex-col items-start justify-between rounded-lg border p-orbit-base text-left transition-colors",
-                selected ? "border-ciq bg-ciq-soft text-foreground" : "border-border bg-card hover:border-ciq/40 hover:bg-muted/35",
+                "flex min-h-16 cursor-pointer items-center gap-orbit-s rounded-lg border bg-card px-orbit-base py-orbit-s text-left text-sm transition-colors",
+                selected
+                  ? "border-primary/60 text-foreground shadow-sm ring-1 ring-primary/20"
+                  : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
               )}
+              onClick={() => onActiveKindChange(option.kind)}
             >
-              <span className="flex w-full items-start justify-between gap-orbit-s">
-                <span className="grid h-8 w-8 place-items-center rounded-md bg-primary/10 text-primary">
-                  <ParameterIcon kind={option.kind} />
-                </span>
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "mt-orbit-xxs grid h-4 w-4 place-items-center rounded-full border transition-colors",
-                    selected ? "border-ciq bg-ciq" : "border-muted-foreground/40 bg-background",
-                  )}
-                >
-                  {selected && <span className="h-1.5 w-1.5 rounded-full bg-primary-foreground" />}
-                </span>
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "grid h-4 w-4 shrink-0 place-items-center rounded-full border transition-colors",
+                  selected ? "border-primary" : "border-muted-foreground/60",
+                )}
+              >
+                {selected && <span className="h-2 w-2 rounded-full bg-primary" />}
               </span>
-              <input
-                type="radio"
-                name="ciq-parameter-kind"
-                value={option.kind}
-                checked={selected}
-                onChange={() => onToggle(option.kind)}
-                aria-controls={`ciq-parameter-options-${option.kind}`}
-                className="sr-only"
-              />
-              <span className="text-sm font-medium">{option.label}</span>
-            </label>
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+                <ParameterIcon kind={option.kind} />
+              </span>
+              <span className="min-w-0 flex-1 truncate font-medium">{option.label}</span>
+            </button>
           );
         })}
-      </fieldset>
+      </div>
 
-      {expandedOption && (
-        <div
-          id={`ciq-parameter-options-${expandedOption.kind}`}
-          role="listbox"
-          aria-label={`${expandedOption.label} options`}
-          className="overflow-hidden rounded-lg border border-border bg-card"
-        >
-          <div className="max-h-52 overflow-y-auto p-orbit-xs">
-            {filteredOptions.length === 0 ? (
-              <div className="px-orbit-base py-orbit-base text-center text-sm text-muted-foreground">No options available.</div>
-            ) : (
-              filteredOptions.map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="option"
-                  aria-selected={false}
-                  className="w-full rounded-md px-orbit-base py-orbit-s text-left text-sm transition-colors hover:bg-muted"
-                  onClick={() => onSelect(expandedOption, value)}
-                >
-                  {value}
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-      )}
+      <ParameterOptionsList option={activeOption} onSelect={onSelect} />
     </div>
   );
 }
 
 function ParameterIcon({ kind }: { kind: CiqParameterKind }) {
   if (kind === "Governing Law") return <Scale className="h-4 w-4" />;
+  if (kind === "Category") return <ListChecks className="h-4 w-4" />;
   return <BookOpen className="h-4 w-4" />;
 }
 
-function parameterDisclaimer(parameter: CiqSelectedParameter | null) {
-  if (!parameter || parameter.kind === "Playbook") return PLAYBOOK_SCOPE_DISCLAIMER;
-  const noun = parameter.kind.toLowerCase();
-  return `Analysis is based on the ${noun} selected. Clauses outside the ${noun} scope won't appear in results.`;
+function parameterDisclaimer(parameter: AnalysisParameterSelection | null) {
+  if (!hasCompleteAnalysisParameters(parameter)) {
+    return "Analysis is based on the selected playbook or governing law, plus the required category.";
+  }
+
+  if (parameter.basis.kind === "Playbook") {
+    return PLAYBOOK_SCOPE_DISCLAIMER;
+  }
+
+  return `Analysis is based on the selected governing law and ${parameter.category} category. Clauses outside that combined scope won't appear in results.`;
 }
 
-function PlaybookDisclaimer({ variant, parameter }: { variant: "callout" | "inline"; parameter: CiqSelectedParameter | null }) {
+function PlaybookDisclaimer({ variant, parameter }: { variant: "callout" | "inline"; parameter: AnalysisParameterSelection | null }) {
   const copy = parameterDisclaimer(parameter);
 
   if (variant === "inline") {
@@ -806,13 +1088,80 @@ function NextRow({ title, subtitle }: { title: string; subtitle: string }) {
 }
 
 function Dropzone({ onFile }: { onFile: (f: File | null) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragActive, setDragActive] = useState(false);
+
+  const openFilePicker = useCallback(() => {
+    inputRef.current?.click();
+  }, []);
+
+  const handleFile = useCallback((file?: File | null) => {
+    if (file) onFile(file);
+  }, [onFile]);
+
+  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    handleFile(event.target.files?.[0]);
+    event.target.value = "";
+  };
+
+  const handleChooseFiles = (event?: MouseEvent<HTMLAnchorElement>) => {
+    event?.preventDefault();
+    event?.stopPropagation();
+    openFilePicker();
+  };
+
+  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragActive(true);
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragActive(false);
+    handleFile(event.dataTransfer.files?.[0]);
+  };
+
   return (
-    <OrbitDropzone
-      ariaLabel="Upload contract PDF"
-      accept="application/pdf,.pdf"
-      onFileSelected={(file) => onFile(file)}
-      acceptedFileTypesLabel="File types supported: .pdf files."
-      maxFileSizeLabel="Maximum upload file size: 100 MB"
-    />
+    <div className="flex flex-col gap-orbit-s">
+      <input
+        ref={inputRef}
+        className="sr-only"
+        type="file"
+        accept="application/pdf,.pdf"
+        aria-label="Upload contract PDF"
+        tabIndex={-1}
+        onChange={handleInputChange}
+      />
+      <div
+        role="group"
+        aria-label="Upload contract PDF"
+        data-drag-active={dragActive ? "true" : "false"}
+        className={cn(
+          "flex min-h-[var(--orbit-dropzone-min-height)] cursor-pointer flex-col items-center justify-center gap-orbit-base rounded-md border-2 border-dashed border-[var(--orbit-color-card-border-accent)] bg-[var(--orbit-color-card-bg-accent)] p-orbit-base transition-colors",
+          dragActive && "border-[var(--orbit-color-card-border-highlight)] bg-[var(--orbit-color-card-bg-default)]",
+        )}
+        onClick={(event) => {
+          if ((event.target as HTMLElement).closest("a")) return;
+          openFilePicker();
+        }}
+        onDragEnter={handleDragOver}
+        onDragOver={handleDragOver}
+        onDragLeave={() => setDragActive(false)}
+        onDrop={handleDrop}
+      >
+        <span className="inline-flex h-[var(--orbit-space-xxl)] w-[var(--orbit-space-xxl)] items-center justify-center" aria-hidden="true">
+          <Upload className="h-8 w-8 text-muted-foreground" strokeWidth={2} />
+        </span>
+        <div className="flex flex-wrap items-center justify-center gap-orbit-xs text-center">
+          <Text variant="Primary" size="Paragraph">Drag &amp; drop or</Text>
+          <span className="clauseiq-v5-dropzone-link">
+            <LinkText label="choose files" href="#" onClick={handleChooseFiles} />
+          </span>
+          <Text variant="Primary" size="Paragraph">to upload</Text>
+        </div>
+        <Text variant="Secondary" size="Paragraph">File types supported: .pdf files.</Text>
+        <Text variant="Secondary" size="Paragraph">Maximum upload file size: 100 MB</Text>
+      </div>
+    </div>
   );
 }

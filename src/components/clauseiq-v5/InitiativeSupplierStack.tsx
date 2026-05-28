@@ -51,7 +51,7 @@ export function InitiativeSupplierStack({ initiativeName, currentSupplierName }:
           <div className="text-xs uppercase tracking-wider text-muted-foreground mb-orbit-xs">
             Other suppliers in this initiative
           </div>
-          <h3 className="text-sm font-semibold text-foreground">
+          <h3 className="v5-orbit-heading-strong">
             {others.length} prior supplier {others.length === 1 ? "analysis" : "analyses"}
             <span className="font-normal text-muted-foreground"> · {initiativeName}</span>
           </h3>

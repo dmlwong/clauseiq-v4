@@ -63,7 +63,7 @@ export function NegotiationTrendStrip({ versions, allDecisions, activeVersion, o
     <div className="rounded-lg border border-border bg-card px-orbit-base py-orbit-base">
       <div className="mb-orbit-base flex flex-wrap items-start justify-between gap-orbit-base">
         <div>
-          <h3 className="text-sm font-semibold text-foreground">Negotiation trend</h3>
+          <h3 className="v5-orbit-heading-strong text-foreground">Negotiation trend</h3>
           <p className="text-xs text-muted-foreground">High / medium issues and open requests across all rounds.</p>
         </div>
         <div className="flex items-center gap-orbit-base text-[10px] text-muted-foreground">
@@ -85,7 +85,7 @@ export function NegotiationTrendStrip({ versions, allDecisions, activeVersion, o
               }`}
             >
               <div className="flex items-start justify-between gap-orbit-s">
-                <span className="font-mono text-[11px] font-semibold text-foreground">{p.version}</span>
+                <span className="tabular-nums text-[11px] font-semibold text-foreground">{p.version}</span>
                 {p.supplierChanges > 0 && (
                   <span className="rounded-full bg-warning/15 px-orbit-s py-orbit-xxs text-[10px] font-semibold text-warning-foreground">
                     +{p.supplierChanges} changes

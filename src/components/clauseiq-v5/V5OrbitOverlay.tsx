@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
-import { Button, Card, Headings, Overlay, Text } from "@orbit";
+import { Button, Card, FA, FaIcon, Headings, IconButton, Overlay, Text } from "@orbit";
+import "@orbit-tokens";
+import "@orbit-fonts";
+import "@/components/clauseiq-v5/orbit-theme.css";
 
 interface V5OrbitOverlayProps {
   open: boolean;
@@ -22,6 +25,8 @@ export function V5OrbitOverlay({
   size = "Default",
   height = "Content",
 }: V5OrbitOverlayProps) {
+  const fullBleedSeparatorStyle = { left: -2, right: -2 };
+
   return (
     <Overlay
       visible={open}
@@ -30,22 +35,49 @@ export function V5OrbitOverlay({
       size={size}
       height={height}
     >
-      <Card type="Static" padding="Base" state="Default">
-        <div className="flex max-h-[86vh] min-w-0 flex-col overflow-hidden">
-          <div className="border-b border-border pb-orbit-base">
-            <Headings size="Heading 4">{title}</Headings>
-            {description && (
-              <div className="mt-orbit-s">
-                <Text size="Small" variant="Secondary" as="p">
-                  {description}
-                </Text>
+      <div
+        data-prototype="clauseiq-v5"
+        data-theme="orbit"
+        style={{
+          color: "var(--orbit-color-text-primary)",
+          fontFamily: "var(--orbit-font-family-sans)",
+          width: "100%",
+        }}
+      >
+        <Card type="Static" padding="Base" state="Default" style={{ padding: 0 }}>
+          <div className="flex max-h-[86vh] min-w-0 flex-col overflow-hidden">
+            <div className="relative px-orbit-base py-orbit-base">
+              <div className="flex items-start justify-between gap-orbit-base">
+                <div className="min-w-0">
+                  <Headings size="Heading 4">{title}</Headings>
+                  {description && (
+                    <div className="mt-orbit-s">
+                      <Text size="Small" variant="Secondary" as="p">
+                        {description}
+                      </Text>
+                    </div>
+                  )}
+                </div>
+                <IconButton
+                  variant="Tertiary"
+                  size="Medium"
+                  ariaLabel="Close modal"
+                  icon={<FaIcon icon={FA.xmark} size={12} />}
+                  onClick={() => onOpenChange(false)}
+                />
+              </div>
+              <div aria-hidden="true" className="pointer-events-none absolute bottom-0 h-px bg-border" style={fullBleedSeparatorStyle} />
+            </div>
+            {children && <div className="v5-hover-scrollbar min-h-0 overflow-y-auto px-orbit-base py-orbit-base">{children}</div>}
+            {footer && (
+              <div className="relative px-orbit-base py-orbit-base">
+                <div aria-hidden="true" className="pointer-events-none absolute top-0 h-px bg-border" style={fullBleedSeparatorStyle} />
+                {footer}
               </div>
             )}
           </div>
-          {children && <div className="v5-hover-scrollbar min-h-0 overflow-y-auto py-orbit-base">{children}</div>}
-          {footer && <div className="border-t border-border pt-orbit-base">{footer}</div>}
-        </div>
-      </Card>
+        </Card>
+      </div>
     </Overlay>
   );
 }

@@ -33,6 +33,7 @@ interface SelectMeta {
   triggerClassName?: string;
   disabled?: boolean;
   ariaLabel?: string;
+  leadingIcon?: React.ReactNode;
 }
 
 function textFromNode(node: React.ReactNode): string {
@@ -63,6 +64,15 @@ function collectSelectMeta(children: React.ReactNode, meta: SelectMeta) {
       meta.triggerClassName = cn(meta.triggerClassName, props.className);
       meta.disabled = meta.disabled || props.disabled;
       meta.ariaLabel = meta.ariaLabel || props["aria-label"];
+      React.Children.forEach(props.children, (triggerChild) => {
+        if (
+          !meta.leadingIcon &&
+          React.isValidElement(triggerChild) &&
+          triggerChild.type !== SelectValue
+        ) {
+          meta.leadingIcon = triggerChild;
+        }
+      });
     }
 
     if (child.type === SelectValue) {
@@ -82,7 +92,16 @@ export function Select({ value, defaultValue, onValueChange, children }: SelectP
   const placeholder = meta.placeholder ?? meta.options[0]?.label ?? "Select";
 
   return (
-    <div className={cn("min-w-0", meta.triggerClassName)} data-orbit-adapter="select">
+    <div
+      className={cn("min-w-0", meta.leadingIcon && "relative", meta.triggerClassName)}
+      data-has-leading-icon={meta.leadingIcon ? "true" : undefined}
+      data-orbit-adapter="select"
+    >
+      {meta.leadingIcon && (
+        <span aria-hidden="true" className="clauseiq-v5-select-leading-icon">
+          {meta.leadingIcon}
+        </span>
+      )}
       <OrbitDropdown
         options={meta.options}
         value={currentValue}

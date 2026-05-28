@@ -136,8 +136,8 @@ export function VersionVerdictBanner({
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-orbit-s flex-wrap">
-              <h2 className="text-lg font-semibold text-foreground">{headline}</h2>
-              <Badge variant="outline" className="font-mono text-[11px]">
+              <h2 className="v5-orbit-heading-4">{headline}</h2>
+              <Badge variant="outline" className="tabular-nums text-[11px]">
                 {leftVersion.version} → {rightVersion.version}
               </Badge>
               {decision === "accepted" && (

@@ -11,11 +11,11 @@ export function DeviationPills({ deviations, compact = false }: Props) {
 
   return (
     <div className={compact ? "flex flex-wrap gap-orbit-xs" : "flex flex-wrap gap-orbit-s"}>
-      <Chip label={`Missing ${deviations.missing}`} size={size} variant="No Status" />
+      <Chip label={`Missing ${deviations.missing}`} size={size} variant="Information" />
       <Chip label={`High ${deviations.high}`} size={size} variant="Error" />
       <Chip label={`Medium ${deviations.medium}`} size={size} variant="Warning" />
       <Chip label={`Low ${deviations.low}`} size={size} variant="Success" />
-      <Chip label={`None ${deviations.none}`} size={size} variant="No Status" />
+      <Chip label={`None ${deviations.none}`} size={size} variant="Outline" />
     </div>
   );
 }

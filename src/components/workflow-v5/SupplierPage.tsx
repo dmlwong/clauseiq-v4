@@ -37,11 +37,11 @@ export function SupplierPage({
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               {initiative.name} · {initiative.reference}
             </p>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">{supplier.name}</h1>
+            <h1 className="v5-orbit-heading-2">{supplier.name}</h1>
             <div className="flex items-center gap-orbit-s">
               <Badge variant="outline" className={statusTone(supplier.status)}>{supplier.status}</Badge>
               {supplier.overallScore != null && (
-                <span className="text-sm text-muted-foreground">ClauseIQ Score <span className="font-mono font-medium text-foreground">{supplier.overallScore}/100</span></span>
+                <span className="text-sm text-muted-foreground">ClauseIQ Score <span className="tabular-nums font-medium text-foreground">{supplier.overallScore}/100</span></span>
               )}
             </div>
           </div>
@@ -51,7 +51,7 @@ export function SupplierPage({
         </header>
 
         <div className="space-y-orbit-base">
-          <h2 className="text-sm font-semibold text-foreground">Contracts ({supplier.contracts.length})</h2>
+          <h2 className="v5-orbit-heading-strong text-foreground">Contracts ({supplier.contracts.length})</h2>
           {supplier.contracts.map((c) => (
             <ContractCard
               key={c.id}
@@ -86,9 +86,9 @@ function ContractCard({
         </div>
         <div className="space-y-orbit-xs">
           <div className="flex items-center gap-orbit-s">
-            <h3 className="font-semibold text-foreground">{contract.name}</h3>
+            <h3 className="v5-orbit-heading-strong text-foreground">{contract.name}</h3>
             <Badge variant="outline" className="text-xs">{contract.type}</Badge>
-            {latest && <Badge variant="outline" className="font-mono text-xs">{latest.version}</Badge>}
+            {latest && <Badge variant="outline" className="tabular-nums text-xs">{latest.version}</Badge>}
           </div>
           <div className="flex items-center gap-orbit-base text-sm">
             <Select value={status} onValueChange={(v) => onChangeStatus(v as ContractStatus)}>
@@ -104,7 +104,7 @@ function ContractCard({
             {latest ? (
               <span className="text-muted-foreground">
                 {contract.versions.length} version{contract.versions.length > 1 ? "s" : ""} · ClauseIQ Score{" "}
-                <span className="font-mono text-foreground">{latest.overallScore}/100</span>
+                <span className="tabular-nums text-foreground">{latest.overallScore}/100</span>
               </span>
             ) : (
               <span className="text-muted-foreground">No analysis yet</span>

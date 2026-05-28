@@ -1,12 +1,10 @@
 import { useId, useState } from "react";
 import { motion } from "framer-motion";
-import { BarChart2, Download, RotateCw, SlidersHorizontal } from "lucide-react";
-import { Card } from "@orbit";
+import { BarChart2, Download, RotateCw } from "lucide-react";
+import { Card, InlineBanner } from "@orbit";
 import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
-import { Badge } from "@/components/clauseiq-v5/orbit-ui/badge";
+import { Chip } from "@/components/clauseiq-v5/orbit-ui/indicators";
 import { Switch } from "@/components/clauseiq-v5/orbit-ui/switch";
-import { DocumentGlyph } from "@/components/clauseiq-v5/orbit-ui/file-item";
-import { StatusIndicator } from "@/components/clauseiq-v5/orbit-ui/indicators";
 import type { ClauseAnalysis, Supplier } from "@/data/mock-clauseiq";
 import { cn } from "@/lib/utils";
 import { supplierSeverity } from "@/lib/clauseiq-utils";
@@ -26,6 +24,16 @@ interface Props {
   highlighted?: boolean;
   analysisParameters?: AnalysisParameterItem[];
 }
+
+const ICON_FILE = "\uf15b";
+const ICON_FILE_WORD = "\uf1c2";
+const ICON_FILE_EXCEL = "\uf1c3";
+const ICON_FILE_ARCHIVE = "\uf1c6";
+const ICON_FILE_IMAGE = "\uf1c5";
+const ICON_SLIDERS = "\uf1de";
+const ICON_CHECK = "\uf00c";
+const ICON_CIRCLE_EXCLAMATION = "\uf06a";
+const ICON_TRIANGLE_EXCLAMATION = "\uf071";
 
 export function AnalysisCard({
   analysis,
@@ -65,21 +73,15 @@ export function AnalysisCard({
           <div className="space-y-orbit-base">
             <div className="flex flex-wrap items-center justify-between gap-orbit-s">
               <div className="flex min-w-0 flex-wrap items-center gap-orbit-s">
-                <Badge variant="outline" className="rounded-md px-orbit-s py-orbit-xs text-xs font-medium text-muted-foreground">
-                  Analysis Result
-                </Badge>
-                {isLatestOutput && (
-                  <Badge variant="outline" className="rounded-md px-orbit-s py-orbit-xs text-xs font-medium text-muted-foreground">
-                    Latest output
-                  </Badge>
-                )}
+                <Chip label="Analysis Result" size="Mini" variant="Outline" />
+                {isLatestOutput && <Chip label="Latest output" size="Mini" variant="Outline" />}
               </div>
               <span className="shrink-0 text-sm text-muted-foreground">
                 {formatAnalysisTimestamp(analysis.analysedAt)}
               </span>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-orbit-base">
-              <h3 className="text-xl font-semibold leading-tight text-foreground">Here is your Analysis Result</h3>
+              <h3 className="v5-orbit-heading-4">Here is your Analysis Result</h3>
               <label className="flex items-center gap-orbit-s text-sm font-medium text-foreground">
                 <span>Save To Content Search</span>
                 <Switch checked={saveToDocuments} onCheckedChange={setSaveToDocuments} aria-label="Save To Content Search" />
@@ -89,14 +91,14 @@ export function AnalysisCard({
 
           <div className="space-y-orbit-base">
             <StatusLine
-              icon={<DocumentGlyph documentType={documentTypeFromFileName(analysis.fileName)} size="Extra Small" />}
+              icon={documentIconFromFileName(analysis.fileName)}
               label={analysis.fileName}
               status="Uploaded"
               tone="neutral"
             />
             {analysisParameters.length > 0 && <AnalysisParametersSummary parameters={analysisParameters} />}
             <StatusLine
-              icon={<StatusIndicator status={statusIndicatorFromTone(status.tone)} size="Small" ariaLabel={status.label} />}
+              icon={statusIconFromTone(status.tone)}
               label={`Reviewed ${analysis.clausesReviewed} clauses`}
               status={status.label}
               tone={status.tone}
@@ -150,17 +152,20 @@ export function AnalysisCard({
 }
 
 function AnalysisParametersSummary({ parameters }: { parameters: AnalysisParameterItem[] }) {
-  const parameter = parameters[0];
-
-  if (!parameter) return null;
+  if (parameters.length === 0) return null;
 
   return (
-    <StatusLine
-      icon={<SlidersHorizontal className="h-4 w-4" />}
-      label={`${parameter.label} · ${parameter.value}`}
-      status="Selected"
-      tone="neutral"
-    />
+    <div className="space-y-orbit-s">
+      {parameters.map((parameter) => (
+        <StatusLine
+          key={`${parameter.label}:${parameter.value}`}
+          icon={ICON_SLIDERS}
+          label={`${parameter.label} · ${parameter.value}`}
+          status="Selected"
+          tone="neutral"
+        />
+      ))}
+    </div>
   );
 }
 
@@ -170,28 +175,29 @@ function StatusLine({
   status,
   tone,
 }: {
-  icon: React.ReactNode;
+  icon: string;
   label: string;
   status: string;
   tone: "neutral" | "success" | "warning" | "destructive";
 }) {
   return (
-    <div
-      className={cn(
-        "flex min-h-10 items-center justify-between gap-orbit-base rounded-lg px-orbit-base text-sm",
-        tone === "neutral" && "bg-muted text-foreground",
-        tone === "success" && "bg-success/10 text-success",
-        tone === "warning" && "bg-warning/15 text-warning-foreground",
-        tone === "destructive" && "bg-destructive/10 text-destructive",
-      )}
-    >
-      <div className="flex min-w-0 items-center gap-orbit-s">
-        <span className="shrink-0">{icon}</span>
-        <span className="truncate font-medium">{label}</span>
-      </div>
-      <span className="shrink-0 font-medium">{status}</span>
-    </div>
+    <InlineBanner
+      variant={inlineBannerVariantFromTone(tone)}
+      contrast="Low"
+      icon={icon}
+      label={label}
+      status={status}
+    />
   );
+}
+
+function inlineBannerVariantFromTone(
+  tone: "neutral" | "success" | "warning" | "destructive",
+): "No Status" | "Success" | "Warning" | "Error" {
+  if (tone === "success") return "Success";
+  if (tone === "warning") return "Warning";
+  if (tone === "destructive") return "Error";
+  return "No Status";
 }
 
 const statusCopy: Record<ClauseAnalysis["status"], { label: string; tone: "success" | "warning" | "destructive" }> = {
@@ -200,20 +206,20 @@ const statusCopy: Record<ClauseAnalysis["status"], { label: string; tone: "succe
   failed: { label: "Failed", tone: "destructive" },
 };
 
-function statusIndicatorFromTone(tone: "success" | "warning" | "destructive") {
-  if (tone === "success") return "Success";
-  if (tone === "warning") return "Warning";
-  return "Error";
+function statusIconFromTone(tone: "success" | "warning" | "destructive") {
+  if (tone === "success") return ICON_CHECK;
+  if (tone === "warning") return ICON_TRIANGLE_EXCLAMATION;
+  return ICON_CIRCLE_EXCLAMATION;
 }
 
-function documentTypeFromFileName(fileName: string) {
+function documentIconFromFileName(fileName: string) {
   const extension = fileName.split(".").pop()?.toLowerCase();
-  if (extension === "pdf") return "PDF";
-  if (extension === "doc" || extension === "docx") return "DOC";
-  if (extension === "xls" || extension === "xlsx") return "XLS";
-  if (extension === "zip") return "ZIP";
-  if (extension === "png" || extension === "jpg" || extension === "jpeg") return "IMG";
-  return "Unknown";
+  if (extension === "pdf") return ICON_FILE;
+  if (extension === "doc" || extension === "docx") return ICON_FILE_WORD;
+  if (extension === "xls" || extension === "xlsx") return ICON_FILE_EXCEL;
+  if (extension === "zip") return ICON_FILE_ARCHIVE;
+  if (extension === "png" || extension === "jpg" || extension === "jpeg") return ICON_FILE_IMAGE;
+  return ICON_FILE;
 }
 
 function formatAnalysisTimestamp(iso: string): string {

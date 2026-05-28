@@ -34,14 +34,14 @@ export function SupplierPage({
 
         <header className="flex items-start justify-between">
           <div className="space-y-orbit-s">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            <p className="text-xs v5-orbit-weight-semibold text-muted-foreground uppercase tracking-wider">
               {initiative.name} · {initiative.reference}
             </p>
             <h1 className="v5-orbit-heading-2">{supplier.name}</h1>
             <div className="flex items-center gap-orbit-s">
               <Badge variant="outline" className={statusTone(supplier.status)}>{supplier.status}</Badge>
               {supplier.overallScore != null && (
-                <span className="text-sm text-muted-foreground">ClauseIQ Score <span className="tabular-nums font-medium text-foreground">{supplier.overallScore}/100</span></span>
+                <span className="text-sm text-muted-foreground">ClauseIQ Score <span className="tabular-nums v5-orbit-weight-medium text-foreground">{supplier.overallScore}/100</span></span>
               )}
             </div>
           </div>

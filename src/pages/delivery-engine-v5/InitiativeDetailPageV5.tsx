@@ -141,7 +141,7 @@ export default function InitiativeDetailPageV5() {
                 type="button"
                 onClick={() => setTab(value)}
                 className={cn(
-                  "border-b-2 px-orbit-base text-xs font-medium transition-colors",
+                  "border-b-2 px-orbit-base text-xs v5-orbit-weight-medium transition-colors",
                   tab === value ? "border-[#5B5BF7] text-slate-950" : "border-transparent text-slate-600 hover:text-slate-950",
                 )}
               >
@@ -189,11 +189,11 @@ export default function InitiativeDetailPageV5() {
                         {initiative.id} | {initiative.name}
                       </h1>
                       <div className="mt-orbit-base space-y-orbit-s text-xs text-slate-600">
-                        <p>Category: <span className="font-medium text-slate-900">{initiative.category}</span></p>
-                        <p>Methodology: <span className="font-medium text-slate-900">{initiative.methodology}</span></p>
+                        <p>Category: <span className="v5-orbit-weight-medium text-slate-900">{initiative.category}</span></p>
+                        <p>Methodology: <span className="v5-orbit-weight-medium text-slate-900">{initiative.methodology}</span></p>
                         <p className="flex flex-wrap items-center gap-orbit-s">
                           <span className="inline-flex items-center gap-orbit-xs">
-                            Led by: <span className="font-medium text-slate-900">{initiative.ledBy}</span>
+                            Led by: <span className="v5-orbit-weight-medium text-slate-900">{initiative.ledBy}</span>
                           </span>
                           <span>|</span>
                           <span>Efficio Lead:</span>

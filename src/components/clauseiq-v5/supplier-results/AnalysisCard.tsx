@@ -65,7 +65,7 @@ export function AnalysisCard({
               severity={supplierSeverity(supplier.analyses)}
               size="sm"
             />
-            <span className="text-sm font-medium text-foreground">{supplier.name}</span>
+            <span className="text-sm v5-orbit-weight-medium text-foreground">{supplier.name}</span>
           </div>
         )}
 
@@ -82,7 +82,7 @@ export function AnalysisCard({
             </div>
             <div className="flex flex-wrap items-center justify-between gap-orbit-base">
               <h3 className="v5-orbit-heading-4">Here is your Analysis Result</h3>
-              <label className="flex items-center gap-orbit-s text-sm font-medium text-foreground">
+              <label className="flex items-center gap-orbit-s text-sm v5-orbit-weight-medium text-foreground">
                 <span>Save To Content Search</span>
                 <Switch checked={saveToDocuments} onCheckedChange={setSaveToDocuments} aria-label="Save To Content Search" />
               </label>

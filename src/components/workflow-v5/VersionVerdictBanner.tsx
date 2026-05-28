@@ -209,7 +209,7 @@ function Stat({
         onClick && "hover:opacity-80 cursor-pointer",
       )}
     >
-      <span className="font-semibold tabular-nums">{value}</span>
+      <span className="v5-orbit-weight-semibold tabular-nums">{value}</span>
       <span className="text-xs opacity-90">{label}</span>
     </Comp>
   );

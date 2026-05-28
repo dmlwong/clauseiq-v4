@@ -45,7 +45,7 @@ export function Settings({
   return (
     <div className="p-orbit-l space-y-orbit-m">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">Analysis Settings</h2>
+        <h2 className="text-lg v5-orbit-weight-semibold text-foreground">Analysis Settings</h2>
         <p className="text-sm text-muted-foreground mt-orbit-xs">
           Company and Category determine the backend routing and benchmark source used for this analysis.
         </p>
@@ -85,17 +85,17 @@ export function Settings({
 
       {routingMetadata && (
         <div className="border border-border rounded-lg p-orbit-m bg-secondary/40 space-y-orbit-base">
-          <div className="flex items-center gap-orbit-s text-sm font-medium text-foreground">
+          <div className="flex items-center gap-orbit-s text-sm v5-orbit-weight-medium text-foreground">
             <Building2 className="w-4 h-4 text-primary" />
             Routing Summary
           </div>
           <div className="grid grid-cols-2 gap-x-orbit-m gap-y-orbit-s text-sm">
             <span className="text-muted-foreground">Company</span>
-            <span className="font-medium">{companies.find((c) => c.id === company)?.name}</span>
+            <span className="v5-orbit-weight-medium">{companies.find((c) => c.id === company)?.name}</span>
             <span className="text-muted-foreground">Category</span>
-            <span className="font-medium">{categories.find((c) => c.id === category)?.name}</span>
+            <span className="v5-orbit-weight-medium">{categories.find((c) => c.id === category)?.name}</span>
             <span className="text-muted-foreground">Document Type</span>
-            <span className="font-medium">{DOC_TYPES.find((d) => d.value === documentType)?.label}</span>
+            <span className="v5-orbit-weight-medium">{DOC_TYPES.find((d) => d.value === documentType)?.label}</span>
           </div>
           <div className="flex items-center gap-orbit-xs text-xs text-muted-foreground pt-orbit-xs border-t border-border">
             <Database className="w-3 h-3" />

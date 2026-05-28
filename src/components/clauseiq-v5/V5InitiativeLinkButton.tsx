@@ -24,7 +24,7 @@ export function V5InitiativeLinkButton({
       onClick={onClick}
     >
       <Link2 className="h-4 w-4 shrink-0" />
-      <span className="truncate font-medium">{label}</span>
+      <span className="truncate v5-orbit-weight-medium">{label}</span>
     </Button>
   );
 }

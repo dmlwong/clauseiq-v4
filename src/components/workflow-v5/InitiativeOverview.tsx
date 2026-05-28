@@ -19,7 +19,7 @@ export function InitiativeOverview({ initiativeId, onBack, onSelectSupplier, onC
     {
       id: "supplier",
       header: "Supplier",
-      render: (supplier: typeof initiative.suppliers[number]) => <span className="font-medium">{supplier.name}</span>,
+      render: (supplier: typeof initiative.suppliers[number]) => <span className="v5-orbit-weight-medium">{supplier.name}</span>,
     },
     {
       id: "contracts",
@@ -51,7 +51,7 @@ export function InitiativeOverview({ initiativeId, onBack, onSelectSupplier, onC
       id: "score",
       header: "ClauseIQ Score",
       render: (supplier: typeof initiative.suppliers[number]) => (
-        <span className="tabular-nums text-sm font-medium">{supplier.overallScore != null ? `${supplier.overallScore}/100` : "—"}</span>
+        <span className="tabular-nums text-sm v5-orbit-weight-medium">{supplier.overallScore != null ? `${supplier.overallScore}/100` : "—"}</span>
       ),
     },
     {

@@ -713,7 +713,7 @@ export default function ClauseIQV5DeviationProminence() {
       subheader={
         <div className="flex flex-wrap items-center justify-between gap-orbit-base">
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            <p className="text-[10px] v5-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Prototype v4
             </p>
             <div className="mt-orbit-xs flex flex-wrap items-center gap-orbit-s text-xs text-muted-foreground">
@@ -740,7 +740,7 @@ export default function ClauseIQV5DeviationProminence() {
                   role="tab"
                   aria-selected={selected}
                   className={cn(
-                    "h-8 rounded-[5px] px-orbit-base text-xs font-medium outline-none transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#185FA5]",
+                    "h-8 rounded-[5px] px-orbit-base text-xs v5-orbit-weight-medium outline-none transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#185FA5]",
                     selected ? "bg-[#1A2744] text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                   onClick={() => setActiveVariant(variant.key)}
@@ -796,7 +796,7 @@ function SeverityLegend({ counts }: { counts: Record<SeverityTier, number> }) {
           <div key={tier} className="inline-flex items-center gap-orbit-xs rounded-full border border-border bg-white px-orbit-s py-orbit-xs text-[11px] text-muted-foreground">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: token.color }} />
             <span>{token.label}</span>
-            <span className="font-medium text-foreground">{counts[tier]}</span>
+            <span className="v5-orbit-weight-medium text-foreground">{counts[tier]}</span>
           </div>
         );
       })}
@@ -835,7 +835,7 @@ function HighScaleRow({ clause }: { clause: DeviationClause }) {
       <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-s">
         <Button
           type="button"
-          className="h-8 rounded-[5px] px-orbit-base text-[11px] font-medium text-white hover:opacity-90"
+          className="h-8 rounded-[5px] px-orbit-base text-[11px] v5-orbit-weight-medium text-white hover:opacity-90"
           style={{ backgroundColor: severityTokens.high.color }}
         >
           Request change
@@ -871,8 +871,8 @@ function LowScaleRow({ clause }: { clause: DeviationClause }) {
       <div className="flex min-w-0 items-center gap-orbit-s">
         <SeverityPill tier={clause.tier} />
         <span className="shrink-0 text-[11px] text-muted-foreground">{clause.section} ·</span>
-        <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-foreground">{clause.title}</span>
-        <button type="button" className="text-[11px] font-medium text-[#185FA5] outline-none hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#185FA5]">
+        <span className="min-w-0 flex-1 truncate text-[12px] v5-orbit-weight-medium text-foreground">{clause.title}</span>
+        <button type="button" className="text-[11px] v5-orbit-weight-medium text-[#185FA5] outline-none hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#185FA5]">
           View
         </button>
       </div>
@@ -946,7 +946,7 @@ function SectionNavGroup({
             <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full text-white" style={{ backgroundColor: token.color }}>
               <Icon className="h-3.5 w-3.5" />
             </span>
-            <span className="text-sm font-medium text-foreground">{label}</span>
+            <span className="text-sm v5-orbit-weight-medium text-foreground">{label}</span>
             <span className="rounded-full bg-muted px-orbit-s py-orbit-xxs text-xs text-muted-foreground">{clauses.length}</span>
             <span className="h-px min-w-8 flex-1 bg-border" />
             {expanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
@@ -954,7 +954,7 @@ function SectionNavGroup({
           {tier === "high" && (
             <button
               type="button"
-              className="text-[11px] font-medium text-[#185FA5] outline-none hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#185FA5]"
+              className="text-[11px] v5-orbit-weight-medium text-[#185FA5] outline-none hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#185FA5]"
               onClick={onExpandAll}
             >
               Expand all
@@ -966,7 +966,7 @@ function SectionNavGroup({
       {!expanded && tier === "low" ? (
         <button
           type="button"
-          className="w-full rounded-[6px] border border-dashed border-border bg-white px-orbit-base py-orbit-base text-sm font-medium text-muted-foreground outline-none transition-colors hover:border-[#185FA5]/40 hover:bg-[#E6F1FB] hover:text-[#185FA5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#185FA5]"
+          className="w-full rounded-[6px] border border-dashed border-border bg-white px-orbit-base py-orbit-base text-sm v5-orbit-weight-medium text-muted-foreground outline-none transition-colors hover:border-[#185FA5]/40 hover:bg-[#E6F1FB] hover:text-[#185FA5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#185FA5]"
           onClick={onToggle}
         >
           Show {clauses.length} low-deviation clauses
@@ -988,7 +988,7 @@ function SectionCard({ clause }: { clause: DeviationClause }) {
       <div className="flex min-w-0 items-center gap-orbit-base">
         <div className="min-w-0 flex-1">
           <Text as="div" size="Paragraph" variant="Bold">
-            {clause.title} <span className="text-[12px] font-normal text-muted-foreground">{clause.section}</span>
+            {clause.title} <span className="text-[12px] v5-orbit-weight-regular text-muted-foreground">{clause.section}</span>
           </Text>
           <div className="mt-orbit-xs truncate">
             <Text as="span" size="Small" variant="Secondary">{clause.summary}</Text>
@@ -1087,7 +1087,7 @@ function MediumDiffCard({
       <div className="flex min-w-0 items-center gap-orbit-s">
         <SeverityPill tier={clause.tier} />
         <h2 className="v5-orbit-heading-label min-w-0 flex-1 truncate text-foreground">
-          {clause.title} <span className="text-[11px] font-normal text-muted-foreground">{clause.section}</span>
+          {clause.title} <span className="text-[11px] v5-orbit-weight-regular text-muted-foreground">{clause.section}</span>
         </h2>
         <p className="hidden min-w-0 flex-[1.2] truncate text-[12px] text-muted-foreground lg:block">{clause.summary}</p>
         <Button type="button" variant="outline" className="h-7 rounded-[5px] bg-white px-orbit-s text-[11px]" onClick={onToggleMedium}>
@@ -1110,8 +1110,8 @@ function LowDiffRow({ clause }: { clause: DeviationClause }) {
     <article className="flex min-h-[38px] cursor-pointer items-center gap-orbit-s rounded-[6px] border-[0.5px] border-border bg-white px-orbit-base py-orbit-s transition-colors hover:bg-muted/50">
       <IconCheck className="h-3.5 w-3.5 shrink-0 text-[#6B6A64]" />
       <span className="shrink-0 text-[11px] text-muted-foreground">{clause.section}</span>
-      <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-foreground">{clause.title}</span>
-      <button type="button" className="text-[11px] font-medium text-[#185FA5] outline-none hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#185FA5]">
+      <span className="min-w-0 flex-1 truncate text-[12px] v5-orbit-weight-medium text-foreground">{clause.title}</span>
+      <button type="button" className="text-[11px] v5-orbit-weight-medium text-[#185FA5] outline-none hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#185FA5]">
         Confirm
       </button>
     </article>
@@ -1163,7 +1163,7 @@ function DiffBlock({
         // Open question: real diffs may exceed four lines; this keeps the sample scannable while preserving an inline full-clause escape hatch.
         <button
           type="button"
-          className="mt-orbit-s text-[11px] font-medium outline-none hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="mt-orbit-s text-[11px] v5-orbit-weight-medium outline-none hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
           style={{ color: token.color }}
           onClick={onToggle}
         >
@@ -1181,7 +1181,7 @@ function DiffActions({ tier }: { tier: SeverityTier }) {
     <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-s">
       <Button
         type="button"
-        className="h-8 rounded-[5px] px-orbit-base text-[11px] font-medium text-white hover:opacity-90"
+        className="h-8 rounded-[5px] px-orbit-base text-[11px] v5-orbit-weight-medium text-white hover:opacity-90"
         style={{ backgroundColor: primaryColor }}
       >
         {label}

@@ -11,7 +11,7 @@ export function ClientPlaybook({ file, onFileSelect, onClear, playbookAvailable 
   return (
     <div className="p-orbit-l space-y-orbit-m">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">Client Playbook</h2>
+        <h2 className="text-lg v5-orbit-weight-semibold text-foreground">Client Playbook</h2>
         <p className="text-sm text-muted-foreground mt-orbit-xs">
           Optionally upload a client playbook to guide the analysis according to client-specific
           priorities or business rules. This step can be skipped.

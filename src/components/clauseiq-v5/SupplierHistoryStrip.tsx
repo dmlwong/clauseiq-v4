@@ -24,10 +24,10 @@ export function SupplierHistoryStrip({ supplier }: Props) {
       >
         <History className="h-4 w-4 text-ciq shrink-0" />
         <span className="text-sm text-foreground">
-          <span className="font-medium">{count} prior {count === 1 ? "analysis" : "analyses"}</span>{" "}
+          <span className="v5-orbit-weight-medium">{count} prior {count === 1 ? "analysis" : "analyses"}</span>{" "}
           <span className="text-muted-foreground">found for {supplier.name}</span>
         </span>
-        <Badge variant="outline" className="ml-auto text-[10px] font-normal border-ciq/30 text-ciq">
+        <Badge variant="outline" className="ml-auto text-[10px] v5-orbit-weight-regular border-ciq/30 text-ciq">
           Same supplier
         </Badge>
         <ChevronDown
@@ -45,7 +45,7 @@ export function SupplierHistoryStrip({ supplier }: Props) {
               >
                 <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-foreground truncate">{p.contractName}</div>
+                  <div className="text-sm v5-orbit-weight-medium text-foreground truncate">{p.contractName}</div>
                   <div className="text-xs text-muted-foreground truncate">
                     {p.initiativeName} · {formatAnalysedDate(p.analysedAt)}
                   </div>

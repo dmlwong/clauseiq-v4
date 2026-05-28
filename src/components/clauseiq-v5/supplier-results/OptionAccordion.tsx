@@ -52,10 +52,10 @@ export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResu
                 <div className="flex w-full min-w-0 items-start gap-orbit-base">
                   <SupplierAvatar name={supplier.name} shortCode={supplier.shortCode} severity={severity} />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium text-foreground">{supplier.name}</div>
+                    <div className="truncate text-sm v5-orbit-weight-medium text-foreground">{supplier.name}</div>
                     <div className="mt-orbit-xxs flex flex-wrap items-center gap-orbit-xs text-xs text-muted-foreground">
                       <span>Total Contract Runs: {supplier.analyses.length}</span>
-                      {containsLatestOutput && <span className="font-medium">- Contains latest output</span>}
+                      {containsLatestOutput && <span className="v5-orbit-weight-medium">- Contains latest output</span>}
                     </div>
                   </div>
                   <div className="ml-auto flex shrink-0 items-center gap-orbit-s pt-orbit-xxs">

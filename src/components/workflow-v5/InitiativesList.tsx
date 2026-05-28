@@ -13,7 +13,7 @@ export function InitiativesList({ onSelect }: Props) {
       <div className="max-w-6xl mx-auto space-y-orbit-l">
         <header className="flex items-end justify-between gap-orbit-base">
           <div className="space-y-orbit-s">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Connected Platform</p>
+            <p className="text-xs v5-orbit-weight-semibold text-muted-foreground uppercase tracking-wider">Connected Platform</p>
             <h1 className="v5-orbit-heading-1">Initiatives</h1>
             <p className="text-muted-foreground">Select an initiative to view its suppliers and contracts.</p>
           </div>

@@ -73,7 +73,7 @@ export function InitiativeModal({ open, onClose, onSelect }: Props) {
           </div>
 
           <div className="min-h-0 overflow-y-auto px-orbit-m pb-orbit-m pt-orbit-m">
-            <div className="grid grid-cols-[minmax(260px,1fr)_minmax(160px,0.34fr)_minmax(140px,0.24fr)] gap-orbit-m px-orbit-base pb-orbit-base text-base font-semibold leading-none text-black">
+            <div className="grid grid-cols-[minmax(260px,1fr)_minmax(160px,0.34fr)_minmax(140px,0.24fr)] gap-orbit-m px-orbit-base pb-orbit-base text-base v5-orbit-weight-semibold leading-none text-black">
               <div>Initiative name</div>
               <div>Sector</div>
               <div>Owner</div>
@@ -89,9 +89,9 @@ export function InitiativeModal({ open, onClose, onSelect }: Props) {
                     aria-label={`Select ${initiative.name}`}
                     onClick={() => onSelect(initiative)}
                   >
-                    <span className="min-w-0 truncate font-normal text-black">{initiative.name}</span>
-                    <span className="min-w-0 truncate font-normal text-[#475569]">{initiative.sector}</span>
-                    <span className="min-w-0 truncate font-normal text-[#475569]">{initiative.owner}</span>
+                    <span className="min-w-0 truncate v5-orbit-weight-regular text-black">{initiative.name}</span>
+                    <span className="min-w-0 truncate v5-orbit-weight-regular text-[#475569]">{initiative.sector}</span>
+                    <span className="min-w-0 truncate v5-orbit-weight-regular text-[#475569]">{initiative.owner}</span>
                   </button>
                 ))}
               </div>
@@ -105,7 +105,7 @@ export function InitiativeModal({ open, onClose, onSelect }: Props) {
           <footer className="flex h-[72px] shrink-0 items-center border-t border-[#dfe5ee] px-orbit-m">
             <button
               type="button"
-              className="inline-flex h-10 items-center justify-center rounded-md border border-[#8fa0b8] bg-white px-[calc(var(--orbit-space-base)+var(--orbit-space-xs))] text-base font-normal leading-none text-[#475569] transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6257ff]"
+              className="inline-flex h-10 items-center justify-center rounded-md border border-[#8fa0b8] bg-white px-[calc(var(--orbit-space-base)+var(--orbit-space-xs))] text-base v5-orbit-weight-regular leading-none text-[#475569] transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6257ff]"
               onClick={onClose}
             >
               Cancel
@@ -134,8 +134,8 @@ function ScopeTab({
       role="tab"
       aria-selected={active}
       className={cn(
-        "relative h-[56px] px-orbit-base pb-orbit-base text-lg font-normal leading-none text-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6257ff]",
-        active && "font-bold",
+        "relative h-[56px] px-orbit-base pb-orbit-base text-lg v5-orbit-weight-regular leading-none text-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6257ff]",
+        active && "v5-orbit-weight-bold",
       )}
       onClick={() => onSelect(value)}
     >

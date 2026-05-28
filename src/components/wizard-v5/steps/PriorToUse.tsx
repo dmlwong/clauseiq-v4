@@ -4,7 +4,7 @@ export function PriorToUse() {
   return (
     <div className="p-orbit-l space-y-orbit-m">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">Tool Overview</h2>
+        <h2 className="text-lg v5-orbit-weight-semibold text-foreground">Tool Overview</h2>
         <p className="text-sm text-muted-foreground mt-orbit-xs">
           Please review the following before proceeding.
         </p>

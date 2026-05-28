@@ -17,7 +17,7 @@ export function Stepper({ currentStep, completedSteps }: StepperProps) {
           <div key={label} className="flex items-center flex-1 last:flex-none">
             <div className="flex flex-col items-center gap-orbit-xs">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-colors ${
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs v5-orbit-weight-semibold transition-colors ${
                   isCompleted
                     ? "bg-success text-success-foreground"
                     : isActive
@@ -28,7 +28,7 @@ export function Stepper({ currentStep, completedSteps }: StepperProps) {
                 {isCompleted ? <Check className="w-4 h-4" /> : i + 1}
               </div>
               <span
-                className={`text-xs font-medium whitespace-nowrap ${
+                className={`text-xs v5-orbit-weight-medium whitespace-nowrap ${
                   isActive ? "text-foreground" : "text-muted-foreground"
                 }`}
               >

@@ -101,7 +101,7 @@ export function FocusSetDrawer({
                     <p className="text-xs tabular-nums text-muted-foreground">
                       §{def?.number ?? e.clauseId.replace("c", "")} · {def?.category}
                     </p>
-                    <p className="text-sm font-semibold text-foreground truncate">{def?.title}</p>
+                    <p className="text-sm v5-orbit-weight-semibold text-foreground truncate">{def?.title}</p>
                   </div>
                   <Button
                     variant="ghost"
@@ -182,7 +182,7 @@ function Stat({ label, value, tone = "text-foreground" }: { label: string; value
   return (
     <div className="border border-border rounded-md p-orbit-s bg-card">
       <p className="text-[10px] uppercase text-muted-foreground tracking-wider">{label}</p>
-      <p className={`text-lg font-bold tabular-nums ${tone}`}>{value}</p>
+      <p className={`text-lg v5-orbit-weight-bold tabular-nums ${tone}`}>{value}</p>
     </div>
   );
 }

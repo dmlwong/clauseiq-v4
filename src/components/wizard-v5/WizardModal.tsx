@@ -172,20 +172,20 @@ export function WizardModal({ state, update, completeStep, goNext, goBack, close
         {/* Header */}
         <div className="px-orbit-l py-orbit-base border-b border-border space-y-orbit-s">
           <div className="flex items-center justify-between">
-            <h1 className="text-base font-semibold text-foreground">ClauseIQ Contract</h1>
+            <h1 className="text-base v5-orbit-weight-semibold text-foreground">ClauseIQ Contract</h1>
             <button onClick={closeWizard} className="p-orbit-xs rounded hover:bg-accent transition-colors">
               <X className="w-5 h-5 text-muted-foreground" />
             </button>
           </div>
           {context && (
             <div className="flex items-center gap-orbit-xs text-xs text-muted-foreground flex-wrap">
-              <span className="font-medium text-foreground">{context.initiativeName}</span>
-              <span className="font-mono text-[10px] px-orbit-xs py-orbit-xxs bg-muted rounded">{context.initiativeRef}</span>
+              <span className="v5-orbit-weight-medium text-foreground">{context.initiativeName}</span>
+              <span className="v5-orbit-code-label text-[10px] px-orbit-xs py-orbit-xxs bg-muted rounded">{context.initiativeRef}</span>
               <span>›</span>
-              <span className="font-medium text-foreground">{context.supplierName}</span>
+              <span className="v5-orbit-weight-medium text-foreground">{context.supplierName}</span>
               <span>›</span>
-              <span className="font-medium text-foreground">{context.contractName}</span>
-              <span className="font-mono text-[10px] px-orbit-xs py-orbit-xxs bg-primary/10 text-primary rounded">{context.versionLabel}</span>
+              <span className="v5-orbit-weight-medium text-foreground">{context.contractName}</span>
+              <span className="v5-orbit-code-label text-[10px] px-orbit-xs py-orbit-xxs bg-primary/10 text-primary rounded">{context.versionLabel}</span>
             </div>
           )}
         </div>

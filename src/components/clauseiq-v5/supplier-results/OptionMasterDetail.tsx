@@ -105,7 +105,7 @@ function SupplierRailContent({ state }: { state: MasterDetailState }) {
   return (
     <>
       <div className="mb-orbit-base flex items-center justify-between gap-orbit-s">
-        <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <div className="text-xs v5-orbit-weight-medium uppercase tracking-wider text-muted-foreground">
           Suppliers ({filteredSuppliers.length})
         </div>
       </div>
@@ -145,14 +145,14 @@ function SupplierRailContent({ state }: { state: MasterDetailState }) {
                 )}
                 <SupplierAvatar name={supplier.name} shortCode={supplier.shortCode} severity={severity} size="sm" />
                 <div className="min-w-0 flex-1 pl-orbit-xxs">
-                  <div className="truncate text-[13px] font-medium text-foreground">{supplier.name}</div>
+                  <div className="truncate text-[13px] v5-orbit-weight-medium text-foreground">{supplier.name}</div>
                   <div className="text-[11px] text-muted-foreground">
                     {supplier.analyses.length} contract{supplier.analyses.length === 1 ? "" : "s"}
                   </div>
                 </div>
                 <span
                   className={cn(
-                    "rounded-full px-orbit-s py-orbit-xxs text-[10px] font-medium",
+                    "rounded-full px-orbit-s py-orbit-xxs text-[10px] v5-orbit-weight-medium",
                     deviations.high > 0
                       ? "bg-destructive/10 text-destructive"
                       : "bg-success/10 text-success",

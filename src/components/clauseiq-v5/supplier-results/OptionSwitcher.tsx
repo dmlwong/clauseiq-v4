@@ -28,7 +28,7 @@ interface Props {
 export function OptionSwitcher({ value, onChange }: Props) {
   return (
     <div className="flex flex-wrap items-center gap-orbit-s">
-      <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+      <span className="text-[11px] v5-orbit-weight-medium uppercase tracking-wider text-muted-foreground">
         Design options
       </span>
       <div className="inline-flex h-8 items-center rounded-full border border-border/80 bg-muted/50 p-orbit-xxs">
@@ -40,7 +40,7 @@ export function OptionSwitcher({ value, onChange }: Props) {
               type="button"
               onClick={() => onChange(option.value)}
               className={cn(
-                "relative h-7 rounded-full px-orbit-base text-xs font-medium transition-colors",
+                "relative h-7 rounded-full px-orbit-base text-xs v5-orbit-weight-medium transition-colors",
                 active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >

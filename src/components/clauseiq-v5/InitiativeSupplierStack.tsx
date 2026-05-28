@@ -53,10 +53,10 @@ export function InitiativeSupplierStack({ initiativeName, currentSupplierName }:
           </div>
           <h3 className="v5-orbit-heading-strong">
             {others.length} prior supplier {others.length === 1 ? "analysis" : "analyses"}
-            <span className="font-normal text-muted-foreground"> · {initiativeName}</span>
+            <span className="v5-orbit-weight-regular text-muted-foreground"> · {initiativeName}</span>
           </h3>
         </div>
-        <Badge variant="outline" className="text-[10px] font-normal">
+        <Badge variant="outline" className="text-[10px] v5-orbit-weight-regular">
           Showing {filtered.length} of {others.length}
         </Badge>
       </div>
@@ -118,7 +118,7 @@ function PriorAnalysisCard({ analysis }: { analysis: InitiativeSupplierAnalysis 
     >
       <div className="flex items-center gap-orbit-s mb-orbit-xs">
         <Building2 className="h-3.5 w-3.5 text-ciq shrink-0" />
-        <span className="text-sm font-medium text-foreground truncate flex-1">
+        <span className="text-sm v5-orbit-weight-medium text-foreground truncate flex-1">
           {analysis.supplierName}
         </span>
         <StatusPill status={analysis.status} />
@@ -131,16 +131,16 @@ function PriorAnalysisCard({ analysis }: { analysis: InitiativeSupplierAnalysis 
         <span className="shrink-0">{formatShortDate(analysis.analysedAt)}</span>
       </div>
       <div className="flex flex-wrap gap-orbit-xs">
-        <Badge variant="outline" className="bg-ciq-soft text-ciq border-ciq-border text-[10px] font-normal">
+        <Badge variant="outline" className="bg-ciq-soft text-ciq border-ciq-border text-[10px] v5-orbit-weight-regular">
           Missing: {analysis.missing}
         </Badge>
-        <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-[10px] font-normal">
+        <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-[10px] v5-orbit-weight-regular">
           High: {analysis.high}
         </Badge>
-        <Badge variant="outline" className="bg-warning/15 text-warning-foreground border-warning/30 text-[10px] font-normal">
+        <Badge variant="outline" className="bg-warning/15 text-warning-foreground border-warning/30 text-[10px] v5-orbit-weight-regular">
           Med: {analysis.medium}
         </Badge>
-        <Badge variant="outline" className="bg-muted text-muted-foreground text-[10px] font-normal">
+        <Badge variant="outline" className="bg-muted text-muted-foreground text-[10px] v5-orbit-weight-regular">
           Low: {analysis.low}
         </Badge>
       </div>
@@ -156,7 +156,7 @@ function StatusPill({ status }: { status: InitiativeSupplierAnalysis["status"] }
       ? "bg-primary/10 text-primary border-primary/20"
       : "bg-warning/15 text-warning-foreground border-warning/30";
   return (
-    <Badge variant="outline" className={`text-[10px] font-normal shrink-0 ${tone}`}>
+    <Badge variant="outline" className={`text-[10px] v5-orbit-weight-regular shrink-0 ${tone}`}>
       {status}
     </Badge>
   );

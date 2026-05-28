@@ -205,7 +205,7 @@ const severityTone = (s: ClauseResult["severity"] | undefined) =>
     : "bg-muted text-muted-foreground border-border";
 
 const firstAnalysisDeviationBadgeClass =
-  "shrink-0 rounded-full border-[#F3B4B4] bg-[#FFF1F2] px-orbit-xs py-orbit-xxs text-[9px] font-medium text-[#A32D2D]";
+  "shrink-0 rounded-full border-[#F3B4B4] bg-[#FFF1F2] px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#A32D2D]";
 
 const SEVERITY_WEIGHTS: Record<"high" | "medium" | "low", number> = {
   high: 9,
@@ -1928,6 +1928,7 @@ export function ContractResults({
             backLabel={compactBackLabel}
             onBack={onBack}
             referenceLine={dashboardReferenceLine}
+            analysisLabel={firstAnalysisDemo ? `${firstAnalysisVersionLabel.toUpperCase()} Analysis` : undefined}
             firstAnalysisDemo={firstAnalysisDemo}
             demoAvailable={availableVersions.length >= 2}
             onFirstAnalysisDemoChange={toggleFirstAnalysisDemo}
@@ -2030,7 +2031,7 @@ export function ContractResults({
               </div>
               <div className="mt-orbit-s grid gap-orbit-base lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px] lg:items-end">
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <p className="text-xs v5-orbit-weight-semibold text-muted-foreground uppercase tracking-wider">
                     {initiative.name} · {initiative.reference} · {supplier.name}
                   </p>
                   <div className="mt-orbit-xs flex flex-wrap items-center gap-x-orbit-base gap-y-orbit-s">
@@ -2045,17 +2046,17 @@ export function ContractResults({
                   </div>
                   {versions.length > 0 && (
                     <p className="mt-orbit-s max-w-3xl text-xs text-muted-foreground">
-                      Use the <span className="font-semibold text-foreground">Review</span> tab to mark which clauses need to change, then switch to <span className="font-semibold text-foreground">Changes</span> to see how the supplier responded.
+                      Use the <span className="v5-orbit-weight-semibold text-foreground">Review</span> tab to mark which clauses need to change, then switch to <span className="v5-orbit-weight-semibold text-foreground">Changes</span> to see how the supplier responded.
                     </p>
                   )}
                 </div>
 
                 <div className="w-full rounded-lg border border-border bg-muted/30 px-orbit-base py-orbit-base">
                   <div className="flex flex-wrap items-center justify-between gap-orbit-s">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Review summary</p>
+                    <p className="text-[11px] v5-orbit-weight-semibold uppercase tracking-wider text-muted-foreground">Review summary</p>
                     {versions.length >= 2 && (
                       <p className="text-xs text-muted-foreground">
-                        <span className="font-semibold text-foreground">{clausesRequiringAction}</span>{" "}
+                        <span className="v5-orbit-weight-semibold text-foreground">{clausesRequiringAction}</span>{" "}
                         clause{clausesRequiringAction === 1 ? "" : "s"} require action
                       </p>
                     )}
@@ -2468,16 +2469,16 @@ function UploadVersionDialog({
     >
         <div className="space-y-orbit-base">
           <div className="rounded-md border border-border bg-muted/30 p-orbit-base text-xs space-y-orbit-xs">
-            <p><span className="text-muted-foreground">Initiative:</span> <span className="font-medium text-foreground"> {initiativeName} · {initiativeRef}</span></p>
-            <p><span className="text-muted-foreground">Supplier:</span> <span className="font-medium text-foreground"> {supplierName}</span></p>
-            <p><span className="text-muted-foreground">Contract:</span> <span className="font-medium text-foreground"> {contractName}</span></p>
+            <p><span className="text-muted-foreground">Initiative:</span> <span className="v5-orbit-weight-medium text-foreground"> {initiativeName} · {initiativeRef}</span></p>
+            <p><span className="text-muted-foreground">Supplier:</span> <span className="v5-orbit-weight-medium text-foreground"> {supplierName}</span></p>
+            <p><span className="text-muted-foreground">Contract:</span> <span className="v5-orbit-weight-medium text-foreground"> {contractName}</span></p>
           </div>
           <div className="space-y-orbit-xs">
-            <label className="text-[11px] font-semibold text-muted-foreground uppercase">Version label</label>
+            <label className="text-[11px] v5-orbit-weight-semibold text-muted-foreground uppercase">Version label</label>
             <Input value={label} onChange={(e) => setLabel(e.target.value)} className="h-9" />
           </div>
           <div className="space-y-orbit-xs">
-            <label className="text-[11px] font-semibold text-muted-foreground uppercase">Contract file</label>
+            <label className="text-[11px] v5-orbit-weight-semibold text-muted-foreground uppercase">Contract file</label>
             {file ? (
               <FileItem
                 filename={file.name}
@@ -2513,6 +2514,7 @@ function CompactContractTopbar({
   backLabel,
   onBack,
   referenceLine,
+  analysisLabel,
   firstAnalysisDemo,
   demoAvailable,
   onFirstAnalysisDemoChange,
@@ -2520,6 +2522,7 @@ function CompactContractTopbar({
   backLabel: string;
   onBack: () => void;
   referenceLine: string;
+  analysisLabel?: string;
   firstAnalysisDemo: boolean;
   demoAvailable: boolean;
   onFirstAnalysisDemoChange: (enabled: boolean) => void;
@@ -2528,13 +2531,14 @@ function CompactContractTopbar({
     <div className="flex h-10 items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] px-orbit-base">
       <button
         onClick={onBack}
-        className="inline-flex shrink-0 items-center gap-orbit-xs text-[13px] font-medium text-primary hover:underline"
+        className="inline-flex shrink-0 items-center gap-orbit-xs text-[13px] v5-orbit-weight-medium text-primary hover:underline"
       >
         <ChevronLeft className="h-3.5 w-3.5" /> {backLabel}
       </button>
       <div className="h-3.5 w-px bg-border" aria-hidden />
       <div className="flex min-w-0 flex-1 items-center gap-orbit-s">
-        <h1 className="v5-orbit-heading-label min-w-[120px] truncate text-foreground">{referenceLine}</h1>
+        <h1 className="v5-orbit-heading-label min-w-0 truncate text-foreground">{referenceLine}</h1>
+        {analysisLabel && <Chip label={analysisLabel} size="Mini" variant="Information" />}
       </div>
       {demoAvailable && (
         <FirstAnalysisDemoToggle
@@ -2559,7 +2563,7 @@ function FirstAnalysisDemoToggle({
       aria-pressed={active}
       onClick={onChange}
       className={cn(
-        "ml-auto inline-flex h-7 shrink-0 items-center gap-orbit-s rounded-md border px-orbit-s text-[11px] font-medium transition-colors",
+        "ml-auto inline-flex h-7 shrink-0 items-center gap-orbit-s rounded-md border px-orbit-s text-[11px] v5-orbit-weight-medium transition-colors",
         active
           ? "border-[#185FA5]/35 bg-[#E6F1FB] text-[#0C447C]"
           : "border-border bg-white text-muted-foreground hover:text-foreground",
@@ -2743,7 +2747,7 @@ function HistoryComingSoon() {
         <div className="grid h-12 w-12 place-items-center rounded-full border border-[#DDE5F0] bg-white text-[#185FA5] shadow-sm">
           <History className="h-5 w-5" />
         </div>
-        <p className="mt-orbit-base text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        <p className="mt-orbit-base text-[10px] v5-orbit-weight-semibold uppercase tracking-[0.12em] text-muted-foreground">
           History
         </p>
         <h1 className="v5-orbit-heading-4 mt-orbit-xs text-foreground">Coming Soon</h1>
@@ -2781,13 +2785,13 @@ function ComparisonHeader({
   return (
     <>
       <div className="flex h-8 items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] bg-[#f8f7f5] px-orbit-base text-[11px] text-muted-foreground">
-        <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.04em]">Comparing</span>
+        <span className="shrink-0 text-[10px] v5-orbit-weight-medium uppercase tracking-[0.04em]">Comparing</span>
         {versions.length >= 2 ? (
           <PairSelector versions={versions} pair={pair} onChange={onPairChange} compact />
         ) : (
           <span className="text-[10px] text-muted-foreground">{contract.version || pair.right}</span>
         )}
-        <span className="shrink-0 rounded px-orbit-xs py-orbit-xxs text-[10px] font-medium text-muted-foreground">
+        <span className="shrink-0 rounded px-orbit-xs py-orbit-xxs text-[10px] v5-orbit-weight-medium text-muted-foreground">
           Total Clauses - <strong className="text-foreground">{contract.total}</strong>
         </span>
         <InlineMetIndicator comparison={comparison} hasVersionComparison={hasVersionComparison} />
@@ -2832,9 +2836,9 @@ function InlineMetIndicator({
   return (
     <span className="ml-orbit-xs inline-flex shrink-0 items-center gap-orbit-xs text-[10px]" style={{ color }}>
       <Icon className="h-3.5 w-3.5" size={13} stroke={1.8} aria-hidden />
-      <span className="text-[11px] font-medium">{label}</span>
+      <span className="text-[11px] v5-orbit-weight-medium">{label}</span>
       {!noneMet && (
-        <span className="text-[10px] font-normal text-muted-foreground">
+        <span className="text-[10px] v5-orbit-weight-regular text-muted-foreground">
           · {comparison.met}/{comparison.requestedTotal}
         </span>
       )}
@@ -2861,7 +2865,7 @@ function HistoryHeader({
   const latest = versions.at(-1);
   return (
     <>
-      <div className="flex h-8 items-center gap-orbit-xs border-b border-[rgba(0,0,0,0.08)] bg-[#FAEEDA]/40 px-orbit-base text-[10px] font-medium text-[#633806]">
+      <div className="flex h-8 items-center gap-orbit-xs border-b border-[rgba(0,0,0,0.08)] bg-[#FAEEDA]/40 px-orbit-base text-[10px] v5-orbit-weight-medium text-[#633806]">
         <IconInfoCircle size={13} stroke={1.8} />
         Showing all {versions.length} rounds · {first?.version ?? "v1"} through {latest?.version ?? "v1"}
         {first && latest && <> · {formatShortDate(first.uploadedAt)} to {formatShortDate(latest.uploadedAt)}</>}
@@ -2878,7 +2882,7 @@ function HistoryHeader({
             key={filter}
             type="button"
             onClick={() => onFilterChange(filter)}
-            className={`inline-flex h-7 items-center gap-orbit-xs rounded-full px-orbit-base text-[10px] font-medium ${
+            className={`inline-flex h-7 items-center gap-orbit-xs rounded-full px-orbit-base text-[10px] v5-orbit-weight-medium ${
               activeFilter === filter
                 ? "bg-[#1a2744] text-white"
                 : "border border-border bg-white text-muted-foreground hover:text-foreground"
@@ -2910,8 +2914,8 @@ function HistoryStatCard({ value, label, trend, tone = "neutral" }: { value: Rea
   const trendClass = tone === "success" ? "text-[#3B6D11]" : tone === "danger" ? "text-[#A32D2D]" : "text-muted-foreground";
   return (
     <div className="rounded-md bg-[#f8f7f5] px-orbit-base py-orbit-s">
-      <p className="text-lg font-medium tabular-nums text-foreground">{value}</p>
-      <p className="text-[9px] font-medium uppercase text-muted-foreground">{label}</p>
+      <p className="text-lg v5-orbit-weight-medium tabular-nums text-foreground">{value}</p>
+      <p className="text-[9px] v5-orbit-weight-medium uppercase text-muted-foreground">{label}</p>
       <p className={`mt-orbit-xs text-[9px] ${trendClass}`}>{trend}</p>
     </div>
   );
@@ -2971,7 +2975,7 @@ function ComparisonTabButton({ active, icon, count, onClick, children }: { activ
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex h-10 items-center gap-orbit-xs border-b-2 text-[12px] font-medium ${
+      className={`inline-flex h-10 items-center gap-orbit-xs border-b-2 text-[12px] v5-orbit-weight-medium ${
         active ? "border-[#1a2744] text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
       }`}
     >
@@ -3029,7 +3033,7 @@ function ChangePillBadge({ result }: { result: ChangePillResult }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-orbit-xs rounded-[10px] px-orbit-xs py-orbit-micro text-[9px] font-medium ${config.className}`}
+      className={`inline-flex items-center gap-orbit-xs rounded-[10px] px-orbit-xs py-orbit-micro text-[9px] v5-orbit-weight-medium ${config.className}`}
     >
       <Icon size={11} stroke={1.8} />
       {config.label}
@@ -3052,7 +3056,7 @@ function ChangePillBadge({ result }: { result: ChangePillResult }) {
 function DecisionBadge({ decision }: { decision: RoundDecision }) {
   if (decision === "request-update") {
     return (
-      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full bg-primary px-orbit-s py-orbit-xs text-[10px] font-medium text-primary-foreground">
+      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full bg-primary px-orbit-s py-orbit-xs text-[10px] v5-orbit-weight-medium text-primary-foreground">
         <Sparkles className="h-3 w-3" />
         Requested
       </span>
@@ -3060,7 +3064,7 @@ function DecisionBadge({ decision }: { decision: RoundDecision }) {
   }
 
   return (
-    <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full bg-[#EAF3DE] px-orbit-s py-orbit-xs text-[10px] font-medium text-[#27500A]">
+    <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full bg-[#EAF3DE] px-orbit-s py-orbit-xs text-[10px] v5-orbit-weight-medium text-[#27500A]">
       <CheckCircle2 className="h-3 w-3" />
       No Action
     </span>
@@ -3070,7 +3074,7 @@ function DecisionBadge({ decision }: { decision: RoundDecision }) {
 function RequestLifecycleBadge({ request }: { request?: ClauseRequest }) {
   if (request?.state === "pending") {
     return (
-      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full border border-[#185FA5]/25 bg-[#E6F1FB] px-orbit-s py-orbit-xs text-[10px] font-medium text-[#0C447C]">
+      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full border border-[#185FA5]/25 bg-[#E6F1FB] px-orbit-s py-orbit-xs text-[10px] v5-orbit-weight-medium text-[#0C447C]">
         <FileText className="h-3 w-3" />
         Added to Review
       </span>
@@ -3079,7 +3083,7 @@ function RequestLifecycleBadge({ request }: { request?: ClauseRequest }) {
 
   if (request?.state === "submitted") {
     return (
-      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full border border-[#BFD6AB] bg-[#EAF3DE] px-orbit-s py-orbit-xs text-[10px] font-medium text-[#27500A]">
+      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full border border-[#BFD6AB] bg-[#EAF3DE] px-orbit-s py-orbit-xs text-[10px] v5-orbit-weight-medium text-[#27500A]">
         <CheckCircle2 className="h-3 w-3" />
         Reviewed
       </span>
@@ -3091,7 +3095,7 @@ function RequestLifecycleBadge({ request }: { request?: ClauseRequest }) {
 
 function OverviewSectionLabel({ children }: { children: ReactNode }) {
   return (
-    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <p className="text-[10px] v5-orbit-weight-semibold uppercase tracking-wider text-muted-foreground">
       {children}
     </p>
   );
@@ -3114,7 +3118,7 @@ function ComparisonOverviewPanel({
     const deltaColor = data.delta > 0 ? "#3B6D11" : data.delta < 0 ? "#A32D2D" : "hsl(var(--muted-foreground))";
     return (
       <div className="flex h-7 items-center gap-orbit-s border-b border-[rgba(0,0,0,0.08)] bg-white px-orbit-base text-[11px]">
-        <span className="shrink-0 font-medium text-muted-foreground">
+        <span className="shrink-0 v5-orbit-weight-medium text-muted-foreground">
           {data.previous ? `${pair.from} → ${pair.to}` : "First analysis"}
         </span>
         {data.previous ? (
@@ -3122,15 +3126,15 @@ function ComparisonOverviewPanel({
             <MiniDistributionBar distribution={data.previous.distribution} muted />
             <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <MiniDistributionBar distribution={data.current.distribution} />
-            <span className="shrink-0 font-medium tabular-nums" style={{ color: deltaColor }}>
+            <span className="shrink-0 v5-orbit-weight-medium tabular-nums" style={{ color: deltaColor }}>
               {deltaLabel} pts
             </span>
             <CompactDivider />
             {data.movement.improved > 0 && (
-              <span className="shrink-0 font-medium text-[#3B6D11]">↑ {data.movement.improved} improved</span>
+              <span className="shrink-0 v5-orbit-weight-medium text-[#3B6D11]">↑ {data.movement.improved} improved</span>
             )}
             {data.movement.declined > 0 && (
-              <span className="shrink-0 font-medium text-[#A32D2D]">↓ {data.movement.declined} declined</span>
+              <span className="shrink-0 v5-orbit-weight-medium text-[#A32D2D]">↓ {data.movement.declined} declined</span>
             )}
           </>
         ) : (
@@ -3139,7 +3143,7 @@ function ComparisonOverviewPanel({
         <button
           type="button"
           onClick={onExpand}
-          className="ml-auto shrink-0 rounded px-orbit-s py-orbit-xxs font-medium text-primary hover:bg-primary/5"
+          className="ml-auto shrink-0 rounded px-orbit-s py-orbit-xxs v5-orbit-weight-medium text-primary hover:bg-primary/5"
         >
           Expand
         </button>
@@ -3185,7 +3189,7 @@ export function ScoringOptionSwitcher({
 
   return (
     <div className="flex items-center gap-orbit-s">
-      <span className="hidden text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:inline">
+      <span className="hidden text-[10px] v5-orbit-weight-semibold uppercase tracking-wider text-muted-foreground sm:inline">
         Scoring options
       </span>
       <div className="inline-flex h-7 items-center rounded-full border border-border/80 bg-muted/50 p-orbit-xxs">
@@ -3196,7 +3200,7 @@ export function ScoringOptionSwitcher({
               key={option.value}
               type="button"
               onClick={() => onChange(option.value)}
-              className={`h-6 rounded-full px-orbit-s text-[11px] font-medium transition-colors ${
+              className={`h-6 rounded-full px-orbit-s text-[11px] v5-orbit-weight-medium transition-colors ${
                 active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -3477,7 +3481,7 @@ function HybridVersionMovementPanel({
   if (!canCompare || !data.previous) {
     return (
       <div className="flex min-h-[70px] items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] bg-white px-orbit-base py-orbit-base">
-        <div className="min-w-[180px] flex-1 text-[10px] font-medium text-muted-foreground">
+        <div className="min-w-[180px] flex-1 text-[10px] v5-orbit-weight-medium text-muted-foreground">
           First analysis — no comparison available
         </div>
         <CompactVersionDistributionSide version={data.current} label="current" versions={versions} current />
@@ -3526,19 +3530,19 @@ function CompactVersionDistributionSide({
       <div className="min-w-[62px]">
         <div className="flex items-center gap-orbit-xs">
           <span className={cn(
-            "text-[9px] font-medium uppercase tracking-[0.04em]",
+            "text-[9px] v5-orbit-weight-medium uppercase tracking-[0.04em]",
             current ? "text-[#185FA5]" : "text-muted-foreground",
           )}>
             {labelText}
           </span>
           {current && (
-            <span className="inline-flex items-center gap-orbit-xs rounded-full bg-[#185FA5] px-orbit-xs py-orbit-xxs text-[8px] font-semibold uppercase tracking-[0.04em] text-white">
+            <span className="inline-flex items-center gap-orbit-xs rounded-full bg-[#185FA5] px-orbit-xs py-orbit-xxs text-[8px] v5-orbit-weight-semibold uppercase tracking-[0.04em] text-white">
               <IconEye size={10} stroke={2} aria-hidden />
               Current version
             </span>
           )}
         </div>
-        <p className="mt-orbit-xxs text-2xl font-medium leading-none text-foreground tabular-nums">{version.score}</p>
+        <p className="mt-orbit-xxs text-2xl v5-orbit-weight-medium leading-none text-foreground tabular-nums">{version.score}</p>
       </div>
       <div className="min-w-0">
         <DistributionCounts distribution={version.distribution} />
@@ -3555,7 +3559,7 @@ function DeltaIndicator({ delta }: { delta: number }) {
   return (
     <div className="flex shrink-0 flex-col items-center gap-orbit-xxs px-orbit-xxs">
       <ArrowRight className="h-[13px] w-[13px] text-muted-foreground" />
-      <span className="text-sm font-medium leading-none tabular-nums" style={{ color }}>
+      <span className="text-sm v5-orbit-weight-medium leading-none tabular-nums" style={{ color }}>
         {label}
       </span>
       <span className="text-[8px] leading-none text-muted-foreground">pts</span>
@@ -3587,7 +3591,7 @@ function DistributionCounts({ distribution }: { distribution: DeviationDistribut
 function DistributionCount({ value, label, color }: { value: number; label: string; color: string }) {
   return (
     <span className="whitespace-nowrap">
-      <strong className="font-medium tabular-nums" style={{ color }}>{value}</strong> {label}
+      <strong className="v5-orbit-weight-medium tabular-nums" style={{ color }}>{value}</strong> {label}
     </span>
   );
 }
@@ -3634,8 +3638,8 @@ function MovementSummaryZone({
             <Sparkles className="h-3 w-3" />
           </span>
           <div className="min-w-0">
-            <p className="text-[9px] font-medium uppercase tracking-[0.04em] text-muted-foreground">Supplier-initiated</p>
-            <p className="text-xs font-medium text-foreground">What changed this round</p>
+            <p className="text-[9px] v5-orbit-weight-medium uppercase tracking-[0.04em] text-muted-foreground">Supplier-initiated</p>
+            <p className="text-xs v5-orbit-weight-medium text-foreground">What changed this round</p>
           </div>
         </div>
         <MovementNarrative movers={movers} delta={delta} />
@@ -3643,7 +3647,7 @@ function MovementSummaryZone({
           <button
             type="button"
             onClick={onSeeMoreChanges}
-            className="ml-orbit-l mt-orbit-xxs rounded px-orbit-xs py-orbit-xxs text-[10px] font-medium text-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            className="ml-orbit-l mt-orbit-xxs rounded px-orbit-xs py-orbit-xxs text-[10px] v5-orbit-weight-medium text-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
           >
             See all changes →
           </button>
@@ -3682,27 +3686,27 @@ function MovementNarrative({ movers, delta }: { movers: ComparisonMover[]; delta
           <>No changes in this round.</>
         ) : (
           <>
-            <span className="font-medium">Score recalculated.</span> No clause movement this round. <ScoreDeltaText delta={delta} />
+            <span className="v5-orbit-weight-medium">Score recalculated.</span> No clause movement this round. <ScoreDeltaText delta={delta} />
           </>
         )
       ) : (
         <>
           {regressed > improved && regressed > 0 ? (
             <>
-              <NarrativeCount count={regressed} /> <span className="font-medium">regressed</span>
-              {improved > 0 && <> , <NarrativeCount count={improved} /> <span className="font-medium">improved</span></>}
+              <NarrativeCount count={regressed} /> <span className="v5-orbit-weight-medium">regressed</span>
+              {improved > 0 && <> , <NarrativeCount count={improved} /> <span className="v5-orbit-weight-medium">improved</span></>}
             </>
           ) : improved > 0 && regressed > 0 ? (
             <>
-              <NarrativeCount count={improved} /> <span className="font-medium">improved</span>, <NarrativeCount count={regressed} /> <span className="font-medium">regressed</span>
+              <NarrativeCount count={improved} /> <span className="v5-orbit-weight-medium">improved</span>, <NarrativeCount count={regressed} /> <span className="v5-orbit-weight-medium">regressed</span>
             </>
           ) : improved > 0 ? (
             <>
-              <NarrativeCount count={improved} /> clause{improved === 1 ? "" : "s"} <span className="font-medium">improved</span> this round
+              <NarrativeCount count={improved} /> clause{improved === 1 ? "" : "s"} <span className="v5-orbit-weight-medium">improved</span> this round
             </>
           ) : regressed > 0 ? (
             <>
-              <NarrativeCount count={regressed} /> clause{regressed === 1 ? "" : "s"} <span className="font-medium">regressed</span>
+              <NarrativeCount count={regressed} /> clause{regressed === 1 ? "" : "s"} <span className="v5-orbit-weight-medium">regressed</span>
             </>
           ) : null}
           {created > 0 && (
@@ -3719,7 +3723,7 @@ function MovementNarrative({ movers, delta }: { movers: ComparisonMover[]; delta
 }
 
 function NarrativeCount({ count }: { count: number }) {
-  return <span className="font-medium tabular-nums">{count}</span>;
+  return <span className="v5-orbit-weight-medium tabular-nums">{count}</span>;
 }
 
 function ScoreDeltaText({ delta }: { delta: number }) {
@@ -3728,7 +3732,7 @@ function ScoreDeltaText({ delta }: { delta: number }) {
   return (
     <>
       Net change:{" "}
-      <span className={`font-medium tabular-nums ${positive ? "text-[#27500A]" : "text-[#791F1F]"}`}>
+      <span className={`v5-orbit-weight-medium tabular-nums ${positive ? "text-[#27500A]" : "text-[#791F1F]"}`}>
         {positive ? `+${delta}` : `-${Math.abs(delta)}`} points
       </span>
       .
@@ -3759,9 +3763,9 @@ function TopMoversList({
           <span>New clause</span>
         ) : (
           <>
-            <strong className="font-medium text-foreground">{formatMoverSeverity(mover.previousSeverity)}</strong>
+            <strong className="v5-orbit-weight-medium text-foreground">{formatMoverSeverity(mover.previousSeverity)}</strong>
             <span aria-hidden> → </span>
-            <strong className="font-medium text-foreground">{formatMoverSeverity(mover.currentSeverity)}</strong>
+            <strong className="v5-orbit-weight-medium text-foreground">{formatMoverSeverity(mover.currentSeverity)}</strong>
           </>
         );
         const accessibleTransition = created
@@ -3780,7 +3784,7 @@ function TopMoversList({
               <Icon size={10} stroke={2} />
             </span>
             <span className="tabular-nums text-[9px] text-muted-foreground">{mover.id.toUpperCase()}</span>
-            <span className="min-w-0 truncate text-[11px] font-medium text-foreground">{mover.name}</span>
+            <span className="min-w-0 truncate text-[11px] v5-orbit-weight-medium text-foreground">{mover.name}</span>
             <span className="shrink-0 text-[9px] text-muted-foreground">{transitionLabel}</span>
             <span className="text-xs text-muted-foreground" aria-hidden>›</span>
           </button>
@@ -3824,7 +3828,7 @@ function HybridRiskDriverRows({
                   style={{ backgroundColor: panelSeverityColor[driver.severity] }}
                 />
                 <span className="min-w-0">
-                  <span className="block truncate text-[11px] font-medium text-foreground">{driver.clauseName}</span>
+                  <span className="block truncate text-[11px] v5-orbit-weight-medium text-foreground">{driver.clauseName}</span>
                   <span className="block truncate text-[10px] text-muted-foreground">
                     {driver.clauseId.toUpperCase()}
                     {stalled && <> · stalled {driver.roundsUnchanged} rounds</>}
@@ -3832,7 +3836,7 @@ function HybridRiskDriverRows({
                 </span>
               </span>
               <span
-                className="text-right text-[10px] font-medium tabular-nums"
+                className="text-right text-[10px] v5-orbit-weight-medium tabular-nums"
                 style={{ color: panelSeverityColor[driver.severity] }}
               >
                 −{driver.weightedCost}
@@ -3863,14 +3867,14 @@ function HybridResolutionRows({ score }: { score: ContractScore }) {
           const resolvedWidth = resolved > 0 ? Math.max(3, (resolved / total) * 100) : 3;
           return (
             <div key={row.key} className="grid grid-cols-[48px_minmax(0,1fr)_38px] items-center gap-orbit-s">
-              <span className="text-[10px] font-medium" style={{ color: row.color }}>{row.label}</span>
+              <span className="text-[10px] v5-orbit-weight-medium" style={{ color: row.color }}>{row.label}</span>
               <span className="flex h-2 overflow-hidden rounded-[3px] bg-muted">
                 <span className="bg-[#3B6D11]" style={{ width: `${resolvedWidth}%` }} />
                 {remaining > 0 && (
                   <span style={{ width: `${Math.max(0, 100 - resolvedWidth)}%`, backgroundColor: row.color }} />
                 )}
               </span>
-              <span className="text-right text-[10px] font-medium tabular-nums" style={{ color: row.color }}>
+              <span className="text-right text-[10px] v5-orbit-weight-medium tabular-nums" style={{ color: row.color }}>
                 {resolved}/{identified}
               </span>
             </div>
@@ -3934,7 +3938,7 @@ function HybridFooterSignal({
       tone === "warning" ? "text-[#854F0B]" :
         tone === "danger" ? "text-[#A32D2D]" :
           "text-muted-foreground";
-  return <span className={`inline-flex items-center gap-orbit-xs font-medium ${toneClass}`}>{children}</span>;
+  return <span className={`inline-flex items-center gap-orbit-xs v5-orbit-weight-medium ${toneClass}`}>{children}</span>;
 }
 
 function BulletScoreBar({ score, previousScore }: { score: number; previousScore?: number }) {
@@ -3975,8 +3979,8 @@ function BulletScoreBar({ score, previousScore }: { score: number; previousScore
 function SummaryStat({ label, value, tone }: { label: string; value: number; tone: string }) {
   return (
     <div className="min-w-0 text-center">
-      <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-normal sm:text-[10px]">{label}</p>
-      <p className={`text-lg font-bold tabular-nums leading-tight ${tone}`}>{value}</p>
+      <p className="text-[9px] v5-orbit-weight-semibold text-muted-foreground uppercase tracking-normal sm:text-[10px]">{label}</p>
+      <p className={`text-lg v5-orbit-weight-bold tabular-nums leading-tight ${tone}`}>{value}</p>
     </div>
   );
 }
@@ -4247,9 +4251,9 @@ function ReviewGuidance({ versionLabel, compact = false }: { versionLabel: strin
     >
       <Sparkles className={compact ? "h-3.5 w-3.5 shrink-0 text-primary" : "w-3.5 h-3.5 text-primary mt-orbit-xxs shrink-0"} />
       <span className="min-w-0">
-        Select <span className="font-semibold text-foreground">"Request Change"</span> for clauses you want the supplier to update.
+        Select <span className="v5-orbit-weight-semibold text-foreground">"Request Change"</span> for clauses you want the supplier to update.
         {versionLabel !== "v1" && (
-          <> Notes on <span className="font-semibold text-foreground">{versionLabel}</span> override the previous round.</>
+          <> Notes on <span className="v5-orbit-weight-semibold text-foreground">{versionLabel}</span> override the previous round.</>
         )}
       </span>
     </div>
@@ -4299,7 +4303,7 @@ function ClauseRequestForm({
     >
       {inherited && !draft?.requestedChange && !draft?.rationale && (
         <div className="space-y-orbit-xs rounded-md border-l-2 border-primary bg-primary/5 px-orbit-base py-orbit-s text-xs">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+          <p className="text-[10px] v5-orbit-weight-semibold uppercase tracking-wide text-primary">
             Currently in effect · from {inherited.version}
           </p>
           {inherited.request.requestedChange && <p className="leading-snug text-foreground">{inherited.request.requestedChange}</p>}
@@ -4311,7 +4315,7 @@ function ClauseRequestForm({
       )}
       <div className="grid gap-orbit-base md:grid-cols-2">
         <div className="space-y-orbit-xs">
-          <label className="text-[11px] font-semibold uppercase text-muted-foreground">
+          <label className="text-[11px] v5-orbit-weight-semibold uppercase text-muted-foreground">
             Requested change ({versionLabel}) <span className="text-destructive">*</span>
           </label>
           <Textarea
@@ -4322,7 +4326,7 @@ function ClauseRequestForm({
           />
         </div>
         <div className="space-y-orbit-xs">
-          <label className="text-[11px] font-semibold uppercase text-muted-foreground">Rationale (optional)</label>
+          <label className="text-[11px] v5-orbit-weight-semibold uppercase text-muted-foreground">Rationale (optional)</label>
           <Textarea
             value={rationaleValue}
             onChange={(event) => onUpdate({ rationale: event.target.value })}
@@ -4437,7 +4441,7 @@ function ClauseDecisionCard({
   const severityBadgeLabel = useFirstAnalysisDeviationStyle ? "High Deviation" : clause.severity;
   const severityBadgeClass = useFirstAnalysisDeviationStyle
     ? firstAnalysisDeviationBadgeClass
-    : `${severityTone(clause.severity)} shrink-0 rounded-full px-orbit-xs py-orbit-xxs text-[9px] font-medium`;
+    : `${severityTone(clause.severity)} shrink-0 rounded-full px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium`;
   const showSeverityBadge = !isPureMissingClause(clause);
 
   if (displayMode === "row-scale" && !actions) {
@@ -4482,7 +4486,7 @@ function ClauseDecisionCard({
       )}
     >
       <div className="flex min-w-0 items-center gap-orbit-s">
-        <span className="w-[22px] shrink-0 tabular-nums text-[9px] font-semibold text-muted-foreground">{id.toUpperCase()}</span>
+        <span className="w-[22px] shrink-0 tabular-nums text-[9px] v5-orbit-weight-semibold text-muted-foreground">{id.toUpperCase()}</span>
         {onTogglePin && (
           <button
             type="button"
@@ -4536,7 +4540,7 @@ function ClauseDecisionCard({
                 if (decision === "request-update") onEditRequest?.();
                 else onChangeNoAction?.();
               }}
-              className="shrink-0 text-[10px] font-medium text-primary hover:underline"
+              className="shrink-0 text-[10px] v5-orbit-weight-medium text-primary hover:underline"
             >
               {decision === "request-update" ? "Edit" : "Change"}
             </button>
@@ -4553,7 +4557,7 @@ function ClauseDecisionCard({
         <div className="mt-orbit-s space-y-orbit-s pl-orbit-l" onClick={(event) => event.stopPropagation()}>
           <div className="flex flex-wrap items-center gap-orbit-s rounded-md border border-[#185FA5]/20 bg-[#E6F1FB]/45 px-orbit-base py-orbit-s">
             <p className="min-w-[180px] flex-1 truncate text-[11px] text-[#0C447C]">
-              <span className="font-semibold">Request:</span> {requestPreview}
+              <span className="v5-orbit-weight-semibold">Request:</span> {requestPreview}
             </p>
             <div className="flex shrink-0 items-center gap-orbit-xs">
               <Button variant="outline" className="h-7 px-orbit-s text-[10px]" onClick={onEditRequest}>
@@ -4585,7 +4589,7 @@ function ClauseDecisionCard({
       {showDecisionBody && actionability && (
         <p className="mt-orbit-xs pl-orbit-l text-[11px] leading-5 text-muted-foreground">
           <Lightbulb className="mr-orbit-xs inline h-3 w-3 text-primary" />
-          <span className="font-semibold text-foreground">Actionability:</span> {actionability}
+          <span className="v5-orbit-weight-semibold text-foreground">Actionability:</span> {actionability}
         </p>
       )}
       {showDecisionBody && extraContent && <div className="mt-orbit-s pl-orbit-l">{extraContent}</div>}
@@ -4594,14 +4598,14 @@ function ClauseDecisionCard({
         <div className="mt-orbit-s flex items-center gap-orbit-xs pl-orbit-l" onClick={(event) => event.stopPropagation()}>
           <Button
             variant="secondary"
-            className="h-8 gap-orbit-xs rounded-[5px] px-orbit-base text-[11px] font-normal"
+            className="h-8 gap-orbit-xs rounded-[5px] px-orbit-base text-[11px] v5-orbit-weight-regular"
             onClick={onRequest}
           >
             <Sparkles className="h-3 w-3" /> {primaryActionLabel}
           </Button>
           <Button
             variant={noActionIsPrimary ? "default" : "outline"}
-            className={cn("h-8 rounded-[5px] px-orbit-base text-[11px] font-normal gap-orbit-xs", noActionIsPrimary && "bg-[#1a2744] text-white hover:bg-[#243454]")}
+            className={cn("h-8 rounded-[5px] px-orbit-base text-[11px] v5-orbit-weight-regular gap-orbit-xs", noActionIsPrimary && "bg-[#1a2744] text-white hover:bg-[#243454]")}
             onClick={onNoAction}
           >
             <CheckCircle2 className="h-3 w-3" /> No Action
@@ -4618,7 +4622,7 @@ function ClauseDecisionCard({
       {showQueuedCompact && queuedExpanded && (
         <div className="mt-orbit-s pl-orbit-l" onClick={(event) => event.stopPropagation()}>
           <div className="rounded-md border border-[#185FA5]/20 bg-[#E6F1FB]/55 px-orbit-base py-orbit-s text-[11px] text-[#0C447C]">
-            <p className="font-medium">Added to Review.</p>
+            <p className="v5-orbit-weight-medium">Added to Review.</p>
             <p className="mt-orbit-xxs text-[#0C447C]/80">Review and generate all requests when ready.</p>
           </div>
         </div>
@@ -4787,7 +4791,7 @@ function ClauseRowScaleCard({
               </Badge>
             )}
             {isDrafting && (
-              <Badge variant="outline" className="rounded-full border-[#185FA5]/25 bg-[#E6F1FB] px-orbit-xs py-orbit-xxs text-[9px] font-medium text-[#0C447C]">
+              <Badge variant="outline" className="rounded-full border-[#185FA5]/25 bg-[#E6F1FB] px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#0C447C]">
                 Drafting request
               </Badge>
             )}
@@ -4843,12 +4847,12 @@ const rowScaleSeverityThemes: Record<
   medium: {
     accent: "#BA7517",
     background: "#FFF9EC",
-    badgeClass: "shrink-0 rounded-full border-[#F1D29B] bg-[#FFF8E8] px-orbit-xs py-orbit-xxs text-[9px] font-medium text-[#854F0B]",
+    badgeClass: "shrink-0 rounded-full border-[#F1D29B] bg-[#FFF8E8] px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#854F0B]",
   },
   low: {
     accent: "#3B6D11",
     background: "#F4FAEE",
-    badgeClass: "shrink-0 rounded-full border-[#BFD6AB] bg-[#EAF3DE] px-orbit-xs py-orbit-xxs text-[9px] font-medium text-[#27500A]",
+    badgeClass: "shrink-0 rounded-full border-[#BFD6AB] bg-[#EAF3DE] px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#27500A]",
   },
 };
 
@@ -4862,10 +4866,10 @@ function FindingCallout({ text }: { text: string }) {
           <Search className="h-3 w-3" />
         </span>
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          <p className="text-[10px] v5-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Finding
           </p>
-          <p className="mt-orbit-xxs text-[12px] font-medium leading-5 text-foreground/85">
+          <p className="mt-orbit-xxs text-[12px] v5-orbit-weight-medium leading-5 text-foreground/85">
             {renderFindingText(text)}
           </p>
         </div>
@@ -4882,10 +4886,10 @@ function RecommendedActionCallout({ text, compactTop = false }: { text: string; 
           <Lightbulb className="h-3 w-3" />
         </span>
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          <p className="text-[10px] v5-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Recommended action
           </p>
-          <p className="mt-orbit-xxs text-[12px] font-medium leading-5 text-foreground">
+          <p className="mt-orbit-xxs text-[12px] v5-orbit-weight-medium leading-5 text-foreground">
             {text}
           </p>
         </div>
@@ -4900,7 +4904,7 @@ function renderFindingText(text: string) {
     if (!part) return null;
     const prominent = /^(\d+(?:\.\d+)?%?(?:[-\s]?(?:day|days|month|months|year|years|hour|hours|fee|fees))?|vs|benchmark)$/i.test(part);
     return prominent ? (
-      <span key={`${part}-${index}`} className="font-semibold text-foreground">
+      <span key={`${part}-${index}`} className="v5-orbit-weight-semibold text-foreground">
         {part}
       </span>
     ) : (
@@ -5127,7 +5131,7 @@ function ClauseReviewModalCard({
           {severity && !pureMissing && (
             <Badge
               variant="outline"
-              className={cn("h-5 rounded-full px-orbit-s text-[9px] font-medium", severityTone(severity))}
+              className={cn("h-5 rounded-full px-orbit-s text-[9px] v5-orbit-weight-medium", severityTone(severity))}
             >
               {titleCaseSeverity(severity)} Deviation
             </Badge>
@@ -5135,7 +5139,7 @@ function ClauseReviewModalCard({
           <Badge
             variant="outline"
             className={cn(
-              "h-5 rounded-full px-orbit-s text-[9px] font-medium",
+              "h-5 rounded-full px-orbit-s text-[9px] v5-orbit-weight-medium",
               statusTone === "blue" && "border-[#185FA5]/20 bg-[#E6F1FB]/60 text-[#0C447C]",
               statusTone === "green" && "border-[#BFD6AB] bg-[#EAF3DE] text-[#27500A]",
               statusTone === "neutral" && "border-border bg-white text-muted-foreground",
@@ -5150,13 +5154,13 @@ function ClauseReviewModalCard({
       </div>
 
       <div className="mt-orbit-s min-w-0">
-        <p className="truncate text-[13px] font-semibold text-foreground">{title}</p>
+        <p className="truncate text-[13px] v5-orbit-weight-semibold text-foreground">{title}</p>
         <p className="mt-orbit-xxs line-clamp-2 text-[11px] leading-4 text-muted-foreground">
           {request.requestedChange || "No requested change entered yet."}
         </p>
         {request.rationale && (
           <p className="mt-orbit-xs line-clamp-2 text-[11px] leading-4 text-muted-foreground">
-            <span className="font-medium text-foreground">Rationale:</span> {request.rationale}
+            <span className="v5-orbit-weight-medium text-foreground">Rationale:</span> {request.rationale}
           </p>
         )}
       </div>
@@ -5189,21 +5193,21 @@ function ClauseReviewModalCard({
       {editing && editMode === "inline" && (
         <div className="mt-orbit-base rounded-lg border border-border bg-white/85 p-orbit-base" onClick={(event) => event.stopPropagation()}>
           <div className="grid gap-orbit-base">
-            <label className="grid gap-orbit-xs text-xs font-medium text-foreground">
+            <label className="grid gap-orbit-xs text-xs v5-orbit-weight-medium text-foreground">
               Requested change
               <Textarea
                 value={draft.requestedChange ?? ""}
                 onChange={(event) => setDraft((current) => ({ ...current, requestedChange: event.target.value }))}
-                className="min-h-[72px] resize-none bg-white text-xs font-normal leading-5"
+                className="min-h-[72px] resize-none bg-white text-xs v5-orbit-weight-regular leading-5"
               />
             </label>
-            <label className="grid gap-orbit-xs text-xs font-medium text-foreground">
+            <label className="grid gap-orbit-xs text-xs v5-orbit-weight-medium text-foreground">
               Rationale
               <Textarea
                 value={draft.rationale ?? ""}
                 onChange={(event) => setDraft((current) => ({ ...current, rationale: event.target.value }))}
                 placeholder="Add why this change is needed before supplier negotiation."
-                className="min-h-[64px] resize-none bg-white text-xs font-normal leading-5"
+                className="min-h-[64px] resize-none bg-white text-xs v5-orbit-weight-regular leading-5"
               />
             </label>
           </div>
@@ -5378,14 +5382,14 @@ function ReviewGenerateProgressDashboard({ progress }: { progress: FirstAnalysis
     <section className="rounded-lg border border-border bg-white p-orbit-base">
       <div className="flex items-start justify-between gap-orbit-base">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          <p className="text-[10px] v5-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Summary
           </p>
           <p className="mt-orbit-xs text-xs leading-5 text-muted-foreground">
             Check what has been accepted, marked no action, and what is still left unreviewed before generating the CSV.
           </p>
         </div>
-        <span className="shrink-0 rounded-full border border-border bg-muted/40 px-orbit-s py-orbit-xxs text-[10px] font-medium text-foreground">
+        <span className="shrink-0 rounded-full border border-border bg-muted/40 px-orbit-s py-orbit-xxs text-[10px] v5-orbit-weight-medium text-foreground">
           {percentage}%
         </span>
       </div>
@@ -5408,7 +5412,7 @@ function ReviewGenerateProgressDashboard({ progress }: { progress: FirstAnalysis
           return (
             <div key={item.label} className="rounded-md border border-border bg-muted/20 px-orbit-s py-orbit-s">
               <div className="flex items-center justify-between gap-orbit-s">
-                <span className="text-[10px] font-medium text-muted-foreground">{item.label}</span>
+                <span className="text-[10px] v5-orbit-weight-medium text-muted-foreground">{item.label}</span>
                 <span className="text-[10px] text-muted-foreground">
                   {item.unreviewed} left
                 </span>
@@ -5441,8 +5445,8 @@ function ReviewGenerateMetric({
 }) {
   return (
     <div className={cn("rounded-md border border-border bg-[#F7FAFC] px-orbit-s py-orbit-s", muted && "bg-muted/25")}>
-      <p className="text-lg font-semibold leading-none text-foreground">{value}</p>
-      <p className="mt-orbit-xs text-[9px] font-medium uppercase tracking-[0.04em] text-muted-foreground">
+      <p className="text-lg v5-orbit-weight-semibold leading-none text-foreground">{value}</p>
+      <p className="mt-orbit-xs text-[9px] v5-orbit-weight-medium uppercase tracking-[0.04em] text-muted-foreground">
         {label}
       </p>
     </div>
@@ -5725,7 +5729,7 @@ function ComparisonSection({
           <div className="grid gap-orbit-s text-[11px] md:grid-cols-2">
             {bucket !== "new" && (
               <div className="rounded-md border-l-2 border-primary bg-primary/5 px-orbit-s py-orbit-s md:col-span-2">
-                <p className="text-[9px] font-semibold uppercase tracking-wide text-primary">
+                <p className="text-[9px] v5-orbit-weight-semibold uppercase tracking-wide text-primary">
                   Requested{req.fromVersion ? ` · from ${req.fromVersion}` : ""}
                 </p>
                 <p className="mt-orbit-xs leading-snug text-foreground">{req.requestedChange ?? "No request captured"}</p>
@@ -5733,11 +5737,11 @@ function ComparisonSection({
               </div>
             )}
             <div className={cn("rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s", bucket === "new" && "md:col-span-1")}>
-              <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{leftLabel}</p>
+              <p className="text-[9px] v5-orbit-weight-semibold uppercase tracking-wide text-muted-foreground">{leftLabel}</p>
               <p className="mt-orbit-xs leading-snug text-muted-foreground">{r.prev?.deviation ?? "Clause did not exist."}</p>
             </div>
             <div className="rounded-md bg-[#E6F1FB]/45 px-orbit-s py-orbit-s">
-              <p className="text-[9px] font-semibold uppercase tracking-wide text-[#185FA5]">{rightLabel}</p>
+              <p className="text-[9px] v5-orbit-weight-semibold uppercase tracking-wide text-[#185FA5]">{rightLabel}</p>
               <p className="mt-orbit-xs leading-snug text-foreground">{r.curr?.deviation ?? "Clause no longer present."}</p>
             </div>
           </div>
@@ -5873,7 +5877,7 @@ function ComparisonSection({
                   {title} · <span className="tabular-nums text-foreground">{displayedStats.total}</span>
                 </h3>
                 {bucketSummary && (
-                  <span className="text-[11px] font-medium text-muted-foreground">{bucketSummary}</span>
+                  <span className="text-[11px] v5-orbit-weight-medium text-muted-foreground">{bucketSummary}</span>
                 )}
               </div>
               <p className="mt-orbit-xxs text-xs text-muted-foreground">{description}</p>
@@ -5902,7 +5906,7 @@ function ComparisonSection({
                 {title} · <span className="tabular-nums text-foreground">{displayedStats.total}</span>
               </h3>
               {bucketSummary && (
-                <span className="text-[11px] font-medium text-muted-foreground">{bucketSummary}</span>
+                <span className="text-[11px] v5-orbit-weight-medium text-muted-foreground">{bucketSummary}</span>
               )}
             </div>
             <p className="mt-orbit-xxs text-xs text-muted-foreground">{description}</p>
@@ -5972,7 +5976,7 @@ function UnmarkedSection({
                 Unmarked clauses · <span className="tabular-nums text-muted-foreground">{rows.length}</span>
               </h3>
               <p className="text-xs text-muted-foreground">
-                Clauses you didn't previously flag and the supplier didn't materially change. Expand to search this list, or use the <span className="font-medium text-foreground">filter and search above</span> to narrow results, then request a change in this round.
+                Clauses you didn't previously flag and the supplier didn't materially change. Expand to search this list, or use the <span className="v5-orbit-weight-medium text-foreground">filter and search above</span> to narrow results, then request a change in this round.
               </p>
             </div>
             <ChevronDown className={`w-4 h-4 text-muted-foreground mt-orbit-xs transition-transform ${open ? "rotate-180" : ""}`} />
@@ -6033,11 +6037,11 @@ function UnmarkedSection({
                         extraContent={
                           <div className="grid gap-orbit-s text-[11px] md:grid-cols-2">
                             <div className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s">
-                              <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{leftLabel}</p>
+                              <p className="text-[9px] v5-orbit-weight-semibold uppercase tracking-wide text-muted-foreground">{leftLabel}</p>
                               <p className="mt-orbit-xs leading-snug text-muted-foreground">{r.prev?.deviation ?? "Clause did not exist."}</p>
                             </div>
                             <div className="rounded-md bg-[#E6F1FB]/45 px-orbit-s py-orbit-s">
-                              <p className="text-[9px] font-semibold uppercase tracking-wide text-[#185FA5]">{rightLabel}</p>
+                              <p className="text-[9px] v5-orbit-weight-semibold uppercase tracking-wide text-[#185FA5]">{rightLabel}</p>
                               <p className="mt-orbit-xs leading-snug text-foreground">{r.curr?.deviation ?? "Clause no longer present."}</p>
                             </div>
                           </div>
@@ -6118,7 +6122,7 @@ function RoundTracker({
       width: "260px",
       render: (def: (typeof CLAUSE_FRAMEWORK)[number]) => (
         <div>
-          <span className="text-sm font-medium text-foreground hover:text-primary">
+          <span className="text-sm v5-orbit-weight-medium text-foreground hover:text-primary">
             {def.title}
           </span>
           <p className="text-[11px] tabular-nums text-muted-foreground">{def.id.toUpperCase()} · {def.category}</p>
@@ -6129,7 +6133,7 @@ function RoundTracker({
       id: v.version,
       header: (
         <div className="flex flex-col items-center">
-          <span className="tabular-nums text-xs font-bold text-foreground">Round {parseInt(v.version.replace("v", ""), 10)}</span>
+          <span className="tabular-nums text-xs v5-orbit-weight-bold text-foreground">Round {parseInt(v.version.replace("v", ""), 10)}</span>
           <span className="text-[10px] text-muted-foreground tabular-nums">{v.version}</span>
         </div>
       ),
@@ -6223,7 +6227,7 @@ function ClauseSlideOver({
         <div className="shrink-0 border-b border-border px-orbit-base py-orbit-base">
           <div className="flex items-start justify-between gap-orbit-base">
             <div className="min-w-0">
-              <p className="text-[9px] font-medium uppercase text-muted-foreground">{clauseId.toUpperCase()} · {def.category}</p>
+              <p className="text-[9px] v5-orbit-weight-medium uppercase text-muted-foreground">{clauseId.toUpperCase()} · {def.category}</p>
               <h2 className="v5-orbit-heading-label mt-orbit-xs truncate text-foreground">{display.title}</h2>
               <div className="mt-orbit-s flex flex-wrap items-center gap-orbit-xs">
                 <Badge variant="outline" className={`${severityTone(display.severity)} text-[9px]`}>{display.severity}</Badge>
@@ -6231,7 +6235,7 @@ function ClauseSlideOver({
                 <button
                   type="button"
                   onClick={() => onViewHistory(clauseId)}
-                  className="inline-flex items-center gap-orbit-xs rounded-full bg-[#FAEEDA]/70 px-orbit-s py-orbit-xxs text-[9px] font-medium text-[#633806] hover:bg-[#FAEEDA]"
+                  className="inline-flex items-center gap-orbit-xs rounded-full bg-[#FAEEDA]/70 px-orbit-s py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#633806] hover:bg-[#FAEEDA]"
                 >
                   <IconTimeline size={11} stroke={1.8} />
                   {historyRow.existsInRounds} rounds of history
@@ -6246,9 +6250,9 @@ function ClauseSlideOver({
 
         <div className="shrink-0 border-b border-border bg-[#f8f7f5] px-orbit-base py-orbit-s">
           <div className="mb-orbit-s flex items-center justify-between">
-            <p className="text-[9px] font-medium uppercase text-muted-foreground">Negotiation timeline</p>
+            <p className="text-[9px] v5-orbit-weight-medium uppercase text-muted-foreground">Negotiation timeline</p>
             {mode === "comparison" && (
-              <button type="button" onClick={() => onViewHistory(clauseId)} className="text-[9px] font-medium text-primary hover:underline">
+              <button type="button" onClick={() => onViewHistory(clauseId)} className="text-[9px] v5-orbit-weight-medium text-primary hover:underline">
                 View in History →
               </button>
             )}
@@ -6257,7 +6261,7 @@ function ClauseSlideOver({
             <div className="absolute left-4 right-4 top-2 h-px bg-border" aria-hidden />
             {historyRow.cells.map((cell, index) => (
               <div key={cell.version || index} className="relative z-10 flex min-w-[42px] flex-col items-center gap-orbit-xs">
-                <span className={`grid h-4 w-4 place-items-center rounded-full border text-[8px] font-medium ${roundStatusTone(cell.status)} ${index === historyRow.cells.length - 1 ? "outline outline-2 outline-offset-1 outline-[#185FA5]" : ""}`}>
+                <span className={`grid h-4 w-4 place-items-center rounded-full border text-[8px] v5-orbit-weight-medium ${roundStatusTone(cell.status)} ${index === historyRow.cells.length - 1 ? "outline outline-2 outline-offset-1 outline-[#185FA5]" : ""}`}>
                   {index + 1}
                 </span>
                 <span className="text-[7px] text-muted-foreground">{cell.version || "—"}</span>
@@ -6277,11 +6281,11 @@ function ClauseSlideOver({
               <SectionLabel>{leftLabel} → {rightLabel} diff</SectionLabel>
               <div className="grid grid-cols-2 gap-orbit-s">
                 <div className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s opacity-75">
-                  <p className="text-[8px] font-medium uppercase text-muted-foreground">{leftLabel} · previous</p>
+                  <p className="text-[8px] v5-orbit-weight-medium uppercase text-muted-foreground">{leftLabel} · previous</p>
                   <p className="mt-orbit-xs text-[10px] text-foreground">{isNewClause ? `(Clause did not exist in ${leftLabel})` : prev?.deviation ?? "—"}</p>
                 </div>
                 <div className="rounded-md bg-[#E6F1FB]/50 px-orbit-s py-orbit-s">
-                  <p className="text-[8px] font-medium uppercase text-[#185FA5]">{rightLabel} · current</p>
+                  <p className="text-[8px] v5-orbit-weight-medium uppercase text-[#185FA5]">{rightLabel} · current</p>
                   <p className="mt-orbit-xs text-[10px] text-foreground">{curr?.deviation ?? display.deviation}</p>
                 </div>
               </div>
@@ -6313,7 +6317,7 @@ function ClauseSlideOver({
                 {historyRow.cells.map((cell, index) => (
                   <div key={`${cell.version}-${index}`} className="flex items-start justify-between gap-orbit-s rounded-md border border-border px-orbit-s py-orbit-s text-[10px]">
                     <div>
-                      <p className="font-medium text-foreground">Round {index + 1} · {cell.version}</p>
+                      <p className="v5-orbit-weight-medium text-foreground">Round {index + 1} · {cell.version}</p>
                       <p className="mt-orbit-xxs text-muted-foreground">{cell.clause?.improvementReason ?? cell.clause?.deviation ?? "Clause not present in this round."}</p>
                     </div>
                     <RoundStatusPill status={cell.status}>{cell.label}</RoundStatusPill>
@@ -6439,7 +6443,7 @@ function ClauseDetailPanel({
       <div className="w-full max-w-3xl bg-background border-l border-border overflow-y-auto">
         <div className="sticky top-0 bg-background border-b border-border px-orbit-m py-orbit-base flex items-start justify-between gap-orbit-base">
           <div>
-            <p className="text-[10px] tabular-nums font-bold text-muted-foreground">{clauseId.toUpperCase()} · {def.category}</p>
+            <p className="text-[10px] tabular-nums v5-orbit-weight-bold text-muted-foreground">{clauseId.toUpperCase()} · {def.category}</p>
             <h2 className="v5-orbit-heading-4">{display.title}</h2>
             <p className="text-xs tabular-nums text-muted-foreground">{display.subclause}</p>
           </div>
@@ -6451,7 +6455,7 @@ function ClauseDetailPanel({
         <div className="p-orbit-m space-y-orbit-m">
           {directionalCallout && (
             <div className={`rounded-md border px-orbit-base py-orbit-s text-sm ${directionalCallout.className}`}>
-              <p className="font-medium">{directionalCallout.title}</p>
+              <p className="v5-orbit-weight-medium">{directionalCallout.title}</p>
               <p className="mt-orbit-xxs text-xs opacity-85">{directionalCallout.description}</p>
             </div>
           )}
@@ -6495,14 +6499,14 @@ function ClauseDetailPanel({
           <div className="grid grid-cols-2 gap-orbit-base">
             <div className="rounded-md border border-border bg-card p-orbit-base space-y-orbit-s">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] tabular-nums font-semibold text-muted-foreground uppercase">{leftLabel}</span>
+                <span className="text-[10px] tabular-nums v5-orbit-weight-semibold text-muted-foreground uppercase">{leftLabel}</span>
                 <Badge variant="outline" className={severityTone((prev ?? display).severity)}>{prev?.severity ?? "—"}</Badge>
               </div>
               <LocationsList items={prev?.locations} />
             </div>
             <div className="rounded-md border border-border bg-card p-orbit-base space-y-orbit-s">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] tabular-nums font-semibold text-muted-foreground uppercase">{rightLabel}</span>
+                <span className="text-[10px] tabular-nums v5-orbit-weight-semibold text-muted-foreground uppercase">{rightLabel}</span>
                 <Badge variant="outline" className={severityTone((curr ?? display).severity)}>{curr?.severity ?? "—"}</Badge>
               </div>
               <LocationsList items={curr?.locations} />
@@ -6510,7 +6514,7 @@ function ClauseDetailPanel({
           </div>
           {display.actionability && (
             <div className="rounded-md border border-primary/20 bg-primary/5 p-orbit-base space-y-orbit-xs">
-              <p className="text-[10px] font-semibold text-primary uppercase tracking-wider flex items-center gap-orbit-xs">
+              <p className="text-[10px] v5-orbit-weight-semibold text-primary uppercase tracking-wider flex items-center gap-orbit-xs">
                 <Lightbulb className="w-3 h-3" /> Suggested action
               </p>
               <p className="text-sm text-foreground">{display.actionability}</p>
@@ -6527,12 +6531,12 @@ function ClauseDetailPanel({
                   .sort((a, b) => a[0].localeCompare(b[0]))
                   .map(([v, r]) => (
                     <div key={v} className="rounded-md border border-border bg-card p-orbit-base text-sm space-y-orbit-xs">
-                      <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">{v}</p>
+                      <p className="text-[10px] v5-orbit-weight-semibold text-primary uppercase tracking-wider">{v}</p>
                       {r.requestedChange && (
-                        <p><span className="text-[10px] font-semibold text-muted-foreground uppercase mr-orbit-s">Ask</span>{r.requestedChange}</p>
+                        <p><span className="text-[10px] v5-orbit-weight-semibold text-muted-foreground uppercase mr-orbit-s">Ask</span>{r.requestedChange}</p>
                       )}
                       {r.rationale && (
-                        <p><span className="text-[10px] font-semibold text-muted-foreground uppercase mr-orbit-s">Why</span>{r.rationale}</p>
+                        <p><span className="text-[10px] v5-orbit-weight-semibold text-muted-foreground uppercase mr-orbit-s">Why</span>{r.rationale}</p>
                       )}
                     </div>
                   ))}
@@ -6544,14 +6548,14 @@ function ClauseDetailPanel({
           {/* Action panel */}
           <div className="sticky bottom-0 -mx-orbit-m px-orbit-m py-orbit-base bg-background border-t border-border flex items-center justify-between flex-wrap gap-orbit-base">
             <div className="text-xs text-muted-foreground flex items-center gap-orbit-s">
-              <span className="font-semibold">{leftLabel} → {rightLabel}:</span>
+              <span className="v5-orbit-weight-semibold">{leftLabel} → {rightLabel}:</span>
               {changePill.status ? (
                 <ChangePillBadge result={changePill} />
               ) : (
                 <Badge variant="outline" className={`${materialChangeTone(change)} text-[10px]`}>{materialChangeLabel(change)}</Badge>
               )}
               {state.closures[targetVersion] && (
-                <span>· status <span className="font-semibold text-foreground">{state.closures[targetVersion]}</span></span>
+                <span>· status <span className="v5-orbit-weight-semibold text-foreground">{state.closures[targetVersion]}</span></span>
               )}
             </div>
             <div className="flex items-center gap-orbit-s">
@@ -6604,14 +6608,14 @@ function ClauseDetailPanel({
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{children}</p>;
+  return <p className="text-[10px] v5-orbit-weight-semibold text-muted-foreground uppercase tracking-wider">{children}</p>;
 }
 
 function SidePanel({ label, clause, highlight }: { label: string; clause?: ClauseResult; highlight?: boolean }) {
   return (
     <div className={`rounded-md border p-orbit-base space-y-orbit-s ${highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
       <div className="flex items-center justify-between">
-        <span className="text-[10px] tabular-nums font-semibold text-muted-foreground uppercase">{label}</span>
+        <span className="text-[10px] tabular-nums v5-orbit-weight-semibold text-muted-foreground uppercase">{label}</span>
         {clause && (
           <Badge variant="outline" className={severityTone(clause.severity)}>{clause.severity}</Badge>
         )}
@@ -6624,7 +6628,7 @@ function SidePanel({ label, clause, highlight }: { label: string; clause?: Claus
 function ExcerptPanel({ label, text, highlight }: { label: string; text?: string; highlight?: boolean }) {
   return (
     <div className={`rounded-md border p-orbit-base space-y-orbit-s ${highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
-      <span className="text-[10px] tabular-nums font-semibold text-muted-foreground uppercase">{label}</span>
+      <span className="text-[10px] tabular-nums v5-orbit-weight-semibold text-muted-foreground uppercase">{label}</span>
       {text ? (
         <p className="text-xs text-muted-foreground italic border-l-2 border-border pl-orbit-s">"{text}"</p>
       ) : (
@@ -6754,7 +6758,7 @@ function HistoryRailTabs({
           type="button"
           onClick={() => onChange(value)}
           className={cn(
-            "h-7 rounded-md text-[11px] font-medium capitalize transition-colors",
+            "h-7 rounded-md text-[11px] v5-orbit-weight-medium capitalize transition-colors",
             active === value ? "bg-[#1a2744] text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
         >
@@ -6779,8 +6783,8 @@ function HistorySummaryPanel({
   return (
     <div className={cn("space-y-orbit-base", !compact && "mt-orbit-base")}>
       <div className="rounded-lg border border-border bg-[#f8f7f5] p-orbit-base">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Scope</p>
-        <p className="mt-orbit-xs text-sm font-semibold text-foreground">
+        <p className="text-[10px] v5-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">Scope</p>
+        <p className="mt-orbit-xs text-sm v5-orbit-weight-semibold text-foreground">
           {first?.version ?? "v1"} → {latest?.version ?? "v1"}
         </p>
         <p className="mt-orbit-xxs text-[11px] text-muted-foreground">
@@ -6828,13 +6832,13 @@ function HistoryRoundTable({
         style={{ display: "grid", gridTemplateColumns: `24px minmax(160px,1.35fr) repeat(${versions.length}, minmax(62px,0.75fr)) minmax(76px,0.8fr) 28px` }}
       >
         <div className="border-b border-border bg-[#f8f7f5] px-orbit-base py-orbit-s" />
-        <div className="border-b border-border bg-[#f8f7f5] px-orbit-base py-orbit-s text-[9px] font-medium uppercase tracking-[0.04em] text-muted-foreground">Clause</div>
+        <div className="border-b border-border bg-[#f8f7f5] px-orbit-base py-orbit-s text-[9px] v5-orbit-weight-medium uppercase tracking-[0.04em] text-muted-foreground">Clause</div>
         {versions.map((version, index) => (
-          <div key={version.version} className="border-b border-border bg-[#f8f7f5] px-orbit-s py-orbit-s text-center text-[9px] font-medium uppercase tracking-[0.04em] text-muted-foreground">
+          <div key={version.version} className="border-b border-border bg-[#f8f7f5] px-orbit-s py-orbit-s text-center text-[9px] v5-orbit-weight-medium uppercase tracking-[0.04em] text-muted-foreground">
             R{index + 1} {version.version}
           </div>
         ))}
-        <div className="border-b border-border bg-[#f8f7f5] px-orbit-s py-orbit-s text-center text-[9px] font-medium uppercase tracking-[0.04em] text-muted-foreground">Status</div>
+        <div className="border-b border-border bg-[#f8f7f5] px-orbit-s py-orbit-s text-center text-[9px] v5-orbit-weight-medium uppercase tracking-[0.04em] text-muted-foreground">Status</div>
         <div className="border-b border-border bg-[#f8f7f5] px-orbit-s py-orbit-s" />
 
         {rows.map((row) => (
@@ -6849,7 +6853,7 @@ function HistoryRoundTable({
               {row.stateChanges >= 3 && <span className="mt-orbit-s block h-1.5 w-1.5 rounded-full bg-[#A32D2D]" title="Highly contentious" />}
             </div>
             <div className="min-w-0 border-b border-border px-orbit-base py-orbit-s transition-colors group-hover:bg-[#f8f7f5]">
-              <p className="truncate text-[11px] font-medium text-foreground">{row.title}</p>
+              <p className="truncate text-[11px] v5-orbit-weight-medium text-foreground">{row.title}</p>
               <p className="truncate text-[9px] uppercase text-muted-foreground">{row.id.toUpperCase()} · {row.category}</p>
             </div>
             {row.cells.map((cell) => (
@@ -6870,7 +6874,7 @@ function HistoryRoundTable({
 
 function RoundStatusPill({ status, children }: { status: RoundStatus; children: ReactNode }) {
   return (
-    <span className={`inline-flex rounded-full border px-orbit-xs py-orbit-xxs text-[9px] font-medium ${roundStatusTone(status)}`}>
+    <span className={`inline-flex rounded-full border px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium ${roundStatusTone(status)}`}>
       {children}
     </span>
   );
@@ -6904,7 +6908,7 @@ function ClauseAuditPanel({ clauseId }: { clauseId: string }) {
     <div className="rounded-md border border-border bg-card p-orbit-base space-y-orbit-base">
       <div className="flex items-start justify-between gap-orbit-base flex-wrap">
         <div>
-          <p className="text-[10px] tabular-nums font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-orbit-xs">
+          <p className="text-[10px] tabular-nums v5-orbit-weight-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-orbit-xs">
             <ShieldCheck className="w-3 h-3" /> {audit.ruleId} · {audit.ruleName}
           </p>
           <p className="text-xs text-muted-foreground">
@@ -6937,18 +6941,18 @@ function ClauseAuditPanel({ clauseId }: { clauseId: string }) {
 
         <TabsContent value="rule" className="m-orbit-none mt-orbit-base space-y-orbit-base">
           <div>
-            <p className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">Expectation</p>
+            <p className="text-[10px] v5-orbit-weight-semibold uppercase text-muted-foreground tracking-wider">Expectation</p>
             <p className="text-sm text-foreground">{audit.expectation}</p>
           </div>
           {audit.matchedExcerpt && (
             <div>
-              <p className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">Matched clause excerpt</p>
+              <p className="text-[10px] v5-orbit-weight-semibold uppercase text-muted-foreground tracking-wider">Matched clause excerpt</p>
               <p className="text-xs italic text-muted-foreground border-l-2 border-primary/40 pl-orbit-s mt-orbit-xs">"{audit.matchedExcerpt}"</p>
               {audit.location && <p className="text-[11px] tabular-nums text-muted-foreground mt-orbit-xs">Location: {audit.location}</p>}
             </div>
           )}
           <div>
-            <p className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">AI rationale</p>
+            <p className="text-[10px] v5-orbit-weight-semibold uppercase text-muted-foreground tracking-wider">AI rationale</p>
             <p className="text-xs text-foreground">{audit.rationale}</p>
           </div>
           {audit.confidence < 0.7 && (
@@ -6978,7 +6982,7 @@ function ClauseAuditPanel({ clauseId }: { clauseId: string }) {
                   <li key={h.version} className="relative">
                     <span className="absolute -left-[18px] top-1 w-2.5 h-2.5 rounded-full bg-primary/70 border-2 border-card" aria-hidden />
                     <div className="flex flex-wrap items-baseline gap-orbit-s">
-                      <span className="tabular-nums text-[11px] font-semibold text-foreground">{h.version}</span>
+                      <span className="tabular-nums text-[11px] v5-orbit-weight-semibold text-foreground">{h.version}</span>
                       <span className="text-[10px] text-muted-foreground">{h.date}</span>
                       <span className="text-[10px] text-muted-foreground">· {h.author}</span>
                       {i === 0 && (

@@ -41,7 +41,7 @@ export function TextDiff({ prev, curr, leftLabel, rightLabel }: Props) {
             return (
               <span
                 key={i}
-                className="bg-success/25 text-foreground dark:text-success underline decoration-success decoration-[3px] underline-offset-[3px] font-medium rounded-sm px-orbit-xxs"
+                className="bg-success/25 text-foreground dark:text-success underline decoration-success decoration-[3px] underline-offset-[3px] v5-orbit-weight-medium rounded-sm px-orbit-xxs"
                 aria-label={`added in ${rightLabel}`}
               >
                 {s.text}
@@ -51,7 +51,7 @@ export function TextDiff({ prev, curr, leftLabel, rightLabel }: Props) {
           return (
             <span
               key={i}
-              className="bg-destructive/25 text-foreground dark:text-destructive line-through decoration-destructive decoration-[3px] font-medium rounded-sm px-orbit-xxs"
+              className="bg-destructive/25 text-foreground dark:text-destructive line-through decoration-destructive decoration-[3px] v5-orbit-weight-medium rounded-sm px-orbit-xxs"
               aria-label={`removed from ${leftLabel}`}
             >
               {s.text}
@@ -60,8 +60,8 @@ export function TextDiff({ prev, curr, leftLabel, rightLabel }: Props) {
         })}
       </p>
       <p className="text-[11px] text-muted-foreground">
-        <span className="text-success font-semibold">Underlined</span> = added in {rightLabel}.{" "}
-        <span className="text-destructive font-semibold line-through">Strikethrough</span> = removed from {leftLabel}.
+        <span className="text-success v5-orbit-weight-semibold">Underlined</span> = added in {rightLabel}.{" "}
+        <span className="text-destructive v5-orbit-weight-semibold line-through">Strikethrough</span> = removed from {leftLabel}.
       </p>
     </div>
   );

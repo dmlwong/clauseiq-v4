@@ -63,7 +63,7 @@ export function CrossSupplierComparison({ initiativeId, onBack, onOpenSupplier, 
     {
       id: "supplier",
       header: "Supplier",
-      render: (supplier: ReturnType<typeof deriveSupplierStats>) => <span className="font-medium">{supplier.name}</span>,
+      render: (supplier: ReturnType<typeof deriveSupplierStats>) => <span className="v5-orbit-weight-medium">{supplier.name}</span>,
     },
     {
       id: "status",
@@ -189,7 +189,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   const items = Array.isArray(children) ? children : [children];
   return (
     <tr>
-      <td className="px-orbit-base py-orbit-s text-xs font-semibold text-muted-foreground uppercase border-t border-border sticky left-0 bg-card z-10">
+      <td className="px-orbit-base py-orbit-s text-xs v5-orbit-weight-semibold text-muted-foreground uppercase border-t border-border sticky left-0 bg-card z-10">
         {label}
       </td>
       {items.map((child, i) => (

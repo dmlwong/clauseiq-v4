@@ -85,9 +85,9 @@ export function NegotiationTrendStrip({ versions, allDecisions, activeVersion, o
               }`}
             >
               <div className="flex items-start justify-between gap-orbit-s">
-                <span className="tabular-nums text-[11px] font-semibold text-foreground">{p.version}</span>
+                <span className="tabular-nums text-[11px] v5-orbit-weight-semibold text-foreground">{p.version}</span>
                 {p.supplierChanges > 0 && (
-                  <span className="rounded-full bg-warning/15 px-orbit-s py-orbit-xxs text-[10px] font-semibold text-warning-foreground">
+                  <span className="rounded-full bg-warning/15 px-orbit-s py-orbit-xxs text-[10px] v5-orbit-weight-semibold text-warning-foreground">
                     +{p.supplierChanges} changes
                   </span>
                 )}
@@ -99,9 +99,9 @@ export function NegotiationTrendStrip({ versions, allDecisions, activeVersion, o
                 <span className="flex-[4] border-b border-dashed border-border" aria-hidden />
               </div>
               <div className="mt-orbit-s grid grid-cols-3 gap-orbit-xs text-[10px] text-muted-foreground">
-                <span><span className="font-semibold text-foreground">{p.high}</span> high</span>
-                <span><span className="font-semibold text-foreground">{p.medium}</span> med</span>
-                <span><span className="font-semibold text-foreground">{p.openRequests}</span> open</span>
+                <span><span className="v5-orbit-weight-semibold text-foreground">{p.high}</span> high</span>
+                <span><span className="v5-orbit-weight-semibold text-foreground">{p.medium}</span> med</span>
+                <span><span className="v5-orbit-weight-semibold text-foreground">{p.openRequests}</span> open</span>
               </div>
             </button>
           );

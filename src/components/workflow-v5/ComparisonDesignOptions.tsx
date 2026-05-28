@@ -503,24 +503,19 @@ function FirstAnalysisSummaryPanel({
   activeFilterChips?: ReactNode;
   compact?: boolean;
 }) {
-  const analysisLabel = `${metrics.versionLabel.toUpperCase()} Analysis`;
-
   return (
     <section className="rounded-none border-0 bg-card p-orbit-none">
       <Card type="Static" padding={compact ? "Small" : "Base"} state="Accent">
-        <div className="flex items-center justify-between gap-orbit-s">
-          <Chip label={analysisLabel} size="Mini" variant="Information" />
-        </div>
-        <div className="mt-orbit-s flex items-center gap-orbit-s">
+        <div className="flex items-center gap-orbit-s">
           <RadialIndicator
             status={metrics.score >= 75 ? "Success" : metrics.score >= 50 ? "Warning" : "Error"}
             progress={metrics.score}
             size={32}
-            ariaLabel={`${metrics.score} score`}
+            ariaLabel={`${metrics.score} analysis score`}
           />
-          <div className="flex items-end gap-orbit-s">
-            <Headings size="Heading 1">{metrics.score}</Headings>
-            <Text as="span" size="Small" variant="Secondary">score</Text>
+          <div className="flex items-baseline gap-orbit-s">
+            <Headings size="Heading 1" style={{ lineHeight: 1 }}>{metrics.score}</Headings>
+            <span className="text-xs leading-none text-muted-foreground">Analysis Score</span>
           </div>
         </div>
         <FirstAnalysisMetricBar metrics={metrics} className="mt-orbit-base" />
@@ -679,7 +674,7 @@ function ScoreHero({
         <ScoreSnapshot label={leftLabel} score={previous.score} band={previous.band} />
         <div className="flex min-w-10 flex-col items-center justify-center gap-orbit-xs text-muted-foreground">
           <ArrowRight className="h-4 w-4" />
-          <span className={cn("rounded-full px-orbit-s py-orbit-xxs text-[10px] font-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
+          <span className={cn("rounded-full px-orbit-s py-orbit-xxs text-[10px] v5-orbit-weight-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
             {panel.delta >= 0 ? "+" : ""}
             {panel.delta} pts
           </span>
@@ -710,14 +705,14 @@ function ScoreSnapshot({
   return (
     <Card type="Static" padding="Small" state={current ? "Accent" : "Default"}>
       <div className="flex items-center gap-orbit-xs">
-        <span className="truncate text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
+        <span className="truncate text-[10px] v5-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
         {current && (
           <Badge label="Current" status="Information" />
         )}
       </div>
       <div className="mt-orbit-xs flex items-end gap-orbit-xs">
-        <span className="text-2xl font-semibold leading-none text-foreground">{score}</span>
-        <span className="pb-orbit-xxs text-xs font-medium text-muted-foreground">{band}</span>
+        <span className="text-2xl v5-orbit-weight-semibold leading-none text-foreground">{score}</span>
+        <span className="pb-orbit-xxs text-xs v5-orbit-weight-medium text-muted-foreground">{band}</span>
       </div>
     </Card>
   );
@@ -790,7 +785,7 @@ function VersionDistributionPair({
         <div className="hidden h-full flex-col items-center justify-center gap-orbit-xs text-muted-foreground lg:flex">
           <ArrowRight className="h-4 w-4" />
           {showDelta && (
-            <span className={cn("whitespace-nowrap rounded-full px-orbit-s py-orbit-xxs text-[10px] font-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
+            <span className={cn("whitespace-nowrap rounded-full px-orbit-s py-orbit-xxs text-[10px] v5-orbit-weight-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
               {panel.delta >= 0 ? "+" : ""}
               {panel.delta} pts
             </span>
@@ -808,7 +803,7 @@ function VersionDistributionPair({
         <div className="hidden h-full flex-col items-center justify-center gap-orbit-xs text-muted-foreground lg:flex">
           <ArrowRight className="h-4 w-4" />
           {showDelta && (
-            <span className={cn("rounded-full px-orbit-s py-orbit-xxs text-[10px] font-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
+            <span className={cn("rounded-full px-orbit-s py-orbit-xxs text-[10px] v5-orbit-weight-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
               vs prior{" "}
               {panel.delta >= 0 ? "+" : ""}
               {panel.delta} pts
@@ -850,7 +845,7 @@ function DistributionSide({
           <Text as="p" size="Small" variant="Secondary">{label}</Text>
           {current && <Badge label="Current" status="Information" />}
         </div>
-        {!hideScore && <p className={cn("font-semibold text-foreground", large ? "text-lg" : "text-sm")}>{score}</p>}
+        {!hideScore && <p className={cn("v5-orbit-weight-semibold text-foreground", large ? "text-lg" : "text-sm")}>{score}</p>}
       </div>
       <DistributionBar distribution={distribution} className="mt-orbit-base" />
       <div className="mt-orbit-s grid grid-cols-4 gap-orbit-xs text-[9px] text-muted-foreground">

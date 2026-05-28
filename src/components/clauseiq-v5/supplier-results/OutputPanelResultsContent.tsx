@@ -306,7 +306,7 @@ function SupplierOutputGroup({
           <h3 className="v5-orbit-heading-label truncate">{supplier.name}</h3>
           <p className="text-xs text-muted-foreground">
             {supplier.analyses.length} {supplier.analyses.length === 1 ? "output" : "outputs"}
-            {containsLatestOutput && <span className="font-medium"> - Latest output</span>}
+            {containsLatestOutput && <span className="v5-orbit-weight-medium"> - Latest output</span>}
           </p>
         </div>
         <button
@@ -374,8 +374,8 @@ function CompactOutputRow({
     <article className="pt-orbit-s">
       <div className="flex items-start justify-between gap-orbit-s">
         <div className="min-w-0">
-          <p className="truncate text-xs font-medium text-foreground">{analysis.fileName}</p>
-          {isLatestOutput && <p className="mt-orbit-xxs text-[11px] font-medium text-muted-foreground">Latest output</p>}
+          <p className="truncate text-xs v5-orbit-weight-medium text-foreground">{analysis.fileName}</p>
+          {isLatestOutput && <p className="mt-orbit-xxs text-[11px] v5-orbit-weight-medium text-muted-foreground">Latest output</p>}
         </div>
         <time
           dateTime={analysis.analysedAt}

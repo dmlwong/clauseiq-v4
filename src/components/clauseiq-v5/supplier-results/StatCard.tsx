@@ -12,7 +12,7 @@ export function StatCard({ label, value, className }: Props) {
       <Text as="div" size="Small" variant="Secondary">
         {label}
       </Text>
-      <div className="mt-orbit-xs text-2xl font-medium tabular-nums text-[var(--orbit-color-text-primary)]">
+      <div className="mt-orbit-xs text-2xl v5-orbit-weight-medium tabular-nums text-[var(--orbit-color-text-primary)]">
         {value}
       </div>
     </Card>

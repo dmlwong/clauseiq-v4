@@ -122,6 +122,33 @@
   line-height: var(--orbit-leading-snug);
 }
 
+[data-prototype="clauseiq-v5"][data-theme="orbit"] .v5-orbit-weight-regular {
+  font-weight: var(--orbit-font-weight-regular);
+}
+
+[data-prototype="clauseiq-v5"][data-theme="orbit"] .v5-orbit-weight-medium {
+  font-weight: var(--orbit-font-weight-medium);
+}
+
+[data-prototype="clauseiq-v5"][data-theme="orbit"] .v5-orbit-weight-semibold {
+  font-weight: var(--orbit-font-weight-semibold);
+}
+
+[data-prototype="clauseiq-v5"][data-theme="orbit"] .v5-orbit-weight-bold {
+  font-weight: var(--orbit-font-weight-bold);
+}
+
+[data-prototype="clauseiq-v5"][data-theme="orbit"] .v5-orbit-button-text {
+  font-weight: var(--orbit-text-button-weight);
+}
+
+[data-prototype="clauseiq-v5"][data-theme="orbit"] .v5-orbit-code-label {
+  font-family: var(--orbit-font-family-sans);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--orbit-font-weight-regular);
+  letter-spacing: 0;
+}
+
 [data-prototype="clauseiq-v5"][data-theme="orbit"] .clauseiq-v5-canvas-grid {
   background-color: var(--orbit-color-card-bg-accent);
   background-image:

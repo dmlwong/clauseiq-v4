@@ -468,7 +468,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
                 surfacing deviations, missing clauses and negotiation actions in seconds.
               </p>
               <div className={cn("rounded-lg bg-muted/50 border border-border p-orbit-base space-y-orbit-base", step === "welcome" && "mb-orbit-m")}>
-                <div className="text-sm font-medium text-foreground mb-orbit-xs">Summary</div>
+                <div className="text-sm v5-orbit-weight-medium text-foreground mb-orbit-xs">Summary</div>
                 <SummaryRow icon={<ListChecks className="h-4 w-4 text-ciq" />} text="Reviews every clause against your benchmark playbook." />
                 <SummaryRow icon={<Building2 className="h-4 w-4 text-ciq" />} text="Tied to a chosen initiative for traceable governance." />
                 <SummaryRow icon={<FilePlus2 className="h-4 w-4 text-ciq" />} text="Exports a shareable report with severity and actions." />
@@ -554,13 +554,13 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
                       <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                       <span className="text-sm truncate">{file?.name ?? "Contract.pdf"}</span>
                     </div>
-                    <span className="text-xs font-medium text-success inline-flex items-center gap-orbit-xs">
+                    <span className="text-xs v5-orbit-weight-medium text-success inline-flex items-center gap-orbit-xs">
                       <Check className="h-3.5 w-3.5" /> Uploaded
                     </span>
                   </div>
                   <div className="flex items-center gap-orbit-base py-orbit-s">
                     <Loader2 className="h-5 w-5 animate-spin text-ciq" />
-                    <span className="text-sm font-medium">Finding clauses in your contract...</span>
+                    <span className="text-sm v5-orbit-weight-medium">Finding clauses in your contract...</span>
                   </div>
                   <PlaybookDisclaimer variant="inline" parameter={selectedParameter} />
                   <p className="text-xs text-muted-foreground mt-orbit-s">
@@ -614,13 +614,13 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
                         <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                         <span className="text-sm truncate">{file?.name ?? "Contract.pdf"}</span>
                       </div>
-                      <span className="text-xs font-medium text-success inline-flex items-center gap-orbit-xs">
+                      <span className="text-xs v5-orbit-weight-medium text-success inline-flex items-center gap-orbit-xs">
                         <Check className="h-3.5 w-3.5" /> Uploaded
                       </span>
                     </div>
                     <div className="flex items-center gap-orbit-base py-orbit-s">
                       <Loader2 className="h-5 w-5 animate-spin text-ciq" />
-                      <span className="text-sm font-medium">Finding clauses in your new contract...</span>
+                      <span className="text-sm v5-orbit-weight-medium">Finding clauses in your new contract...</span>
                     </div>
                     <PlaybookDisclaimer variant="inline" parameter={rerunSelectedParameter ?? selectedParameter} />
                     <p className="text-xs text-muted-foreground mt-orbit-s">
@@ -691,7 +691,7 @@ function NewAnalysisDivider() {
   return (
     <div className="flex items-center gap-orbit-base py-orbit-xs">
       <div className="h-px flex-1 bg-slate-300" />
-      <span className="rounded-md border border-primary bg-white px-orbit-base py-orbit-xs text-sm font-medium text-primary shadow-sm">
+      <span className="rounded-md border border-primary bg-white px-orbit-base py-orbit-xs text-sm v5-orbit-weight-medium text-primary shadow-sm">
         New Analysis
       </span>
       <div className="h-px flex-1 bg-slate-300" />
@@ -724,7 +724,7 @@ function PostAnalysisNextActions({
         >
           <Sparkles className="h-6 w-6 shrink-0 text-primary" />
           <span className="min-w-0">
-            <span className="block text-sm font-medium text-foreground">
+            <span className="block text-sm v5-orbit-weight-medium text-foreground">
               Analyse Contract on Another Initiative
             </span>
             <span className="mt-orbit-xs block text-base text-muted-foreground">
@@ -773,7 +773,7 @@ function PostAnalysisNextActions({
                     <tr key={milestone.id} className="border-b border-border last:border-b-0">
                       <td className="px-orbit-base py-orbit-base text-base text-foreground">{milestone.label}</td>
                       <td className="px-orbit-base py-orbit-base text-base text-foreground">{milestone.dueDate}</td>
-                      <td className={cn("px-orbit-base py-orbit-base text-base", completed ? "font-medium text-success" : "text-foreground")}>
+                      <td className={cn("px-orbit-base py-orbit-base text-base", completed ? "v5-orbit-weight-medium text-success" : "text-foreground")}>
                         {completed ? "Completed" : "Pending"}
                       </td>
                       <td className="px-orbit-base py-orbit-s">
@@ -804,7 +804,7 @@ function PostAnalysisNextActions({
           >
             <BadgeCheck className="h-6 w-6 shrink-0 text-primary" />
             <span className="min-w-0">
-              <span className="block text-sm font-medium text-foreground">Complete Initiative</span>
+              <span className="block text-sm v5-orbit-weight-medium text-foreground">Complete Initiative</span>
               <span className="mt-orbit-xs block text-base text-muted-foreground">
                 Mark this initiative as complete.
               </span>
@@ -920,14 +920,14 @@ function SelectedSummaryRow({
     >
       <div className="flex min-w-0 items-center gap-orbit-s">
         <Check className={cn("h-4 w-4 shrink-0", disabled ? "text-muted-foreground" : "text-success")} />
-        <span className={cn("truncate text-sm font-medium", disabled ? "text-muted-foreground" : "text-foreground")}>
+        <span className={cn("truncate text-sm v5-orbit-weight-medium", disabled ? "text-muted-foreground" : "text-foreground")}>
           {label}
         </span>
       </div>
       {!disabled && (
         <button
           type="button"
-          className="inline-flex h-8 shrink-0 items-center gap-orbit-xs rounded-md px-orbit-s text-sm font-medium text-ciq transition-colors hover:bg-ciq-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex h-8 shrink-0 items-center gap-orbit-xs rounded-md px-orbit-s text-sm v5-orbit-weight-medium text-ciq transition-colors hover:bg-ciq-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           onClick={onAction}
         >
           <Pencil className="h-3.5 w-3.5" />
@@ -1027,7 +1027,7 @@ function ParameterKindSelector({
               <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
                 <ParameterIcon kind={option.kind} />
               </span>
-              <span className="min-w-0 flex-1 truncate font-medium">{option.label}</span>
+              <span className="min-w-0 flex-1 truncate v5-orbit-weight-medium">{option.label}</span>
             </button>
           );
         })}
@@ -1079,7 +1079,7 @@ function NextRow({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <button className="w-full flex items-center justify-between border-b border-border py-orbit-base text-left hover:bg-muted/40 px-orbit-xs -mx-orbit-xs rounded transition-colors">
       <div>
-        <div className="text-sm font-medium">{title}</div>
+        <div className="text-sm v5-orbit-weight-medium">{title}</div>
         <div className="text-xs text-muted-foreground">{subtitle}</div>
       </div>
       <ChevronRight className="h-4 w-4 text-muted-foreground" />

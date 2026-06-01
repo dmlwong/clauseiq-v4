@@ -14,6 +14,7 @@ export default defineConfig(({ mode }) => ({
     fs: {
       allow: [
         path.resolve(__dirname, "."),
+        path.resolve(__dirname, "../../../efficio-orbit/packages/orbit"),
       ],
     },
   },

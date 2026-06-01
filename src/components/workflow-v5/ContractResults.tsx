@@ -631,6 +631,8 @@ export function ContractResults({
   const contract = getContract(initiativeId, supplierId, contractId);
   const decisions = useClauseDecisions({}, { storageKey: "ciq-v5-clause-decisions" });
   const firstAnalysisDemo = searchParams.get("scenario") === "first-analysis";
+  const isResponsiveTestingRoute =
+    typeof window !== "undefined" && window.location.pathname.startsWith("/initiatives-responsive-testing");
   const mode = normalizeMode(searchParams.get("mode"));
   const designOption = normalizeComparisonDesignOption(searchParams.get("design"));
   const decisionContractId = firstAnalysisDemo ? `${contractId}:first-analysis-demo` : contractId;
@@ -1963,7 +1965,12 @@ export function ContractResults({
                 <button onClick={onBack} className="inline-flex h-8 items-center gap-orbit-xs text-sm text-muted-foreground hover:text-foreground">
                   <ChevronLeft className="w-4 h-4" /> {backLabel ?? `Back to ${supplier.name}`}
                 </button>
-                <div className="flex flex-wrap items-center justify-start gap-orbit-s sm:justify-end">
+                <div
+                  className={cn(
+                    "flex flex-wrap items-center justify-start gap-orbit-s sm:justify-end",
+                    isResponsiveTestingRoute && "clauseiq-responsive-dashboard-actions",
+                  )}
+                >
                   <SupplierGroupingPopover supplierId={supplierId} supplierName={supplier.name} />
                   {firstAnalysisDemo && mode === "comparison" && (
                     canUndoFirstAnalysisRecommendations ? (
@@ -1985,7 +1992,13 @@ export function ContractResults({
                           if (option) applyAllRecommendations(option.targets, option);
                         }}
                       >
-                        <SelectTrigger className="clauseiq-v5-select-hug" aria-label="Apply Recommendations">
+                        <SelectTrigger
+                          className={cn(
+                            "clauseiq-v5-select-hug",
+                            isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger",
+                          )}
+                          aria-label="Apply Recommendations"
+                        >
                           <Sparkles className="mr-orbit-xs h-3.5 w-3.5" />
                           <SelectValue placeholder={`Apply Recommendations (${firstAnalysisRecommendationTargets.length})`} />
                         </SelectTrigger>
@@ -2660,8 +2673,16 @@ function ModeSwitcher({
     !applyAllRecommendationsDisabled &&
     availableRecommendationApplyOptions.length > 0;
 
+  const isResponsiveTestingRoute =
+    typeof window !== "undefined" && window.location.pathname.startsWith("/initiatives-responsive-testing");
+
   return (
-    <div className="flex min-w-0 items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] bg-white px-orbit-base py-orbit-xs">
+    <div
+      className={cn(
+        "flex min-w-0 items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] bg-white px-orbit-base py-orbit-xs",
+        isResponsiveTestingRoute && "clauseiq-responsive-mode-switcher",
+      )}
+    >
       <div role="tablist" aria-label="Analysis mode" className="flex items-center">
         <TabButton
           active={mode === "comparison"}
@@ -2681,7 +2702,12 @@ function ModeSwitcher({
         </TabButton>
       </div>
       {mode === "comparison" && (
-        <div className="ml-auto flex shrink-0 items-center gap-orbit-s">
+        <div
+          className={cn(
+            "ml-auto flex shrink-0 items-center gap-orbit-s",
+            isResponsiveTestingRoute && "clauseiq-responsive-dashboard-actions",
+          )}
+        >
           {onApplyAllRecommendations && (
             canChooseRecommendationScope ? (
               <Select
@@ -2691,7 +2717,13 @@ function ModeSwitcher({
                   if (option) onApplyRecommendationOption?.(option);
                 }}
               >
-                <SelectTrigger className="clauseiq-v5-select-hug" aria-label="Apply Recommendations">
+                <SelectTrigger
+                  className={cn(
+                    "clauseiq-v5-select-hug",
+                    isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger",
+                  )}
+                  aria-label="Apply Recommendations"
+                >
                   <Sparkles className="h-3.5 w-3.5" />
                   <SelectValue placeholder={applyAllButtonLabel} />
                 </SelectTrigger>

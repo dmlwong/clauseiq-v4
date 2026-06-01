@@ -53,6 +53,7 @@ export function AnalysisCard({
 
   return (
     <motion.article
+      className="clauseiq-responsive-analysis-card"
       layout
       transition={{ type: "spring", stiffness: 320, damping: 28 }}
     >
@@ -80,7 +81,7 @@ export function AnalysisCard({
                 {formatAnalysisTimestamp(analysis.analysedAt)}
               </span>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-orbit-base">
+            <div className="clauseiq-responsive-analysis-card-header flex flex-wrap items-center justify-between gap-orbit-base">
               <h3 className="v5-orbit-heading-4">Here is your Analysis Result</h3>
               <label className="flex items-center gap-orbit-s text-sm v5-orbit-weight-medium text-foreground">
                 <span>Save To Content Search</span>
@@ -119,7 +120,7 @@ export function AnalysisCard({
             </div>
           </div>
 
-          <div className="space-y-orbit-s">
+          <div className="clauseiq-responsive-analysis-card-actions space-y-orbit-s">
             {onViewResult && (
               <Button
                 variant={viewResultPrimary ? "default" : "outline"}
@@ -130,7 +131,7 @@ export function AnalysisCard({
                 View Result
               </Button>
             )}
-            <div className={cn("grid gap-orbit-s", onRunAgain && onDownload ? "sm:grid-cols-2" : "grid-cols-1")}>
+            <div className={cn("clauseiq-responsive-secondary-actions grid gap-orbit-s", onRunAgain && onDownload ? "sm:grid-cols-2" : "grid-cols-1")}>
               {onRunAgain && (
                 <Button variant="outline" className="h-10 gap-orbit-s" onClick={onRunAgain}>
                   <RotateCw className="h-4 w-4" />
@@ -181,13 +182,15 @@ function StatusLine({
   tone: "neutral" | "success" | "warning" | "destructive";
 }) {
   return (
-    <InlineBanner
-      variant={inlineBannerVariantFromTone(tone)}
-      contrast="Low"
-      icon={icon}
-      label={label}
-      status={status}
-    />
+    <div className="clauseiq-responsive-status-line">
+      <InlineBanner
+        variant={inlineBannerVariantFromTone(tone)}
+        contrast="Low"
+        icon={icon}
+        label={label}
+        status={status}
+      />
+    </div>
   );
 }
 

@@ -14,6 +14,8 @@ const v5PageFiles = [
   "src/pages/ClauseIQV5.tsx",
   "src/pages/ClauseIQV5DeviationProminence.tsx",
   "src/pages/IndexV5.tsx",
+  "src/pages/ClauseIQResponsiveTesting.tsx",
+  "src/pages/IndexResponsiveTesting.tsx",
 ];
 const sourceFilePattern = /\.(tsx|ts|css)$/;
 const forbiddenFontUtilityPattern = /\b(?:font-normal|font-medium|font-semibold|font-bold|font-mono)\b/g;

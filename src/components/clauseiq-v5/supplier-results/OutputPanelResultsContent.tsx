@@ -41,7 +41,7 @@ export function OutputPanelResultsContent({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.18 }}
-      className="mx-auto w-full max-w-[640px] space-y-orbit-m"
+      className="clauseiq-responsive-output-panel mx-auto w-full max-w-[640px] space-y-orbit-m"
     >
       <section className="min-w-0 space-y-orbit-base" aria-label="Analysis outputs by date">
         {rows.length === 0 ? (
@@ -147,7 +147,7 @@ export function SupplierOutputsPanel({
     >
       {hasOutputs && (
         <div className="space-y-orbit-base">
-          <div className="flex w-full items-baseline justify-between gap-orbit-s">
+          <div className="clauseiq-responsive-output-panel-header flex w-full items-baseline justify-between gap-orbit-s">
             <h2 className="v5-orbit-heading-strong">Supplier Outputs</h2>
             <p className="shrink-0 text-right text-xs text-muted-foreground">
               {supplierCount} {supplierCount === 1 ? "supplier" : "suppliers"} &middot; {outputCount}{" "}
@@ -389,7 +389,7 @@ function CompactOutputRow({
         <DeviationPills deviations={analysis.deviations} compact />
       </div>
 
-      <div className="mt-orbit-base grid grid-cols-3 gap-orbit-xs">
+      <div className="clauseiq-responsive-compact-output-actions mt-orbit-base grid grid-cols-3 gap-orbit-xs">
         <CompactActionButton label="View Results" onClick={onViewResult}>
           <BarChart2 className="h-3.5 w-3.5" />
         </CompactActionButton>

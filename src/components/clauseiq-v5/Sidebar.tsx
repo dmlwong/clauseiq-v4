@@ -17,7 +17,11 @@ export function CiqSidebar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const showResultScenarioControl = pathname === "/clauseiq-v5/output-panel";
+  const isResponsiveTestingRoute =
+    pathname.startsWith("/clauseiq-responsive-testing") || pathname.startsWith("/initiatives-responsive-testing");
+  const clauseIqHomePath = isResponsiveTestingRoute ? "/clauseiq-responsive-testing" : "/clauseiq-v5";
+  const showResultScenarioControl =
+    pathname === "/clauseiq-v5/output-panel" || pathname === "/clauseiq-responsive-testing/output-panel";
   const resultScenario = searchParams.get("resultScenario") === "history" ? "history" : "empty";
 
   const goTo = (path: string) => {
@@ -115,8 +119,11 @@ export function CiqSidebar() {
             id: "clauseiq",
             title: "ClauseIQ",
             subtitle: "2d ago | TestClientTaxonomyCreatedBy",
-            active: pathname.startsWith("/clauseiq-v5") || pathname.startsWith("/initiatives-v5"),
-            onClick: () => goTo("/clauseiq-v5"),
+            active:
+              pathname.startsWith("/clauseiq-v5") ||
+              pathname.startsWith("/initiatives-v5") ||
+              isResponsiveTestingRoute,
+            onClick: () => goTo(clauseIqHomePath),
           },
           {
             id: "usability-study",

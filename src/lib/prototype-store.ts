@@ -50,7 +50,19 @@ export function isPrototypeV4(version: PrototypeVersion) {
   return version.versionNumber === 4 || title === "prototype v4" || title.includes("v4");
 }
 
+export function isPrototypeV5(version: PrototypeVersion) {
+  const title = version.title.trim().toLowerCase();
+  return version.versionNumber === 5 || title === "prototype v5" || title.includes("v5");
+}
+
+export function isResponsiveTestingPrototype(version: PrototypeVersion) {
+  const title = version.title.trim().toLowerCase();
+  return title === "responsive testing" || title.includes("responsive testing") || version.previewUrl?.startsWith("/clauseiq-responsive-testing");
+}
+
 export function prototypePreviewUrl(version: PrototypeVersion) {
+  if (isResponsiveTestingPrototype(version)) return "/clauseiq-responsive-testing";
+  if (isPrototypeV5(version)) return "/clauseiq-v5";
   if (isPrototypeV4(version)) return "/clauseiq-v4";
   if (isPrototypeV3(version)) return "/clauseiq-v3";
   return version.previewUrl;
@@ -114,7 +126,9 @@ function seed(): Prototype {
   };
   const v3 = createV3Version(protoId, 3);
   const v4 = createV4Version(protoId, 4);
-  return { id: protoId, name: "ClauseIQ Prototype", versions: [v1, v2, v3, v4] };
+  const v5 = createV5Version(protoId, 5);
+  const responsiveTesting = createResponsiveTestingVersion(protoId, 6);
+  return { id: protoId, name: "ClauseIQ Prototype", versions: [v1, v2, v3, v4, v5, responsiveTesting] };
 }
 
 function createV3Version(protoId: string, versionNumber: number): PrototypeVersion {
@@ -141,6 +155,36 @@ function createV4Version(protoId: string, versionNumber: number): PrototypeVersi
     goal: "Continue ClauseIQ iteration from prototype v3 in a clean isolated route.",
     notes: "Duplicated from prototype v3 with separate /clauseiq-v4 and /initiatives-v4 routes so v4 changes no longer affect v3.",
     previewUrl: "/clauseiq-v4",
+    status: "Complete",
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
+    feedback: [],
+  };
+}
+
+function createV5Version(protoId: string, versionNumber: number): PrototypeVersion {
+  return {
+    id: uid(),
+    prototypeId: protoId,
+    versionNumber,
+    title: "Prototype v5",
+    goal: "Move ClauseIQ onto the Orbit design system and refine the first-analysis dashboard workflow.",
+    notes: "Promoted the Orbit-based v5 branch with updated intake, output panel, initiative modal, first-analysis dashboard cards, and History placeholder.",
+    previewUrl: "/clauseiq-v5",
+    status: "In progress",
+    createdAt: new Date().toISOString(),
+    feedback: [],
+  };
+}
+
+function createResponsiveTestingVersion(protoId: string, versionNumber: number): PrototypeVersion {
+  return {
+    id: uid(),
+    prototypeId: protoId,
+    versionNumber,
+    title: "Responsive Testing",
+    goal: "Safely explore small-screen layout and structure changes before promoting them back into prototype v5.",
+    notes: "Duplicated from prototype v5 into isolated /clauseiq-responsive-testing and /initiatives-responsive-testing routes for responsive design experiments.",
+    previewUrl: "/clauseiq-responsive-testing",
     status: "In progress",
     createdAt: new Date().toISOString(),
     feedback: [],
@@ -150,6 +194,31 @@ function createV4Version(protoId: string, versionNumber: number): PrototypeVersi
 function ensureCurrentVersions(prototype: Prototype): Prototype {
   let changed = false;
   const versions = prototype.versions.map((version) => {
+    if (isResponsiveTestingPrototype(version)) {
+      const next = {
+        ...version,
+        title: "Responsive Testing",
+        goal: "Safely explore small-screen layout and structure changes before promoting them back into prototype v5.",
+        notes: "Duplicated from prototype v5 into isolated /clauseiq-responsive-testing and /initiatives-responsive-testing routes for responsive design experiments.",
+        previewUrl: "/clauseiq-responsive-testing",
+        status: version.status === "Complete" ? "In progress" as VersionStatus : version.status,
+      };
+      changed = changed || JSON.stringify(next) !== JSON.stringify(version);
+      return next;
+    }
+    if (isPrototypeV5(version)) {
+      const next = {
+        ...version,
+        versionNumber: 5,
+        title: "Prototype v5",
+        goal: "Move ClauseIQ onto the Orbit design system and refine the first-analysis dashboard workflow.",
+        notes: "Promoted the Orbit-based v5 branch with updated intake, output panel, initiative modal, first-analysis dashboard cards, and History placeholder.",
+        previewUrl: "/clauseiq-v5",
+        status: version.status === "Complete" ? "In progress" as VersionStatus : version.status,
+      };
+      changed = changed || JSON.stringify(next) !== JSON.stringify(version);
+      return next;
+    }
     if (isPrototypeV4(version)) {
       const next = {
         ...version,
@@ -158,7 +227,7 @@ function ensureCurrentVersions(prototype: Prototype): Prototype {
         goal: "Continue ClauseIQ iteration from prototype v3 in a clean isolated route.",
         notes: "Duplicated from prototype v3 with separate /clauseiq-v4 and /initiatives-v4 routes so v4 changes no longer affect v3.",
         previewUrl: "/clauseiq-v4",
-        status: version.status === "Complete" ? "In progress" as VersionStatus : version.status,
+        status: "Complete" as VersionStatus,
       };
       changed = changed || JSON.stringify(next) !== JSON.stringify(version);
       return next;
@@ -185,6 +254,15 @@ function ensureCurrentVersions(prototype: Prototype): Prototype {
   }
   if (!nextVersions.some((version) => isPrototypeV4(version))) {
     nextVersions = [...nextVersions, createV4Version(prototype.id, 4)];
+    changed = true;
+  }
+  if (!nextVersions.some((version) => isPrototypeV5(version))) {
+    nextVersions = [...nextVersions, createV5Version(prototype.id, 5)];
+    changed = true;
+  }
+  if (!nextVersions.some((version) => isResponsiveTestingPrototype(version))) {
+    const nextNumber = Math.max(6, ...nextVersions.map((version) => version.versionNumber + 1));
+    nextVersions = [...nextVersions, createResponsiveTestingVersion(prototype.id, nextNumber)];
     changed = true;
   }
   if (!changed) return prototype;
@@ -251,7 +329,9 @@ export function usePrototypeStore() {
         const nextNumber = Math.max(...prev.versions.map((v) => v.versionNumber)) + 1;
         const title = `Prototype v${nextNumber}`;
         const previewUrl =
-          nextNumber >= 4 || isPrototypeV4(src)
+          nextNumber >= 5 || isPrototypeV5(src)
+            ? "/clauseiq-v5"
+            : nextNumber >= 4 || isPrototypeV4(src)
             ? "/clauseiq-v4"
             : nextNumber === 3 || isPrototypeV3(src)
               ? "/clauseiq-v3"

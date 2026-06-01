@@ -28,6 +28,7 @@ import {
 import {
   usePrototypeStore,
   prototypePreviewUrl,
+  isResponsiveTestingPrototype,
   summarize,
   type VersionStatus,
   type PrototypeVersion,
@@ -42,23 +43,44 @@ const statusTone: Record<VersionStatus, string> = {
 
 const V5_DASHBOARD_ROUTE =
   "/initiatives-v5?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=first-analysis";
+const RESPONSIVE_TESTING_DASHBOARD_ROUTE =
+  "/initiatives-responsive-testing?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=first-analysis";
 
 const v5EntryPoints = [
   {
-    label: "Open test output panel",
+    label: "Open output panel",
     description: "ClauseIQ supplier output with the Orbit visual foundation.",
     url: "/clauseiq-v5/output-panel",
     primary: true,
   },
   {
-    label: "Open test dashboard",
+    label: "Open dashboard",
     description: "Latest contract results dashboard for the first-analysis scenario.",
     url: V5_DASHBOARD_ROUTE,
   },
   {
-    label: "Open test intake flow",
+    label: "Open intake flow",
     description: "Start at the local ClauseIQ upload journey.",
     url: "/clauseiq-v5",
+  },
+];
+
+const responsiveTestingEntryPoints = [
+  {
+    label: "Open responsive output panel",
+    description: "Sandboxed copy of the v5 output panel for small-screen testing.",
+    url: "/clauseiq-responsive-testing/output-panel",
+    primary: true,
+  },
+  {
+    label: "Open responsive dashboard",
+    description: "Sandboxed copy of the first-analysis dashboard.",
+    url: RESPONSIVE_TESTING_DASHBOARD_ROUTE,
+  },
+  {
+    label: "Open responsive intake flow",
+    description: "Sandboxed copy of the ClauseIQ intake journey.",
+    url: "/clauseiq-responsive-testing",
   },
 ];
 
@@ -89,6 +111,10 @@ function openPrototype(url?: string) {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
+function isV5Current(version?: PrototypeVersion) {
+  return Boolean(version?.title.toLowerCase().includes("v5") || version?.versionNumber === 5);
+}
+
 export default function PrototypeTimeline() {
   const navigate = useNavigate();
   const { prototype, versions, duplicateVersion, deleteVersion } = usePrototypeStore();
@@ -109,8 +135,8 @@ export default function PrototypeTimeline() {
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-5xl mx-auto space-y-8">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/initiatives")} className="gap-2 -ml-2">
-          <ArrowLeft className="w-4 h-4" /> Back to app
+        <Button variant="ghost" size="sm" onClick={() => navigate("/initiatives-v5")} className="gap-2 -ml-2">
+          <ArrowLeft className="w-4 h-4" /> Back to v5 app
         </Button>
 
         <header className="space-y-2">
@@ -171,29 +197,69 @@ export default function PrototypeTimeline() {
           </div>
         )}
 
-        <TestPrototypeSection />
+        {current && isResponsiveTestingPrototype(current) ? (
+          <ResponsiveTestingQuickLinksSection />
+        ) : (
+          isV5Current(current) && <V5QuickLinksSection />
+        )}
       </div>
     </div>
   );
 }
 
-function TestPrototypeSection() {
+function V5QuickLinksSection() {
   return (
     <section className="rounded-xl border border-primary/20 bg-primary/5 p-5 shadow-sm">
       <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
         <div className="max-w-2xl space-y-2">
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-background/80 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
             <Sparkles className="h-3.5 w-3.5" />
-            test
+            v5
           </div>
-          <h2 className="text-xl font-semibold tracking-tight text-foreground">Jump into test</h2>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">V5 quick links</h2>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Direct access for the local Orbit migration work. This sits below the main
-            prototype timeline so V4 remains the current version baseline.
+            Direct access to the active Orbit-based v5 surfaces we are refining.
           </p>
         </div>
         <div className="grid w-full gap-2 md:w-[340px]">
           {v5EntryPoints.map((entry) => (
+            <Button
+              key={entry.url}
+              variant={entry.primary ? "default" : "outline"}
+              className="h-auto justify-between gap-3 px-4 py-3 text-left"
+              onClick={() => openPrototype(entry.url)}
+            >
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">{entry.label}</span>
+                <span className="mt-0.5 block whitespace-normal text-xs font-normal opacity-80">
+                  {entry.description}
+                </span>
+              </span>
+              <ExternalLink className="h-4 w-4 shrink-0" />
+            </Button>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ResponsiveTestingQuickLinksSection() {
+  return (
+    <section className="rounded-xl border border-primary/20 bg-primary/5 p-5 shadow-sm">
+      <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+        <div className="max-w-2xl space-y-2">
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-background/80 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
+            <Sparkles className="h-3.5 w-3.5" />
+            Responsive testing
+          </div>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">Responsive testing quick links</h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Direct access to the isolated v5 copy for mobile and tablet layout experiments.
+          </p>
+        </div>
+        <div className="grid w-full gap-2 md:w-[340px]">
+          {responsiveTestingEntryPoints.map((entry) => (
             <Button
               key={entry.url}
               variant={entry.primary ? "default" : "outline"}

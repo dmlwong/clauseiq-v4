@@ -1,38 +1,43 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import "@orbit-tokens";
 import "@orbit-fonts";
 import "@/components/clauseiq-v5/orbit-theme.css";
-import { Avatar, Chip, FaIcon, FA } from "@orbit";
+import { Avatar, Chip, FA, MultiStateButton, MultiStateGroup } from "@orbit";
 import {
-  Check,
   Circle,
-  FileText,
   Loader2,
   X,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
-  AnalysisParameterCards as SharedAnalysisParameterCards,
-  ClauseIqDropzone as SharedClauseIqDropzone,
-  ClauseIqOverviewCard as SharedClauseIqOverviewCard,
-  LATEST_V5_RESULTS_ROUTE,
-  NewAnalysisDivider as SharedNewAnalysisDivider,
-  PlaybookDisclaimer as SharedPlaybookDisclaimer,
-  PostAnalysisNextActions as SharedPostAnalysisNextActions,
-  SelectedSummaryRow as SharedSelectedSummaryRow,
   hasCompleteAnalysisParameters,
   useClauseIqWorkflow,
   type ClauseIqWorkflow,
   type ClauseIqWorkflowStep,
 } from "@/components/clauseiq-v5/ClauseIqWorkflow";
-import { StateCard } from "@/components/clauseiq-v5/StateCard";
-import { V5OrbitToastHost } from "@/components/clauseiq-v5/V5OrbitToast";
+import { PROTOTYPE_CP_RESULT_ROUTE } from "@/lib/prototype-cp-routes";
 import {
-  AnalysisCard,
-  ResultsContent,
-  SupplierOutputsPanel,
-} from "@/components/clauseiq-v5/supplier-results";
+  CpAnalysisCard,
+  CpAnalysisParameterCards,
+  CpClauseIqDropzone,
+  CpClauseIqJourneyContent,
+  CpPlaybookDisclaimer,
+  CpStateCard,
+  CpSupplierOutputsPanel,
+  getCpClauseIqFooterState,
+} from "@/components/prototype-cp-shared/CpClauseIq";
+import { V5OrbitToastHost } from "@/components/clauseiq-v5/V5OrbitToast";
+import { CP_FA, CpIcon, CpRail, HeaderActions } from "@/components/prototype-cp/PrototypeCPChrome";
+import {
+  CpButton,
+  CpFileRow,
+  CpSearchField as CpOrbitSearchField,
+  CpStatusPill,
+  CpTable,
+  type CpTableColumn,
+} from "@/components/prototype-cp-shared/orbit";
+import { mockInitiative } from "@/data/mock-clauseiq";
 import {
   insights,
   initiatives,
@@ -45,10 +50,17 @@ import {
   type ProjectStatus,
 } from "@/data/prototype-cp";
 import type { CiqInitiative } from "@/lib/clauseiq-v4-data";
+import { flattenSupplierAnalyses } from "@/lib/clauseiq-utils";
 import { cn } from "@/lib/utils";
 import "./PrototypeCP.css";
 
 type CpView = "projects" | "initiatives" | "workspace";
+
+function getCpViewFromSearchParams(searchParams: URLSearchParams): CpView {
+  const view = searchParams.get("view");
+  if (view === "initiatives" || view === "workspace") return view;
+  return "projects";
+}
 
 const statusClass: Record<ProjectStatus, string> = {
   "In flight": "in-flight",
@@ -65,56 +77,17 @@ const CP_CLAUSEIQ_INITIATIVE: CiqInitiative = {
   owner: "PM",
   scope: "team",
 };
-const CP_MODAL_STEPS: Array<{ key: ClauseIqWorkflowStep; label: string }> = [
-  { key: "welcome", label: "Overview" },
-  { key: "parameters", label: "Configure" },
-  { key: "upload", label: "Upload" },
+
+const CP_CLAUSEIQ_STEPS: Array<{ key: "overview" | "configure-upload" | "processing"; label: string }> = [
+  { key: "overview", label: "Overview" },
+  { key: "configure-upload", label: "Configure & Upload" },
   { key: "processing", label: "Analysing" },
-  { key: "results", label: "Results" },
 ];
 
-const CP_FA = {
-  admin: "\uf0c0",
-  aiChip: "\uf544",
-  angleDown: FA.angleDown,
-  angleUp: FA.angleUp,
-  arrowLeft: "\uf060",
-  arrowRight: "\uf061",
-  bell: "\uf0f3",
-  briefcase: "\uf0b1",
-  chart: "\uf080",
-  check: FA.check,
-  chevronDown: FA.angleDown,
-  chevronUp: FA.angleUp,
-  clipboard: "\uf328",
-  cloud: "\uf0c2",
-  comment: "\uf075",
-  download: "\uf019",
-  ellipsis: "\uf141",
-  file: FA.file,
-  filter: "\uf0b0",
-  globe: "\uf0ac",
-  hand: "\uf256",
-  home: "\uf015",
-  info: FA.circleInfo,
-  lightbulb: "\uf0eb",
-  list: "\uf03a",
-  lock: "\uf023",
-  magic: "\ue2ca",
-  pencil: "\uf303",
-  projects: "\uf542",
-  question: FA.circleQuestion,
-  route: "\uf4d7",
-  search: "\uf002",
-  sparkles: "\ue5d6",
-  trash: "\uf1f8",
-  upload: "\uf093",
-  userGroup: "\uf0c0",
-  wrench: "\uf0ad",
-};
-
-function CpIcon({ icon, size = 14, color }: { icon: string; size?: number; color?: string }) {
-  return <FaIcon icon={icon} size={size} color={color ?? "currentColor"} />;
+function getCpClauseIqStepIndex(step: ClauseIqWorkflowStep) {
+  if (step === "welcome" || step === "select") return 0;
+  if (step === "parameters" || step === "upload") return 1;
+  return 2;
 }
 
 function CpSearchField({
@@ -129,10 +102,13 @@ function CpSearchField({
   placeholder?: string;
 }) {
   return (
-    <label className="cp-search-field" aria-label={ariaLabel}>
-      <CpIcon icon={CP_FA.search} size={13} />
-      <input value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
-    </label>
+    <CpOrbitSearchField
+      ariaLabel={ariaLabel}
+      className="cp-search-field"
+      placeholder={placeholder}
+      value={value}
+      onChange={onChange}
+    />
   );
 }
 
@@ -187,73 +163,26 @@ function AvatarGroup({ people: group, extra }: { people: Person[]; extra?: strin
 }
 
 function StatusPill({ status, label }: { status: ProjectStatus; label?: string }) {
-  return <span className={`cp-status-pill ${statusClass[status]}`}>{label ?? status}</span>;
+  return <CpStatusPill className={`cp-status-pill ${statusClass[status]}`} label={label} status={status} />;
 }
 
-function RailButton({
-  icon,
-  active,
-  boxed,
-  badge,
-  label,
-}: {
-  icon: ReactNode;
-  active?: boolean;
-  boxed?: boolean;
-  badge?: string;
-  label: string;
-}) {
-  return (
-    <button className={`cp-rail-button${active ? " is-active" : ""}${boxed ? " is-boxed" : ""}`} aria-label={label}>
-      {icon}
-      {badge ? <span className="cp-rail-badge">{badge}</span> : null}
-    </button>
-  );
-}
+type CpWorkstream = NonNullable<CpProject["workstreams"]>[number];
 
-function CpRail() {
-  return (
-    <aside className="cp-rail" aria-label="Connected Platform navigation">
-      <div className="cp-mark" aria-hidden="true" />
-      <div className="cp-dev">DEV</div>
-      <div className="cp-rail-items">
-        <RailButton icon={<CpIcon icon={CP_FA.bell} size={15} />} label="Notifications" badge="3" boxed />
-        <RailButton icon={<CpIcon icon={CP_FA.home} size={15} />} label="Home" />
-        <RailButton icon={<CpIcon icon={CP_FA.chart} size={15} />} label="Dashboard" />
-        <RailButton icon={<CpIcon icon={CP_FA.projects} size={15} />} label="Projects and initiatives" active />
-        <RailButton icon={<CpIcon icon={CP_FA.file} size={15} />} label="Documents" />
-        <RailButton icon={<CpIcon icon={CP_FA.briefcase} size={15} />} label="Automation" />
-        <RailButton icon={<CpIcon icon={CP_FA.userGroup} size={15} />} label="Teams" />
-        <RailButton icon={<CpIcon icon={CP_FA.clipboard} size={15} />} label="Reports" />
-        <RailButton icon={<CpIcon icon={CP_FA.sparkles} size={16} />} label="AI tools" />
-      </div>
-      <div className="cp-rail-bottom">
-        <RailButton icon={<CpIcon icon={CP_FA.admin} size={14} />} label="Admin" />
-        <RailButton icon={<CpIcon icon={CP_FA.question} size={14} />} label="Help" />
-        <div className="cp-user-dot">DW</div>
-      </div>
-    </aside>
-  );
-}
-
-function HeaderActions({ uploadCount = "47", showCloud = false }: { uploadCount?: string; showCloud?: boolean }) {
-  return (
-    <div className="cp-header-actions">
-      <button className="cp-icon-button" aria-label="Upload">
-        <CpIcon icon={CP_FA.upload} size={14} />
-        {uploadCount ? <span className="cp-yellow-count">{uploadCount}</span> : null}
-      </button>
-      <button className="cp-icon-button" aria-label="Guidance">
-        <CpIcon icon={CP_FA.hand} size={17} color="#f0ab00" />
-      </button>
-      {showCloud ? (
-        <button className="cp-icon-button muted" aria-label="Cloud disabled">
-          <CpIcon icon={CP_FA.cloud} size={15} />
-        </button>
-      ) : null}
-    </div>
-  );
-}
+const workstreamColumns: Array<CpTableColumn<CpWorkstream>> = [
+  { id: "categories", header: "Categories", render: (workstream) => workstream.categories },
+  { id: "serviceLines", header: "ServiceLines", render: (workstream) => workstream.serviceLines },
+  { id: "initiatives", header: "Initiatives", render: (workstream) => workstream.initiatives },
+  { id: "team", header: "Team", render: (workstream) => workstream.teamSize },
+  { id: "savings", header: "Project Est. Savings", render: () => <span className="muted-cell">-</span>, info: "Project estimated savings" },
+  { id: "spend", header: "Project Est. Spend", render: () => <span className="muted-cell">-</span>, info: "Project estimated spend" },
+  { id: "baseline", header: "Savings vs Baseline (Annualised)", render: () => "- ( - | 0% )", info: "Savings vs baseline annualised" },
+  {
+    id: "target",
+    header: "Mid Target (Savings Delta)",
+    render: () => <span><span className="cp-negative">▼</span> 0K GBP ( -0K GBP )</span>,
+    info: "Mid target savings delta",
+  },
+];
 
 function ProjectsTopbar() {
   return (
@@ -309,12 +238,12 @@ function ProjectCard({
           </div>
           <div className="cp-project-actions">
             {project.parent ? <span className="cp-parent-pill">{project.parent}</span> : null}
-            <button className="cp-action-square disabled" aria-label="Refresh disabled"><CpIcon icon={CP_FA.globe} size={15} /></button>
-            <button className="cp-action-square" aria-label="Ideas"><CpIcon icon={CP_FA.lightbulb} size={15} /></button>
-            <button className="cp-action-square" aria-label="Edit"><CpIcon icon={CP_FA.pencil} size={14} /></button>
-            <button className="cp-action-square" aria-label={expanded ? "Collapse project" : "Expand project"} onClick={onToggle}>
+            <CpButton className="cp-action-square disabled" aria-label="Refresh disabled"><CpIcon icon={CP_FA.globe} size={15} /></CpButton>
+            <CpButton className="cp-action-square" aria-label="Ideas"><CpIcon icon={CP_FA.lightbulb} size={15} /></CpButton>
+            <CpButton className="cp-action-square" aria-label="Edit"><CpIcon icon={CP_FA.pencil} size={14} /></CpButton>
+            <CpButton className="cp-action-square" aria-label={expanded ? "Collapse project" : "Expand project"} onClick={onToggle}>
               <CpIcon icon={expanded ? CP_FA.chevronUp : CP_FA.chevronDown} size={15} />
-            </button>
+            </CpButton>
           </div>
         </div>
         {expanded && project.workstreams ? (
@@ -330,36 +259,17 @@ function ProjectCard({
                   </div>
                   <div className="cp-workstream-actions">
                     <Counts counts={workstream.counts} />
-                    <button className="cp-view-button" onClick={onViewProject}>View Project</button>
-                    <button className="cp-more-button" aria-label="More project actions"><CpIcon icon={CP_FA.ellipsis} size={17} /></button>
+                    <CpButton className="cp-view-button" onClick={onViewProject}>View Project</CpButton>
+                    <CpButton className="cp-more-button" aria-label="More project actions"><CpIcon icon={CP_FA.ellipsis} size={17} /></CpButton>
                   </div>
                 </div>
-                <table className="cp-table">
-                  <thead>
-                    <tr>
-                      <th>Categories</th>
-                      <th>ServiceLines</th>
-                      <th>Initiatives</th>
-                      <th>Team</th>
-                      <th>Project Est. Savings <span className="cp-info-dot">i</span></th>
-                      <th>Project Est. Spend <span className="cp-info-dot">i</span></th>
-                      <th>Savings vs Baseline (Annualised) <span className="cp-info-dot">i</span></th>
-                      <th>Mid Target (Savings Delta) <span className="cp-info-dot">i</span></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>{workstream.categories}</td>
-                      <td>{workstream.serviceLines}</td>
-                      <td>{workstream.initiatives}</td>
-                      <td>{workstream.teamSize}</td>
-                      <td className="muted-cell">-</td>
-                      <td className="muted-cell">-</td>
-                      <td>-&nbsp; ( - | 0% )</td>
-                      <td><span className="cp-negative">▼</span> 0K GBP ( -0K GBP )</td>
-                    </tr>
-                  </tbody>
-                </table>
+                <CpTable
+                  ariaLabel={`${workstream.title} workstream metrics`}
+                  className="cp-table"
+                  columns={workstreamColumns}
+                  rows={[workstream]}
+                  getRowKey={(row) => row.id}
+                />
               </div>
             ))}
           </div>
@@ -378,16 +288,17 @@ function ProjectsView({
   onViewProject: () => void;
 }) {
   const [search, setSearch] = useState("");
+  const [projectStatus, setProjectStatus] = useState("all");
   return (
     <>
       <ProjectsTopbar />
       <main className="cp-canvas">
         <div className="cp-canvas-inner">
           <div className="cp-controls">
-            <div className="cp-segment" role="tablist" aria-label="Project status">
-              <button className="is-active">All</button>
-              <button>Active</button>
-            </div>
+            <MultiStateGroup ariaLabel="Project status" value={projectStatus} onValueChange={setProjectStatus}>
+              <MultiStateButton value="all" label="All" />
+              <MultiStateButton value="active" label="Active" />
+            </MultiStateGroup>
             <div className="cp-search">
               <CpSearchField ariaLabel="Search projects" value={search} onChange={setSearch} />
             </div>
@@ -429,9 +340,9 @@ function ProjectHeader({
           <div className="cp-project-heading-text">Connected Platform - Development...</div>
           <nav className="cp-main-tabs" aria-label="Project tabs">
             {tabs.map((tab) => (
-              <button key={tab} className={`cp-main-tab${tab === activeTab ? " is-active" : ""}`}>
+              <CpButton key={tab} className={`cp-main-tab${tab === activeTab ? " is-active" : ""}`}>
                 {tab}{tab === "Settings" ? <CpIcon icon={CP_FA.chevronDown} size={11} /> : null}
-              </button>
+              </CpButton>
             ))}
           </nav>
         </div>
@@ -443,6 +354,7 @@ function ProjectHeader({
 
 function InitiativesView({ onOpenInitiative }: { onOpenInitiative: () => void }) {
   const [query, setQuery] = useState("");
+  const [initiativeScope, setInitiativeScope] = useState("team");
   return (
     <>
       <ProjectHeader />
@@ -450,26 +362,26 @@ function InitiativesView({ onOpenInitiative }: { onOpenInitiative: () => void })
         <div className="cp-canvas-inner">
           <div className="cp-initiative-toolbar">
             <div className="cp-toolbar-left">
-              <div className="cp-segment">
-                <button>Mine</button>
-                <button className="is-active">Team</button>
-                <button>Triage</button>
-              </div>
-              <button className="cp-filter-chip"><span className="mini-badge">6</span></button>
+              <MultiStateGroup ariaLabel="Initiative ownership" value={initiativeScope} onValueChange={setInitiativeScope}>
+                <MultiStateButton value="mine" label="Mine" />
+                <MultiStateButton value="team" label="Team" />
+                <MultiStateButton value="triage" label="Triage" />
+              </MultiStateGroup>
+              <CpButton className="cp-filter-chip"><span className="mini-badge">6</span></CpButton>
               <div className="cp-search" style={{ width: 178 }}>
                 <CpSearchField ariaLabel="Search for initiative" placeholder="Search for initiative" value={query} onChange={setQuery} />
               </div>
             </div>
             <div className="cp-toolbar-right">
-              <button className="cp-small-button"><CpIcon icon={CP_FA.filter} size={12} />Filter</button>
-              <button className="cp-icon-button cp-toolbar-icon" aria-label="Download initiatives"><CpIcon icon={CP_FA.download} size={15} /></button>
-              <button className="cp-small-button">Sorted by: Newest <CpIcon icon={CP_FA.chevronDown} size={12} /></button>
-              <button className="cp-small-button is-disabled">Add Initiative</button>
+              <CpButton className="cp-small-button"><CpIcon icon={CP_FA.filter} size={12} />Filter</CpButton>
+              <CpButton className="cp-icon-button cp-toolbar-icon" aria-label="Download initiatives"><CpIcon icon={CP_FA.download} size={15} /></CpButton>
+              <CpButton className="cp-small-button">Sorted by: Newest <CpIcon icon={CP_FA.chevronDown} size={12} /></CpButton>
+              <CpButton className="cp-small-button is-disabled">Add Initiative</CpButton>
             </div>
           </div>
           <div className="cp-filter-row">
             <Chip label="Client-Portal  x" variant="No Status" size="Small" />
-            <button className="cp-filter-chip" style={{ height: 24 }}>Clear all&nbsp; x</button>
+            <CpButton className="cp-filter-chip" style={{ height: 24 }}>Clear all&nbsp; x</CpButton>
           </div>
           <div className="cp-initiative-list">
             {initiatives.map((initiative) => (
@@ -480,8 +392,8 @@ function InitiativesView({ onOpenInitiative }: { onOpenInitiative: () => void })
                   <span className="cp-owner">Owner: <PersonAvatar person={initiative.owner} size="Extra Small" /></span>
                   <span className="cp-info-dot">i</span>
                   <div className="cp-rag-lock">Grey <CpIcon icon={CP_FA.lock} size={14} /></div>
-                  <button className="cp-view-button" onClick={onOpenInitiative}>View Initiative</button>
-                  <button className="cp-action-square disabled" aria-label="Edit initiative"><CpIcon icon={CP_FA.pencil} size={13} /></button>
+                  <CpButton className="cp-view-button" onClick={onOpenInitiative}>View Initiative</CpButton>
+                  <CpButton className="cp-action-square disabled" aria-label="Edit initiative"><CpIcon icon={CP_FA.pencil} size={13} /></CpButton>
                   <CpIcon icon={CP_FA.chevronDown} size={15} />
                 </div>
               </div>
@@ -502,14 +414,14 @@ function BlueWorkspaceHeader() {
         <div className="cp-blue-title">CP001-1014 | sdasd</div>
         <nav className="cp-subtabs" aria-label="Initiative tabs">
           {subtabs.map((tab) => (
-            <button key={tab} className={`cp-subtab${tab === "Workspace" ? " is-active" : ""}`}>{tab}</button>
+            <CpButton key={tab} className={`cp-subtab${tab === "Workspace" ? " is-active" : ""}`}>{tab}</CpButton>
           ))}
         </nav>
         <div className="cp-blue-actions">
           <CpIcon icon={CP_FA.hand} size={16} />
           <CpIcon icon={CP_FA.comment} size={15} />
           <CpIcon icon={CP_FA.pencil} size={15} />
-          <button className="cp-mini-menu"><Circle size={16} fill="#60656f" /><CpIcon icon={CP_FA.chevronDown} size={12} /></button>
+          <CpButton className="cp-mini-menu"><Circle size={16} fill="#60656f" /><CpIcon icon={CP_FA.chevronDown} size={12} /></CpButton>
         </div>
       </div>
       <div className="cp-timeline">
@@ -553,15 +465,15 @@ function InsightPanel() {
                 <span className="cp-insight-title">{insight.title}</span>
                 <span className="cp-insight-meta">{insight.meta}</span>
               </span>
-              <button className="cp-sparkle-button" aria-label="Open insight"><CpIcon icon={CP_FA.sparkles} size={12} /></button>
+              <CpButton className="cp-sparkle-button" aria-label="Open insight"><CpIcon icon={CP_FA.sparkles} size={12} /></CpButton>
             </div>
           ))}
         </div>
       </div>
       <div className="cp-insight-footer">
-        <button className="cp-carousel-button" aria-label="Previous insight"><CpIcon icon={CP_FA.arrowLeft} size={15} /></button>
+        <CpButton className="cp-carousel-button" aria-label="Previous insight"><CpIcon icon={CP_FA.arrowLeft} size={15} /></CpButton>
         <span>Insight 1 / 2<br />See all</span>
-        <button className="cp-carousel-button" aria-label="Next insight"><CpIcon icon={CP_FA.arrowRight} size={15} /></button>
+        <CpButton className="cp-carousel-button" aria-label="Next insight"><CpIcon icon={CP_FA.arrowRight} size={15} /></CpButton>
       </div>
     </aside>
   );
@@ -578,8 +490,47 @@ function MetricBadges() {
   );
 }
 
+function CpWorkspaceResultsPanel({
+  workflow,
+  onViewResult,
+}: {
+  workflow: ClauseIqWorkflow;
+  onViewResult: () => void;
+}) {
+  const rows = flattenSupplierAnalyses(workflow.resultsInitiative.suppliers).sort(
+    (a, b) => Date.parse(a.analysis.analysedAt) - Date.parse(b.analysis.analysedAt),
+  );
+  const latestAnalysisId = rows.at(-1)?.analysis.id;
+
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="cp-clause-result-panel" data-prototype="clauseiq-v5" data-theme="orbit">
+      <div className="clauseiq-responsive-output-panel mx-auto w-full max-w-[640px] space-y-orbit-m">
+        <section className="min-w-0 space-y-orbit-base" aria-label="Analysis outputs by date">
+          {rows.map(({ supplier, analysis }) => (
+            <CpAnalysisCard
+              key={analysis.id}
+              analysis={analysis}
+              supplier={supplier}
+              showSupplier
+              onDownload={workflow.actions.handleDownload}
+              onViewResult={onViewResult}
+              viewResultPrimary={analysis.id === latestAnalysisId}
+              isLatestOutput={analysis.id === latestAnalysisId}
+              highlighted={analysis.id === latestAnalysisId}
+              analysisParameters={workflow.selectedAnalysisParameters}
+            />
+          ))}
+        </section>
+      </div>
+    </div>
+  );
+}
+
 function clauseIqLauncherLabel(workflow: ClauseIqWorkflow, hasOpened: boolean) {
   if (workflow.resultsVisible) return "View Analysis";
+  if (workflow.step === "processing") return "Analysis running";
   if (hasOpened || workflow.step !== "welcome") return "Resume ClauseIQ";
   return "Get Started";
 }
@@ -587,11 +538,17 @@ function clauseIqLauncherLabel(workflow: ClauseIqWorkflow, hasOpened: boolean) {
 function ClauseIqLauncherCard({
   workflow,
   hasOpened,
+  onNewAnalysis,
   onOpen,
+  onOpenSupplierOutputs,
+  onViewResult,
 }: {
   workflow: ClauseIqWorkflow;
   hasOpened: boolean;
+  onNewAnalysis: () => void;
   onOpen: () => void;
+  onOpenSupplierOutputs: () => void;
+  onViewResult: () => void;
 }) {
   const label = clauseIqLauncherLabel(workflow, hasOpened);
   const helperCopy = workflow.resultsVisible
@@ -599,27 +556,202 @@ function ClauseIqLauncherCard({
     : workflow.step === "processing"
       ? "ClauseIQ is finding clauses in the uploaded contract."
       : "Launch the guided ClauseIQ workflow for this CP initiative.";
+  const actionDisabled = workflow.step === "processing";
+  const actionLabel = workflow.resultsVisible ? "View Full Result" : label;
+  const actionIcon = workflow.resultsVisible ? CP_FA.chart : workflow.step === "processing" ? CP_FA.magic : CP_FA.sparkles;
+  const handleAction = () => {
+    if (workflow.resultsVisible) {
+      onViewResult();
+      return;
+    }
+    if (workflow.step !== "processing") {
+      onOpen();
+    }
+  };
 
   return (
     <div className="cp-accordion-body cp-clause-launcher-body">
-      <div className="cp-clause-launcher-card">
-        <span className="cp-clause-launcher-icon"><CpIcon icon={CP_FA.aiChip} size={24} /></span>
-        <span className="cp-clause-launcher-copy">
-          <strong>ClauseIQ - Analyse your Contracts</strong>
-          <span>{helperCopy}</span>
-        </span>
-        <button className="cp-tool-action ready cp-clause-launcher-action" type="button" onClick={onOpen}>
-          <CpIcon icon={workflow.resultsVisible ? CP_FA.chart : CP_FA.sparkles} size={13} />
-          {label}
-        </button>
-      </div>
+      {!workflow.resultsVisible ? (
+        <div className="cp-clause-launcher-card">
+          <span className="cp-clause-launcher-icon"><CpIcon icon={CP_FA.aiChip} size={24} /></span>
+          <span className="cp-clause-launcher-copy">
+            <strong>ClauseIQ - Analyse your Contracts</strong>
+            <span>{helperCopy}</span>
+          </span>
+          <CpButton className="cp-tool-action ready cp-clause-launcher-action" type="button" disabled={actionDisabled} onClick={handleAction}>
+            {workflow.step === "processing" ? (
+              <Loader2 className="cp-clause-analysis-loader" size={13} aria-hidden="true" />
+            ) : (
+              <CpIcon icon={actionIcon} size={13} />
+            )}
+            {actionLabel}
+          </CpButton>
+        </div>
+      ) : null}
+      {workflow.step === "processing" ? (
+        <div className="cp-clause-analysis-status">
+          <span className="cp-clause-analysis-status-icon" aria-hidden="true">
+            <Loader2 className="cp-clause-analysis-loader" size={17} />
+          </span>
+          <span>
+            <strong>Analysis submitted</strong>
+            <span>
+              ClauseIQ is reviewing {workflow.file?.name ?? "your contract"}. This can take up to 15 minutes, so you can continue working in the workspace.
+            </span>
+          </span>
+        </div>
+      ) : null}
+      {workflow.resultsVisible ? (
+        <div className="cp-clause-result-actions">
+          <CpButton orbitVariant="Secondary" orbitSize="Small" onClick={onNewAnalysis}>
+            New Analysis
+          </CpButton>
+          <CpButton orbitVariant="Secondary" orbitSize="Small" onClick={onOpenSupplierOutputs}>
+            Supplier Analysis Output
+          </CpButton>
+        </div>
+      ) : null}
+      {workflow.resultsVisible ? (
+        <CpWorkspaceResultsPanel workflow={workflow} onViewResult={onViewResult} />
+      ) : null}
     </div>
   );
 }
 
-function cpWorkflowStepIndex(step: ClauseIqWorkflowStep) {
-  if (step === "select") return 0;
-  return CP_MODAL_STEPS.findIndex((item) => item.key === step);
+function CpClauseIqModalContent({
+  workflow,
+  onViewResult,
+}: {
+  workflow: ClauseIqWorkflow;
+  onViewResult: () => void;
+}) {
+  const showInlineUpload = workflow.step === "parameters" || workflow.step === "upload";
+  const parameterComplete = hasCompleteAnalysisParameters(workflow.selectedParameter);
+
+  if (showInlineUpload) {
+    return (
+      <div className="space-y-orbit-base">
+        <CpAnalysisParameterCards
+          selectedParameter={workflow.selectedParameter}
+          cardState="default"
+          categoryCardState="default"
+          locked={workflow.parameterLocked}
+          onBasisSelect={workflow.actions.handleBasisSelect}
+          onCategorySelect={workflow.actions.handleCategorySelect}
+          onBasisEdit={workflow.actions.handleBasisEdit}
+          onCategoryEdit={workflow.actions.handleCategoryEdit}
+        />
+
+        {parameterComplete ? (
+          <CpStateCard state="default">
+            <h2 className="v5-orbit-heading-5 mb-orbit-base">Upload Contract</h2>
+            <CpPlaybookDisclaimer variant="callout" parameter={workflow.selectedParameter} />
+            {workflow.file ? (
+              <div className="mt-orbit-base">
+                <CpSelectedFileRow file={workflow.file} onRemove={workflow.actions.clearFile} />
+              </div>
+            ) : (
+              <CpClauseIqDropzone onFile={workflow.actions.validateAndSetFile} />
+            )}
+          </CpStateCard>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (workflow.resultsVisible) {
+    return (
+      <CpStateCard state="default">
+        <h2 className="v5-orbit-heading-5 mb-orbit-base">Analysis Complete</h2>
+        <p className="text-sm text-muted-foreground">
+          Your ClauseIQ result is available in the workspace.
+        </p>
+      </CpStateCard>
+    );
+  }
+
+  return (
+    <CpClauseIqJourneyContent
+      currentInitiativeCopy="Tied to the current CP initiative for traceable governance."
+      initiativeLabel={CP_CLAUSEIQ_INITIATIVE_LABEL}
+      initiativeMode="prebound"
+      mode="single-step"
+      onStartAnotherInitiative={() => workflow.actions.startAnotherInitiative(false)}
+      onViewResult={onViewResult}
+      renderSelectedFileRow={(file, onRemove) => (
+        <CpSelectedFileRow file={file} onRemove={onRemove} />
+      )}
+      resultsLayout="output-panel"
+      workflow={workflow}
+    />
+  );
+}
+
+function CpSupplierOutputsModal({
+  workflow,
+  onClose,
+  onNewAnalysis,
+  onViewResult,
+}: {
+  workflow: ClauseIqWorkflow;
+  onClose: () => void;
+  onNewAnalysis: () => void;
+  onViewResult: () => void;
+}) {
+  const [showPastAnalyses, setShowPastAnalyses] = useState(false);
+  const outputInitiative = showPastAnalyses ? mockInitiative : workflow.resultsInitiative;
+
+  return (
+    <div className="cp-modal-backdrop cp-supplier-output-modal-backdrop">
+      <div
+        className="cp-supplier-output-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Supplier Analysis Output"
+      >
+        <header className="cp-supplier-output-modal-header">
+          <div>
+            <div className="cp-supplier-output-modal-title">Supplier Analysis Output</div>
+          </div>
+          <CpButton className="cp-close" type="button" onClick={onClose} aria-label="Close supplier analysis output">
+            <X size={18} />
+          </CpButton>
+        </header>
+        <div className="cp-supplier-output-modal-body" data-prototype="clauseiq-v5" data-theme="orbit">
+          <CpSupplierOutputsPanel
+            key={showPastAnalyses ? "past-analyses" : "current-analysis"}
+            initiative={outputInitiative}
+            initialOutputScope={showPastAnalyses ? "team" : "mine"}
+            outputState="filled"
+            onRunAgain={onNewAnalysis}
+            onDownload={workflow.actions.handleDownload}
+            onViewResult={onViewResult}
+            className="cp-supplier-output-panel-modal"
+          />
+        </div>
+        <footer className="cp-supplier-output-modal-footer">
+          <CpButton className="cp-footer-btn" type="button" onClick={onClose}>
+            Close
+          </CpButton>
+          <div className="cp-supplier-output-demo-toggle cp-supplier-output-demo-toggle-footer">
+            <span>
+              <strong>Show Past Analyses</strong>
+            </span>
+            <CpButton
+              className={cn("cp-switch", showPastAnalyses && "is-on")}
+              type="button"
+              role="switch"
+              aria-checked={showPastAnalyses}
+              aria-label="Show past analyses"
+              onClick={() => setShowPastAnalyses((current) => !current)}
+            >
+              <span />
+            </CpButton>
+          </div>
+        </footer>
+      </div>
+    </div>
+  );
 }
 
 function CpClauseIqModal({
@@ -631,27 +763,20 @@ function CpClauseIqModal({
   onClose: () => void;
   onViewResult: () => void;
 }) {
-  const stepIndex = cpWorkflowStepIndex(workflow.step);
-  const parameterComplete = hasCompleteAnalysisParameters(workflow.selectedParameter);
-  const hasContractFile = Boolean(workflow.file);
-  const footer = useMemo(() => {
-    if (workflow.step === "welcome") {
-      return { label: "Start", disabled: false, onClick: () => workflow.actions.setStep("parameters") };
-    }
-    if (workflow.step === "select") {
-      return { label: "Continue", disabled: false, onClick: workflow.actions.startParameters };
-    }
-    if (workflow.step === "parameters") {
-      return { label: "Continue", disabled: !parameterComplete, onClick: workflow.actions.setUploadStep };
-    }
+  const stepIndex = getCpClauseIqStepIndex(workflow.step);
+  const footer = getCpClauseIqFooterState(workflow, {
+    initiativeMode: "prebound",
+    onViewResult,
+  });
+  const primaryLabel = workflow.step === "upload" ? "Start Analysis" : footer.label;
+  const handlePrimaryAction = () => {
     if (workflow.step === "upload") {
-      return { label: "Run Analysis", disabled: !hasContractFile, onClick: () => workflow.actions.startProcessing() };
+      workflow.actions.startProcessing();
+      onClose();
+      return;
     }
-    if (workflow.step === "processing") {
-      return { label: "Analysing", disabled: true, onClick: () => undefined };
-    }
-    return { label: "View Full Result", disabled: false, onClick: onViewResult };
-  }, [hasContractFile, onViewResult, parameterComplete, workflow.actions, workflow.step]);
+    footer.onClick();
+  };
 
   const handleBack = () => {
     if (workflow.step === "select") workflow.actions.setStep("welcome");
@@ -661,6 +786,7 @@ function CpClauseIqModal({
   };
 
   const backDisabled = workflow.step === "welcome" || workflow.step === "processing" || workflow.step === "results";
+  const showBackButton = !backDisabled;
 
   return (
     <div className="cp-modal-backdrop cp-clause-modal-backdrop">
@@ -668,32 +794,32 @@ function CpClauseIqModal({
         <header className="cp-clause-modal-header">
           <div>
             <div className="cp-clause-modal-title">ClauseIQ</div>
-            <div className="cp-clause-modal-subtitle">{CP_CLAUSEIQ_INITIATIVE_LABEL}</div>
           </div>
-          <button className="cp-close" type="button" onClick={onClose} aria-label="Close ClauseIQ workflow">
+          <CpButton className="cp-close" type="button" onClick={onClose} aria-label="Close ClauseIQ workflow">
             <X size={18} />
-          </button>
+          </CpButton>
         </header>
 
         <CpClauseIqModalStepper step={workflow.step} />
 
         <div className="cp-clause-modal-body" data-prototype="clauseiq-v5" data-theme="orbit">
           <main className="cp-clause-modal-main">
-            <CpClauseIqModalStepContent workflow={workflow} onViewResult={onViewResult} />
+            <CpClauseIqModalContent workflow={workflow} onViewResult={onViewResult} />
           </main>
-          <CpClauseIqModalSidePanel workflow={workflow} onViewResult={onViewResult} />
         </div>
 
         <footer className="cp-clause-modal-footer">
           <div className="cp-footer-left">
-            <button className="cp-footer-btn" type="button" onClick={onClose}>Close</button>
-            <button className="cp-footer-btn" type="button" disabled={backDisabled} onClick={handleBack}>Back</button>
+            <CpButton className="cp-footer-btn" type="button" onClick={onClose}>Close</CpButton>
+            {showBackButton ? (
+              <CpButton className="cp-footer-btn" type="button" onClick={handleBack}>Back</CpButton>
+            ) : null}
           </div>
           <div className="cp-footer-right">
-            <span className="cp-clause-modal-progress">Step {Math.max(stepIndex + 1, 1)} of {CP_MODAL_STEPS.length}</span>
-            <button className="cp-footer-btn primary" type="button" disabled={footer.disabled} onClick={footer.onClick}>
-              {footer.label}
-            </button>
+            <span className="cp-clause-modal-progress">Step {Math.max(stepIndex + 1, 1)} of {CP_CLAUSEIQ_STEPS.length}</span>
+            <CpButton className="cp-footer-btn primary" type="button" disabled={footer.disabled} onClick={handlePrimaryAction}>
+              {primaryLabel}
+            </CpButton>
           </div>
         </footer>
       </div>
@@ -702,11 +828,11 @@ function CpClauseIqModal({
 }
 
 function CpClauseIqModalStepper({ step }: { step: ClauseIqWorkflowStep }) {
-  const activeIndex = cpWorkflowStepIndex(step);
+  const activeIndex = getCpClauseIqStepIndex(step);
 
   return (
     <nav className="cp-clause-modal-stepper" aria-label="ClauseIQ workflow steps">
-      {CP_MODAL_STEPS.map((item, index) => {
+      {CP_CLAUSEIQ_STEPS.map((item, index) => {
         const complete = index < activeIndex;
         const active = index === activeIndex;
         return (
@@ -720,262 +846,44 @@ function CpClauseIqModalStepper({ step }: { step: ClauseIqWorkflowStep }) {
   );
 }
 
-function CpClauseIqModalSidePanel({
-  workflow,
-  onViewResult,
-}: {
-  workflow: ClauseIqWorkflow;
-  onViewResult: () => void;
-}) {
-  if (workflow.step === "processing" || workflow.resultsVisible) {
-    return (
-      <aside className="cp-clause-modal-side">
-        <SupplierOutputsPanel
-          initiative={workflow.supplierOutputInitiative}
-          outputState={workflow.supplierOutputPanelState}
-          onRunAgain={workflow.actions.showRunAgainUpload}
-          onDownload={workflow.actions.handleDownload}
-          onViewResult={onViewResult}
-        />
-      </aside>
-    );
-  }
-
-  const parameterCopy = workflow.selectedParameter?.basis
-    ? workflow.selectedParameter.category
-      ? `${workflow.selectedParameter.basis.kind}: ${workflow.selectedParameter.basis.label}; Category: ${workflow.selectedParameter.category}`
-      : `${workflow.selectedParameter.basis.kind}: ${workflow.selectedParameter.basis.label}`
-    : "Choose how ClauseIQ should benchmark this contract.";
-
-  return (
-    <aside className="cp-clause-modal-side cp-clause-assist-panel">
-      <div>
-        <div className="cp-assist-eyebrow">Current context</div>
-        <h3>{CP_CLAUSEIQ_INITIATIVE_LABEL}</h3>
-        <p>ClauseIQ is bound to this initiative, so setup can stay focused on contract details.</p>
-      </div>
-      <div className="cp-assist-summary">
-        <div>
-          <span>Analysis basis</span>
-          <strong>{parameterCopy}</strong>
-        </div>
-        <div>
-          <span>Contract file</span>
-          <strong>{workflow.file?.name ?? "No file selected"}</strong>
-        </div>
-      </div>
-      <div className="cp-assist-tip">
-        Supplier outputs will appear here after the analysis starts.
-      </div>
-    </aside>
-  );
-}
-
 function CpSelectedFileRow({ file, onRemove }: { file: File; onRemove: () => void }) {
-  return (
-    <div className="cp-selected-file-row">
-      <span className="cp-selected-file-icon"><CpIcon icon={CP_FA.file} size={14} /></span>
-      <span className="cp-selected-file-name">{file.name}</span>
-      <button type="button" className="cp-selected-file-remove" onClick={onRemove} aria-label={`Remove ${file.name}`}>
-        <CpIcon icon={CP_FA.trash} size={13} />
-      </button>
-    </div>
-  );
-}
-
-function CpClauseIqModalStepContent({
-  workflow,
-  onViewResult,
-}: {
-  workflow: ClauseIqWorkflow;
-  onViewResult: () => void;
-}) {
-  if (workflow.step === "welcome") {
-    return (
-      <div className="space-y-orbit-base">
-        <SharedClauseIqOverviewCard
-          step={workflow.step}
-          currentInitiativeCopy="Tied to the current CP initiative for traceable governance."
-        />
-        <StateCard state="default">
-          <h2 className="v5-orbit-heading-5 mb-orbit-base">Current Initiative</h2>
-          <SharedSelectedSummaryRow
-            label={CP_CLAUSEIQ_INITIATIVE_LABEL}
-            disabled
-            actionLabel="Edit"
-            onAction={() => undefined}
-          />
-        </StateCard>
-      </div>
-    );
-  }
-
-  if (workflow.step === "select") {
-    return (
-      <StateCard state="default">
-        <h2 className="v5-orbit-heading-5 mb-orbit-base">Initiative Selected</h2>
-        <SharedSelectedSummaryRow
-          label={CP_CLAUSEIQ_INITIATIVE_LABEL}
-          disabled
-          actionLabel="Edit"
-          onAction={() => undefined}
-        />
-      </StateCard>
-    );
-  }
-
-  if (workflow.step === "parameters") {
-    return (
-      <SharedAnalysisParameterCards
-        selectedParameter={workflow.selectedParameter}
-        cardState={workflow.selectedParameter?.basis ? "default" : "active"}
-        locked={workflow.parameterLocked}
-        onBasisSelect={workflow.actions.handleBasisSelect}
-        onCategorySelect={workflow.actions.handleCategorySelect}
-        onBasisEdit={workflow.actions.handleBasisEdit}
-        onCategoryEdit={workflow.actions.handleCategoryEdit}
-      />
-    );
-  }
-
-  if (workflow.step === "upload") {
-    return (
-      <StateCard state="active">
-        <h2 className="v5-orbit-heading-5 mb-orbit-base">Upload Contract</h2>
-        <SharedPlaybookDisclaimer variant="callout" parameter={workflow.selectedParameter} />
-        <SharedClauseIqDropzone onFile={workflow.actions.validateAndSetFile} />
-        {workflow.file ? (
-          <div className="mt-orbit-base">
-            <CpSelectedFileRow file={workflow.file} onRemove={workflow.actions.clearFile} />
-          </div>
-        ) : null}
-      </StateCard>
-    );
-  }
-
-  if (workflow.step === "processing") {
-    return (
-      <StateCard state="active">
-        <h2 className="v5-orbit-heading-5 mb-orbit-base">Analysing Your Contract</h2>
-        <div className="flex items-center justify-between border border-border rounded-lg px-orbit-base py-orbit-s mb-orbit-base">
-          <div className="flex items-center gap-orbit-s min-w-0">
-            <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-            <span className="text-sm truncate">{workflow.file?.name ?? "Contract.pdf"}</span>
-          </div>
-          <span className="text-xs v5-orbit-weight-medium text-success inline-flex items-center gap-orbit-xs">
-            <Check className="h-3.5 w-3.5" /> Uploaded
-          </span>
-        </div>
-        <div className="flex items-center gap-orbit-base py-orbit-s">
-          <Loader2 className="h-5 w-5 animate-spin text-ciq" />
-          <span className="text-sm v5-orbit-weight-medium">Finding clauses in your contract...</span>
-        </div>
-        <SharedPlaybookDisclaimer variant="inline" parameter={workflow.selectedParameter} />
-        <p className="text-xs text-muted-foreground mt-orbit-s">
-          This may take a moment. We will notify you when the analysis is completed.
-        </p>
-      </StateCard>
-    );
-  }
-
-  return (
-    <div className="space-y-orbit-base">
-      <ResultsContent
-        initiative={workflow.resultsInitiative}
-        layout="output-panel"
-        onRunAgain={workflow.actions.showRunAgainUpload}
-        onViewResult={onViewResult}
-        viewResultPrimary={!workflow.newAnalysisSectionVisible}
-        highlightLatestOutput={!workflow.newAnalysisSectionVisible}
-        analysisParameters={workflow.selectedAnalysisParameters}
-      />
-      {workflow.newAnalysisSectionVisible && <SharedNewAnalysisDivider />}
-      {workflow.rerunUploadVisible && (
-        <div className="space-y-orbit-base">
-          <SharedAnalysisParameterCards
-            selectedParameter={workflow.rerunSelectedParameter}
-            cardState={hasCompleteAnalysisParameters(workflow.rerunSelectedParameter) ? "default" : "active"}
-            onBasisSelect={workflow.actions.handleRerunBasisSelect}
-            onCategorySelect={workflow.actions.handleRerunCategorySelect}
-            onBasisEdit={workflow.actions.handleRerunBasisEdit}
-            onCategoryEdit={workflow.actions.handleRerunCategoryEdit}
-          />
-
-          {hasCompleteAnalysisParameters(workflow.rerunSelectedParameter) && (
-            <StateCard state="active">
-              <h2 className="v5-orbit-heading-5 mb-orbit-base">Upload Contract</h2>
-              <SharedPlaybookDisclaimer variant="callout" parameter={workflow.rerunSelectedParameter} />
-              <SharedClauseIqDropzone onFile={workflow.actions.validateAndSetFile} />
-            </StateCard>
-          )}
-        </div>
-      )}
-      {workflow.rerunProcessing && (
-        <StateCard state="active">
-          <h2 className="v5-orbit-heading-5 mb-orbit-base">Analysing New Contract</h2>
-          <div className="flex items-center justify-between border border-border rounded-lg px-orbit-base py-orbit-s mb-orbit-base">
-            <div className="flex items-center gap-orbit-s min-w-0">
-              <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="text-sm truncate">{workflow.file?.name ?? "Contract.pdf"}</span>
-            </div>
-            <span className="text-xs v5-orbit-weight-medium text-success inline-flex items-center gap-orbit-xs">
-              <Check className="h-3.5 w-3.5" /> Uploaded
-            </span>
-          </div>
-          <div className="flex items-center gap-orbit-base py-orbit-s">
-            <Loader2 className="h-5 w-5 animate-spin text-ciq" />
-            <span className="text-sm v5-orbit-weight-medium">Finding clauses in your new contract...</span>
-          </div>
-          <SharedPlaybookDisclaimer variant="inline" parameter={workflow.rerunSelectedParameter ?? workflow.selectedParameter} />
-          <p className="text-xs text-muted-foreground mt-orbit-s">
-            The existing analysis history remains available above while this runs.
-          </p>
-        </StateCard>
-      )}
-      {workflow.completedRerunAnalysis && workflow.rerunSupplier && (
-        <AnalysisCard
-          analysis={workflow.completedRerunAnalysis}
-          supplier={workflow.rerunSupplier}
-          showSupplier
-          onRunAgain={workflow.actions.showRunAgainUpload}
-          onViewResult={onViewResult}
-          viewResultPrimary
-          isLatestOutput
-          highlighted
-          analysisParameters={workflow.completedRerunAnalysisParameters}
-        />
-      )}
-      {workflow.showPostAnalysisActions && (
-        <SharedPostAnalysisNextActions
-          completedMilestoneIds={workflow.completedMilestoneIds}
-          initiativeCompleted={workflow.initiativeCompleted}
-          onStartAnotherInitiative={() => workflow.actions.startAnotherInitiative(false)}
-          onMilestoneComplete={workflow.actions.markMilestoneComplete}
-          onCompleteInitiative={workflow.actions.completeInitiative}
-        />
-      )}
-    </div>
-  );
+  return <CpFileRow className="cp-selected-file-row" fileName={file.name} onRemove={onRemove} removeLabel={`Remove ${file.name}`} />;
 }
 
 function WorkspaceView() {
   const navigate = useNavigate();
-  const workflow = useClauseIqWorkflow({
-    autoAdvanceParameters: false,
-    autoStartProcessingOnFile: false,
-    initialInitiative: CP_CLAUSEIQ_INITIATIVE,
-    useFirstRunResults: true,
-  });
   const [expanded, setExpanded] = useState<string | null>(null);
   const [clauseModalOpen, setClauseModalOpen] = useState(false);
   const [clauseModalOpened, setClauseModalOpened] = useState(false);
+  const [supplierOutputModalOpen, setSupplierOutputModalOpen] = useState(false);
   const canvasRef = useRef<HTMLElement | null>(null);
+  const handleProcessingComplete = useCallback(() => {
+    setClauseModalOpen(false);
+  }, []);
+  const workflow = useClauseIqWorkflow({
+    autoStartProcessingOnFile: true,
+    initialInitiative: CP_CLAUSEIQ_INITIATIVE,
+    onProcessingComplete: handleProcessingComplete,
+    useFirstRunResults: true,
+  });
 
-  const viewResult = () => navigate(LATEST_V5_RESULTS_ROUTE);
+  const viewResult = () => navigate(PROTOTYPE_CP_RESULT_ROUTE);
   const clauseIqOpen = expanded === "ClauseIQ - Analyse your contracts";
   const openClauseModal = () => {
     setClauseModalOpened(true);
     setClauseModalOpen(true);
+  };
+  const openNewAnalysis = () => {
+    workflow.actions.startAnotherInitiative(false);
+    setClauseModalOpened(false);
+    setSupplierOutputModalOpen(false);
+    setClauseModalOpen(true);
+  };
+  const openSupplierOutputModal = () => {
+    setSupplierOutputModalOpen(true);
+  };
+  const closeSupplierOutputModal = () => {
+    setSupplierOutputModalOpen(false);
   };
 
   useEffect(() => {
@@ -1000,7 +908,7 @@ function WorkspaceView() {
                   <PersonAvatar person={people.pm} size="Extra Small" />
                   <CpIcon icon={FA.circleInfo} size={13} /> 2026-01-29 <span className="cp-overdue">(119 days ago)</span>
                   <span className="cp-overdue-pill">Overdue</span>
-                  <button className="cp-mark-complete"><CpIcon icon={CP_FA.check} size={13} /> Mark complete</button>
+                  <CpButton className="cp-mark-complete"><CpIcon icon={CP_FA.check} size={13} /> Mark complete</CpButton>
                 </div>
               </div>
               <div style={{ color: "#6a707b" }}>No description added to this milestone yet. To add a description, go to the “Initiative milestones” tab and edit your milestone description.</div>
@@ -1011,7 +919,7 @@ function WorkspaceView() {
               const isSummaryRow = section === "Milestone Deliverables" || section === "Guidance & Resources" || section === "Task Manager";
               return (
                 <section className={`cp-accordion${isSummaryRow ? " is-summary-row" : ""}`} key={section}>
-                  <button className="cp-accordion-head" onClick={() => setExpanded(isOpen ? null : section)}>
+                  <CpButton className="cp-accordion-head" onClick={() => setExpanded(isOpen ? null : section)}>
                     {isClause ? <CpIcon icon={CP_FA.wrench} size={15} /> : section === "Milestone Deliverables" ? <CpIcon icon={CP_FA.file} size={15} /> : section === "Guidance & Resources" ? <Circle size={15} /> : section === "Task Manager" ? <CpIcon icon={CP_FA.list} size={14} /> : <CpIcon icon={CP_FA.wrench} size={15} />}
                     <span>{section}</span>
                     {section === "Milestone Deliverables" ? <MetricBadges /> : null}
@@ -1024,12 +932,15 @@ function WorkspaceView() {
                       </span>
                     ) : null}
                     <CpIcon icon={isOpen ? CP_FA.chevronUp : CP_FA.chevronDown} size={15} />
-                  </button>
+                  </CpButton>
                   {isClause && isOpen ? (
                     <ClauseIqLauncherCard
                       workflow={workflow}
                       hasOpened={clauseModalOpened}
+                      onNewAnalysis={openNewAnalysis}
                       onOpen={openClauseModal}
+                      onOpenSupplierOutputs={openSupplierOutputModal}
+                      onViewResult={viewResult}
                     />
                   ) : null}
                 </section>
@@ -1046,13 +957,31 @@ function WorkspaceView() {
           onViewResult={viewResult}
         />
       ) : null}
+      {supplierOutputModalOpen && workflow.resultsVisible ? (
+        <CpSupplierOutputsModal
+          workflow={workflow}
+          onClose={closeSupplierOutputModal}
+          onNewAnalysis={openNewAnalysis}
+          onViewResult={viewResult}
+        />
+      ) : null}
     </>
   );
 }
 
 export default function PrototypeCP() {
-  const [view, setView] = useState<CpView>("projects");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const view = getCpViewFromSearchParams(searchParams);
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
+  const setView = (nextView: CpView) => {
+    const next = new URLSearchParams(searchParams);
+    if (nextView === "projects") {
+      next.delete("view");
+    } else {
+      next.set("view", nextView);
+    }
+    setSearchParams(next);
+  };
 
   return (
     <div className="prototype-cp">
@@ -1069,8 +998,8 @@ export default function PrototypeCP() {
           {view === "initiatives" ? <InitiativesView onOpenInitiative={() => setView("workspace")} /> : null}
           {view === "workspace" ? <WorkspaceView /> : null}
         </section>
-        <button className="cp-floating-jasper"><CpIcon icon={CP_FA.sparkles} size={13} />Ask Jasper</button>
-        <button className="cp-floating-help" aria-label="Help">?</button>
+        <CpButton className="cp-floating-jasper"><CpIcon icon={CP_FA.sparkles} size={13} />Ask Jasper</CpButton>
+        <CpButton className="cp-floating-help" aria-label="Help">?</CpButton>
       </div>
       <V5OrbitToastHost />
     </div>

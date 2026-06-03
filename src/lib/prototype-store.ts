@@ -60,7 +60,13 @@ export function isResponsiveTestingPrototype(version: PrototypeVersion) {
   return title === "responsive testing" || title.includes("responsive testing") || version.previewUrl?.startsWith("/clauseiq-responsive-testing");
 }
 
+export function isPrototypeCP(version: PrototypeVersion) {
+  const title = version.title.trim().toLowerCase();
+  return title === "prototype cp" || title === "prototype cp - v1" || version.previewUrl === "/prototype-cp";
+}
+
 export function prototypePreviewUrl(version: PrototypeVersion) {
+  if (isPrototypeCP(version)) return "/prototype-cp";
   if (isResponsiveTestingPrototype(version)) return "/clauseiq-responsive-testing";
   if (isPrototypeV5(version)) return "/clauseiq-v5";
   if (isPrototypeV4(version)) return "/clauseiq-v4";
@@ -128,7 +134,8 @@ function seed(): Prototype {
   const v4 = createV4Version(protoId, 4);
   const v5 = createV5Version(protoId, 5);
   const responsiveTesting = createResponsiveTestingVersion(protoId, 6);
-  return { id: protoId, name: "ClauseIQ Prototype", versions: [v1, v2, v3, v4, v5, responsiveTesting] };
+  const prototypeCP = createPrototypeCPVersion(protoId, 7);
+  return { id: protoId, name: "ClauseIQ Prototype", versions: [v1, v2, v3, v4, v5, responsiveTesting, prototypeCP] };
 }
 
 function createV3Version(protoId: string, versionNumber: number): PrototypeVersion {
@@ -166,7 +173,7 @@ function createV5Version(protoId: string, versionNumber: number): PrototypeVersi
     id: uid(),
     prototypeId: protoId,
     versionNumber,
-    title: "Prototype v5",
+    title: "Prototype CCP - v5",
     goal: "Move ClauseIQ onto the Orbit design system and refine the first-analysis dashboard workflow.",
     notes: "Promoted the Orbit-based v5 branch with updated intake, output panel, initiative modal, first-analysis dashboard cards, and History placeholder.",
     previewUrl: "/clauseiq-v5",
@@ -191,9 +198,36 @@ function createResponsiveTestingVersion(protoId: string, versionNumber: number):
   };
 }
 
+function createPrototypeCPVersion(protoId: string, versionNumber: number): PrototypeVersion {
+  return {
+    id: uid(),
+    prototypeId: protoId,
+    versionNumber,
+    title: "Prototype CP - v1",
+    goal: "Create a CP/Efficio-themed prototype entry point for the Projects & Initiatives ClauseIQ workflow.",
+    notes: "Adds the isolated /prototype-cp experience, including the CP shell, ClauseIQ workflow, supplier output panel, and CP-owned result dashboard route.",
+    previewUrl: "/prototype-cp",
+    status: "In progress",
+    createdAt: new Date().toISOString(),
+    feedback: [],
+  };
+}
+
 function ensureCurrentVersions(prototype: Prototype): Prototype {
   let changed = false;
   const versions = prototype.versions.map((version) => {
+    if (isPrototypeCP(version)) {
+      const next = {
+        ...version,
+        title: "Prototype CP - v1",
+        goal: "Create a CP/Efficio-themed prototype entry point for the Projects & Initiatives ClauseIQ workflow.",
+        notes: "Adds the isolated /prototype-cp experience, including the CP shell, ClauseIQ workflow, supplier output panel, and CP-owned result dashboard route.",
+        previewUrl: "/prototype-cp",
+        status: version.status === "Complete" ? "In progress" as VersionStatus : version.status,
+      };
+      changed = changed || JSON.stringify(next) !== JSON.stringify(version);
+      return next;
+    }
     if (isResponsiveTestingPrototype(version)) {
       const next = {
         ...version,
@@ -210,7 +244,7 @@ function ensureCurrentVersions(prototype: Prototype): Prototype {
       const next = {
         ...version,
         versionNumber: 5,
-        title: "Prototype v5",
+        title: "Prototype CCP - v5",
         goal: "Move ClauseIQ onto the Orbit design system and refine the first-analysis dashboard workflow.",
         notes: "Promoted the Orbit-based v5 branch with updated intake, output panel, initiative modal, first-analysis dashboard cards, and History placeholder.",
         previewUrl: "/clauseiq-v5",
@@ -263,6 +297,11 @@ function ensureCurrentVersions(prototype: Prototype): Prototype {
   if (!nextVersions.some((version) => isResponsiveTestingPrototype(version))) {
     const nextNumber = Math.max(6, ...nextVersions.map((version) => version.versionNumber + 1));
     nextVersions = [...nextVersions, createResponsiveTestingVersion(prototype.id, nextNumber)];
+    changed = true;
+  }
+  if (!nextVersions.some((version) => isPrototypeCP(version))) {
+    const nextNumber = Math.max(7, ...nextVersions.map((version) => version.versionNumber + 1));
+    nextVersions = [...nextVersions, createPrototypeCPVersion(prototype.id, nextNumber)];
     changed = true;
   }
   if (!changed) return prototype;

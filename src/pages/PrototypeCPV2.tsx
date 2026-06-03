@@ -61,13 +61,6 @@ function getCpViewFromSearchParams(searchParams: URLSearchParams): CpView {
   return "projects";
 }
 
-const statusClass: Record<ProjectStatus, string> = {
-  "In flight": "in-flight",
-  Pipeline: "pipeline",
-  Complete: "complete",
-  Idea: "idea",
-};
-
 const CP_CLAUSEIQ_INITIATIVE_LABEL = "CP001-1014 | sdasd";
 const CP_CLAUSEIQ_INITIATIVE: CiqInitiative = {
   id: "cp001-1014",
@@ -166,7 +159,8 @@ function AvatarGroup({ people: group, extra }: { people: Person[]; extra?: strin
 }
 
 function StatusPill({ status, label }: { status: ProjectStatus; label?: string }) {
-  return <CpStatusPill className={`cpv2-status-pill ${statusClass[status]}`} label={label} status={status} />;
+  const chipStatus = status === "In flight" ? "Information" : status === "Complete" ? "Success" : "No Status";
+  return <CpStatusPill label={label ?? status} status={chipStatus} />;
 }
 
 type CpWorkstream = NonNullable<CpProject["workstreams"]>[number];

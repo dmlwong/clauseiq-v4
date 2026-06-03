@@ -11,6 +11,7 @@ import {
   Table as OrbitTable,
   type TableColumn,
 } from "@orbit";
+import { X } from "lucide-react";
 
 type OrbitButtonVariant = "Primary" | "Secondary" | "Tertiary" | "Positive" | "Destructive";
 type OrbitButtonSize = "Small" | "Medium";
@@ -254,7 +255,7 @@ export function CpFileRow({
         trailing={(
           <CpIconButton
             ariaLabel={removeLabel}
-            icon={<span aria-hidden="true">x</span>}
+            icon={<X size={14} aria-hidden="true" />}
             onClick={onRemove}
           />
         )}

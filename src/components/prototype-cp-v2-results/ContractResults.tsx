@@ -3502,7 +3502,6 @@ export function ContractResults({
           open={requestReviewOpen}
           onOpenChange={setRequestReviewOpen}
           requests={reviewGenerateRequestItems}
-          supplierName={supplier.name}
           csvNeedsUpdate={csvNeedsUpdate}
           bulkSummaryMode={firstAnalysisDemo && bulkReviewSummaryMode}
           reviewProgress={
@@ -3517,7 +3516,6 @@ export function ContractResults({
           open={requestReviewOpen}
           onOpenChange={setRequestReviewOpen}
           requests={reviewGenerateRequestItems}
-          supplierName={supplier.name}
           csvNeedsUpdate={csvNeedsUpdate}
           bulkSummaryMode={firstAnalysisDemo && bulkReviewSummaryMode}
           reviewProgress={
@@ -7404,7 +7402,6 @@ function RequestReviewDialog({
   open,
   onOpenChange,
   requests,
-  supplierName,
   bulkSummaryMode = false,
   reviewProgress,
   csvNeedsUpdate = false,
@@ -7413,7 +7410,6 @@ function RequestReviewDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   requests: BasketRequestItem[];
-  supplierName: string;
   bulkSummaryMode?: boolean;
   reviewProgress?: FirstAnalysisReviewProgress;
   csvNeedsUpdate?: boolean;
@@ -7434,26 +7430,35 @@ function RequestReviewDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={reviewGenerateTitle(bulkSummaryMode)}
-      description={reviewGenerateDescription(bulkSummaryMode, supplierName)}
       size="Large"
       footer={
-        <div className="flex flex-col gap-orbit-base sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex w-full flex-col gap-orbit-base sm:flex-row sm:items-center sm:justify-between">
           {" "}
-          <p className="cpv2-type-xs text-muted-foreground">
+          <CpButton
+            type="button"
+            orbitVariant="Secondary"
+            onClick={() => onOpenChange(false)}
+          >
+            Close
+          </CpButton>{" "}
+          <div className="flex flex-col gap-orbit-base sm:flex-row sm:items-center">
             {" "}
-            Confirm to generate the CSV. Nothing is sent to the supplier from
-            this prototype.{" "}
-          </p>{" "}
-          {canGenerate && (
-            <CpButton
-              type="button"
-              className="cpv2-results-primary-button cpv2-results-primary-button--compact"
-              onClick={submitRequests}
-            >
+            <p className="cpv2-type-xs text-muted-foreground">
               {" "}
-              <Download className="h-3.5 w-3.5" /> Submit & Generate{" "}
-            </CpButton>
-          )}{" "}
+              Confirm to generate the CSV. Nothing is sent to the supplier from
+              this prototype.{" "}
+            </p>{" "}
+            {canGenerate && (
+              <CpButton
+                type="button"
+                className="cpv2-results-primary-button cpv2-results-primary-button--compact"
+                onClick={submitRequests}
+              >
+                {" "}
+                <Download className="h-3.5 w-3.5" /> Submit & Generate{" "}
+              </CpButton>
+            )}{" "}
+          </div>{" "}
         </div>
       }
     >
@@ -7470,7 +7475,6 @@ function RequestReviewTray({
   open,
   onOpenChange,
   requests,
-  supplierName,
   bulkSummaryMode = false,
   reviewProgress,
   csvNeedsUpdate = false,
@@ -7479,7 +7483,6 @@ function RequestReviewTray({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   requests: BasketRequestItem[];
-  supplierName: string;
   bulkSummaryMode?: boolean;
   reviewProgress?: FirstAnalysisReviewProgress;
   csvNeedsUpdate?: boolean;
@@ -7508,9 +7511,6 @@ function RequestReviewTray({
         <div>
           {" "}
           <h2>{reviewGenerateTitle(bulkSummaryMode)}</h2>{" "}
-          {reviewGenerateDescription(bulkSummaryMode, supplierName) ? (
-            <p>{reviewGenerateDescription(bulkSummaryMode, supplierName)}</p>
-          ) : null}{" "}
         </div>{" "}
         <CpButton
           type="button"
@@ -7550,14 +7550,6 @@ function reviewGenerateTitle(bulkSummaryMode: boolean) {
   return bulkSummaryMode
     ? "Generate CSV from applied recommendations"
     : "Review and generate selected clauses";
-}
-function reviewGenerateDescription(
-  bulkSummaryMode: boolean,
-  supplierName: string,
-) {
-  return bulkSummaryMode
-    ? undefined
-    : `Check the clauses you have chosen, then submit to generate a CSV negotiation log for ${supplierName}.`;
 }
 function reviewGenerateAlertDescription(csvNeedsUpdate: boolean) {
   return `The CSV will include clause IDs, titles, categories, severity, ClauseIQ findings, requested changes, and rationale so you can take it back to the supplier for negotiation. Are you ready to generate it?${csvNeedsUpdate ? " Changes have been made since the last generated CSV. Generate again to update the negotiation log." : ""}`;

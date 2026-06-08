@@ -84,7 +84,7 @@ const CP_CLAUSEIQ_INITIATIVE: CiqInitiative = {
   scope: "team",
 };
 
-const CPV2_CLAUSE_WIZARD_STEPS: Array<{
+const CPV2_CLAUSE_STEPPER_STEPS: Array<{
   key: CpV2ClauseWizardStep;
   label: string;
 }> = [
@@ -126,14 +126,14 @@ const CPV2_RESULT_ONLY_PARAMS = [
 ];
 
 function readStoredDashboardInModalPreference() {
-  if (typeof window === "undefined") return false;
+  if (typeof window === "undefined") return true;
   try {
-    return (
-      window.localStorage.getItem(CPV2_DASHBOARD_IN_MODAL_STORAGE_KEY) ===
-      "true"
+    const storedPreference = window.localStorage.getItem(
+      CPV2_DASHBOARD_IN_MODAL_STORAGE_KEY,
     );
+    return storedPreference === null ? true : storedPreference === "true";
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -167,8 +167,8 @@ function withoutDashboardModalParams(searchParams: URLSearchParams) {
   return next;
 }
 
-function getCpV2ClauseWizardStepIndex(step: CpV2ClauseWizardStep) {
-  return CPV2_CLAUSE_WIZARD_STEPS.findIndex((item) => item.key === step);
+function getCpV2ClauseStepperIndex(step: CpV2ClauseWizardStep) {
+  return CPV2_CLAUSE_STEPPER_STEPS.findIndex((item) => item.key === step);
 }
 
 function CpSearchField({
@@ -1000,31 +1000,31 @@ function CpV2SupplierOutputsModal({
   onClose: () => void;
   onViewResult: () => void;
 }) {
-  const [showPastAnalyses, setShowPastAnalyses] = useState(false);
+  const [showPastAnalyses, setShowPastAnalyses] = useState(true);
   const outputInitiative = showPastAnalyses
     ? mockInitiative
     : workflow.resultsInitiative;
 
   return (
     <CpModal
-      ariaLabel="Supplier Analysis Output"
+      ariaLabel="History"
       className="cpv2-supplier-output-modal"
       height="Content"
       onClose={onClose}
       visible
     >
-      <div>
+      <div className="cpv2-supplier-output-modal-shell">
         <header className="cpv2-supplier-output-modal-header">
           <div>
             <div className="cpv2-supplier-output-modal-title">
-              Supplier Analysis Output
+              History
             </div>
           </div>
           <CpButton
             className="cpv2-close"
             type="button"
             onClick={onClose}
-            aria-label="Close supplier analysis output"
+            aria-label="Close history"
           >
             <CpIcon icon={CP_FA.xmark} size={18} />
           </CpButton>
@@ -1035,18 +1035,17 @@ function CpV2SupplierOutputsModal({
         >
           <CpSupplierOutputsPanel
             key={showPastAnalyses ? "past-analyses" : "current-analysis"}
+            expandAllSuppliers
             initiative={outputInitiative}
             initialOutputScope={showPastAnalyses ? "team" : "mine"}
             outputState="filled"
             onDownload={workflow.actions.handleDownload}
             onViewResult={onViewResult}
+            showAnalysisMetadata
             className="cpv2-supplier-output-panel-modal"
           />
         </div>
         <footer className="cpv2-supplier-output-modal-footer">
-          <CpButton className="cpv2-footer-btn" type="button" onClick={onClose}>
-            Close
-          </CpButton>
           <div className="cpv2-supplier-output-demo-toggle cpv2-supplier-output-demo-toggle-footer">
             <span>
               <strong>Show Past Analyses</strong>
@@ -1056,6 +1055,11 @@ function CpV2SupplierOutputsModal({
               label="Show past analyses"
               onChange={(checked) => setShowPastAnalyses(checked)}
             />
+          </div>
+          <div className="cpv2-supplier-output-modal-actions">
+            <CpButton className="cpv2-footer-btn" type="button" onClick={onClose}>
+              Close
+            </CpButton>
           </div>
         </footer>
       </div>
@@ -1211,19 +1215,20 @@ function CpClauseIqModal({
 }
 
 function CpClauseIqModalStepper({ step }: { step: CpV2ClauseWizardStep }) {
-  const activeIndex = getCpV2ClauseWizardStepIndex(step);
+  const activeIndex = getCpV2ClauseStepperIndex(step);
 
   return (
     <nav
       className="cpv2-clause-modal-stepper"
       aria-label="ClauseIQ workflow steps"
     >
-      {CPV2_CLAUSE_WIZARD_STEPS.map((item, index) => {
+      {CPV2_CLAUSE_STEPPER_STEPS.map((item, index) => {
         const complete = index < activeIndex;
         const active = index === activeIndex;
         return (
           <div
             key={item.key}
+            aria-current={active ? "step" : undefined}
             className={cn(
               "cpv2-clause-modal-step",
               active && "is-active",

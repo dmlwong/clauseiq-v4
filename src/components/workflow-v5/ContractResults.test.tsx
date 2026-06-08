@@ -64,19 +64,34 @@ afterEach(() => {
 });
 
 describe("ContractResults V5 review controls", () => {
+  it("shows full deviation labels in the bulk recommendation menu without a trigger count", () => {
+    renderContractResults();
+
+    expect(screen.getByText("Bulk Apply Recommendation")).toBeInTheDocument();
+    expect(screen.queryByText(/Bulk Apply Recommendation \(\d+\)/i)).not.toBeInTheDocument();
+
+    openRecommendationMenu();
+
+    expect(screen.getByRole("menuitemcheckbox", { name: /High Deviation/i })).toBeInTheDocument();
+    expect(screen.getByRole("menuitemcheckbox", { name: /Medium Deviation/i })).toBeInTheDocument();
+    expect(screen.getByRole("menuitemcheckbox", { name: /Low Deviation/i })).toBeInTheDocument();
+    expect(screen.getByRole("menuitemcheckbox", { name: /Missing Clauses/i })).toBeInTheDocument();
+    expect(screen.getByRole("menuitemcheckbox", { name: /None Deviation/i })).toBeInTheDocument();
+  });
+
   it("applies scoped recommendations and undoes only that applied scope", async () => {
     renderContractResults();
 
     applyRecommendationOptions(/High/i);
 
-    expect(await screen.findByRole("button", { name: /undo high recommendations/i })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /undo high deviation recommendations/i })).toBeInTheDocument();
     expect(localStorage.getItem("ciq-v5-clause-decisions")).toContain("request-update");
     expect(localStorage.getItem("ciq-v4-clause-decisions")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: /undo high recommendations/i }));
+    fireEvent.click(screen.getByRole("button", { name: /undo high deviation recommendations/i }));
 
     await waitFor(() => {
-      expect(screen.queryByRole("button", { name: /undo high recommendations/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /undo high deviation recommendations/i })).not.toBeInTheDocument();
     });
     expect(screen.getByRole("button", { name: /bulk apply recommendation/i })).toBeInTheDocument();
   });

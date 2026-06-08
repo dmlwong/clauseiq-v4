@@ -2,10 +2,8 @@ import { useState, type ReactNode } from "react";
 import { ArrowRight, Columns3, List } from "lucide-react";
 import {
   Badge,
-  Button,
   Card,
   Chip,
-  Filter as OrbitFilter,
   Headings,
   RadialIndicator,
   TabButton,
@@ -118,12 +116,6 @@ export function ComparisonDesignOptions({
   categoryRail,
   categoryPanel,
   categoryStrip,
-  activeCategoryLabel,
-  activeCategoryLabels,
-  onClearCategory,
-  onClearCategoryFilter,
-  activeMetricLabel,
-  onClearMetric,
   activeEvidenceMetric,
   onEvidenceMetricSelect,
   evidenceMetrics,
@@ -153,18 +145,6 @@ export function ComparisonDesignOptions({
   onEvidenceMetricSelect?: (metric: EvidenceMetricKey) => void;
   evidenceMetrics?: EvidenceMetricCounts;
 }) {
-  const categoryLabels = activeCategoryLabels ?? (activeCategoryLabel ? [activeCategoryLabel] : []);
-  const hasActiveFilters = Boolean(activeMetricLabel || categoryLabels.length > 0);
-  const activeFilterChips = hasActiveFilters ? (
-    <ActiveFilterBar
-      activeMetricLabel={activeMetricLabel}
-      onClearMetric={onClearMetric}
-      activeCategoryLabels={categoryLabels}
-      onClearCategory={onClearCategory}
-      onClearCategoryFilter={onClearCategoryFilter}
-    />
-  ) : null;
-
   if (option === "side-by-side" || option === "row-scale") {
     return (
       <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-base py-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
@@ -182,7 +162,7 @@ export function ComparisonDesignOptions({
               onMetricSelect={onEvidenceMetricSelect}
               metrics={evidenceMetrics}
             />
-            <CategoryFiltersSection activeFilterChips={activeFilterChips}>{categoryPanel}</CategoryFiltersSection>
+            <CategoryFiltersSection>{categoryPanel}</CategoryFiltersSection>
           </section>
         </aside>
         <div id="comparison-work-column" className="min-w-0 space-y-orbit-base">
@@ -206,7 +186,6 @@ export function ComparisonDesignOptions({
           onMetricSelect={onEvidenceMetricSelect}
           metrics={evidenceMetrics}
           grouped
-          activeFilterChips={activeFilterChips}
         />
         <VersionMovementCard
           panel={panel}
@@ -218,7 +197,7 @@ export function ComparisonDesignOptions({
 
       <div className="min-[900px]:flex min-[900px]:items-start min-[900px]:gap-orbit-base">
         <div className="hidden w-60 shrink-0 min-[900px]:block">
-          <SidebarFiltersPanel activeFilterChips={activeFilterChips}>{categoryRail}</SidebarFiltersPanel>
+          <SidebarFiltersPanel>{categoryRail}</SidebarFiltersPanel>
         </div>
         <div id="comparison-work-column" className="flex min-w-0 flex-1 flex-col gap-orbit-base">
           <div className="min-[900px]:hidden">{categoryStrip}</div>
@@ -242,13 +221,6 @@ export function FirstAnalysisDesignOptions({
   categoryRail,
   categoryPanel,
   categoryStrip,
-  activeCategoryLabel,
-  activeCategoryLabels,
-  onClearCategory,
-  onClearCategoryFilter,
-  activeMetricLabels,
-  onClearMetric,
-  onClearAllMetrics,
   activeMetrics,
   onMetricSelect,
 }: {
@@ -269,23 +241,6 @@ export function FirstAnalysisDesignOptions({
   activeMetrics?: FirstAnalysisMetricKey[];
   onMetricSelect?: (metric: FirstAnalysisMetricKey) => void;
 }) {
-  const categoryLabels = activeCategoryLabels ?? (activeCategoryLabel ? [activeCategoryLabel] : []);
-  const hasActiveFilters = Boolean(categoryLabels.length > 0 || (activeMetricLabels?.length ?? 0) > 0);
-  const clearAllActiveFilters = () => {
-    onClearAllMetrics();
-    if (categoryLabels.length > 0) onClearCategory();
-  };
-  const activeFilterChips = hasActiveFilters ? (
-    <ActiveFilterBar
-      metricFilters={activeMetricLabels ?? []}
-      onClearMetricFilter={onClearMetric}
-      onClearAllMetrics={clearAllActiveFilters}
-      activeCategoryLabels={categoryLabels}
-      onClearCategory={onClearCategory}
-      onClearCategoryFilter={onClearCategoryFilter}
-    />
-  ) : null;
-
   if (option === "side-by-side" || option === "row-scale") {
     return (
       <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-base py-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
@@ -298,7 +253,7 @@ export function FirstAnalysisDesignOptions({
               onMetricSelect={onMetricSelect}
               compact
             />
-            <CategoryFiltersSection activeFilterChips={activeFilterChips}>{categoryPanel}</CategoryFiltersSection>
+            <CategoryFiltersSection>{categoryPanel}</CategoryFiltersSection>
           </section>
         </aside>
         <div id="comparison-work-column" className="min-w-0 space-y-orbit-base">
@@ -315,7 +270,6 @@ export function FirstAnalysisDesignOptions({
           metrics={metrics}
           activeMetrics={activeMetrics}
           onMetricSelect={onMetricSelect}
-          activeFilterChips={activeFilterChips}
         />
         <CurrentRiskProfileCard metrics={metrics} />
       </section>
@@ -324,7 +278,7 @@ export function FirstAnalysisDesignOptions({
         <div className="hidden w-60 shrink-0 min-[900px]:block">
           <div className="space-y-orbit-base">
             <FirstAnalysisReviewCountPanel visibleCount={visibleCount} />
-            <SidebarFiltersPanel activeFilterChips={activeFilterChips}>{categoryRail}</SidebarFiltersPanel>
+            <SidebarFiltersPanel>{categoryRail}</SidebarFiltersPanel>
           </div>
         </div>
         <div id="comparison-work-column" className="flex min-w-0 flex-1 flex-col gap-orbit-base">
@@ -336,98 +290,21 @@ export function FirstAnalysisDesignOptions({
   );
 }
 
-function ActiveFilterBar({
-  activeMetricLabel,
-  onClearMetric,
-  metricFilters = [],
-  onClearMetricFilter,
-  onClearAllMetrics,
-  activeCategoryLabel,
-  activeCategoryLabels,
-  onClearCategory,
-  onClearCategoryFilter,
-}: {
-  activeMetricLabel?: string | null;
-  onClearMetric?: () => void;
-  metricFilters?: Array<{ key: FirstAnalysisMetricKey; label: string }>;
-  onClearMetricFilter?: (metric: FirstAnalysisMetricKey) => void;
-  onClearAllMetrics?: () => void;
-  activeCategoryLabel?: string | null;
-  activeCategoryLabels?: string[];
-  onClearCategory: () => void;
-  onClearCategoryFilter?: (category: string) => void;
-}) {
-  const categoryLabels = activeCategoryLabels ?? (activeCategoryLabel ? [activeCategoryLabel] : []);
-  const filterCount = (activeMetricLabel ? 1 : 0) + metricFilters.length + categoryLabels.length;
-  if (filterCount === 0) return null;
-  return (
-    <div className="flex flex-wrap items-center gap-orbit-xs">
-      {activeMetricLabel && onClearMetric && (
-        <FilterChip label={`Filter: ${activeMetricLabel}`} onClear={onClearMetric} />
-      )}
-      {metricFilters.map((filter) => (
-        <FilterChip
-          key={filter.key}
-          label={`Filter: ${filter.label}`}
-          onClear={() => onClearMetricFilter?.(filter.key)}
-        />
-      ))}
-      {categoryLabels.map((label) => (
-        <FilterChip
-          key={label}
-          label={`Category: ${label}`}
-          onClear={() => (onClearCategoryFilter ? onClearCategoryFilter(label) : onClearCategory())}
-        />
-      ))}
-      {filterCount > 1 && onClearAllMetrics && (
-        <Button type="button" variant="Tertiary" size="Medium" onClick={onClearAllMetrics}>
-          Clear All
-        </Button>
-      )}
-    </div>
-  );
-}
-
-function SidebarFiltersPanel({
-  children,
-  activeFilterChips,
-}: {
-  children: ReactNode;
-  activeFilterChips?: ReactNode;
-}) {
+function SidebarFiltersPanel({ children }: { children: ReactNode }) {
   return (
     <div className="space-y-orbit-base">
       {children}
-      <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>
     </div>
   );
 }
 
-function CategoryFiltersSection({
-  children,
-  activeFilterChips,
-}: {
-  children: ReactNode;
-  activeFilterChips?: ReactNode;
-}) {
+function CategoryFiltersSection({ children }: { children: ReactNode }) {
   return (
     <div className="mt-orbit-base border-t border-border pt-orbit-base">
       <div className="mb-orbit-s">
         <Text as="p" size="Small" variant="Secondary">CATEGORIES</Text>
       </div>
-      <SidebarFiltersPanel activeFilterChips={activeFilterChips}>{children}</SidebarFiltersPanel>
-    </div>
-  );
-}
-
-function ActiveFiltersSection({ children }: { children?: ReactNode }) {
-  if (!children) return null;
-  return (
-    <div className="border-t border-border pt-orbit-base">
-      <div className="mb-orbit-s">
-        <Text as="p" size="Small" variant="Secondary">ACTIVE FILTERS</Text>
-      </div>
-      {children}
+      <SidebarFiltersPanel>{children}</SidebarFiltersPanel>
     </div>
   );
 }
@@ -436,12 +313,10 @@ function InitialAnalysisSummaryCard({
   metrics,
   activeMetrics,
   onMetricSelect,
-  activeFilterChips,
 }: {
   metrics: FirstAnalysisMetrics;
   activeMetrics?: FirstAnalysisMetricKey[];
   onMetricSelect?: (metric: FirstAnalysisMetricKey) => void;
-  activeFilterChips?: ReactNode;
 }) {
   const analysisLabel = `${metrics.versionLabel.toUpperCase()} Analysis`;
 
@@ -462,7 +337,6 @@ function InitialAnalysisSummaryCard({
         onMetricSelect={onMetricSelect}
         grouped
       />
-      <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>
     </Card>
   );
 }
@@ -494,13 +368,11 @@ function FirstAnalysisSummaryPanel({
   metrics,
   activeMetrics,
   onMetricSelect,
-  activeFilterChips,
   compact = false,
 }: {
   metrics: FirstAnalysisMetrics;
   activeMetrics?: FirstAnalysisMetricKey[];
   onMetricSelect?: (metric: FirstAnalysisMetricKey) => void;
-  activeFilterChips?: ReactNode;
   compact?: boolean;
 }) {
   return (
@@ -526,7 +398,6 @@ function FirstAnalysisSummaryPanel({
         onMetricSelect={onMetricSelect}
         density="rail"
       />
-      <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>
     </section>
   );
 }
@@ -550,10 +421,6 @@ function FirstAnalysisReviewShell({
   return (
     <div>{children}</div>
   );
-}
-
-function FilterChip({ label, onClear }: { label: string; onClear: () => void }) {
-  return <OrbitFilter label={label} onRemove={onClear} />;
 }
 
 function WorkflowStack({
@@ -588,7 +455,6 @@ export function ComparisonSummaryRail({
   activeMetric,
   onMetricSelect,
   metrics,
-  activeFilterChips,
 }: {
   panel: VersionPanelData;
   stripStats: ComparisonStripStats;
@@ -600,7 +466,6 @@ export function ComparisonSummaryRail({
   activeMetric?: EvidenceMetricKey | null;
   onMetricSelect?: (metric: EvidenceMetricKey) => void;
   metrics?: EvidenceMetricCounts;
-  activeFilterChips?: ReactNode;
 }) {
   const { contract, comparison, actions } = stripStats;
   const metricCounts = metrics ?? {
@@ -631,7 +496,6 @@ export function ComparisonSummaryRail({
         onMetricSelect={onMetricSelect}
         density="rail"
       />
-      <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>
       <div className="mt-orbit-base">
         {comparisonControl && <div className="mb-orbit-base">{comparisonControl}</div>}
         <VersionDistributionPair panel={panel} leftLabel={leftLabel} rightLabel={rightLabel} layout="rail" />
@@ -883,7 +747,6 @@ function NarrativeSummary({
   activeMetric,
   onMetricSelect,
   metrics,
-  activeFilterChips,
   grouped = false,
 }: {
   stripStats: ComparisonStripStats;
@@ -891,7 +754,6 @@ function NarrativeSummary({
   activeMetric?: EvidenceMetricKey | null;
   onMetricSelect?: (metric: EvidenceMetricKey) => void;
   metrics?: EvidenceMetricCounts;
-  activeFilterChips?: ReactNode;
   grouped?: boolean;
 }) {
   const { contract, comparison, actions } = stripStats;
@@ -923,7 +785,6 @@ function NarrativeSummary({
         density="inline"
         grouped={grouped}
       />
-      <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>
       </Card>
     </div>
   );
@@ -1164,7 +1025,7 @@ function MetricCell({
           active && "shadow-[inset_3px_0_0_var(--orbit-color-efficio-blue)]",
         )}
       >
-        <Card type="Static" padding="Small" state={active ? "Accent" : isHovered ? "Highlight" : "Default"}>
+        <Card type="Static" padding="Small" state={active ? "Accent" : isHovered ? "Highlight" : "Default"} indicator={false}>
           {content}
         </Card>
       </button>

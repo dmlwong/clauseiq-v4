@@ -1,8 +1,22 @@
 .card {
+  position: relative;
+  overflow: hidden;
   background-color: var(--_bg);
   border: 1px solid var(--_border-color);
   border-radius: var(--orbit-radius-md);
   transition: none;
+}
+
+.indicator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--orbit-card-indicator-width, 4px);
+  background-color: var(--_indicator);
+  border-top-left-radius: var(--orbit-radius-md);
+  border-bottom-left-radius: var(--orbit-radius-md);
+  pointer-events: none;
 }
 
 .dynamic {
@@ -23,8 +37,6 @@
 }
 
 .disabled {
-  border: none;
-  opacity: 0.6;
   box-shadow: var(--orbit-shadow-none);
   cursor: default;
 }

@@ -2467,7 +2467,6 @@
 
 .cpv2-dashboard-mode-toggle {
   min-height: 28px;
-  border: 1px solid #d8dee6;
   border-radius: var(--orbit-radius-sm);
   background: #ffffff;
   color: #242832;
@@ -2534,17 +2533,19 @@
 body
   > [class*="_backdrop_"]
   > [class*="_modal_"]:has(> .cpv2-supplier-output-modal) {
-  width: min(640px, calc(100vw - var(--orbit-space-6) - var(--orbit-space-6)));
-  max-width: min(
+  --cpv2-supplier-output-modal-width: min(
     640px,
     calc(100vw - var(--orbit-space-6) - var(--orbit-space-6))
   );
-  height: min(560px, calc(100vh - var(--orbit-space-6) - var(--orbit-space-6)));
-  max-height: min(
-    560px,
+  --cpv2-supplier-output-modal-height: min(
+    720px,
     calc(100vh - var(--orbit-space-6) - var(--orbit-space-6))
   );
-  border-radius: 6px;
+  width: var(--cpv2-supplier-output-modal-width);
+  max-width: var(--cpv2-supplier-output-modal-width);
+  height: var(--cpv2-supplier-output-modal-height);
+  max-height: var(--cpv2-supplier-output-modal-height);
+  border-radius: var(--orbit-radius-md);
 }
 
 .cpv2-supplier-output-modal-backdrop {
@@ -2558,6 +2559,14 @@ body
   background: transparent;
   border-radius: inherit;
   box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cpv2-supplier-output-modal-shell {
+  min-height: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2580,9 +2589,10 @@ body
 }
 
 .cpv2-supplier-output-modal-body {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: var(--orbit-space-4);
   background: #ffffff;
 }
@@ -2660,19 +2670,6 @@ body
   overflow: visible;
 }
 
-.cpv2-supplier-output-modal
-  .cpv2-supplier-output-panel-modal
-  #supplier-outputs-panel
-  > section
-  > [class*="_card_"] {
-  border: 0;
-  border-top: 1px solid #d8dee6;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  padding: var(--orbit-space-s) 0 0;
-}
-
 .cpv2-supplier-output-modal-footer {
   min-height: 58px;
   flex: 0 0 auto;
@@ -2683,6 +2680,14 @@ body
   justify-content: space-between;
   gap: var(--orbit-space-4);
   padding: var(--orbit-space-2) var(--orbit-space-4);
+}
+
+.cpv2-supplier-output-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--orbit-space-2);
+  margin-left: auto;
 }
 
 .cpv2-clause-modal-backdrop {
@@ -2742,14 +2747,14 @@ body > [class*="_backdrop_"] > [class*="_modal_"]:has(> .cpv2-clause-modal) {
 }
 
 .cpv2-clause-modal-stepper {
-  height: 74px;
-  flex: 0 0 74px;
+  height: 95px;
+  flex: 0 0 95px;
   display: grid;
   grid-template-columns: repeat(3, minmax(130px, 1fr));
   align-items: start;
   width: min(560px, calc(100% - var(--orbit-space-6) - var(--orbit-space-6)));
   margin: 0 auto;
-  padding: var(--orbit-space-4) 0 0;
+  padding: var(--orbit-space-6) 0 0;
 }
 
 .cpv2-clause-modal-step {
@@ -2761,6 +2766,7 @@ body > [class*="_backdrop_"] > [class*="_modal_"]:has(> .cpv2-clause-modal) {
   color: var(--orbit-color-text-secondary);
   font-size: var(--orbit-text-xs);
   font-weight: var(--orbit-font-weight-semibold);
+  line-height: var(--orbit-leading-snug);
   text-align: center;
 }
 
@@ -2768,9 +2774,9 @@ body > [class*="_backdrop_"] > [class*="_modal_"]:has(> .cpv2-clause-modal) {
   content: "";
   position: absolute;
   height: 1px;
-  top: 12px;
-  left: calc(50% + 26px);
-  right: calc(-50% + 26px);
+  top: calc(var(--orbit-space-xl) / 2);
+  left: calc(50% + var(--orbit-space-8));
+  right: calc(-50% + var(--orbit-space-8));
   background: var(--orbit-color-border-default);
 }
 
@@ -2783,39 +2789,30 @@ body > [class*="_backdrop_"] > [class*="_modal_"]:has(> .cpv2-clause-modal) {
   z-index: 1;
 }
 
-.cpv2-clause-modal-step [data-cp-orbit-adapter="step-circle"] > span {
-  border: var(--orbit-space-xxs, 2px) solid
-    var(--orbit-color-border-default, #d8dee6);
-}
-
-.cpv2-clause-modal-step.is-active [data-cp-orbit-adapter="step-circle"] > span {
-  background: var(--orbit-color-btn-primary-bg);
-  border-color: var(--orbit-color-btn-primary-bg);
-}
-
-.cpv2-clause-modal-step.is-complete
+.cpv2-clause-modal-step:not(.is-complete)
   [data-cp-orbit-adapter="step-circle"]
   > span {
-  border-color: var(--orbit-color-status-high-bg-success, #00a962);
+  border: var(--orbit-space-xxs, 2px) solid var(--orbit-color-border-default);
+  background: var(--orbit-color-bg-default);
+}
+
+.cpv2-clause-modal-step.is-active
+  [data-cp-orbit-adapter="step-circle"]
+  > span {
+  border-color: var(--orbit-color-btn-primary-bg);
+  background: var(--orbit-color-btn-primary-bg);
+}
+
+.cpv2-clause-modal-step:not(.is-active):not(.is-complete)
+  [data-cp-orbit-adapter="step-circle"]
+  > span {
+  border-color: var(--orbit-color-silver);
 }
 
 .cpv2-clause-modal-step.is-active
   [data-cp-orbit-adapter="step-circle"]
   [class*="_digit_"] {
   color: var(--orbit-color-btn-primary-fg);
-}
-
-.cpv2-clause-modal-step:not(.is-active):not(.is-complete)
-  [data-cp-orbit-adapter="step-circle"]
-  > span {
-  background: var(--orbit-color-bg-default);
-  border-color: var(--orbit-color-border-strong, #8594a9);
-}
-
-.cpv2-clause-modal-step:not(.is-active):not(.is-complete)
-  [data-cp-orbit-adapter="step-circle"]
-  [class*="_digit_"] {
-  color: var(--orbit-color-text-secondary);
 }
 
 .cpv2-clause-modal-body {

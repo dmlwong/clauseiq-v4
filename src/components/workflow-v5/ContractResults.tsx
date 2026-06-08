@@ -1931,7 +1931,7 @@ export function ContractResults({
   ) : null;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       {compactHeader ? (
         <div className="sticky top-0 z-30 border-b border-[rgba(0,0,0,0.08)] bg-white">
           <CompactContractTopbar
@@ -1955,7 +1955,6 @@ export function ContractResults({
             applyAllRecommendationsReviewed={firstAnalysisDemo && firstAnalysisRecommendationsReviewed}
             applyAllRecommendationsUndoable={firstAnalysisDemo && canUndoFirstAnalysisRecommendations}
             recommendationApplyOptions={firstAnalysisRecommendationApplyOptions}
-            recommendationCount={firstAnalysisRecommendationTargets.length}
             undoRecommendationCount={firstAnalysisUndoRecommendationCount}
             undoRecommendationScopeLabel={bulkAppliedRecommendationScopeLabel}
             onReviewGenerate={() => setRequestReviewOpen(true)}
@@ -1995,7 +1994,6 @@ export function ContractResults({
                       <RecommendationBulkApplyMenu
                         className={cn(isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger")}
                         options={firstAnalysisAvailableRecommendationApplyOptions}
-                        recommendationCount={firstAnalysisRecommendationTargets.length}
                         onApply={applyRecommendationOptions}
                       />
                     ) : (
@@ -2581,7 +2579,7 @@ function FirstAnalysisDemoToggle({
 
 function FirstAnalysisContextBanner() {
   return (
-    <section className="bg-background">
+    <section>
       <div className="mx-auto w-full max-w-[1500px] px-orbit-base pt-orbit-base pb-orbit-none">
         <div className="rounded-lg border border-border bg-card px-orbit-base py-orbit-base shadow-sm">
           <div className="min-w-0">
@@ -2613,7 +2611,6 @@ function ModeSwitcher({
   applyAllRecommendationsReviewed = false,
   applyAllRecommendationsUndoable = false,
   recommendationApplyOptions = [],
-  recommendationCount = 0,
   undoRecommendationCount = 0,
   undoRecommendationScopeLabel,
   onReviewGenerate,
@@ -2632,7 +2629,6 @@ function ModeSwitcher({
   applyAllRecommendationsReviewed?: boolean;
   applyAllRecommendationsUndoable?: boolean;
   recommendationApplyOptions?: RecommendationApplyOption[];
-  recommendationCount?: number;
   undoRecommendationCount?: number;
   undoRecommendationScopeLabel?: string | null;
   onReviewGenerate: () => void;
@@ -2648,7 +2644,7 @@ function ModeSwitcher({
     ? `${undoRecommendationScopeLabel ? `Undo ${undoRecommendationScopeLabel} recommendations` : "Undo recommendations"}${undoRecommendationCount > 0 ? ` (${undoRecommendationCount})` : ""}`
     : applyAllRecommendationsQueued
     ? "Recommendations added to review"
-    : `Bulk Apply Recommendation${recommendationCount > 0 ? ` (${recommendationCount})` : ""}`;
+    : "Bulk Apply Recommendation";
   const availableRecommendationApplyOptions = recommendationApplyOptions.filter((option) => option.count > 0);
   const canChooseRecommendationScope =
     Boolean(onApplyRecommendationOptions) &&
@@ -2698,7 +2694,6 @@ function ModeSwitcher({
               <RecommendationBulkApplyMenu
                 className={cn(isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger")}
                 options={availableRecommendationApplyOptions}
-                recommendationCount={recommendationCount}
                 onApply={(options) => onApplyRecommendationOptions?.(options)}
               />
             ) : (
@@ -2737,12 +2732,10 @@ function ModeSwitcher({
 
 function RecommendationBulkApplyMenu({
   options,
-  recommendationCount,
   onApply,
   className,
 }: {
   options: RecommendationApplyOption[];
-  recommendationCount: number;
   onApply: (options: RecommendationApplyOption[]) => void;
   className?: string;
 }) {
@@ -2757,7 +2750,7 @@ function RecommendationBulkApplyMenu({
     () => mergeRecommendationApplyTargets(selectedOptions).length,
     [selectedOptions],
   );
-  const buttonLabel = `Bulk Apply Recommendation${recommendationCount > 0 ? ` (${recommendationCount})` : ""}`;
+  const buttonLabel = "Bulk Apply Recommendation";
 
   useEffect(() => {
     setSelectedIds((current) => {
@@ -4202,7 +4195,7 @@ const categorySidebarRowClassName = (active: boolean, disabled = false) => cn(
   "flex w-full items-center rounded-md border px-orbit-s py-orbit-xs transition-colors",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]",
   active
-    ? "border-[var(--orbit-color-card-border-selected)] bg-[var(--orbit-color-card-bg-selected)]"
+    ? "border-[var(--orbit-color-card-border-highlight)] bg-[var(--orbit-color-card-bg-highlight)]"
     : "border-transparent hover:border-[var(--orbit-color-card-border-hover)] hover:bg-[var(--orbit-color-btn-secondary-bg-hover)]",
   disabled && "opacity-60",
 );
@@ -4271,7 +4264,7 @@ function CategorySidebar({
           <Text as="span" size="Small" variant={activeCategories.length === 0 ? "Bold" : "Secondary"}>
             All
           </Text>
-          <Chip label={String(total)} size="Mini" variant="No Status" selected={activeCategories.length === 0} />
+          <Chip label={String(total)} size="Mini" variant={activeCategories.length === 0 ? "Additional" : "No Status"} />
         </button>
 
         {sortedCategories.map((category, index) => {
@@ -4296,7 +4289,7 @@ function CategorySidebar({
                   {category.name}
                 </Text>
               </span>
-              <Chip label={String(category.count)} size="Mini" variant="No Status" selected={active} />
+              <Chip label={String(category.count)} size="Mini" variant={active ? "Additional" : "No Status"} />
             </button>
           );
         })}
@@ -4821,8 +4814,7 @@ function ClauseRowScaleCard({
 }) {
   const tier = clause.severity;
   const theme = rowScaleSeverityThemes[tier];
-  const cardBackground = missingClause ? rowScaleMissingClauseBackground : theme.background;
-  const accentColor = missingClause ? "#A32D2D" : theme.accent;
+  const cardState = missingClause ? "Error" : theme.cardState;
   const severityLabel = hideSubclauseReference ? `${titleCaseSeverity(tier)} Deviation` : titleCaseSeverity(tier);
   const showSeverityBadge = !isPureMissingClause(clause);
   const metadata = hideSubclauseReference ? clause.category : `${clause.subclause} · ${clause.category}`;
@@ -4896,63 +4888,60 @@ function ClauseRowScaleCard({
   return (
     <div
       id={`clause-row-${id}`}
-      className={cn(
-        "relative min-h-[104px] overflow-hidden rounded-lg border border-border bg-card px-orbit-base py-orbit-base pl-orbit-m transition-colors",
-        highlighted && "ring-2 ring-primary/40",
-      )}
-      style={{ backgroundColor: cardBackground }}
+      className={cn("rounded-lg transition-colors", highlighted && "ring-2 ring-primary/40")}
     >
-      <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: accentColor }} />
-      <div className="flex flex-col gap-orbit-s">
-        <div className="flex flex-wrap items-center justify-between gap-orbit-s">
-          <div className="flex flex-wrap items-center gap-orbit-s">
-            {missingClause && (
-              <Badge variant="outline" className={firstAnalysisDeviationBadgeClass}>
-                Missing Clause
-              </Badge>
-            )}
-            {showSeverityBadge && (
-              <Badge variant="outline" className={theme.badgeClass}>
-                {severityLabel}
-              </Badge>
-            )}
-            {isDrafting && (
-              <Badge variant="outline" className="rounded-full border-[#185FA5]/25 bg-[#E6F1FB] px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#0C447C]">
-                Drafting request
-              </Badge>
-            )}
+      <Card type="Static" padding="Base" state={cardState} style={{ minHeight: 104 }}>
+        <div className="flex flex-col gap-orbit-s">
+          <div className="flex flex-wrap items-center justify-between gap-orbit-s">
+            <div className="flex flex-wrap items-center gap-orbit-s">
+              {missingClause && (
+                <Badge variant="outline" className={firstAnalysisDeviationBadgeClass}>
+                  Missing Clause
+                </Badge>
+              )}
+              {showSeverityBadge && (
+                <Badge variant="outline" className={theme.badgeClass}>
+                  {severityLabel}
+                </Badge>
+              )}
+              {isDrafting && (
+                <Badge variant="outline" className="rounded-full border-[#185FA5]/25 bg-[#E6F1FB] px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#0C447C]">
+                  Drafting request
+                </Badge>
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {id.toUpperCase()} · {metadata}
+            </p>
           </div>
-          <p className="text-[11px] text-muted-foreground">
-            {id.toUpperCase()} · {metadata}
-          </p>
+          <h3 className="v5-orbit-heading-label text-foreground">{clause.title}</h3>
         </div>
-        <h3 className="v5-orbit-heading-label text-foreground">{clause.title}</h3>
-      </div>
-      {description && <FindingCallout text={description} />}
-      {actionability && <RecommendedActionCallout text={actionability} compactTop={Boolean(description)} />}
-      {requestForm ?? (
-        <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-s" onClick={(event) => event.stopPropagation()}>
-          <Button
-            variant="outline"
-            disabled={!actionabilityText || !onUseRecommendation}
-            onClick={(event) => runAction(event, onUseRecommendation)}
-          >
-            <Sparkles className="h-3 w-3" /> Use Recommendation
-          </Button>
-          <Button
-            variant="outline"
-            onClick={(event) => runAction(event, onRequest)}
-          >
-            <Pencil className="h-3 w-3" /> Edit Request
-          </Button>
-          <Button
-            variant="outline"
-            onClick={(event) => runAction(event, onNoAction)}
-          >
-            <CheckCircle2 className="h-3 w-3" /> No Action
-          </Button>
-        </div>
-      )}
+        {description && <FindingCallout text={description} />}
+        {actionability && <RecommendedActionCallout text={actionability} compactTop={Boolean(description)} />}
+        {requestForm ?? (
+          <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-s" onClick={(event) => event.stopPropagation()}>
+            <Button
+              variant="outline"
+              disabled={!actionabilityText || !onUseRecommendation}
+              onClick={(event) => runAction(event, onUseRecommendation)}
+            >
+              <Sparkles className="h-3 w-3" /> Use Recommendation
+            </Button>
+            <Button
+              variant="outline"
+              onClick={(event) => runAction(event, onRequest)}
+            >
+              <Pencil className="h-3 w-3" /> Edit Request
+            </Button>
+            <Button
+              variant="outline"
+              onClick={(event) => runAction(event, onNoAction)}
+            >
+              <CheckCircle2 className="h-3 w-3" /> No Action
+            </Button>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
@@ -4960,29 +4949,23 @@ function ClauseRowScaleCard({
 const rowScaleSeverityThemes: Record<
   ClauseResult["severity"],
   {
-    accent: string;
-    background: string;
+    cardState: "Error" | "Warning" | "Success";
     badgeClass: string;
   }
 > = {
   high: {
-    accent: "#A32D2D",
-    background: "#FFF6F4",
+    cardState: "Error",
     badgeClass: firstAnalysisDeviationBadgeClass,
   },
   medium: {
-    accent: "#BA7517",
-    background: "#FFF9EC",
+    cardState: "Warning",
     badgeClass: "shrink-0 rounded-full border-[#F1D29B] bg-[#FFF8E8] px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#854F0B]",
   },
   low: {
-    accent: "#3B6D11",
-    background: "#F4FAEE",
+    cardState: "Success",
     badgeClass: "shrink-0 rounded-full border-[#BFD6AB] bg-[#EAF3DE] px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#27500A]",
   },
 };
-
-const rowScaleMissingClauseBackground = "#FFF6F4";
 
 function FindingCallout({ text }: { text: string }) {
   return (
@@ -5108,7 +5091,7 @@ interface RecommendationTargetItem {
   request: ClauseRequest;
 }
 
-type RecommendationApplyScope = "all" | "high" | "medium" | "low" | "missing";
+type RecommendationApplyScope = "all" | "high" | "medium" | "low" | "none" | "missing";
 
 interface RecommendationApplyScopeMeta {
   toastLabel: string;
@@ -5138,35 +5121,43 @@ function buildRecommendationApplyOptions(targets: RecommendationTargetItem[]): R
     },
     {
       id: "high",
-      label: "High",
-      toastLabel: "High recommendation",
-      undoLabel: "High",
+      label: "High Deviation",
+      toastLabel: "High Deviation recommendation",
+      undoLabel: "High Deviation",
       count: byScope("high").length,
       targets: byScope("high"),
     },
     {
       id: "medium",
-      label: "Medium",
-      toastLabel: "Medium recommendation",
-      undoLabel: "Medium",
+      label: "Medium Deviation",
+      toastLabel: "Medium Deviation recommendation",
+      undoLabel: "Medium Deviation",
       count: byScope("medium").length,
       targets: byScope("medium"),
     },
     {
       id: "low",
-      label: "Low",
-      toastLabel: "Low recommendation",
-      undoLabel: "Low",
+      label: "Low Deviation",
+      toastLabel: "Low Deviation recommendation",
+      undoLabel: "Low Deviation",
       count: byScope("low").length,
       targets: byScope("low"),
     },
     {
       id: "missing",
-      label: "Missing clauses",
+      label: "Missing Clauses",
       toastLabel: "Missing clause recommendation",
       undoLabel: "Missing clause",
       count: byScope("missing").length,
       targets: byScope("missing"),
+    },
+    {
+      id: "none",
+      label: "None Deviation",
+      toastLabel: "None Deviation recommendation",
+      undoLabel: "None Deviation",
+      count: byScope("none").length,
+      targets: byScope("none"),
     },
   ];
 }
@@ -5199,6 +5190,7 @@ function buildRecommendationApplyScopeMeta(options: RecommendationApplyOption[])
 function targetMatchesRecommendationScope(target: RecommendationTargetItem, scope: RecommendationApplyScope) {
   if (scope === "all") return true;
   if (scope === "missing") return Boolean(target.missingClause && target.sourceDeviationLevel === "None");
+  if (scope === "none") return target.sourceDeviationLevel === "None";
 
   const sourceDeviationLevel = target.sourceDeviationLevel?.toLowerCase();
   return sourceDeviationLevel === scope || (!sourceDeviationLevel && target.severity === scope);

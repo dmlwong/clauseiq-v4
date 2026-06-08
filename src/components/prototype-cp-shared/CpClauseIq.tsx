@@ -424,19 +424,23 @@ export function CpAnalysisCard({
 
 export function CpSupplierOutputsPanel({
   initiative,
+  expandAllSuppliers = false,
   initialOutputScope = "mine",
   onRunAgain,
   onDownload,
   onViewResult,
   outputState = "filled",
+  showAnalysisMetadata = false,
   className,
 }: {
   initiative: Initiative;
+  expandAllSuppliers?: boolean;
   initialOutputScope?: "team" | "mine";
   onRunAgain?: () => void;
   onDownload?: () => void;
   onViewResult?: () => void;
   outputState?: CpSupplierOutputsPanelState;
+  showAnalysisMetadata?: boolean;
   className?: string;
 }) {
   const [outputScope, setOutputScope] = useState<"team" | "mine">(initialOutputScope);
@@ -475,8 +479,14 @@ export function CpSupplierOutputsPanel({
         };
 
   useEffect(() => {
-    setOpenSupplierIds(suppliers[0] ? [suppliers[0].id] : []);
-  }, [suppliers]);
+    setOpenSupplierIds(
+      expandAllSuppliers
+        ? suppliers.map((supplier) => supplier.id)
+        : suppliers[0]
+          ? [suppliers[0].id]
+          : [],
+    );
+  }, [expandAllSuppliers, suppliers]);
 
   useEffect(() => {
     setOutputScope(initialOutputScope);
@@ -553,6 +563,7 @@ export function CpSupplierOutputsPanel({
               onRunAgain={onRunAgain}
               onDownload={onDownload}
               onViewResult={onViewResult}
+              showAnalysisMetadata={showAnalysisMetadata}
             />
           ))
         )}
@@ -1422,6 +1433,7 @@ function CpSupplierOutputGroup({
   onRunAgain,
   onDownload,
   onViewResult,
+  showAnalysisMetadata,
 }: {
   supplier: Supplier;
   latestAnalysisId?: string;
@@ -1430,6 +1442,7 @@ function CpSupplierOutputGroup({
   onRunAgain?: () => void;
   onDownload?: () => void;
   onViewResult?: () => void;
+  showAnalysisMetadata?: boolean;
 }) {
   const analyses = newestFirst(supplier.analyses);
   const contentId = `supplier-output-${supplier.id}`;
@@ -1474,6 +1487,7 @@ function CpSupplierOutputGroup({
                   onRunAgain={onRunAgain}
                   onDownload={onDownload}
                   onViewResult={onViewResult}
+                  showAnalysisMetadata={showAnalysisMetadata}
                 />
               ))}
             </div>
@@ -1490,19 +1504,36 @@ function CpCompactOutputRow({
   onRunAgain,
   onDownload,
   onViewResult,
+  showAnalysisMetadata = false,
 }: {
   analysis: ClauseAnalysis;
   isLatestOutput: boolean;
   onRunAgain?: () => void;
   onDownload?: () => void;
   onViewResult?: () => void;
+  showAnalysisMetadata?: boolean;
 }) {
+  const status = statusCopy[analysis.status];
+  const actionCount = [onViewResult, onRunAgain, onDownload].filter(Boolean).length;
+  const actionGridClass =
+    actionCount >= 3 ? "grid-cols-3" : actionCount === 2 ? "grid-cols-2" : "grid-cols-1";
+
   return (
     <article className="pt-orbit-s">
       <div className="flex items-start justify-between gap-orbit-s">
         <div className="min-w-0">
           <p className="truncate text-xs v5-orbit-weight-medium text-foreground">{analysis.fileName}</p>
-          {isLatestOutput && <p className="mt-orbit-xxs text-[11px] v5-orbit-weight-medium text-muted-foreground">Latest output</p>}
+          {showAnalysisMetadata && (
+            <p className="mt-orbit-xxs text-[11px] leading-snug text-muted-foreground">
+              {analysis.contractName} {"\u00b7"} {analysis.clausesReviewed} clauses reviewed {"\u00b7"}{" "}
+              {status.label}
+            </p>
+          )}
+          {isLatestOutput && (
+            <p className="mt-orbit-xxs text-[11px] v5-orbit-weight-medium text-muted-foreground">
+              Latest output
+            </p>
+          )}
         </div>
         <time
           dateTime={analysis.analysedAt}
@@ -1516,17 +1547,25 @@ function CpCompactOutputRow({
         <DeviationPills deviations={analysis.deviations} compact />
       </div>
 
-      <div className="clauseiq-responsive-compact-output-actions mt-orbit-base grid grid-cols-3 gap-orbit-xs">
-        <CpCompactActionButton label="View Results" onClick={onViewResult}>
-          <CpSharedIcon icon={CP_SHARED_FA.chart} size={13} />
-        </CpCompactActionButton>
-        <CpCompactActionButton label="Re-Run" onClick={onRunAgain}>
-          <CpSharedIcon icon={CP_SHARED_FA.rotate} size={13} />
-        </CpCompactActionButton>
-        <CpCompactActionButton label="Download" onClick={onDownload}>
-          <CpSharedIcon icon={CP_SHARED_FA.download} size={13} />
-        </CpCompactActionButton>
-      </div>
+      {actionCount > 0 && (
+        <div className={cn("clauseiq-responsive-compact-output-actions mt-orbit-base grid gap-orbit-xs", actionGridClass)}>
+          {onViewResult && (
+            <CpCompactActionButton label="View Results" onClick={onViewResult}>
+              <CpSharedIcon icon={CP_SHARED_FA.chart} size={13} />
+            </CpCompactActionButton>
+          )}
+          {onRunAgain && (
+            <CpCompactActionButton label="Re-Run" onClick={onRunAgain}>
+              <CpSharedIcon icon={CP_SHARED_FA.rotate} size={13} />
+            </CpCompactActionButton>
+          )}
+          {onDownload && (
+            <CpCompactActionButton label="Download" onClick={onDownload}>
+              <CpSharedIcon icon={CP_SHARED_FA.download} size={13} />
+            </CpCompactActionButton>
+          )}
+        </div>
+      )}
     </article>
   );
 }

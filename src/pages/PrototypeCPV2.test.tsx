@@ -109,10 +109,10 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
     fireEvent.click(screen.getByRole("button", { name: /ClauseIQ - Analyse your contracts/i }));
 
     expect(screen.getByRole("button", { name: "History" })).toBeDisabled();
-    expect(screen.queryByRole("dialog", { name: "Supplier Analysis Output" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "History" })).not.toBeInTheDocument();
   });
 
-  it("runs the isolated live wizard with Configure & Upload as step 2 and moves the workspace card to completed", () => {
+  it("runs the isolated live wizard with the design-system three-step header and moves the workspace card to completed", () => {
     vi.useFakeTimers();
     renderPrototypeCPV2("/prototype-cp-v2?view=workspace");
 
@@ -122,11 +122,11 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
     expect(within(dialog).getByText("Prior to Use")).toBeInTheDocument();
     expect(within(dialog).getByText("Configure & Upload")).toBeInTheDocument();
     expect(within(dialog).getByText("Generate Results")).toBeInTheDocument();
-    expect(within(dialog).queryByText("Settings")).not.toBeInTheDocument();
-    expect(within(dialog).queryByText("Document Type")).not.toBeInTheDocument();
     expect(within(dialog).queryByText("Upload Files")).not.toBeInTheDocument();
-    expect(within(dialog).queryByText("Overview")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Settings")).not.toBeInTheDocument();
     expect(within(dialog).queryByText("Client Playbook")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Document Type")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Overview")).not.toBeInTheDocument();
     expect(within(dialog).queryByText("Analysing")).not.toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "Back" })).not.toBeInTheDocument();
 
@@ -216,20 +216,37 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "History" }));
 
-    const supplierDialog = screen.getByRole("dialog", { name: "Supplier Analysis Output" });
+    const supplierDialog = screen.getByRole("dialog", { name: "History" });
     expect(within(supplierDialog).getByRole("heading", { name: "Supplier Outputs" })).toBeInTheDocument();
-    expect(within(supplierDialog).getByText(/1 supplier.*1 output/)).toBeInTheDocument();
+    expect(within(supplierDialog).queryByRole("button", { name: "Re-Run" })).not.toBeInTheDocument();
+    expect(within(supplierDialog).getByText(/6 suppliers.*9 outputs/)).toBeInTheDocument();
+    expect(within(supplierDialog).getByText("Kira Systems")).toBeInTheDocument();
+    expect(within(supplierDialog).getByText("API_Kira_v3.pdf")).toBeInTheDocument();
+    expect(within(supplierDialog).getByText("SOW_Kira_Q1.pdf")).toBeInTheDocument();
+    expect(within(supplierDialog).getByText("Deloitte Legal")).toBeInTheDocument();
+    expect(within(supplierDialog).getByText("Advisory_Deloitte_v4.pdf")).toBeInTheDocument();
+    expect(within(supplierDialog).getByText(/Advisory services agreement.*29 clauses reviewed.*Completed/)).toBeInTheDocument();
 
     fireEvent.click(within(supplierDialog).getByRole("switch", { name: "Show past analyses" }));
-    expect(within(supplierDialog).getByText(/6 suppliers.*9 outputs/)).toBeInTheDocument();
+    expect(within(supplierDialog).getByText(/1 supplier.*1 output/)).toBeInTheDocument();
+    expect(within(supplierDialog).getByText("MSA_ThomsonReuters_v2.pdf")).toBeInTheDocument();
+    expect(within(supplierDialog).getByText(/Master services agreement.*47 clauses reviewed.*Completed/)).toBeInTheDocument();
 
     fireEvent.click(within(supplierDialog).getByRole("button", { name: "Close" }));
-    expect(screen.queryByRole("dialog", { name: "Supplier Analysis Output" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "History" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Run Analysis Again" }));
     dialog = screen.getByRole("dialog", { name: "ClauseIQ Contract" });
     expect(within(dialog).getByText("Prior to Use")).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    const dashboardToggle = screen.getByRole("switch", { name: "Dashboard in modal" });
+    expect(dashboardToggle).toBeChecked();
+
+    fireEvent.click(dashboardToggle);
+
+    expect(dashboardToggle).not.toBeChecked();
+    expect(localStorage.getItem("prototype-cp-v2-dashboard-in-modal")).toBe("false");
 
     fireEvent.click(screen.getByRole("button", { name: "View Result" }));
 
@@ -237,7 +254,7 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
     expect(screen.getByTestId("location")).toHaveTextContent("source=prototype-cp-v2");
   });
 
-  it("opens the v2 results dashboard in a workspace modal when the toggle is enabled", async () => {
+  it("opens the v2 results dashboard in a workspace modal by default", async () => {
     vi.useFakeTimers();
     renderPrototypeCPV2("/prototype-cp-v2?view=workspace");
 
@@ -245,12 +262,8 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
     vi.useRealTimers();
 
     const dashboardToggle = screen.getByRole("switch", { name: "Dashboard in modal" });
-    expect(dashboardToggle).not.toBeChecked();
-
-    fireEvent.click(dashboardToggle);
-
     expect(dashboardToggle).toBeChecked();
-    expect(localStorage.getItem("prototype-cp-v2-dashboard-in-modal")).toBe("true");
+    expect(localStorage.getItem("prototype-cp-v2-dashboard-in-modal")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "View Result" }));
 
@@ -300,6 +313,8 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
     dialog = screen.getByRole("dialog", { name: "ClauseIQ Contract" });
     expect(within(dialog).getByText("Configure & Upload")).toBeInTheDocument();
     expect(within(dialog).queryByText("Upload Files")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Settings")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Client Playbook")).not.toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "Skip" })).not.toBeInTheDocument();
     expect(within(dialog).getByText("Contract Analysis Parameters")).toBeInTheDocument();
     expect(within(dialog).queryByText("Upload Contract")).not.toBeInTheDocument();
@@ -319,7 +334,6 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
 
     dialog = screen.getByRole("dialog", { name: "ClauseIQ Contract" });
     expect(within(dialog).getByText("Your Contract insights are on the way!")).toBeInTheDocument();
-    expect(within(dialog).queryByText("Settings")).not.toBeInTheDocument();
     expect(within(dialog).queryByText(/What type of analysis do you want on your contract/i)).not.toBeInTheDocument();
   });
 

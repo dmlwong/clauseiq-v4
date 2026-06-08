@@ -115,6 +115,7 @@ const IndexV5 = () => {
     <V5Shell
       title="ClauseIQ"
       subtitle="AI tool for detailed contract analyses"
+      mainClassName="clauseiq-v5-canvas-grid"
       headerRight={
         "initiativeId" in view ? (
           <V5InitiativeLinkButton

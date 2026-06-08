@@ -10,36 +10,39 @@ var __assign = (this && this.__assign) || function () {
     };
     return __assign.apply(this, arguments);
 };
-import { jsx as _jsx } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import clsx from 'clsx';
 import styles from './Card.module.css';
+var STATE_TOKEN = {
+    Default: 'default',
+    Hover: 'default',
+    Accent: 'accent',
+    Highlight: 'highlight',
+    Feature: 'feature',
+    Information: 'information',
+    Success: 'success',
+    Warning: 'warning',
+    Error: 'error',
+    Disabled: 'disabled',
+};
+var RAIL_STATES = new Set([
+    'Highlight',
+    'Feature',
+    'Information',
+    'Success',
+    'Warning',
+    'Error',
+]);
 export var Card = function (_a) {
-    var _b = _a.state, state = _b === void 0 ? 'Default' : _b, _c = _a.type, type = _c === void 0 ? 'Dynamic' : _c, _d = _a.padding, padding = _d === void 0 ? 'Base' : _d, children = _a.children, externalStyle = _a.style;
+    var _b = _a.state, state = _b === void 0 ? 'Default' : _b, _c = _a.type, type = _c === void 0 ? 'Dynamic' : _c, _d = _a.padding, padding = _d === void 0 ? 'Base' : _d, indicator = _a.indicator, children = _a.children, externalStyle = _a.style;
     var isDisabled = state === 'Disabled';
     var isDynamic = type === 'Dynamic';
-    var getBorderColor = function () {
-        switch (state) {
-            case 'Highlight': return 'var(--orbit-color-card-border-highlight)';
-            case 'Accent': return 'var(--orbit-color-card-border-accent)';
-            case 'Disabled': return 'transparent';
-            case 'Success': return 'var(--orbit-color-card-border-selected)';
-            case 'Warning': return 'var(--orbit-color-card-border-style1)';
-            default: return 'var(--orbit-color-card-border-default)';
-        }
-    };
-    var getBgColor = function () {
-        switch (state) {
-            case 'Accent': return 'var(--orbit-color-card-bg-accent)';
-            case 'Disabled': return 'var(--orbit-color-card-bg-disabled)';
-            case 'Success': return 'var(--orbit-color-card-bg-selected)';
-            case 'Warning': return 'var(--orbit-color-card-bg-style1)';
-            default: return 'var(--orbit-color-card-bg-default)';
-        }
-    };
+    var token = STATE_TOKEN[state];
+    var showRail = (indicator !== null && indicator !== void 0 ? indicator : RAIL_STATES.has(state)) && !isDisabled;
     var paddingClass = {
         Base: styles.paddingBase,
         Medium: styles.paddingMedium,
         Small: styles.paddingSmall,
     }[padding];
-    return (_jsx("div", { className: clsx(styles.card, isDynamic ? styles.dynamic : styles.static, state === 'Hover' && styles.previewHover, isDisabled && styles.disabled, paddingClass), style: __assign({ '--_bg': getBgColor(), '--_border-color': getBorderColor() }, externalStyle), "aria-disabled": isDisabled || undefined, children: children }));
+    return (_jsxs("div", { className: clsx(styles.card, isDynamic ? styles.dynamic : styles.static, state === 'Hover' && styles.previewHover, isDisabled && styles.disabled, paddingClass), style: __assign({ '--_bg': "var(--orbit-color-card-bg-".concat(token, ")"), '--_border-color': "var(--orbit-color-card-border-".concat(token, ")") }, externalStyle), "aria-disabled": isDisabled || undefined, children: [showRail && (_jsx("span", { "aria-hidden": "true", className: styles.indicator, style: { '--_indicator': "var(--orbit-color-card-indicator-".concat(token, ")") } })), children] }));
 };

@@ -1,8 +1,10 @@
 import React from 'react';
+export type CardState = 'Default' | 'Hover' | 'Accent' | 'Highlight' | 'Feature' | 'Information' | 'Success' | 'Warning' | 'Error' | 'Disabled';
 export interface CardProps {
-    state?: 'Default' | 'Hover' | 'Highlight' | 'Accent' | 'Disabled' | 'Success' | 'Warning';
+    state?: CardState;
     type?: 'Static' | 'Dynamic';
     padding?: 'Base' | 'Medium' | 'Small';
+    indicator?: boolean;
     children: React.ReactNode;
     style?: React.CSSProperties;
 }

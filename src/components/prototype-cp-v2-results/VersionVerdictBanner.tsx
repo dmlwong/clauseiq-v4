@@ -1,14 +1,17 @@
 import { useMemo } from "react";
-import { CheckCircle2, AlertTriangle, AlertCircle, RotateCcw } from "lucide-react";
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  RotateCcw,
+} from "./CpResultIcons";
 import { Badge } from "@/components/prototype-cp-v2-results/orbit-ui/badge";
 import { CpButton } from "@/components/prototype-cp-shared/orbit";
 import { cn } from "@/lib/utils";
 import type { ClauseResult, ContractVersion } from "@/lib/workflow-types";
 import { determineChangePill } from "@/lib/change-tracking";
 import type { ClauseDecisionState } from "@/hooks/use-clause-decisions";
-
 type Decision = "accepted" | "changes-requested" | null;
-
 interface Props {
   leftVersion: ContractVersion;
   rightVersion: ContractVersion;
@@ -19,20 +22,11 @@ interface Props {
   onJumpToOpen: () => void;
   onJumpToChanges: () => void;
 }
-
 interface Bucket {
   id: string;
   prev?: ClauseResult;
   curr?: ClauseResult;
-}
-
-/**
- * Verdict banner shown at the top of the Contract Results view when comparing
- * two versions. Surfaces the three questions a user needs to answer in seconds:
- *   1. Did the supplier meet the requests?  (met / not met)
- *   2. Did anything change without a request? (supplier change count)
- *   3. Can I accept this version?           (Accept / Request changes CTA)
- */
+} /** * Verdict banner shown at the top of the Contract Results view when comparing * two versions. Surfaces the three questions a user needs to answer in seconds: * 1. Did the supplier meet the requests? (met / not met) * 2. Did anything change without a request? (supplier change count) * 3. Can I accept this version? (Accept / Request changes CTA) */
 export function VersionVerdictBanner({
   leftVersion,
   rightVersion,
@@ -47,14 +41,12 @@ export function VersionVerdictBanner({
     const met: Bucket[] = [];
     const notMet: Bucket[] = [];
     const supplierChanges: Bucket[] = [];
-    const leftIdx = versions.findIndex((v) => v.version === leftVersion.version);
-
+    const leftIdx = versions.findIndex(
+      (v) => v.version === leftVersion.version,
+    );
     for (const id of Object.keys(allDecisions)) {
-      // walk every clause that has any decision history; we determine if it was
-      // requested in or before the left ("previous") version.
+      void id;
     }
-
-    // Iterate clauses present on the right version (the "new" upload)
     for (const curr of rightVersion.clauses) {
       const prev = leftVersion.clauses.find((c) => c.id === curr.id);
       const s = allDecisions[curr.id];
@@ -70,10 +62,13 @@ export function VersionVerdictBanner({
         previousClause: prev,
         wasRequestedInPreviousRound: wasRequested,
       });
-
       if (pill.status === "met") met.push({ id: curr.id, prev, curr });
       if (pill.status === "not_met") notMet.push({ id: curr.id, prev, curr });
-      if (pill.status === "improved" || pill.status === "regressed" || pill.status === "new") {
+      if (
+        pill.status === "improved" ||
+        pill.status === "regressed" ||
+        pill.status === "new"
+      ) {
         supplierChanges.push({ id: curr.id, prev, curr });
       }
     }
@@ -84,8 +79,6 @@ export function VersionVerdictBanner({
       requestedTotal: met.length + notMet.length,
     };
   }, [leftVersion, rightVersion, versions, allDecisions]);
-
-  // Verdict tone — green if everything met & no supplier changes, amber if partial, red if nothing met or many supplier changes.
   const allMet = requestedTotal > 0 && notMet.length === 0;
   const noneMet = requestedTotal > 0 && met.length === 0;
   const tone =
@@ -94,25 +87,28 @@ export function VersionVerdictBanner({
       : noneMet || supplierChanges.length >= 3
         ? "destructive"
         : "warning";
-
   const headline =
     requestedTotal === 0
       ? `${rightVersion.version.toUpperCase()} uploaded — no prior requests to compare against`
       : allMet && supplierChanges.length === 0
         ? `All ${requestedTotal} requested changes met`
         : `${met.length} of ${requestedTotal} requested changes met`;
-
   const subline = (() => {
     const parts: string[] = [];
     if (notMet.length > 0) parts.push(`${notMet.length} still open`);
     if (supplierChanges.length > 0)
-      parts.push(`${supplierChanges.length} supplier change${supplierChanges.length === 1 ? "" : "s"}`);
+      parts.push(
+        `${supplierChanges.length} supplier change${supplierChanges.length === 1 ? "" : "s"}`,
+      );
     if (parts.length === 0) return "Safe to accept this version.";
     return parts.join(" · ");
   })();
-
-  const Icon = tone === "success" ? CheckCircle2 : tone === "warning" ? AlertCircle : AlertTriangle;
-
+  const Icon =
+    tone === "success"
+      ? CheckCircle2
+      : tone === "warning"
+        ? AlertCircle
+        : AlertTriangle;
   return (
     <div
       className={cn(
@@ -122,8 +118,11 @@ export function VersionVerdictBanner({
         tone === "destructive" && "border-destructive/30",
       )}
     >
+      {" "}
       <div className="flex items-start justify-between gap-orbit-m flex-wrap">
+        {" "}
         <div className="flex items-start gap-orbit-base min-w-0 flex-1">
+          {" "}
           <div
             className={cn(
               "h-10 w-10 rounded-full grid place-items-center shrink-0",
@@ -132,56 +131,87 @@ export function VersionVerdictBanner({
               tone === "destructive" && "bg-destructive/10 text-destructive",
             )}
           >
-            <Icon className="h-5 w-5" />
-          </div>
+            {" "}
+            <Icon className="h-5 w-5" />{" "}
+          </div>{" "}
           <div className="min-w-0">
+            {" "}
             <div className="flex items-center gap-orbit-s flex-wrap">
-              <h2 className="v5-orbit-heading-4">{headline}</h2>
-              <Badge variant="outline" className="tabular-nums text-[11px]">
-                {leftVersion.version} → {rightVersion.version}
-              </Badge>
+              {" "}
+              <h2 className="cpv2-orbit-heading-4">{headline}</h2>{" "}
+              <Badge variant="outline" className="tabular-nums cpv2-type-xs">
+                {" "}
+                {leftVersion.version} → {rightVersion.version}{" "}
+              </Badge>{" "}
               {decision === "accepted" && (
-                <Badge className="bg-success/10 text-success border-success/30">Accepted</Badge>
-              )}
+                <Badge className="bg-success/10 text-success border-success/30">
+                  Accepted
+                </Badge>
+              )}{" "}
               {decision === "changes-requested" && (
-                <Badge className="bg-warning/15 text-warning border-warning/30">Changes requested</Badge>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground mt-orbit-xs">{subline}</p>
-
-            {/* Three quick stats — clickable to jump */}
+                <Badge className="bg-warning/15 text-warning border-warning/30">
+                  Changes requested
+                </Badge>
+              )}{" "}
+            </div>{" "}
+            <p className="cpv2-type-sm text-muted-foreground mt-orbit-xs">
+              {subline}
+            </p>{" "}
+            {/* Three quick stats — clickable to jump */}{" "}
             <div className="flex flex-wrap gap-orbit-s mt-orbit-base">
-              <Stat label="Met" value={met.length} tone="success" />
-              <Stat label="Not met" value={notMet.length} tone="warning" onClick={notMet.length ? onJumpToOpen : undefined} />
-              <Stat label="Changes" value={supplierChanges.length} tone="destructive" onClick={supplierChanges.length ? onJumpToChanges : undefined} />
-            </div>
-          </div>
-        </div>
-
+              {" "}
+              <Stat label="Met" value={met.length} tone="success" />{" "}
+              <Stat
+                label="Not met"
+                value={notMet.length}
+                tone="warning"
+                onClick={notMet.length ? onJumpToOpen : undefined}
+              />{" "}
+              <Stat
+                label="Changes"
+                value={supplierChanges.length}
+                tone="destructive"
+                onClick={supplierChanges.length ? onJumpToChanges : undefined}
+              />{" "}
+            </div>{" "}
+          </div>{" "}
+        </div>{" "}
         <div className="flex items-center gap-orbit-s shrink-0">
+          {" "}
           {decision ? (
-            <CpButton orbitVariant="Secondary" className="gap-orbit-xs" onClick={() => onDecision(null)}>
-              <RotateCcw className="h-3.5 w-3.5" /> Undo
+            <CpButton
+              orbitVariant="Secondary"
+              className="gap-orbit-xs"
+              onClick={() => onDecision(null)}
+            >
+              {" "}
+              <RotateCcw className="h-3.5 w-3.5" /> Undo{" "}
             </CpButton>
           ) : (
             <>
+              {" "}
               <CpButton
                 orbitVariant="Secondary"
                 onClick={() => onDecision("changes-requested")}
               >
-                Request changes
-              </CpButton>
-              <CpButton orbitVariant="Primary" onClick={() => onDecision("accepted")}>
-                <CheckCircle2 className="h-4 w-4 mr-orbit-xs" /> Accept version
-              </CpButton>
+                {" "}
+                Request changes{" "}
+              </CpButton>{" "}
+              <CpButton
+                orbitVariant="Primary"
+                onClick={() => onDecision("accepted")}
+              >
+                {" "}
+                <CheckCircle2 className="h-4 w-4 mr-orbit-xs" /> Accept
+                version{" "}
+              </CpButton>{" "}
             </>
-          )}
-        </div>
-      </div>
+          )}{" "}
+        </div>{" "}
+      </div>{" "}
     </div>
   );
 }
-
 function Stat({
   label,
   value,
@@ -200,28 +230,26 @@ function Stat({
         ? "bg-warning/15 text-warning border-warning/30"
         : "bg-destructive/10 text-destructive border-destructive/30";
   const className = cn(
-    "inline-flex items-center gap-orbit-s px-orbit-base py-orbit-xs rounded-md border text-sm",
+    "inline-flex items-center gap-orbit-s px-orbit-base py-orbit-xs rounded-md border cpv2-type-sm",
     toneCls,
     onClick && "hover:opacity-80 cursor-pointer",
   );
   const content = (
     <>
-      <span className="v5-orbit-weight-semibold tabular-nums">{value}</span>
-      <span className="text-xs opacity-90">{label}</span>
+      {" "}
+      <span className="cpv2-orbit-weight-semibold tabular-nums">
+        {value}
+      </span>{" "}
+      <span className="cpv2-type-xs opacity-90">{label}</span>{" "}
     </>
   );
-
   if (onClick) {
     return (
       <CpButton type="button" onClick={onClick} className={className}>
-        {content}
+        {" "}
+        {content}{" "}
       </CpButton>
     );
   }
-
-  return (
-    <div className={className}>
-      {content}
-    </div>
-  );
+  return <div className={className}> {content} </div>;
 }

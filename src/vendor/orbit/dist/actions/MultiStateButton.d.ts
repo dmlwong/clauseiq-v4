@@ -17,5 +17,6 @@ export interface MultiStateGroupProps {
     value?: string;
     defaultValue?: string;
     onValueChange?: (value: string) => void;
+    fullWidth?: boolean;
 }
 export declare const MultiStateGroup: React.FC<MultiStateGroupProps>;

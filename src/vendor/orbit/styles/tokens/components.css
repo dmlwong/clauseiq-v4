@@ -323,9 +323,24 @@
   --orbit-overlay-height-default: 85vh;
 
   /* --- MultiStateButton --- */
-  --orbit-multistate-height: var(--orbit-space-l);
-  --orbit-multistate-icon-size: var(--orbit-space-m);
+  --orbit-multistate-group-height: var(--orbit-space-l);
+  --orbit-multistate-group-bg: #e2e8f0;
+  --orbit-multistate-group-padding: var(--orbit-space-xs);
+  --orbit-multistate-group-gap: var(--orbit-space-xs);
   --orbit-multistate-group-radius: var(--orbit-radius-md);
+  --orbit-multistate-height: var(--orbit-space-m);
+  --orbit-multistate-button-padding: var(--orbit-space-s) var(--orbit-space-base);
+  --orbit-multistate-button-gap: var(--orbit-space-s);
+  --orbit-multistate-button-radius: var(--orbit-radius-sm);
+  --orbit-multistate-button-bg: transparent;
+  --orbit-multistate-button-bg-hover: transparent;
+  --orbit-multistate-button-selected-bg: var(--orbit-color-white);
+  --orbit-multistate-button-selected-shadow: none;
+  --orbit-multistate-label-size: var(--orbit-text-sm);
+  --orbit-multistate-label-weight: var(--orbit-font-weight-regular);
+  --orbit-multistate-label-line-height: 17.5px;
+  --orbit-multistate-label-color: var(--orbit-color-text-primary);
+  --orbit-multistate-icon-size: var(--orbit-space-base);
 
   /* --- Required --- */
   --orbit-required-width: 7px;

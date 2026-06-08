@@ -6,13 +6,9 @@ import {
   type RefObject,
 } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import {
-  Sparkles, Search, Check, FileText, Loader2,
-} from "lucide-react";
-import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
+import { Sparkles } from "lucide-react";
 import { V5Shell } from "@/components/clauseiq-v5/V5Shell";
 import { V5InitiativeLinkButton } from "@/components/clauseiq-v5/V5InitiativeLinkButton";
-import { StateCard, type CardState } from "@/components/clauseiq-v5/StateCard";
 import { InitiativeModal } from "@/components/clauseiq-v5/InitiativeModal";
 import {
   CIQ_INITIATIVES,
@@ -20,35 +16,18 @@ import {
 } from "@/lib/clauseiq-v4-data";
 import { cn } from "@/lib/utils";
 import { V4_DELIVERY_INITIATIVE_ID } from "@/data/mock-delivery-engine-v4";
-import {
-  AnalysisCard,
-  ResultsContent,
-  SupplierOutputsPanel,
-} from "@/components/clauseiq-v5/supplier-results";
+import { SupplierOutputsPanel } from "@/components/clauseiq-v5/supplier-results";
 import type { ResultsLayout } from "@/components/clauseiq-v5/supplier-results/types";
 import {
-  AnalysisParameterCards,
-  ClauseIqDropzone,
-  ClauseIqOverviewCard,
+  ClauseIqJourneyContent,
+  type ClauseIqJourneyRefs,
+} from "@/components/clauseiq-v5/ClauseIqJourney";
+import {
   LATEST_V5_RESULTS_ROUTE,
-  NewAnalysisDivider,
-  PlaybookDisclaimer,
-  PostAnalysisNextActions,
-  SelectedSummaryRow,
   createDefaultParameterSelection,
-  hasCompleteAnalysisParameters,
   useClauseIqWorkflow,
   type ClauseIqWorkflowStep,
 } from "@/components/clauseiq-v5/ClauseIqWorkflow";
-
-const V5_WORKFLOW_STEPS: ClauseIqWorkflowStep[] = [
-  "welcome",
-  "select",
-  "parameters",
-  "upload",
-  "processing",
-  "results",
-];
 
 interface ClauseIQV5Props {
   forceResults?: boolean;
@@ -112,19 +91,17 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
   });
 
   const { step } = workflow;
-  const stepIndex = V5_WORKFLOW_STEPS.indexOf(step);
-  const selectVisible = stepIndex >= 1;
-  const selectState: CardState = step === "select" ? "active" : "default";
-  const parametersVisible = stepIndex >= 2;
-  const parametersState: CardState = step === "parameters" ? "active" : "default";
-  const uploadVisible = stepIndex >= 3;
-  const uploadState: CardState = step === "upload" ? "active" : "default";
-  const processingState: CardState = step === "processing" ? "active" : "default";
   const resultsVisible = workflow.resultsVisible;
   const outputPanelResultsVisible = resultsVisible && resultsLayout === "output-panel";
-  const initiative = workflow.initiative;
-  const selectedParameter = workflow.selectedParameter;
-  const newAnalysisSectionVisible = workflow.newAnalysisSectionVisible;
+  const journeyRefs: ClauseIqJourneyRefs = {
+    latestOutput: latestOutputRef,
+    parameters: parametersRef,
+    processing: processingRef,
+    rerunUpload: rerunUploadRef,
+    result: resultRef,
+    select: selectRef,
+    upload: uploadRef,
+  };
 
   useEffect(() => {
     if (!forceResults && searchParams.get("view") === "results" && !rerunUploadFromRoute) {
@@ -214,193 +191,19 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
           "max-w-[640px]",
         )}
       >
-            {/* Welcome */}
-            <ClauseIqOverviewCard step={step} onStart={() => workflow.actions.setStep("select")} />
-
-            {/* Select Initiative OR Initiative Selected */}
-            {selectVisible && (
-              <div ref={selectRef}>
-                {!initiative ? (
-                  <StateCard state={selectState}>
-                    <h2 className="v5-orbit-heading-5 mb-orbit-xs">Select Initiative</h2>
-                    <p className="text-sm text-muted-foreground mb-orbit-base">
-                      Choose the initiative to analyse the contract against.
-                    </p>
-                    <Button
-                      className="w-full"
-                      onClick={() => setModalOpen(true)}
-                    >
-                      <Search className="h-4 w-4 mr-orbit-s" />
-                      Search Initiatives
-                    </Button>
-                  </StateCard>
-                ) : (
-                  <StateCard
-                    state="default"
-                    className={resultsVisible ? "mx-auto w-full max-w-[640px]" : undefined}
-                  >
-                    <h2 className="v5-orbit-heading-5 mb-orbit-base">Initiative Selected</h2>
-                    <SelectedSummaryRow
-                      label={initiative.name}
-                      disabled={workflow.initiativeLocked}
-                      actionLabel="Edit"
-                      onAction={() => setModalOpen(true)}
-                    />
-                  </StateCard>
-                )}
-              </div>
-            )}
-
-            {/* Contract Analysis Parameters */}
-            {parametersVisible && !resultsVisible && (
-              <div ref={parametersRef} className="space-y-orbit-base">
-                <AnalysisParameterCards
-                  selectedParameter={selectedParameter}
-                  cardState={parametersState}
-                  locked={workflow.parameterLocked}
-                  onBasisSelect={workflow.actions.handleBasisSelect}
-                  onCategorySelect={workflow.actions.handleCategorySelect}
-                  onBasisEdit={workflow.actions.handleBasisEdit}
-                  onCategoryEdit={workflow.actions.handleCategoryEdit}
-                />
-              </div>
-            )}
-
-            {/* Upload Contract */}
-            {uploadVisible && hasCompleteAnalysisParameters(selectedParameter) && step !== "processing" && step !== "results" && (
-              <div ref={uploadRef}>
-                <StateCard state={uploadState}>
-                  <h2 className="v5-orbit-heading-5 mb-orbit-base">Upload Contract</h2>
-                  <PlaybookDisclaimer variant="callout" parameter={selectedParameter} />
-                  <ClauseIqDropzone onFile={workflow.actions.validateAndSetFile} />
-                </StateCard>
-              </div>
-            )}
-
-            {/* Analysing */}
-            {workflow.processingVisible && step === "processing" && (
-              <div ref={processingRef}>
-                <StateCard state={processingState}>
-                  <h2 className="v5-orbit-heading-5 mb-orbit-base">Analysing Your Contract</h2>
-                  <div className="flex items-center justify-between border border-border rounded-lg px-orbit-base py-orbit-s mb-orbit-base">
-                    <div className="flex items-center gap-orbit-s min-w-0">
-                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <span className="text-sm truncate">{workflow.file?.name ?? "Contract.pdf"}</span>
-                    </div>
-                    <span className="text-xs v5-orbit-weight-medium text-success inline-flex items-center gap-orbit-xs">
-                      <Check className="h-3.5 w-3.5" /> Uploaded
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-orbit-base py-orbit-s">
-                    <Loader2 className="h-5 w-5 animate-spin text-ciq" />
-                    <span className="text-sm v5-orbit-weight-medium">Finding clauses in your contract...</span>
-                  </div>
-                  <PlaybookDisclaimer variant="inline" parameter={selectedParameter} />
-                  <p className="text-xs text-muted-foreground mt-orbit-s">
-                    This may take a moment. We will notify you when the analysis is completed.
-                  </p>
-                </StateCard>
-              </div>
-            )}
-
-            {/* Results */}
-            {resultsVisible && (
-              <div ref={resultRef} className="space-y-orbit-base">
-                <div ref={workflow.completedRerunAnalysis ? undefined : latestOutputRef}>
-                  <ResultsContent
-                    initiative={workflow.resultsInitiative}
-                    layout={resultsLayout}
-                    onRunAgain={workflow.actions.showRunAgainUpload}
-                    onDownload={resultsLayout === "output-panel" ? undefined : workflow.actions.handleDownload}
-                    onViewResult={handleViewResult}
-                    viewResultPrimary={!newAnalysisSectionVisible}
-                    highlightLatestOutput={!newAnalysisSectionVisible}
-                    analysisParameters={workflow.selectedAnalysisParameters}
-                  />
-                </div>
-                {newAnalysisSectionVisible && <NewAnalysisDivider />}
-                {workflow.rerunUploadVisible && (
-                  <div ref={rerunUploadRef} className="space-y-orbit-base">
-                    <AnalysisParameterCards
-                      selectedParameter={workflow.rerunSelectedParameter}
-                      cardState={hasCompleteAnalysisParameters(workflow.rerunSelectedParameter) ? "default" : "active"}
-                      onBasisSelect={workflow.actions.handleRerunBasisSelect}
-                      onCategorySelect={workflow.actions.handleRerunCategorySelect}
-                      onBasisEdit={workflow.actions.handleRerunBasisEdit}
-                      onCategoryEdit={workflow.actions.handleRerunCategoryEdit}
-                    />
-
-                    {hasCompleteAnalysisParameters(workflow.rerunSelectedParameter) && (
-                      <StateCard state="active">
-                        <h2 className="v5-orbit-heading-5 mb-orbit-base">Upload Contract</h2>
-                        <PlaybookDisclaimer variant="callout" parameter={workflow.rerunSelectedParameter} />
-                        <ClauseIqDropzone onFile={workflow.actions.validateAndSetFile} />
-                      </StateCard>
-                    )}
-                  </div>
-                )}
-                {workflow.rerunProcessing && (
-                  <StateCard state="active">
-                    <h2 className="v5-orbit-heading-5 mb-orbit-base">Analysing New Contract</h2>
-                    <div className="flex items-center justify-between border border-border rounded-lg px-orbit-base py-orbit-s mb-orbit-base">
-                      <div className="flex items-center gap-orbit-s min-w-0">
-                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <span className="text-sm truncate">{workflow.file?.name ?? "Contract.pdf"}</span>
-                      </div>
-                      <span className="text-xs v5-orbit-weight-medium text-success inline-flex items-center gap-orbit-xs">
-                        <Check className="h-3.5 w-3.5" /> Uploaded
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-orbit-base py-orbit-s">
-                      <Loader2 className="h-5 w-5 animate-spin text-ciq" />
-                      <span className="text-sm v5-orbit-weight-medium">Finding clauses in your new contract...</span>
-                    </div>
-                    <PlaybookDisclaimer variant="inline" parameter={workflow.rerunSelectedParameter ?? selectedParameter} />
-                    <p className="text-xs text-muted-foreground mt-orbit-s">
-                      The existing analysis history remains available above while this runs.
-                    </p>
-                  </StateCard>
-                )}
-                {workflow.completedRerunAnalysis && workflow.rerunSupplier && (
-                  <div ref={latestOutputRef}>
-                    <AnalysisCard
-                      analysis={workflow.completedRerunAnalysis}
-                      supplier={workflow.rerunSupplier}
-                      showSupplier
-                      onRunAgain={workflow.actions.showRunAgainUpload}
-                      onViewResult={handleViewResult}
-                      viewResultPrimary
-                      isLatestOutput
-                      highlighted
-                      analysisParameters={workflow.completedRerunAnalysisParameters}
-                    />
-                  </div>
-                )}
-                {workflow.showPostAnalysisActions && (
-                  <PostAnalysisNextActions
-                    completedMilestoneIds={workflow.completedMilestoneIds}
-                    initiativeCompleted={workflow.initiativeCompleted}
-                    onStartAnotherInitiative={handleStartAnotherInitiative}
-                    onMilestoneComplete={workflow.actions.markMilestoneComplete}
-                    onCompleteInitiative={workflow.actions.completeInitiative}
-                  />
-                )}
-                <div className="h-[304px]" aria-hidden="true" />
-              </div>
-            )}
-
-            {!outputPanelResultsVisible && (
-              <div className="lg:hidden">
-                <SupplierOutputsPanel
-                  initiative={workflow.supplierOutputInitiative}
-                  outputState={workflow.supplierOutputPanelState}
-                  onRunAgain={workflow.actions.showRunAgainUpload}
-                  onDownload={workflow.actions.handleDownload}
-                  onViewResult={handleViewResult}
-                />
-              </div>
-            )}
-          </div>
+        <ClauseIqJourneyContent
+          includeResultBottomSpacer
+          initiativeMode="selectable"
+          mode="stacked"
+          onOpenInitiativeModal={() => setModalOpen(true)}
+          onStartAnotherInitiative={handleStartAnotherInitiative}
+          onViewResult={handleViewResult}
+          refs={journeyRefs}
+          resultsLayout={resultsLayout}
+          showMobileSupplierPanel={!outputPanelResultsVisible}
+          workflow={workflow}
+        />
+      </div>
 
       <InitiativeModal
         open={modalOpen}
@@ -410,4 +213,3 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
     </V5Shell>
   );
 }
-

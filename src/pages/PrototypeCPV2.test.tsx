@@ -1,8 +1,16 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import PrototypeCPV2 from "./PrototypeCPV2";
+
+const mocks = vi.hoisted(() => ({
+  downloadCsv: vi.fn(),
+}));
+
+vi.mock("@/lib/csv-export", () => ({
+  downloadCsv: mocks.downloadCsv,
+}));
 
 function LocationProbe() {
   const location = useLocation();
@@ -33,9 +41,26 @@ function chooseFile(inputLabel: string, file: File) {
   });
 }
 
-function choosePrototype(targetLabel: string) {
-  fireEvent.click(screen.getByRole("button", { name: /Switch prototype/i }));
-  fireEvent.click(screen.getByRole("option", { name: targetLabel }));
+function applyHighRecommendations() {
+  fireEvent.click(screen.getByRole("button", { name: /apply recommendations/i }));
+  fireEvent.click(screen.getByRole("option", { name: /Apply High only/i }));
+}
+
+function completeClauseIqAnalysis() {
+  let dialog = openClauseIqModal();
+
+  fireEvent.click(within(dialog).getByRole("button", { name: "Next" }));
+  dialog = screen.getByRole("dialog", { name: "ClauseIQ Contract" });
+  fireEvent.click(within(dialog).getByRole("option", { name: "Procurement_Playbook_Yorkshire_Water .pdf" }));
+  chooseFile("Upload contract PDF", new File(["pdf"], "Test.pdf", { type: "application/pdf" }));
+  fireEvent.click(within(dialog).getByRole("button", { name: "Next" }));
+
+  dialog = screen.getByRole("dialog", { name: "ClauseIQ Contract" });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Finish" }));
+
+  act(() => {
+    vi.advanceTimersByTime(4000);
+  });
 }
 
 beforeAll(() => {
@@ -46,7 +71,10 @@ beforeAll(() => {
 });
 
 afterEach(() => {
+  mocks.downloadCsv.mockClear();
   vi.useRealTimers();
+  localStorage.clear();
+  sessionStorage.clear();
 });
 
 describe("Prototype CP v2 ClauseIQ live wizard", () => {
@@ -93,8 +121,9 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
     expect(dialog).toBeInTheDocument();
     expect(within(dialog).getByText("Prior to Use")).toBeInTheDocument();
     expect(within(dialog).getByText("Configure & Upload")).toBeInTheDocument();
-    expect(within(dialog).getByText("Settings")).toBeInTheDocument();
     expect(within(dialog).getByText("Generate Results")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Settings")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Document Type")).not.toBeInTheDocument();
     expect(within(dialog).queryByText("Upload Files")).not.toBeInTheDocument();
     expect(within(dialog).queryByText("Overview")).not.toBeInTheDocument();
     expect(within(dialog).queryByText("Client Playbook")).not.toBeInTheDocument();
@@ -139,9 +168,10 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Next" }));
 
     dialog = screen.getByRole("dialog", { name: "ClauseIQ Contract" });
-    expect(within(dialog).getByText(/What type of analysis do you want on your contract/i)).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: /Master Service Agreement/i })).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Next" })).toBeEnabled();
+    expect(within(dialog).getByText("Your Contract insights are on the way!")).toBeInTheDocument();
+    expect(within(dialog).queryByText(/What type of analysis do you want on your contract/i)).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: /Master Service Agreement/i })).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Finish" })).toBeEnabled();
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Back" }));
     dialog = screen.getByRole("dialog", { name: "ClauseIQ Contract" });
@@ -162,11 +192,6 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Next" }));
 
     dialog = screen.getByRole("dialog", { name: "ClauseIQ Contract" });
-    expect(within(dialog).getByText(/What type of analysis do you want on your contract/i)).toBeInTheDocument();
-
-    fireEvent.click(within(dialog).getByRole("button", { name: "Next" }));
-
-    dialog = screen.getByRole("dialog", { name: "ClauseIQ Contract" });
     expect(within(dialog).getByText("Your Contract insights are on the way!")).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Finish" })).toBeEnabled();
 
@@ -182,7 +207,7 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
     });
 
     expect(screen.queryByRole("button", { name: /Download Generating/i })).not.toBeInTheDocument();
-    expect(screen.getByText("Click the download button to view your contract analysis")).toBeInTheDocument();
+    expect(screen.getByText("Click View Result to open your contract analysis")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Run Analysis Again" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: "Download completed contract analysis" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "History" })).toBeEnabled();
@@ -212,6 +237,60 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
     expect(screen.getByTestId("location")).toHaveTextContent("source=prototype-cp-v2");
   });
 
+  it("opens the v2 results dashboard in a workspace modal when the toggle is enabled", async () => {
+    vi.useFakeTimers();
+    renderPrototypeCPV2("/prototype-cp-v2?view=workspace");
+
+    completeClauseIqAnalysis();
+    vi.useRealTimers();
+
+    const dashboardToggle = screen.getByRole("switch", { name: "Dashboard in modal" });
+    expect(dashboardToggle).not.toBeChecked();
+
+    fireEvent.click(dashboardToggle);
+
+    expect(dashboardToggle).toBeChecked();
+    expect(localStorage.getItem("prototype-cp-v2-dashboard-in-modal")).toBe("true");
+
+    fireEvent.click(screen.getByRole("button", { name: "View Result" }));
+
+    expect(screen.getByTestId("location")).toHaveTextContent("/prototype-cp-v2");
+    expect(screen.getByTestId("location")).not.toHaveTextContent("/prototype-cp-v2/results");
+
+    const resultsDialog = await screen.findByRole("dialog", { name: "ClauseIQ Results dashboard" });
+    expect(within(resultsDialog).getByRole("heading", { name: "ClauseIQ Results" })).toBeInTheDocument();
+    expect(within(resultsDialog).getByText("Validate ClauseIQ recommendations before supplier negotiation")).toBeInTheDocument();
+
+    applyHighRecommendations();
+
+    expect(await screen.findByRole("button", { name: /undo high recommendations/i })).toBeInTheDocument();
+
+    fireEvent.click(within(resultsDialog).getByRole("button", { name: /Review & Generate/i }));
+
+    expect(screen.getAllByRole("dialog")).toHaveLength(2);
+
+    const reviewDialog = screen.getByRole("dialog", { name: /Generate CSV from applied recommendations/i });
+    expect(within(reviewDialog).getByRole("heading", { name: "Generate CSV from applied recommendations" })).toBeInTheDocument();
+
+    fireEvent.click(within(reviewDialog).getByRole("button", { name: /Submit & Generate/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: /Generate CSV from applied recommendations/i })).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole("dialog", { name: "ClauseIQ Results dashboard" })).toBeInTheDocument();
+    expect(mocks.downloadCsv).toHaveBeenCalledTimes(1);
+
+    expect(within(resultsDialog).queryByRole("button", { name: "Back to Workspace" })).not.toBeInTheDocument();
+
+    fireEvent.click(within(resultsDialog).getByRole("button", { name: "Close ClauseIQ Results dashboard" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "ClauseIQ Results dashboard" })).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId("location")).toHaveTextContent("/prototype-cp-v2?view=workspace");
+    expect(screen.getByTestId("location")).not.toHaveTextContent("source=prototype-cp-v2");
+  });
+
   it("keeps Configure & Upload as the required second step", () => {
     renderPrototypeCPV2("/prototype-cp-v2?view=workspace");
 
@@ -238,16 +317,16 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Next" }));
 
-    expect(within(screen.getByRole("dialog", { name: "ClauseIQ Contract" })).getByText(/What type of analysis do you want on your contract/i)).toBeInTheDocument();
+    dialog = screen.getByRole("dialog", { name: "ClauseIQ Contract" });
+    expect(within(dialog).getByText("Your Contract insights are on the way!")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Settings")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/What type of analysis do you want on your contract/i)).not.toBeInTheDocument();
   });
 
-  it("switches back to Prototype CP while preserving the workspace view", () => {
+  it("does not show the prototype switcher in the v2 header", () => {
     renderPrototypeCPV2("/prototype-cp-v2?view=workspace");
 
-    expect(screen.getByRole("button", { name: /Switch prototype Prototype CP - v2$/i })).toBeInTheDocument();
-
-    choosePrototype("Prototype CP");
-
-    expect(screen.getByTestId("location")).toHaveTextContent("/prototype-cp?view=workspace");
+    expect(screen.queryByRole("button", { name: /Switch prototype/i })).not.toBeInTheDocument();
+    expect(screen.queryByText("Prototype CP - v2")).not.toBeInTheDocument();
   });
 });

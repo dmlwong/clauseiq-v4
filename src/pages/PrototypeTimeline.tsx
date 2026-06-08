@@ -1,10 +1,10 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Copy,
   ChevronRight,
   MessageSquare,
   Plus,
-  ArrowLeft,
   Sparkles,
   CheckCircle2,
   CircleDot,
@@ -28,6 +28,8 @@ import {
 import {
   usePrototypeStore,
   prototypePreviewUrl,
+  isPrototypeCP,
+  isPrototypeV5,
   isResponsiveTestingPrototype,
   summarize,
   type VersionStatus,
@@ -84,6 +86,8 @@ const responsiveTestingEntryPoints = [
   },
 ];
 
+type TimelineTab = "current" | "archive";
+
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, {
     month: "short",
@@ -111,11 +115,12 @@ function openPrototype(url?: string) {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
-function isV5Current(version?: PrototypeVersion) {
-  return Boolean(version?.title.toLowerCase().includes("v5") || version?.versionNumber === 5);
+function isHomepageCurrentVersion(version: PrototypeVersion) {
+  return isPrototypeCP(version) || isPrototypeV5(version);
 }
 
 export default function PrototypeTimeline() {
+  const [activeTab, setActiveTab] = useState<TimelineTab>("current");
   const navigate = useNavigate();
   const { prototype, versions, duplicateVersion, deleteVersion } = usePrototypeStore();
 
@@ -129,16 +134,15 @@ export default function PrototypeTimeline() {
   };
 
   const sorted = [...versions].sort((a, b) => b.versionNumber - a.versionNumber);
-  const current = sorted[0];
-  const history = sorted.slice(1);
+  const currentVersions = sorted.filter(isHomepageCurrentVersion);
+  const history = sorted.filter((version) => !isHomepageCurrentVersion(version));
+  const hasCurrentVersions = currentVersions.length > 0;
+  const hasCurrentV5 = currentVersions.some(isPrototypeV5);
+  const hasResponsiveTestingCurrent = currentVersions.some(isResponsiveTestingPrototype);
 
   return (
-    <div className="min-h-screen bg-background p-8">
+    <div className="h-screen overflow-y-auto overflow-x-hidden bg-background p-8">
       <div className="max-w-5xl mx-auto space-y-8">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/initiatives-v5")} className="gap-2 -ml-2">
-          <ArrowLeft className="w-4 h-4" /> Back to v5 app
-        </Button>
-
         <header className="space-y-2">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             {prototype.name} · Admin
@@ -153,7 +157,40 @@ export default function PrototypeTimeline() {
           </p>
         </header>
 
-        {current && (
+        <div
+          className="inline-flex rounded-lg border border-border bg-card p-1"
+          role="tablist"
+          aria-label="Prototype timeline sections"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "current"}
+            className={`rounded-md px-4 py-2 text-sm font-semibold transition-colors ${
+              activeTab === "current"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+            onClick={() => setActiveTab("current")}
+          >
+            Current Version
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "archive"}
+            className={`rounded-md px-4 py-2 text-sm font-semibold transition-colors ${
+              activeTab === "archive"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+            onClick={() => setActiveTab("archive")}
+          >
+            Archive
+          </button>
+        </div>
+
+        {activeTab === "current" && hasCurrentVersions && (
           <section className="space-y-3">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-primary" />
@@ -161,47 +198,60 @@ export default function PrototypeTimeline() {
                 Current version
               </h2>
             </div>
-            <CurrentCard
-              version={current}
-              onView={() => navigate(`/prototypes/${current.id}`)}
-              onDuplicate={() => handleDuplicate(current.id)}
-              onOpen={() => openPrototype(prototypePreviewUrl(current))}
-              onDelete={() => handleDelete(current.id)}
-            />
-          </section>
-        )}
-
-        {history.length > 0 && (
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">
-              Earlier versions
-            </h2>
-            <div className="bg-card border border-border rounded-xl divide-y divide-border overflow-hidden">
-              {history.map((v) => (
-                <HistoryRow
-                  key={v.id}
-                  version={v}
-                  onView={() => navigate(`/prototypes/${v.id}`)}
-                  onDuplicate={() => handleDuplicate(v.id)}
-                  onOpen={() => openPrototype(prototypePreviewUrl(v))}
-                  onDelete={() => handleDelete(v.id)}
+            <div className="space-y-4">
+              {currentVersions.map((version) => (
+                <CurrentCard
+                  key={version.id}
+                  version={version}
+                  onView={() => navigate(`/prototypes/${version.id}`)}
+                  onDuplicate={() => handleDuplicate(version.id)}
+                  onOpen={() => openPrototype(prototypePreviewUrl(version))}
+                  onDelete={() => handleDelete(version.id)}
                 />
               ))}
             </div>
           </section>
         )}
 
-        {!current && (
+        {activeTab === "archive" && (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">
+              Archive
+            </h2>
+            {history.length > 0 ? (
+              <div className="bg-card border border-border rounded-xl divide-y divide-border overflow-hidden">
+                {history.map((v) => (
+                  <HistoryRow
+                    key={v.id}
+                    version={v}
+                    onView={() => navigate(`/prototypes/${v.id}`)}
+                    onDuplicate={() => handleDuplicate(v.id)}
+                    onOpen={() => openPrototype(prototypePreviewUrl(v))}
+                    onDelete={() => handleDelete(v.id)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="bg-card border border-dashed border-border rounded-xl p-12 text-center">
+                <p className="text-muted-foreground">No archived prototype versions yet.</p>
+              </div>
+            )}
+          </section>
+        )}
+
+        {activeTab === "current" && !hasCurrentVersions && (
           <div className="bg-card border border-dashed border-border rounded-xl p-12 text-center">
             <p className="text-muted-foreground">No prototype versions yet.</p>
           </div>
         )}
 
-        {current && isResponsiveTestingPrototype(current) ? (
-          <ResponsiveTestingQuickLinksSection />
-        ) : (
-          isV5Current(current) && <V5QuickLinksSection />
-        )}
+        {activeTab === "current" &&
+          hasCurrentVersions &&
+          (hasResponsiveTestingCurrent ? (
+            <ResponsiveTestingQuickLinksSection />
+          ) : (
+            hasCurrentV5 && <V5QuickLinksSection />
+          ))}
       </div>
     </div>
   );

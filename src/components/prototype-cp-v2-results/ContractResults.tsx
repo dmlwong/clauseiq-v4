@@ -1,12 +1,53 @@
-import { useState, useMemo, useEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useRef,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { useSearchParams } from "react-router-dom";
 import {
-  ChevronLeft, AlertTriangle, CheckCircle2, Search, MapPin, Lightbulb,
-  GitCompare, History, X, ArrowRight, Sparkles, Upload, Trash2, FileText, Loader2,
-  Download, Info, ShieldCheck, Sigma, Pin, RotateCcw,
-  Clock, ShieldX, Pencil,
-} from "lucide-react";
-
+  ChevronLeft,
+  AlertTriangle,
+  CheckCircle2,
+  Search,
+  MapPin,
+  Lightbulb,
+  GitCompare,
+  History,
+  X,
+  ArrowRight,
+  Sparkles,
+  Upload,
+  Trash2,
+  FileText,
+  Loader2,
+  Download,
+  Info,
+  ShieldCheck,
+  Sigma,
+  Pin,
+  RotateCcw,
+  Clock,
+  ShieldX,
+  Pencil,
+  ChevronDown,
+  IconCircleCheck,
+  IconCircleX,
+  IconArrowsDiff,
+  IconArrowDown,
+  IconArrowUp,
+  IconEye,
+  IconHelp,
+  IconInfoCircle,
+  IconList,
+  IconPlus,
+  IconTimeline,
+  IconTrendingDown,
+  IconTrendingUp,
+} from "./CpResultIcons";
 import {
   Alert,
   Card,
@@ -21,36 +62,45 @@ import {
   Text,
 } from "@orbit";
 import { showCpOrbitToast as toast } from "@/components/prototype-cp-v2-results/CpOrbitToast";
-import { CpOrbitConfirmOverlay, CpOrbitOverlay } from "@/components/prototype-cp-v2-results/CpOrbitOverlay";
+import {
+  CpOrbitConfirmOverlay,
+  CpOrbitOverlay,
+} from "@/components/prototype-cp-v2-results/CpOrbitOverlay";
 import { Input } from "@/components/prototype-cp-v2-results/orbit-ui/input";
 import { Textarea } from "@/components/prototype-cp-v2-results/orbit-ui/textarea";
 import { Badge } from "@/components/prototype-cp-v2-results/orbit-ui/badge";
 import { Button } from "@/components/prototype-cp-v2-results/orbit-ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/prototype-cp-v2-results/orbit-ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/prototype-cp-v2-results/orbit-ui/select";
-import { ChevronDown } from "lucide-react";
 import {
-  IconCircleCheck,
-  IconCircleX,
-  IconArrowsDiff,
-  IconArrowDown,
-  IconArrowUp,
-  IconEye,
-  IconHelp,
-  IconInfoCircle,
-  IconList,
-  IconPlus,
-  IconTimeline,
-  IconTrendingDown,
-  IconTrendingUp,
-} from "@tabler/icons-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/prototype-cp-v2-results/orbit-ui/tooltip";
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/components/prototype-cp-v2-results/orbit-ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/prototype-cp-v2-results/orbit-ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/prototype-cp-v2-results/orbit-ui/tooltip";
 import { CpButton, CpLinkText } from "@/components/prototype-cp-shared/orbit";
 import {
-  getInitiative, getSupplier, getContract,
-  type ClauseResult, type ContractVersion,
+  getInitiative,
+  getSupplier,
+  getContract,
+  type ClauseResult,
+  type ContractVersion,
 } from "@/lib/workflow-data";
-import { ACME_DEFAULT_FOCUS_IDS, ACME_DEFAULT_REQUEST_TEXTS, makeSyntheticVersion } from "@/lib/clauses-data";
+import {
+  ACME_DEFAULT_FOCUS_IDS,
+  ACME_DEFAULT_REQUEST_TEXTS,
+  makeSyntheticVersion,
+} from "@/lib/clauses-data";
 import { SWITCHED_ON_FIRST_ANALYSIS_VERSION } from "@/lib/switched-on-analysis-data";
 import {
   useClauseDecisions,
@@ -62,7 +112,11 @@ import {
 } from "@/hooks/use-clause-decisions";
 import { cn } from "@/lib/utils";
 import { CLAUSE_FRAMEWORK } from "@/lib/clauses-framework";
-import { classifyChange, materialChangeLabel, materialChangeTone } from "@/lib/material-change";
+import {
+  classifyChange,
+  materialChangeLabel,
+  materialChangeTone,
+} from "@/lib/material-change";
 import {
   CHANGE_DIRECTION_CONFIDENCE_THRESHOLD,
   NEW_CHANGE_LABEL,
@@ -106,21 +160,29 @@ import {
   type FirstAnalysisMetricKey,
   type FirstAnalysisMetrics,
 } from "./ComparisonDesignOptions";
-
 interface Props {
   initiativeId: string;
   supplierId: string;
   contractId: string;
-  onBack: () => void;
+  onBack?: () => void;
   backLabel?: string;
   compactHeader?: boolean;
+  reviewGeneratePresentation?: "overlay" | "inline-tray";
   scoringOption?: ScoringOptionKey;
   onScoringOptionChange?: (value: ScoringOptionKey) => void;
 }
-
 type TabKey = "review" | ComparisonTab;
 type FilterKey = "all" | "open" | "new-issues" | "closed" | "unmarked";
-type QuickFilterKey = "high" | "medium" | "low" | "missing" | "need-action" | "changes" | "open-items" | "met" | "closed";
+type QuickFilterKey =
+  | "high"
+  | "medium"
+  | "low"
+  | "missing"
+  | "need-action"
+  | "changes"
+  | "open-items"
+  | "met"
+  | "closed";
 interface FirstAnalysisReviewProgress {
   total: number;
   usedRecommendations: number;
@@ -138,16 +200,13 @@ interface FirstAnalysisReviewProgress {
 type CategorySortKey = "risk" | "az" | "count";
 export type ScoringOptionKey = "issue-score" | "hybrid";
 type ScoreBand = "A" | "B" | "C" | "D" | "F";
-
 interface CategorySidebarItem {
   name: string;
   count: number;
   severity: Record<"high" | "medium" | "low" | "clean", number>;
 }
-
 type MoverSeverity = "high" | "medium" | "low" | "clean";
 type ComparisonMoverDirection = "improved" | "regressed" | "new";
-
 interface ComparisonMover {
   id: string;
   name: string;
@@ -156,7 +215,6 @@ interface ComparisonMover {
   direction: ComparisonMoverDirection;
   movementScore: number;
 }
-
 interface ScoreDriver {
   clauseId: string;
   clauseName: string;
@@ -165,7 +223,6 @@ interface ScoreDriver {
   weightedCost: number;
   roundsUnchanged: number;
 }
-
 interface ContractScore {
   version: string;
   score: number;
@@ -180,7 +237,6 @@ interface ContractScore {
   velocity: number;
   stalled: ScoreDriver[];
 }
-
 interface ContractScoringModel {
   current: ContractScore;
   previous?: ContractScore;
@@ -190,32 +246,28 @@ interface ContractScoringModel {
   resolvedTotal: number;
   remainingTotal: number;
 }
-
 type PanelChangeStatus = ChangePillStatus;
-
 interface PanelChangeItem {
   id: string;
   title: string;
   status: PanelChangeStatus;
 }
-
 const severityTone = (s: ClauseResult["severity"] | undefined) =>
-  s === "high" ? "bg-destructive/10 text-destructive border-destructive/20"
-    : s === "medium" ? "bg-warning/15 text-warning-foreground border-warning/30"
-    : s === "low" ? "bg-success/10 text-success border-success/20"
-    : "bg-muted text-muted-foreground border-border";
-
+  s === "high"
+    ? "bg-destructive/10 text-destructive border-destructive/20"
+    : s === "medium"
+      ? "bg-warning/15 text-warning-foreground border-warning/30"
+      : s === "low"
+        ? "bg-success/10 text-success border-success/20"
+        : "bg-muted text-muted-foreground border-border";
 const firstAnalysisDeviationBadgeClass =
-  "shrink-0 rounded-full border-[#F3B4B4] bg-[#FFF1F2] px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#A32D2D]";
-
+  "shrink-0 rounded-full border-[#F3B4B4] bg-[#FFF1F2] px-orbit-xs py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium text-[#A32D2D]";
 const SEVERITY_WEIGHTS: Record<"high" | "medium" | "low", number> = {
   high: 9,
   medium: 3,
   low: 1,
 };
-
 const DEAL_BREAKER_CLAUSE_IDS = new Set(["c35", "c48", "c58"]);
-
 const bandColor: Record<ScoreBand, string> = {
   A: "#3B6D11",
   B: "#3B6D11",
@@ -223,7 +275,6 @@ const bandColor: Record<ScoreBand, string> = {
   D: "#854F0B",
   F: "#A32D2D",
 };
-
 const historyFilterLabels: Record<HistoryFilter, string> = {
   all: "All",
   still_open: "Still open",
@@ -231,21 +282,22 @@ const historyFilterLabels: Record<HistoryFilter, string> = {
   met: "Met",
   new_clauses: "New clauses",
 };
-
 function normalizeMode(value: string | null): ClauseIqMode {
   return value === "history" ? "history" : "comparison";
 }
-
-function normalizeComparisonDesignOption(value: string | null | undefined): ComparisonDesignOption {
-  return value === "row-scale" || value === "side-by-side" ? value : "side-by-side";
+function normalizeComparisonDesignOption(
+  value: string | null | undefined,
+): ComparisonDesignOption {
+  return value === "row-scale" || value === "side-by-side"
+    ? value
+    : "side-by-side";
 }
-
 function normalizeComparisonTab(value: string | null): ComparisonTab {
   if (value === "all") return "all";
-  if (value === "history" || value === "tracker" || value === "compare") return "changes";
+  if (value === "history" || value === "tracker" || value === "compare")
+    return "changes";
   return "changes";
 }
-
 function normalizeHistoryFilter(value: string | null): HistoryFilter {
   return value === "still_open" ||
     value === "regressed_last_round" ||
@@ -254,7 +306,6 @@ function normalizeHistoryFilter(value: string | null): HistoryFilter {
     ? value
     : "all";
 }
-
 function normalizeHistorySort(value: string | null): HistorySort {
   return value === "clause_id" ||
     value === "current_status" ||
@@ -262,17 +313,12 @@ function normalizeHistorySort(value: string | null): HistorySort {
     ? value
     : "contentious";
 }
-
 function normalizeCategorySort(value: string | null): CategorySortKey {
   return value === "az" || value === "count" ? value : "risk";
 }
-
-// ---- helpers ----------------------------------------------------------------
-
 function clauseCategory(id: string): string {
   return CLAUSE_FRAMEWORK.find((c) => c.id === id)?.category ?? "Uncategorised";
 }
-
 function categorySlug(name: string) {
   return name
     .trim()
@@ -281,8 +327,10 @@ function categorySlug(name: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
-
-function categoriesFromParam(value: string | null, categories: CategorySidebarItem[]) {
+function categoriesFromParam(
+  value: string | null,
+  categories: CategorySidebarItem[],
+) {
   if (!value || value === "all") return [];
   const tokens = value
     .split(",")
@@ -298,13 +346,17 @@ function categoriesFromParam(value: string | null, categories: CategorySidebarIt
   if (tokens.length === 0) return [];
   const tokenSet = new Set(tokens);
   return categories
-    .filter((category) => tokenSet.has(category.name) || tokenSet.has(categorySlug(category.name)))
+    .filter(
+      (category) =>
+        tokenSet.has(category.name) ||
+        tokenSet.has(categorySlug(category.name)),
+    )
     .map((category) => category.name);
 }
-
-function deriveCategorySidebarItems(version: ContractVersion | null | undefined): CategorySidebarItem[] {
+function deriveCategorySidebarItems(
+  version: ContractVersion | null | undefined,
+): CategorySidebarItem[] {
   const categoryMap = new Map<string, CategorySidebarItem>();
-
   for (const def of CLAUSE_FRAMEWORK) {
     if (!categoryMap.has(def.category)) {
       categoryMap.set(def.category, {
@@ -314,17 +366,15 @@ function deriveCategorySidebarItems(version: ContractVersion | null | undefined)
       });
     }
   }
-
   for (const clause of version?.clauses ?? []) {
-    const category = CLAUSE_FRAMEWORK.find((def) => def.id === clause.id)?.category ?? "Uncategorised";
-    const item =
-      categoryMap.get(category) ??
-      {
-        name: category,
-        count: 0,
-        severity: { high: 0, medium: 0, low: 0, clean: 0 },
-      };
-
+    const category =
+      CLAUSE_FRAMEWORK.find((def) => def.id === clause.id)?.category ??
+      "Uncategorised";
+    const item = categoryMap.get(category) ?? {
+      name: category,
+      count: 0,
+      severity: { high: 0, medium: 0, low: 0, clean: 0 },
+    };
     item.count += 1;
     if (clause.resolved) {
       item.severity.clean += 1;
@@ -333,59 +383,68 @@ function deriveCategorySidebarItems(version: ContractVersion | null | undefined)
     }
     categoryMap.set(category, item);
   }
-
   return Array.from(categoryMap.values());
 }
-
 function categoryRiskWeight(category: CategorySidebarItem) {
-  return category.severity.high * 9 + category.severity.medium * 3 + category.severity.low;
+  return (
+    category.severity.high * 9 +
+    category.severity.medium * 3 +
+    category.severity.low
+  );
 }
-
-function sortCategorySidebarItems(items: CategorySidebarItem[], sort: CategorySortKey) {
+function sortCategorySidebarItems(
+  items: CategorySidebarItem[],
+  sort: CategorySortKey,
+) {
   return [...items].sort((a, b) => {
     if (a.name === "Uncategorised") return 1;
     if (b.name === "Uncategorised") return -1;
     if (sort === "az") return a.name.localeCompare(b.name);
-    if (sort === "count") return b.count - a.count || a.name.localeCompare(b.name);
-    return categoryRiskWeight(b) - categoryRiskWeight(a) || b.severity.high - a.severity.high || b.severity.medium - a.severity.medium || a.name.localeCompare(b.name);
+    if (sort === "count")
+      return b.count - a.count || a.name.localeCompare(b.name);
+    return (
+      categoryRiskWeight(b) - categoryRiskWeight(a) ||
+      b.severity.high - a.severity.high ||
+      b.severity.medium - a.severity.medium ||
+      a.name.localeCompare(b.name)
+    );
   });
 }
-
 const moverSeverityWeight: Record<MoverSeverity, number> = {
   clean: 0,
   low: 1,
   medium: 3,
   high: 9,
 };
-
 function moverSeverityFromClause(clause?: ClauseResult): MoverSeverity | null {
   if (!clause) return null;
   return clause.resolved ? "clean" : clause.severity;
 }
-
 function formatMoverSeverity(severity: MoverSeverity | null) {
   if (!severity) return "New";
   return severity.charAt(0).toUpperCase() + severity.slice(1);
 }
-
 function deriveComparisonMovers(rows: ComparisonRow[]): ComparisonMover[] {
   return rows
     .map((row) => {
       const direction =
-        row.pill.status === "improved" || row.pill.status === "regressed" || row.pill.status === "new"
+        row.pill.status === "improved" ||
+        row.pill.status === "regressed" ||
+        row.pill.status === "new"
           ? row.pill.status
           : null;
       if (!direction || !row.curr) return null;
-
       const previousSeverity = moverSeverityFromClause(row.prev);
       const currentSeverity = moverSeverityFromClause(row.curr) ?? "clean";
-      const previousWeight = previousSeverity ? moverSeverityWeight[previousSeverity] : 0;
+      const previousWeight = previousSeverity
+        ? moverSeverityWeight[previousSeverity]
+        : 0;
       const currentWeight = moverSeverityWeight[currentSeverity];
       const movementScore =
         direction === "new"
           ? currentWeight
-          : (previousWeight - currentWeight) * (direction === "regressed" ? 2 : 1);
-
+          : (previousWeight - currentWeight) *
+            (direction === "regressed" ? 2 : 1);
       return {
         id: row.id,
         name: row.curr.title,
@@ -397,40 +456,51 @@ function deriveComparisonMovers(rows: ComparisonRow[]): ComparisonMover[] {
     })
     .filter((mover): mover is ComparisonMover => Boolean(mover));
 }
-
 function visibleTopMovers(movers: ComparisonMover[]) {
   const ranked = [...movers]
-    .sort((a, b) => Math.abs(b.movementScore) - Math.abs(a.movementScore) || moverSeverityWeight[b.currentSeverity] - moverSeverityWeight[a.currentSeverity] || a.name.localeCompare(b.name))
+    .sort(
+      (a, b) =>
+        Math.abs(b.movementScore) - Math.abs(a.movementScore) ||
+        moverSeverityWeight[b.currentSeverity] -
+          moverSeverityWeight[a.currentSeverity] ||
+        a.name.localeCompare(b.name),
+    )
     .slice(0, 3);
-  const directionOrder: Record<ComparisonMoverDirection, number> = { regressed: 0, improved: 1, new: 2 };
+  const directionOrder: Record<ComparisonMoverDirection, number> = {
+    regressed: 0,
+    improved: 1,
+    new: 2,
+  };
   return ranked.sort(
     (a, b) =>
       directionOrder[a.direction] - directionOrder[b.direction] ||
       Math.abs(b.movementScore) - Math.abs(a.movementScore) ||
-      moverSeverityWeight[b.currentSeverity] - moverSeverityWeight[a.currentSeverity] ||
+      moverSeverityWeight[b.currentSeverity] -
+        moverSeverityWeight[a.currentSeverity] ||
       a.name.localeCompare(b.name),
   );
 }
-
 function severityRank(severity: "high" | "medium" | "low") {
   if (severity === "high") return 3;
   if (severity === "medium") return 2;
   return 1;
 }
-
 function isMissingClause(clause: ClauseResult) {
   return Boolean(clause.missingClause || clause.change === "new");
 }
-
 function isPureMissingClause(clause: ClauseResult) {
-  return Boolean(clause.missingClause && clause.sourceDeviationLevel === "None");
+  return Boolean(
+    clause.missingClause && clause.sourceDeviationLevel === "None",
+  );
 }
-
 function countsTowardDeviationMetric(clause: ClauseResult) {
   return !isPureMissingClause(clause);
 }
-
-function deriveScoreBand(score: number, open: Record<"high" | "medium" | "low", number>, dealBreakerPresent: boolean): ScoreBand {
+function deriveScoreBand(
+  score: number,
+  open: Record<"high" | "medium" | "low", number>,
+  dealBreakerPresent: boolean,
+): ScoreBand {
   if (dealBreakerPresent || open.high >= 3) return "F";
   if (open.high === 2) return "D";
   if (open.high === 1) return "C";
@@ -440,9 +510,14 @@ function deriveScoreBand(score: number, open: Record<"high" | "medium" | "low", 
   if (score >= 40) return "D";
   return "F";
 }
-
-function roundsUnchangedFor(clauseId: string, versionIndex: number, versions: ContractVersion[]) {
-  const current = versions[versionIndex]?.clauses.find((c) => c.id === clauseId);
+function roundsUnchangedFor(
+  clauseId: string,
+  versionIndex: number,
+  versions: ContractVersion[],
+) {
+  const current = versions[versionIndex]?.clauses.find(
+    (c) => c.id === clauseId,
+  );
   if (!current || current.resolved) return 0;
   let rounds = 1;
   for (let idx = versionIndex - 1; idx >= 0; idx -= 1) {
@@ -452,25 +527,41 @@ function roundsUnchangedFor(clauseId: string, versionIndex: number, versions: Co
   }
   return rounds;
 }
-
-function computeContractScoring(versions: ContractVersion[]): ContractScoringModel | null {
+function computeContractScoring(
+  versions: ContractVersion[],
+): ContractScoringModel | null {
   if (versions.length === 0) return null;
-
   const issueUniverse = CLAUSE_FRAMEWORK.map((def) => {
-    const history = versions.map((version) => version.clauses.find((clause) => clause.id === def.id));
-    const issueClauses = history.filter((clause): clause is ClauseResult => Boolean(clause && !clause.resolved));
+    const history = versions.map((version) =>
+      version.clauses.find((clause) => clause.id === def.id),
+    );
+    const issueClauses = history.filter((clause): clause is ClauseResult =>
+      Boolean(clause && !clause.resolved),
+    );
     if (issueClauses.length === 0) return null;
-    const identifiedSeverity = issueClauses.reduce<"high" | "medium" | "low">((max, clause) =>
-      severityRank(clause.severity) > severityRank(max) ? clause.severity : max,
-    issueClauses[0].severity);
+    const identifiedSeverity = issueClauses.reduce<"high" | "medium" | "low">(
+      (max, clause) =>
+        severityRank(clause.severity) > severityRank(max)
+          ? clause.severity
+          : max,
+      issueClauses[0].severity,
+    );
     return { def, identifiedSeverity };
-  }).filter((issue): issue is { def: (typeof CLAUSE_FRAMEWORK)[number]; identifiedSeverity: "high" | "medium" | "low" } => Boolean(issue));
-
+  }).filter(
+    (
+      issue,
+    ): issue is {
+      def: (typeof CLAUSE_FRAMEWORK)[number];
+      identifiedSeverity: "high" | "medium" | "low";
+    } => Boolean(issue),
+  );
   const identifiedWeight = Math.max(
     1,
-    issueUniverse.reduce((sum, issue) => sum + SEVERITY_WEIGHTS[issue.identifiedSeverity], 0),
+    issueUniverse.reduce(
+      (sum, issue) => sum + SEVERITY_WEIGHTS[issue.identifiedSeverity],
+      0,
+    ),
   );
-
   const history = versions.map((version, versionIndex) => {
     const identified = { high: 0, medium: 0, low: 0 };
     const resolved = { high: 0, medium: 0, low: 0 };
@@ -478,19 +569,27 @@ function computeContractScoring(versions: ContractVersion[]): ContractScoringMod
     let openWeight = 0;
     const drivers: ScoreDriver[] = [];
     let dealBreakerClause: string | undefined;
-
     for (const issue of issueUniverse) {
       identified[issue.identifiedSeverity] += 1;
-      const current = version.clauses.find((clause) => clause.id === issue.def.id);
+      const current = version.clauses.find(
+        (clause) => clause.id === issue.def.id,
+      );
       if (!current || current.resolved) {
         resolved[issue.identifiedSeverity] += 1;
         continue;
       }
-
       open[current.severity] += 1;
       openWeight += SEVERITY_WEIGHTS[current.severity];
-      const roundsUnchanged = roundsUnchangedFor(issue.def.id, versionIndex, versions);
-      if (!dealBreakerClause && current.severity === "high" && DEAL_BREAKER_CLAUSE_IDS.has(issue.def.id)) {
+      const roundsUnchanged = roundsUnchangedFor(
+        issue.def.id,
+        versionIndex,
+        versions,
+      );
+      if (
+        !dealBreakerClause &&
+        current.severity === "high" &&
+        DEAL_BREAKER_CLAUSE_IDS.has(issue.def.id)
+      ) {
         dealBreakerClause = issue.def.title;
       }
       drivers.push({
@@ -502,25 +601,36 @@ function computeContractScoring(versions: ContractVersion[]): ContractScoringMod
         roundsUnchanged,
       });
     }
-
     const rawScore = Math.round(100 * (1 - openWeight / identifiedWeight));
     const score = Math.max(0, Math.min(100, rawScore));
     const topDrivers = drivers
-      .sort((a, b) => b.weightedCost - a.weightedCost || b.roundsUnchanged - a.roundsUnchanged || a.clauseName.localeCompare(b.clauseName))
+      .sort(
+        (a, b) =>
+          b.weightedCost - a.weightedCost ||
+          b.roundsUnchanged - a.roundsUnchanged ||
+          a.clauseName.localeCompare(b.clauseName),
+      )
       .slice(0, 3);
     const stalled = drivers
-      .filter((driver) => driver.roundsUnchanged >= 2 && driver.severity !== "low")
-      .sort((a, b) => b.weightedCost - a.weightedCost || b.roundsUnchanged - a.roundsUnchanged)
+      .filter(
+        (driver) => driver.roundsUnchanged >= 2 && driver.severity !== "low",
+      )
+      .sort(
+        (a, b) =>
+          b.weightedCost - a.weightedCost ||
+          b.roundsUnchanged - a.roundsUnchanged,
+      )
       .slice(0, 3);
     const currentResolved = issueUniverse.filter((issue) => {
       const clause = version.clauses.find((item) => item.id === issue.def.id);
       return !clause || clause.resolved;
     }).length;
     const firstResolved = issueUniverse.filter((issue) => {
-      const clause = versions[0].clauses.find((item) => item.id === issue.def.id);
+      const clause = versions[0].clauses.find(
+        (item) => item.id === issue.def.id,
+      );
       return !clause || clause.resolved;
     }).length;
-
     return {
       version: version.version,
       score,
@@ -532,19 +642,29 @@ function computeContractScoring(versions: ContractVersion[]): ContractScoringMod
       dealBreakerPresent: Boolean(dealBreakerClause),
       dealBreakerClause,
       topDrivers,
-      velocity: versionIndex > 0 ? Number(Math.max(0, (currentResolved - firstResolved) / versionIndex).toFixed(1)) : 0,
+      velocity:
+        versionIndex > 0
+          ? Number(
+              Math.max(
+                0,
+                (currentResolved - firstResolved) / versionIndex,
+              ).toFixed(1),
+            )
+          : 0,
       stalled,
     };
   });
-
   const withDeltas = history.map((score, index) => ({
     ...score,
     delta: index > 0 ? score.score - history[index - 1].score : 0,
   }));
   const current = withDeltas.at(-1)!;
-  const identifiedTotal = current.identified.high + current.identified.medium + current.identified.low;
-  const resolvedTotal = current.resolved.high + current.resolved.medium + current.resolved.low;
-
+  const identifiedTotal =
+    current.identified.high +
+    current.identified.medium +
+    current.identified.low;
+  const resolvedTotal =
+    current.resolved.high + current.resolved.medium + current.resolved.low;
   return {
     current,
     previous: withDeltas.length > 1 ? withDeltas.at(-2) : undefined,
@@ -555,13 +675,17 @@ function computeContractScoring(versions: ContractVersion[]): ContractScoringMod
     remainingTotal: identifiedTotal - resolvedTotal,
   };
 }
-
 interface RoundOutcome {
-  /** What we surface in the Round Tracker for a given clause × version. */
-  label: "No Action" | "Requested Change" | "Updated" | "Still Open" | "Closed" | "New Change" | "—";
+  /** What we surface in the Round Tracker for a given clause × version. */ label:
+    | "No Action"
+    | "Requested Change"
+    | "Updated"
+    | "Still Open"
+    | "Closed"
+    | "New Change"
+    | "—";
   tone: string;
 }
-
 function roundOutcome(
   clauseId: string,
   versionLabel: string,
@@ -569,55 +693,81 @@ function roundOutcome(
   state: ClauseDecisionState,
 ): RoundOutcome {
   const idx = versions.findIndex((v) => v.version === versionLabel);
-  if (idx === -1) return { label: "—", tone: "bg-muted/50 text-muted-foreground border-dashed border-border" };
+  if (idx === -1)
+    return {
+      label: "—",
+      tone: "bg-muted/50 text-muted-foreground border-dashed border-border",
+    };
   const round = state.roundDecisions[versionLabel];
-  // Round 1 = baseline decision only.
   if (idx === 0) {
-    if (round === "request-update") return { label: "Requested Change", tone: "bg-primary/10 text-primary border-primary/20" };
-    if (round === "no-action") return { label: "No Action", tone: "bg-muted text-muted-foreground border-border" };
-    return { label: "—", tone: "bg-muted/40 text-muted-foreground border-dashed border-border" };
+    if (round === "request-update")
+      return {
+        label: "Requested Change",
+        tone: "bg-primary/10 text-primary border-primary/20",
+      };
+    if (round === "no-action")
+      return {
+        label: "No Action",
+        tone: "bg-muted text-muted-foreground border-border",
+      };
+    return {
+      label: "—",
+      tone: "bg-muted/40 text-muted-foreground border-dashed border-border",
+    };
   }
-  // Later rounds — derive from previous decision + change.
   const prev = versions[idx - 1].clauses.find((c) => c.id === clauseId);
   const curr = versions[idx].clauses.find((c) => c.id === clauseId);
   const change = classifyChange(prev, curr);
   const wasRequestedBefore = Object.entries(state.roundDecisions).some(
-    ([v, d]) => d === "request-update" && versions.findIndex((x) => x.version === v) < idx,
+    ([v, d]) =>
+      d === "request-update" &&
+      versions.findIndex((x) => x.version === v) < idx,
   );
   const closure = state.closures[versionLabel];
-
-  if (closure === "closed") return { label: "Closed", tone: "bg-success/10 text-success border-success/20" };
-
+  if (closure === "closed")
+    return {
+      label: "Closed",
+      tone: "bg-success/10 text-success border-success/20",
+    };
   if (wasRequestedBefore) {
     if (change === "material") {
-      // Updated by supplier — still open unless user closes it.
-      return { label: "Updated", tone: "bg-primary/10 text-primary border-primary/20" };
+      return {
+        label: "Updated",
+        tone: "bg-primary/10 text-primary border-primary/20",
+      };
     }
-    return { label: "Still Open", tone: "bg-warning/15 text-warning-foreground border-warning/30" };
+    return {
+      label: "Still Open",
+      tone: "bg-warning/15 text-warning-foreground border-warning/30",
+    };
   }
-
-  // Not previously requested
-  if (change === "material") return { label: "New Change", tone: "bg-destructive/10 text-destructive border-destructive/20" };
-  return { label: "No Action", tone: "bg-muted text-muted-foreground border-border" };
+  if (change === "material")
+    return {
+      label: "New Change",
+      tone: "bg-destructive/10 text-destructive border-destructive/20",
+    };
+  return {
+    label: "No Action",
+    tone: "bg-muted text-muted-foreground border-border",
+  };
 }
-
 function wasRequestedByVersion(
   state: ClauseDecisionState | undefined,
   versions: ContractVersion[],
   versionLabel: string | undefined,
 ): boolean {
   if (!state || !versionLabel) return false;
-  const versionIndex = versions.findIndex((version) => version.version === versionLabel);
+  const versionIndex = versions.findIndex(
+    (version) => version.version === versionLabel,
+  );
   if (versionIndex < 0) return false;
   return Object.entries(state.roundDecisions).some(
     ([version, decision]) =>
       decision === "request-update" &&
-      versions.findIndex((candidate) => candidate.version === version) <= versionIndex,
+      versions.findIndex((candidate) => candidate.version === version) <=
+        versionIndex,
   );
 }
-
-// ---- main component ---------------------------------------------------------
-
 export function ContractResults({
   initiativeId,
   supplierId,
@@ -625,33 +775,47 @@ export function ContractResults({
   onBack,
   backLabel,
   compactHeader = false,
+  reviewGeneratePresentation = "overlay",
 }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
   const initiative = getInitiative(initiativeId);
   const supplier = getSupplier(initiativeId, supplierId);
   const contract = getContract(initiativeId, supplierId, contractId);
-  const decisions = useClauseDecisions({}, { storageKey: "prototype-cp-v2-clause-decisions" });
+  const decisions = useClauseDecisions(
+    {},
+    { storageKey: "prototype-cp-v2-clause-decisions" },
+  );
   const firstAnalysisDemo = searchParams.get("scenario") === "first-analysis";
   const isResponsiveTestingRoute =
-    typeof window !== "undefined" && window.location.pathname.startsWith("/initiatives-responsive-testing");
+    typeof window !== "undefined" &&
+    window.location.pathname.startsWith("/initiatives-responsive-testing");
   const mode = normalizeMode(searchParams.get("mode"));
-  const designOption = normalizeComparisonDesignOption(searchParams.get("design"));
-  const decisionContractId = firstAnalysisDemo ? `${contractId}:first-analysis-demo` : contractId;
+  const designOption = normalizeComparisonDesignOption(
+    searchParams.get("design"),
+  );
+  const decisionContractId = firstAnalysisDemo
+    ? `${contractId}:first-analysis-demo`
+    : contractId;
   const generatedCsvStoragePrefix = `prototype-cp-v2-generated-csv:${supplierId}:${decisionContractId}:`;
   const firstAnalysisResetKeyRef = useRef<string | null>(null);
-
-  // Local mutable copy of versions so the user can simulate uploading a new
-  // round or deleting an existing one without touching shared seed data.
-  const firstAnalysisSeedVersions = firstAnalysisDemo ? [SWITCHED_ON_FIRST_ANALYSIS_VERSION] : contract?.versions ?? [];
-  const [availableVersions, setAvailableVersions] = useState<ContractVersion[]>(firstAnalysisSeedVersions);
-  const versions = firstAnalysisDemo ? availableVersions.slice(0, 1) : availableVersions;
+  const firstAnalysisSeedVersions = firstAnalysisDemo
+    ? [SWITCHED_ON_FIRST_ANALYSIS_VERSION]
+    : (contract?.versions ?? []);
+  const [availableVersions, setAvailableVersions] = useState<ContractVersion[]>(
+    firstAnalysisSeedVersions,
+  );
+  const versions = firstAnalysisDemo
+    ? availableVersions.slice(0, 1)
+    : availableVersions;
   const v1 = versions[0] ?? null;
   const latest = versions.at(-1) ?? null;
-
   useEffect(() => {
-    setAvailableVersions(firstAnalysisDemo ? [SWITCHED_ON_FIRST_ANALYSIS_VERSION] : contract?.versions ?? []);
+    setAvailableVersions(
+      firstAnalysisDemo
+        ? [SWITCHED_ON_FIRST_ANALYSIS_VERSION]
+        : (contract?.versions ?? []),
+    );
   }, [contract?.id, firstAnalysisDemo]);
-
   useEffect(() => {
     if (!firstAnalysisDemo) {
       firstAnalysisResetKeyRef.current = null;
@@ -663,28 +827,40 @@ export function ContractResults({
     const resetKey = `${supplierId}:${decisionContractId}`;
     if (firstAnalysisResetKeyRef.current === resetKey) return;
     decisions.resetContract(supplierId, decisionContractId);
-    setGeneratedCsvSignatures((current) => Object.fromEntries(
-      Object.entries(current).filter(([key]) => !key.startsWith(generatedCsvStoragePrefix)),
-    ));
+    setGeneratedCsvSignatures((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(
+          ([key]) => !key.startsWith(generatedCsvStoragePrefix),
+        ),
+      ),
+    );
     try {
       Object.keys(localStorage)
         .filter((key) => key.startsWith(generatedCsvStoragePrefix))
         .forEach((key) => localStorage.removeItem(key));
     } catch {
-      // Local persistence is best-effort in the prototype.
+      /* Storage may be unavailable in test/private contexts. */
     }
     setBulkReviewSelection(null);
     setBulkAppliedRecommendationIds([]);
     setBulkAppliedRecommendationScopeLabel(null);
     firstAnalysisResetKeyRef.current = resetKey;
-  }, [decisionContractId, decisions, firstAnalysisDemo, generatedCsvStoragePrefix, supplierId]);
-
-  // Seed plausible round-1 request decisions for the demo focus clauses.
+  }, [
+    decisionContractId,
+    decisions,
+    firstAnalysisDemo,
+    generatedCsvStoragePrefix,
+    supplierId,
+  ]);
   useEffect(() => {
     if (!contract || versions.length < 2) return;
-    decisions.seedDefaults(supplierId, decisionContractId, ACME_DEFAULT_FOCUS_IDS, ACME_DEFAULT_REQUEST_TEXTS);
+    decisions.seedDefaults(
+      supplierId,
+      decisionContractId,
+      ACME_DEFAULT_FOCUS_IDS,
+      ACME_DEFAULT_REQUEST_TEXTS,
+    );
   }, [supplierId, decisionContractId, contract, versions.length, decisions]);
-
   const comparisonPair = useMemo(
     () =>
       normalizeVersionComparisonPair(versions, {
@@ -693,24 +869,32 @@ export function ContractResults({
       }),
     [versions, searchParams],
   );
-
   useEffect(() => {
     if (searchParams.get("mode") === mode) return;
     const next = new URLSearchParams(searchParams);
     next.set("mode", mode);
     setSearchParams(next, { replace: true });
   }, [mode, searchParams, setSearchParams]);
-
   useEffect(() => {
     if (versions.length < 2) return;
-    if (searchParams.get("from") === comparisonPair.from && searchParams.get("to") === comparisonPair.to) return;
+    if (
+      searchParams.get("from") === comparisonPair.from &&
+      searchParams.get("to") === comparisonPair.to
+    )
+      return;
     const next = new URLSearchParams(searchParams);
     next.set("mode", mode);
     next.set("from", comparisonPair.from);
     next.set("to", comparisonPair.to);
     setSearchParams(next, { replace: true });
-  }, [comparisonPair.from, comparisonPair.to, mode, searchParams, setSearchParams, versions.length]);
-
+  }, [
+    comparisonPair.from,
+    comparisonPair.to,
+    mode,
+    searchParams,
+    setSearchParams,
+    versions.length,
+  ]);
   useEffect(() => {
     if (versions.length < 2) return;
     if (searchParams.get("design") === designOption) return;
@@ -718,7 +902,6 @@ export function ContractResults({
     next.set("design", designOption);
     setSearchParams(next, { replace: true });
   }, [designOption, searchParams, setSearchParams, versions.length]);
-
   const setComparisonPair = (nextPair: VersionComparisonPair) => {
     const normalized = normalizeVersionComparisonPair(versions, nextPair);
     const next = new URLSearchParams(searchParams);
@@ -726,25 +909,23 @@ export function ContractResults({
     next.set("to", normalized.to);
     setSearchParams(next, { replace: false });
   };
-
   const setPair = (nextPair: { left: string; right: string }) => {
     setComparisonPair({ from: nextPair.left, to: nextPair.right });
   };
-
   const resetPair = () => {
     const normalized = normalizeVersionComparisonPair(versions, null);
     setComparisonPair(normalized);
   };
-
   const pair = { left: comparisonPair.from, right: comparisonPair.to };
-  const leftVersion = versions.find((v) => v.version === comparisonPair.from) ?? v1;
-  const rightVersion = versions.find((v) => v.version === comparisonPair.to) ?? latest;
-
-  // Which version the Review tab is focused on (defaults to latest so the user
-  // can review v1 first, then re-review v2 once it's uploaded).
-  const [reviewVersionLabel, setReviewVersionLabel] = useState<string>(() => versions[0]?.version ?? "v1");
-  const reviewVersion = versions.find((v) => v.version === reviewVersionLabel) ?? v1;
-
+  const leftVersion =
+    versions.find((v) => v.version === comparisonPair.from) ?? v1;
+  const rightVersion =
+    versions.find((v) => v.version === comparisonPair.to) ?? latest;
+  const [reviewVersionLabel, setReviewVersionLabel] = useState<string>(
+    () => versions[0]?.version ?? "v1",
+  );
+  const reviewVersion =
+    versions.find((v) => v.version === reviewVersionLabel) ?? v1;
   const tabStorageKey = `prototype-cp-v2-tab:${supplierId}:${contractId}`;
   const storedComparisonTab = (() => {
     try {
@@ -753,7 +934,10 @@ export function ContractResults({
       return null;
     }
   })();
-  const tab: TabKey = versions.length < 2 ? "review" : normalizeComparisonTab(searchParams.get("tab") ?? storedComparisonTab);
+  const tab: TabKey =
+    versions.length < 2
+      ? "review"
+      : normalizeComparisonTab(searchParams.get("tab") ?? storedComparisonTab);
   const setTab = (next: TabKey) => {
     if (next === "review") return;
     const normalized = normalizeComparisonTab(next);
@@ -764,44 +948,67 @@ export function ContractResults({
     try {
       sessionStorage.setItem(tabStorageKey, normalized);
     } catch {
-      // Session storage is optional in the prototype.
+      /* Storage may be unavailable in test/private contexts. */
     }
   };
   useEffect(() => {
     if (mode !== "comparison" || versions.length < 2) return;
-    const normalized = normalizeComparisonTab(searchParams.get("tab") ?? storedComparisonTab);
+    const normalized = normalizeComparisonTab(
+      searchParams.get("tab") ?? storedComparisonTab,
+    );
     if (searchParams.get("tab") === normalized) return;
     const params = new URLSearchParams(searchParams);
     params.set("mode", "comparison");
     params.set("tab", normalized);
     setSearchParams(params, { replace: true });
-  }, [mode, searchParams, setSearchParams, storedComparisonTab, versions.length]);
-
+  }, [
+    mode,
+    searchParams,
+    setSearchParams,
+    storedComparisonTab,
+    versions.length,
+  ]);
   const historyStorageKey = `prototype-cp-v2-history:${supplierId}:${contractId}`;
   const storedHistoryState = (() => {
     try {
-      return JSON.parse(localStorage.getItem(historyStorageKey) ?? "{}") as { filter?: string; sort?: string };
+      return JSON.parse(localStorage.getItem(historyStorageKey) ?? "{}") as {
+        filter?: string;
+        sort?: string;
+      };
     } catch {
       return {};
     }
   })();
-  const historyFilter = normalizeHistoryFilter(searchParams.get("filter") ?? storedHistoryState.filter ?? null);
-  const historySort = normalizeHistorySort(searchParams.get("sort") ?? storedHistoryState.sort ?? null);
+  const historyFilter = normalizeHistoryFilter(
+    searchParams.get("filter") ?? storedHistoryState.filter ?? null,
+  );
+  const historySort = normalizeHistorySort(
+    searchParams.get("sort") ?? storedHistoryState.sort ?? null,
+  );
   const categorySort = normalizeCategorySort(searchParams.get("catSort"));
-  const comparisonCategoryItems = useMemo(() => deriveCategorySidebarItems(rightVersion), [rightVersion]);
-  const historyCategoryItems = useMemo(() => deriveCategorySidebarItems(latest), [latest]);
+  const comparisonCategoryItems = useMemo(
+    () => deriveCategorySidebarItems(rightVersion),
+    [rightVersion],
+  );
+  const historyCategoryItems = useMemo(
+    () => deriveCategorySidebarItems(latest),
+    [latest],
+  );
   const activeCategories = categoriesFromParam(
     searchParams.get("cat"),
     mode === "history" ? historyCategoryItems : comparisonCategoryItems,
   );
-  const activeCategorySet = useMemo(() => new Set(activeCategories), [activeCategories]);
-  const categoryTotal = (mode === "history" ? historyCategoryItems : comparisonCategoryItems).reduce(
-    (sum, category) => sum + category.count,
-    0,
+  const activeCategorySet = useMemo(
+    () => new Set(activeCategories),
+    [activeCategories],
   );
+  const categoryTotal = (
+    mode === "history" ? historyCategoryItems : comparisonCategoryItems
+  ).reduce((sum, category) => sum + category.count, 0);
   const setActiveCategories = (categories: string[]) => {
     const params = new URLSearchParams(searchParams);
-    if (categories.length > 0) params.set("cat", categories.map(categorySlug).join(","));
+    if (categories.length > 0)
+      params.set("cat", categories.map(categorySlug).join(","));
     else params.delete("cat");
     setSearchParams(params, { replace: false });
   };
@@ -816,7 +1023,9 @@ export function ContractResults({
     setActiveCategories(next);
   };
   const clearActiveCategory = (category: string) => {
-    setActiveCategories(activeCategories.filter((active) => active !== category));
+    setActiveCategories(
+      activeCategories.filter((active) => active !== category),
+    );
   };
   const clearActiveCategories = () => setActiveCategories([]);
   const setCategorySort = (nextSort: CategorySortKey) => {
@@ -830,24 +1039,31 @@ export function ContractResults({
     params.set("catSort", categorySort);
     setSearchParams(params, { replace: true });
   }, [categorySort, searchParams, setSearchParams]);
-  const updateHistoryState = (patch: { filter?: HistoryFilter; sort?: HistorySort }) => {
+  const updateHistoryState = (patch: {
+    filter?: HistoryFilter;
+    sort?: HistorySort;
+  }) => {
     const params = new URLSearchParams(searchParams);
     params.set("mode", "history");
     if (patch.filter) params.set("filter", patch.filter);
     if (patch.sort) params.set("sort", patch.sort);
     setSearchParams(params, { replace: false });
     try {
-      localStorage.setItem(historyStorageKey, JSON.stringify({
-        filter: patch.filter ?? historyFilter,
-        sort: patch.sort ?? historySort,
-      }));
+      localStorage.setItem(
+        historyStorageKey,
+        JSON.stringify({
+          filter: patch.filter ?? historyFilter,
+          sort: patch.sort ?? historySort,
+        }),
+      );
     } catch {
-      // Ignore storage failures.
+      /* Storage may be unavailable in test/private contexts. */
     }
   };
-
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<FilterKey>(() => (mode === "comparison" ? "open" : "all"));
+  const [filter, setFilter] = useState<FilterKey>(() =>
+    mode === "comparison" ? "open" : "all",
+  );
   const detailClauseId = searchParams.get("clause");
   const setDetailClauseId = (id: string | null) => {
     const params = new URLSearchParams(searchParams);
@@ -855,9 +1071,12 @@ export function ContractResults({
     else params.delete("clause");
     setSearchParams(params, { replace: false });
   };
-  const [highlightClauseId, setHighlightClauseId] = useState<string | null>(null);
-  // R3 DI-16: pinned clause IDs survive across version-pair switches and tab changes.
-  const [pinnedClauseIds, setPinnedClauseIds] = useState<Set<string>>(() => new Set());
+  const [highlightClauseId, setHighlightClauseId] = useState<string | null>(
+    null,
+  );
+  const [pinnedClauseIds, setPinnedClauseIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const togglePin = (id: string) => {
     setPinnedClauseIds((prev) => {
       const next = new Set(prev);
@@ -869,75 +1088,146 @@ export function ContractResults({
       return next;
     });
   };
-  // Upload / delete modals
   const [uploadOpen, setUploadOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  // Decision per-version: accept / request changes (state only — no side effects).
-  const [decisions_, setDecisions_] = useState<Record<string, "accepted" | "changes-requested" | null>>({});
+  const [decisions_, setDecisions_] = useState<
+    Record<string, "accepted" | "changes-requested" | null>
+  >({});
   const [acceptConfirmOpen, setAcceptConfirmOpen] = useState(false);
   const [requestReviewOpen, setRequestReviewOpen] = useState(false);
-  const [bulkReviewSelection, setBulkReviewSelection] = useState<{ version: string; clauseIds: string[] } | null>(null);
-  const [bulkAppliedRecommendationIds, setBulkAppliedRecommendationIds] = useState<string[]>([]);
-  const [bulkAppliedRecommendationScopeLabel, setBulkAppliedRecommendationScopeLabel] = useState<string | null>(null);
-  const [generatedCsvSignatures, setGeneratedCsvSignatures] = useState<Record<string, string | null>>({});
+  const [bulkReviewSelection, setBulkReviewSelection] = useState<{
+    version: string;
+    clauseIds: string[];
+  } | null>(null);
+  const [bulkAppliedRecommendationIds, setBulkAppliedRecommendationIds] =
+    useState<string[]>([]);
+  const [
+    bulkAppliedRecommendationScopeLabel,
+    setBulkAppliedRecommendationScopeLabel,
+  ] = useState<string | null>(null);
+  const [generatedCsvSignatures, setGeneratedCsvSignatures] = useState<
+    Record<string, string | null>
+  >({});
   const [quickFilter, setQuickFilter] = useState<QuickFilterKey | null>(() =>
     mode === "comparison" && versions.length >= 2 ? "open-items" : null,
   );
-  const [firstAnalysisMetricFilters, setFirstAnalysisMetricFilters] = useState<Set<FirstAnalysisMetricKey>>(() => new Set());
+  const [firstAnalysisMetricFilters, setFirstAnalysisMetricFilters] = useState<
+    Set<FirstAnalysisMetricKey>
+  >(() => new Set());
   useEffect(() => {
     if (mode !== "comparison" || versions.length >= 2) return;
-    if (quickFilter === "open-items" || quickFilter === "met" || quickFilter === "closed" || quickFilter === "changes") {
+    if (
+      quickFilter === "open-items" ||
+      quickFilter === "met" ||
+      quickFilter === "closed" ||
+      quickFilter === "changes"
+    ) {
       setQuickFilter(null);
     }
   }, [mode, quickFilter, versions.length]);
-
   const allDecisions = decisions.getAll(supplierId, decisionContractId);
   const stateOf = (id: string): ClauseDecisionState =>
-    allDecisions[id] ?? { roundDecisions: {}, closures: {}, requests: {}, updatedAt: "" };
-  const activeRequestVersion = mode === "comparison" ? (rightVersion ?? reviewVersion ?? latest ?? v1) : null;
+    allDecisions[id] ?? {
+      roundDecisions: {},
+      closures: {},
+      requests: {},
+      updatedAt: "",
+    };
+  const activeRequestVersion =
+    mode === "comparison"
+      ? (rightVersion ?? reviewVersion ?? latest ?? v1)
+      : null;
   const pendingRequestItems = useMemo<BasketRequestItem[]>(() => {
     if (mode !== "comparison" || !activeRequestVersion) return [];
-    return decisions.getPendingRequests(supplierId, decisionContractId, activeRequestVersion.version).map((item) => {
-      return buildBasketRequestItem(item.clauseId, item.request, activeRequestVersion, leftVersion);
-    });
-  }, [activeRequestVersion, decisionContractId, decisions, leftVersion, mode, supplierId]);
+    return decisions
+      .getPendingRequests(
+        supplierId,
+        decisionContractId,
+        activeRequestVersion.version,
+      )
+      .map((item) => {
+        return buildBasketRequestItem(
+          item.clauseId,
+          item.request,
+          activeRequestVersion,
+          leftVersion,
+        );
+      });
+  }, [
+    activeRequestVersion,
+    decisionContractId,
+    decisions,
+    leftVersion,
+    mode,
+    supplierId,
+  ]);
   const currentRequestItems = useMemo<BasketRequestItem[]>(() => {
     if (mode !== "comparison" || !activeRequestVersion) return [];
-
     return Object.entries(allDecisions)
-      .filter(([, state]) => state.roundDecisions[activeRequestVersion.version] === "request-update")
+      .filter(
+        ([, state]) =>
+          state.roundDecisions[activeRequestVersion.version] ===
+          "request-update",
+      )
       .map(([clauseId, state]) => {
         const request = state.requests[activeRequestVersion.version];
         if (!request?.requestedChange?.trim()) return null;
-        return buildBasketRequestItem(clauseId, request, activeRequestVersion, leftVersion);
+        return buildBasketRequestItem(
+          clauseId,
+          request,
+          activeRequestVersion,
+          leftVersion,
+        );
       })
       .filter((item): item is BasketRequestItem => Boolean(item))
-      .sort((a, b) => versionClauseIndex(activeRequestVersion, a.clauseId) - versionClauseIndex(activeRequestVersion, b.clauseId));
+      .sort(
+        (a, b) =>
+          versionClauseIndex(activeRequestVersion, a.clauseId) -
+          versionClauseIndex(activeRequestVersion, b.clauseId),
+      );
   }, [activeRequestVersion, allDecisions, leftVersion, mode]);
   const currentReviewSignature = useMemo(
-    () => activeRequestVersion ? buildReviewDecisionSignature(activeRequestVersion, allDecisions) : "",
+    () =>
+      activeRequestVersion
+        ? buildReviewDecisionSignature(activeRequestVersion, allDecisions)
+        : "",
     [activeRequestVersion, allDecisions],
   );
   const generatedCsvStorageKey = activeRequestVersion
     ? `${generatedCsvStoragePrefix}${activeRequestVersion.version}`
     : null;
   useEffect(() => {
-    if (!generatedCsvStorageKey || generatedCsvSignatures[generatedCsvStorageKey] !== undefined) return;
+    if (
+      !generatedCsvStorageKey ||
+      generatedCsvSignatures[generatedCsvStorageKey] !== undefined
+    )
+      return;
     let stored: string | null = null;
     try {
       stored = localStorage.getItem(generatedCsvStorageKey);
     } catch {
       stored = null;
     }
-    setGeneratedCsvSignatures((current) => (
-      current[generatedCsvStorageKey] !== undefined ? current : { ...current, [generatedCsvStorageKey]: stored }
-    ));
+    setGeneratedCsvSignatures((current) =>
+      current[generatedCsvStorageKey] !== undefined
+        ? current
+        : { ...current, [generatedCsvStorageKey]: stored },
+    );
   }, [generatedCsvSignatures, generatedCsvStorageKey]);
-  const lastGeneratedCsvSignature = generatedCsvStorageKey ? generatedCsvSignatures[generatedCsvStorageKey] : null;
-  const hasGeneratedCsv = lastGeneratedCsvSignature !== undefined && lastGeneratedCsvSignature !== null;
-  const csvNeedsUpdate = hasGeneratedCsv && lastGeneratedCsvSignature !== currentReviewSignature;
-  const reviewGenerateRequestItems = csvNeedsUpdate ? currentRequestItems : pendingRequestItems;
-  const reviewGenerateDisabled = !activeRequestVersion || (!csvNeedsUpdate && pendingRequestItems.length === 0);
+  const lastGeneratedCsvSignature = generatedCsvStorageKey
+    ? generatedCsvSignatures[generatedCsvStorageKey]
+    : null;
+  const hasGeneratedCsv =
+    lastGeneratedCsvSignature !== undefined &&
+    lastGeneratedCsvSignature !== null;
+  const csvNeedsUpdate =
+    hasGeneratedCsv && lastGeneratedCsvSignature !== currentReviewSignature;
+  const reviewGenerateRequestItems = csvNeedsUpdate
+    ? currentRequestItems
+    : pendingRequestItems;
+  const reviewGenerateDisabled =
+    !activeRequestVersion ||
+    (!csvNeedsUpdate && pendingRequestItems.length === 0);
   const generateRequestedChangesCsv = () => {
     if (!activeRequestVersion || reviewGenerateDisabled) return;
     const csv = exportRequestChangeCsv(
@@ -954,13 +1244,20 @@ export function ContractResults({
       `${supplier.name}-${contract.name}-${activeRequestVersion.version}-requested-changes.csv`,
       csv,
     );
-    decisions.submitPendingRequests(supplierId, decisionContractId, activeRequestVersion.version);
+    decisions.submitPendingRequests(
+      supplierId,
+      decisionContractId,
+      activeRequestVersion.version,
+    );
     if (generatedCsvStorageKey) {
-      setGeneratedCsvSignatures((current) => ({ ...current, [generatedCsvStorageKey]: currentReviewSignature }));
+      setGeneratedCsvSignatures((current) => ({
+        ...current,
+        [generatedCsvStorageKey]: currentReviewSignature,
+      }));
       try {
         localStorage.setItem(generatedCsvStorageKey, currentReviewSignature);
       } catch {
-        // Local persistence is best-effort in the prototype.
+        /* Storage may be unavailable in test/private contexts. */
       }
     }
     setBulkAppliedRecommendationIds([]);
@@ -968,21 +1265,23 @@ export function ContractResults({
     setBulkReviewSelection(null);
     toast({
       title: "CSV generated",
-      description: reviewGenerateRequestItems.length > 0
-        ? `${reviewGenerateRequestItems.length} requested change${reviewGenerateRequestItems.length === 1 ? "" : "s"} exported for supplier negotiation.`
-        : "No requested changes remain. The generated CSV reflects the latest review decisions.",
+      description:
+        reviewGenerateRequestItems.length > 0
+          ? `${reviewGenerateRequestItems.length} requested change${reviewGenerateRequestItems.length === 1 ? "" : "s"} exported for supplier negotiation.`
+          : "No requested changes remain. The generated CSV reflects the latest review decisions.",
     });
   };
   const bulkReviewClauseIdSet = new Set(bulkReviewSelection?.clauseIds ?? []);
   const bulkReviewSummaryMode = Boolean(
     bulkReviewSelection &&
-      activeRequestVersion &&
-      bulkReviewSelection.version === activeRequestVersion.version &&
-      reviewGenerateRequestItems.length > 0 &&
-      reviewGenerateRequestItems.length === bulkReviewClauseIdSet.size &&
-      reviewGenerateRequestItems.every((item) => bulkReviewClauseIdSet.has(item.clauseId)),
+    activeRequestVersion &&
+    bulkReviewSelection.version === activeRequestVersion.version &&
+    reviewGenerateRequestItems.length > 0 &&
+    reviewGenerateRequestItems.length === bulkReviewClauseIdSet.size &&
+    reviewGenerateRequestItems.every((item) =>
+      bulkReviewClauseIdSet.has(item.clauseId),
+    ),
   );
-
   const onUploadVersion = (file: File | null, label: string) => {
     if (!file) return;
     const prevLabel = availableVersions.at(-1)?.version ?? null;
@@ -997,11 +1296,9 @@ export function ContractResults({
       description: "Changes updated.",
     });
   };
-
   const onDeleteVersion = (label: string) => {
     const next = availableVersions.filter((v) => v.version !== label);
     setAvailableVersions(next);
-    // Re-anchor pair on remaining versions.
     if (next.length >= 2) {
       setPair({ left: next.at(-2)!.version, right: next.at(-1)!.version });
     } else if (next.length === 1) {
@@ -1013,19 +1310,21 @@ export function ContractResults({
       description: "Changes, summary metrics, and history were updated.",
     });
   };
-
   const comparisonModel = useMemo(
     () => deriveComparisonModel(versions, comparisonPair, allDecisions),
     [allDecisions, comparisonPair, versions],
   );
   const historyModel = useMemo(
-    () => deriveHistoryModel(versions, allDecisions, historyFilter, activeCategories, historySort),
+    () =>
+      deriveHistoryModel(
+        versions,
+        allDecisions,
+        historyFilter,
+        activeCategories,
+        historySort,
+      ),
     [activeCategories, allDecisions, historyFilter, historySort, versions],
   );
-
-  // Open Items = previously requested clauses; New Changes = supplier-initiated
-  // movement; Closed = explicitly closed for the target version; Unmarked = no
-  // change/no prior request.
   const comparisonSections = useMemo(
     () => ({
       open: comparisonModel.buckets.open_items,
@@ -1040,7 +1339,6 @@ export function ContractResults({
     () => deriveComparisonMovers(comparisonModel.buckets.new_changes),
     [comparisonModel],
   );
-
   const panelChangeItems = useMemo<PanelChangeItem[]>(
     () =>
       Object.values(comparisonModel.buckets)
@@ -1051,17 +1349,33 @@ export function ContractResults({
           title: row.curr?.title ?? row.prev?.title ?? row.id.toUpperCase(),
           status: row.pill.status!,
         }))
-        .sort((a, b) => sortChangePillStatus(a.status) - sortChangePillStatus(b.status) || a.title.localeCompare(b.title)),
+        .sort(
+          (a, b) =>
+            sortChangePillStatus(a.status) - sortChangePillStatus(b.status) ||
+            a.title.localeCompare(b.title),
+        ),
     [comparisonModel],
   );
-
-  const scoringModel = useMemo(() => computeContractScoring(versions), [versions]);
-
-  // R3 DI-18: undo helpers use the V5 Orbit toast plus per-row 30s undo affordance.
-  const [recentlyClosed, setRecentlyClosed] = useState<Record<string, number>>({});
-  const closeWithUndo = (id: string, label: string, prev: ClosureDecision | undefined) => {
+  const scoringModel = useMemo(
+    () => computeContractScoring(versions),
+    [versions],
+  );
+  const [recentlyClosed, setRecentlyClosed] = useState<Record<string, number>>(
+    {},
+  );
+  const closeWithUndo = (
+    id: string,
+    label: string,
+    prev: ClosureDecision | undefined,
+  ) => {
     if (!rightVersion) return;
-    decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "closed");
+    decisions.setClosure(
+      supplierId,
+      decisionContractId,
+      id,
+      rightVersion.version,
+      "closed",
+    );
     setRecentlyClosed((m) => ({ ...m, [id]: Date.now() + 30_000 }));
     toast({
       title: `Closed "${label}" for ${rightVersion.version}`,
@@ -1070,38 +1384,57 @@ export function ContractResults({
       action: {
         label: "Undo",
         onClick: () => {
-          decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, prev ?? "keep-open");
-          setRecentlyClosed((m) => { const n = { ...m }; delete n[id]; return n; });
+          decisions.setClosure(
+            supplierId,
+            decisionContractId,
+            id,
+            rightVersion.version,
+            prev ?? "keep-open",
+          );
+          setRecentlyClosed((m) => {
+            const n = { ...m };
+            delete n[id];
+            return n;
+          });
         },
       },
     });
     setTimeout(() => {
       setRecentlyClosed((m) => {
         if (!m[id] || m[id] > Date.now()) return m;
-        const n = { ...m }; delete n[id]; return n;
+        const n = { ...m };
+        delete n[id];
+        return n;
       });
     }, 30_500);
   };
   const undoClose = (id: string) => {
     if (!rightVersion) return;
-    decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open");
-    setRecentlyClosed((m) => { const n = { ...m }; delete n[id]; return n; });
+    decisions.setClosure(
+      supplierId,
+      decisionContractId,
+      id,
+      rightVersion.version,
+      "keep-open",
+    );
+    setRecentlyClosed((m) => {
+      const n = { ...m };
+      delete n[id];
+      return n;
+    });
   };
-
-  // --- Top summary bar (always based on v1 review) ---------------------------
   const requestedCount = Object.values(allDecisions).filter(
     (s) => s.roundDecisions["v1"] === "request-update",
   ).length;
   const v1Counts = {
     high: v1.clauses.filter((c) => c.severity === "high" && !c.resolved).length,
-    medium: v1.clauses.filter((c) => c.severity === "medium" && !c.resolved).length,
+    medium: v1.clauses.filter((c) => c.severity === "medium" && !c.resolved)
+      .length,
     low: v1.clauses.filter((c) => c.severity === "low" && !c.resolved).length,
     requested: requestedCount,
     total: v1.clauses.length,
   };
   const targetCounts = comparisonModel.contractFacts;
-
-  // --- Filter applied to comparison sections ---------------------------------
   const matchesSearch = (id: string) => {
     if (!search.trim()) return true;
     const q = search.trim().toLowerCase();
@@ -1115,7 +1448,6 @@ export function ContractResults({
   };
   const matchesCategory = (id: string) =>
     activeCategorySet.size === 0 || activeCategorySet.has(clauseCategory(id));
-
   const detail = detailClauseId
     ? {
         id: detailClauseId,
@@ -1126,14 +1458,26 @@ export function ContractResults({
     : null;
   const clausesRequiringAction = comparisonModel.actionFacts.pendingReview;
   const severityQuickFilter =
-    quickFilter === "high" || quickFilter === "medium" || quickFilter === "low" ? quickFilter : null;
-  const currentDecision = rightVersion ? decisions_[rightVersion.version] ?? null : null;
-  const changePillFor = (id: string, prev?: ClauseResult, curr?: ClauseResult): ChangePillResult => {
+    quickFilter === "high" || quickFilter === "medium" || quickFilter === "low"
+      ? quickFilter
+      : null;
+  const currentDecision = rightVersion
+    ? (decisions_[rightVersion.version] ?? null)
+    : null;
+  const changePillFor = (
+    id: string,
+    prev?: ClauseResult,
+    curr?: ClauseResult,
+  ): ChangePillResult => {
     const state = allDecisions[id];
     return determineChangePill({
       clause: curr,
       previousClause: prev,
-      wasRequestedInPreviousRound: wasRequestedByVersion(state, versions, leftVersion?.version),
+      wasRequestedInPreviousRound: wasRequestedByVersion(
+        state,
+        versions,
+        leftVersion?.version,
+      ),
     });
   };
   const jumpToClause = (id: string) => {
@@ -1145,7 +1489,7 @@ export function ContractResults({
       try {
         sessionStorage.setItem(tabStorageKey, "changes");
       } catch {
-        // Session storage is optional in the prototype.
+        /* Storage may be unavailable in test/private contexts. */
       }
     }
     setSearchParams(params, { replace: false });
@@ -1155,18 +1499,21 @@ export function ContractResults({
     if (rightVersion) setReviewVersionLabel(rightVersion.version);
     setHighlightClauseId(id);
     setTimeout(() => {
-      document.getElementById(`clause-row-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      document
+        .getElementById(`clause-row-${id}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 80);
     window.setTimeout(() => {
       setHighlightClauseId((current) => (current === id ? null : current));
     }, 2200);
   };
-
   const toggleQuickFilter = (next: QuickFilterKey) => {
     const isClearing = quickFilter === next;
     setQuickFilter(isClearing ? null : next);
-
-    if ((next === "high" || next === "medium" || next === "low") && !isClearing) {
+    if (
+      (next === "high" || next === "medium" || next === "low") &&
+      !isClearing
+    ) {
       setFilter("all");
     }
     if (next === "need-action") {
@@ -1205,35 +1552,57 @@ export function ContractResults({
     setFilter("new-issues");
     setQuickFilter(null);
     setTimeout(() => {
-      document.getElementById("comparison-buckets")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document
+        .getElementById("comparison-buckets")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 60);
   };
-
   const matchesQuickSeverity = (clause?: ClauseResult) =>
     !severityQuickFilter || clause?.severity === severityQuickFilter;
-  const filterRowsByQuickState = <T extends { id: string; prev?: ClauseResult; curr?: ClauseResult; pill?: ChangePillResult }>(rows: T[]) =>
+  const filterRowsByQuickState = <
+    T extends {
+      id: string;
+      prev?: ClauseResult;
+      curr?: ClauseResult;
+      pill?: ChangePillResult;
+    },
+  >(
+    rows: T[],
+  ) =>
     rows.filter((row) => {
-      if (severityQuickFilter && !matchesQuickSeverity(row.curr ?? row.prev)) return false;
+      if (severityQuickFilter && !matchesQuickSeverity(row.curr ?? row.prev))
+        return false;
       if (quickFilter === "met" && row.pill?.status !== "met") return false;
       return true;
     });
-
   const openRows = filterRowsByQuickState(
-    comparisonSections.open.filter((r) => matchesSearch(r.id) && matchesCategory(r.id)),
+    comparisonSections.open.filter(
+      (r) => matchesSearch(r.id) && matchesCategory(r.id),
+    ),
   );
   const newIssueRows = filterRowsByQuickState(
-    comparisonSections.newIssues.filter((r) => matchesSearch(r.id) && matchesCategory(r.id)),
+    comparisonSections.newIssues.filter(
+      (r) => matchesSearch(r.id) && matchesCategory(r.id),
+    ),
   );
   const closedRows = filterRowsByQuickState(
-    comparisonSections.closed.filter((r) => matchesSearch(r.id) && matchesCategory(r.id)),
+    comparisonSections.closed.filter(
+      (r) => matchesSearch(r.id) && matchesCategory(r.id),
+    ),
   );
   const unmarkedRows = filterRowsByQuickState(
-    comparisonSections.unmarked.filter((r) => matchesSearch(r.id) && matchesCategory(r.id)),
+    comparisonSections.unmarked.filter(
+      (r) => matchesSearch(r.id) && matchesCategory(r.id),
+    ),
   );
-  const showOpenSection = (filter === "all" || filter === "open") && quickFilter !== "changes";
+  const showOpenSection =
+    (filter === "all" || filter === "open") && quickFilter !== "changes";
   const showNewIssueSection =
     (filter === "all" || filter === "new-issues") &&
-    (quickFilter === null || quickFilter === "need-action" || quickFilter === "changes" || !!severityQuickFilter);
+    (quickFilter === null ||
+      quickFilter === "need-action" ||
+      quickFilter === "changes" ||
+      !!severityQuickFilter);
   const showClosedSection =
     (filter === "all" || filter === "closed") &&
     quickFilter !== "need-action" &&
@@ -1247,14 +1616,23 @@ export function ContractResults({
     quickFilter !== "open-items" &&
     quickFilter !== "met";
   const compactBackLabel = backLabel ?? `Back to ${supplier.name}`;
-  const dashboardSupplierName = searchParams.get("source") === "clauseiq" ? "Thomson Reuters" : supplier.name;
+  const dashboardSupplierName =
+    searchParams.get("source") === "clauseiq"
+      ? "Thomson Reuters"
+      : supplier.name;
   const dashboardReferenceLine = `Supplier: ${dashboardSupplierName}`;
   const switchMode = (nextMode: ClauseIqMode) => {
     const params = new URLSearchParams(searchParams);
     params.set("mode", nextMode);
     if (nextMode === "comparison" && versions.length >= 2) {
-      params.set("tab", normalizeComparisonTab(params.get("tab") ?? storedComparisonTab));
-      params.set("design", normalizeComparisonDesignOption(params.get("design")));
+      params.set(
+        "tab",
+        normalizeComparisonTab(params.get("tab") ?? storedComparisonTab),
+      );
+      params.set(
+        "design",
+        normalizeComparisonDesignOption(params.get("design")),
+      );
     }
     if (nextMode === "history") {
       params.set("filter", historyFilter);
@@ -1283,7 +1661,10 @@ export function ContractResults({
     } else {
       params.delete("scenario");
       if (availableVersions.length >= 2) {
-        const normalized = normalizeVersionComparisonPair(availableVersions, null);
+        const normalized = normalizeVersionComparisonPair(
+          availableVersions,
+          null,
+        );
         params.set("mode", "comparison");
         params.set("from", normalized.from);
         params.set("to", normalized.to);
@@ -1296,7 +1677,10 @@ export function ContractResults({
     setSearchParams(params, { replace: false });
   };
   const hasVersionComparison = comparisonModel.hasComparison;
-  const comparisonCategoryTotal = comparisonCategoryItems.reduce((sum, category) => sum + category.count, 0);
+  const comparisonCategoryTotal = comparisonCategoryItems.reduce(
+    (sum, category) => sum + category.count,
+    0,
+  );
   const categoryPanel = (
     <CategorySidebar
       categories={comparisonCategoryItems}
@@ -1336,8 +1720,8 @@ export function ContractResults({
     const request = state.requests[firstAnalysisVersionLabel];
     return Boolean(
       decision === "no-action" ||
-        decision === "request-update" ||
-        request?.requestedChange?.trim(),
+      decision === "request-update" ||
+      request?.requestedChange?.trim(),
     );
   };
   const hasFirstAnalysisDraft = (id: string) => {
@@ -1345,124 +1729,206 @@ export function ContractResults({
     return Boolean(draft?.requestedChange?.trim() || draft?.rationale?.trim());
   };
   const firstAnalysisCategoryClauses = firstAnalysisVersion
-    ? firstAnalysisVersion.clauses.filter((clause) =>
-        activeCategorySet.size === 0 || activeCategorySet.has(clause.category),
+    ? firstAnalysisVersion.clauses.filter(
+        (clause) =>
+          activeCategorySet.size === 0 ||
+          activeCategorySet.has(clause.category),
       )
     : [];
-  const isFirstAnalysisReviewClause = (clause: ClauseResult) => !clause.resolved;
+  const isFirstAnalysisReviewClause = (clause: ClauseResult) =>
+    !clause.resolved;
   const firstAnalysisAllClauses = firstAnalysisVersion?.clauses ?? [];
-  const explicitMissingClauses = firstAnalysisAllClauses.filter(isMissingClause);
-  const fallbackMissingClauses = firstAnalysisAllClauses.filter((_, index) => (index + 1) % 5 === 0);
+  const explicitMissingClauses =
+    firstAnalysisAllClauses.filter(isMissingClause);
+  const fallbackMissingClauses = firstAnalysisAllClauses.filter(
+    (_, index) => (index + 1) % 5 === 0,
+  );
   const firstAnalysisMissingClauseIds = new Set(
-    (explicitMissingClauses.length > 0 ? explicitMissingClauses : fallbackMissingClauses).map((clause) => clause.id),
+    (explicitMissingClauses.length > 0
+      ? explicitMissingClauses
+      : fallbackMissingClauses
+    ).map((clause) => clause.id),
   );
   const firstAnalysisSelectedSeverities = new Set(
-    Array.from(firstAnalysisMetricFilters).filter((metric): metric is "high" | "medium" | "low" =>
-      metric === "high" || metric === "medium" || metric === "low",
+    Array.from(firstAnalysisMetricFilters).filter(
+      (metric): metric is "high" | "medium" | "low" =>
+        metric === "high" || metric === "medium" || metric === "low",
     ),
   );
-  const firstAnalysisMissingSelected = firstAnalysisMetricFilters.has("missing");
-  const firstAnalysisVisibleClauses = firstAnalysisCategoryClauses.filter((clause) => {
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      if (
-        !clause.title.toLowerCase().includes(q) &&
-        !clause.category.toLowerCase().includes(q) &&
-        !clause.id.includes(q)
-      ) {
-        return false;
+  const firstAnalysisMissingSelected =
+    firstAnalysisMetricFilters.has("missing");
+  const firstAnalysisVisibleClauses = firstAnalysisCategoryClauses.filter(
+    (clause) => {
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        if (
+          !clause.title.toLowerCase().includes(q) &&
+          !clause.category.toLowerCase().includes(q) &&
+          !clause.id.includes(q)
+        ) {
+          return false;
+        }
       }
-    }
-    if (firstAnalysisMissingSelected && !firstAnalysisMissingClauseIds.has(clause.id)) return false;
-    if (!isFirstAnalysisReviewClause(clause)) return false;
-    if (designOption !== "row-scale" && hasFirstAnalysisAction(clause.id)) return false;
-    if (
-      firstAnalysisSelectedSeverities.size > 0 &&
-      (!countsTowardDeviationMetric(clause) || !firstAnalysisSelectedSeverities.has(clause.severity))
-    ) return false;
-    return true;
-  });
+      if (
+        firstAnalysisMissingSelected &&
+        !firstAnalysisMissingClauseIds.has(clause.id)
+      )
+        return false;
+      if (!isFirstAnalysisReviewClause(clause)) return false;
+      if (designOption !== "row-scale" && hasFirstAnalysisAction(clause.id))
+        return false;
+      if (
+        firstAnalysisSelectedSeverities.size > 0 &&
+        (!countsTowardDeviationMetric(clause) ||
+          !firstAnalysisSelectedSeverities.has(clause.severity))
+      )
+        return false;
+      return true;
+    },
+  );
   const firstAnalysisDistribution: DeviationDistribution = {
-    high: firstAnalysisCategoryClauses.filter((clause) => clause.severity === "high" && !clause.resolved && countsTowardDeviationMetric(clause)).length,
-    medium: firstAnalysisCategoryClauses.filter((clause) => clause.severity === "medium" && !clause.resolved && countsTowardDeviationMetric(clause)).length,
-    low: firstAnalysisCategoryClauses.filter((clause) => clause.severity === "low" && !clause.resolved && countsTowardDeviationMetric(clause)).length,
-    clean: firstAnalysisCategoryClauses.filter((clause) => clause.resolved).length,
+    high: firstAnalysisCategoryClauses.filter(
+      (clause) =>
+        clause.severity === "high" &&
+        !clause.resolved &&
+        countsTowardDeviationMetric(clause),
+    ).length,
+    medium: firstAnalysisCategoryClauses.filter(
+      (clause) =>
+        clause.severity === "medium" &&
+        !clause.resolved &&
+        countsTowardDeviationMetric(clause),
+    ).length,
+    low: firstAnalysisCategoryClauses.filter(
+      (clause) =>
+        clause.severity === "low" &&
+        !clause.resolved &&
+        countsTowardDeviationMetric(clause),
+    ).length,
+    clean: firstAnalysisCategoryClauses.filter((clause) => clause.resolved)
+      .length,
   };
   const firstAnalysisMetrics: FirstAnalysisMetrics = {
     needReview: firstAnalysisCategoryClauses.filter(
-      (clause) => isFirstAnalysisReviewClause(clause) && !hasFirstAnalysisAction(clause.id),
+      (clause) =>
+        isFirstAnalysisReviewClause(clause) &&
+        !hasFirstAnalysisAction(clause.id),
     ).length,
-    requested: firstAnalysisCategoryClauses.filter((clause) => stateOf(clause.id).roundDecisions[firstAnalysisVersionLabel] === "request-update").length,
+    requested: firstAnalysisCategoryClauses.filter(
+      (clause) =>
+        stateOf(clause.id).roundDecisions[firstAnalysisVersionLabel] ===
+        "request-update",
+    ).length,
     high: firstAnalysisDistribution.high,
     medium: firstAnalysisDistribution.medium,
     low: firstAnalysisDistribution.low,
-    missingClauses: firstAnalysisCategoryClauses.filter((clause) => firstAnalysisMissingClauseIds.has(clause.id)).length,
+    missingClauses: firstAnalysisCategoryClauses.filter((clause) =>
+      firstAnalysisMissingClauseIds.has(clause.id),
+    ).length,
     score: firstAnalysisVersion?.overallScore ?? 0,
     distribution: firstAnalysisDistribution,
     versionLabel: firstAnalysisVersionLabel,
   };
-  const firstAnalysisReviewProgress = useMemo<FirstAnalysisReviewProgress>(() => {
-    const reviewClauses = firstAnalysisAllClauses.filter(isFirstAnalysisReviewClause);
-    const clauseStatus = (clause: ClauseResult) => {
-      const state = stateOf(clause.id);
-      const decision = state.roundDecisions[firstAnalysisVersionLabel];
-      const request = state.requests[firstAnalysisVersionLabel];
-      const requestedChange = request?.requestedChange?.trim();
-      const usedRecommendation = Boolean(
-        requestedChange &&
+  const firstAnalysisReviewProgress =
+    useMemo<FirstAnalysisReviewProgress>(() => {
+      const reviewClauses = firstAnalysisAllClauses.filter(
+        isFirstAnalysisReviewClause,
+      );
+      const clauseStatus = (clause: ClauseResult) => {
+        const state = stateOf(clause.id);
+        const decision = state.roundDecisions[firstAnalysisVersionLabel];
+        const request = state.requests[firstAnalysisVersionLabel];
+        const requestedChange = request?.requestedChange?.trim();
+        const usedRecommendation = Boolean(
+          requestedChange &&
           decision === "request-update" &&
           requestedChange === clause.actionability?.trim(),
-      );
-      return {
-        reviewed: decision === "request-update" || decision === "no-action" || Boolean(requestedChange),
-        usedRecommendation,
-        noAction: decision === "no-action",
-        submitted: request?.state === "submitted",
-        readyForCsv: decision === "request-update" && Boolean(requestedChange) && request?.state !== "submitted",
+        );
+        return {
+          reviewed:
+            decision === "request-update" ||
+            decision === "no-action" ||
+            Boolean(requestedChange),
+          usedRecommendation,
+          noAction: decision === "no-action",
+          submitted: request?.state === "submitted",
+          readyForCsv:
+            decision === "request-update" &&
+            Boolean(requestedChange) &&
+            request?.state !== "submitted",
+        };
       };
-    };
-    const reviewed = reviewClauses.filter((clause) => clauseStatus(clause).reviewed).length;
-    const breakdown = [
-      {
-        label: "High",
-        clauses: reviewClauses.filter((clause) => clause.severity === "high" && countsTowardDeviationMetric(clause)),
-      },
-      {
-        label: "Medium",
-        clauses: reviewClauses.filter((clause) => clause.severity === "medium" && countsTowardDeviationMetric(clause)),
-      },
-      {
-        label: "Low",
-        clauses: reviewClauses.filter((clause) => clause.severity === "low" && countsTowardDeviationMetric(clause)),
-      },
-      {
-        label: "Missing",
-        clauses: reviewClauses.filter((clause) => firstAnalysisMissingClauseIds.has(clause.id)),
-      },
-    ].map((item) => {
-      const itemReviewed = item.clauses.filter((clause) => clauseStatus(clause).reviewed).length;
+      const reviewed = reviewClauses.filter(
+        (clause) => clauseStatus(clause).reviewed,
+      ).length;
+      const breakdown = [
+        {
+          label: "High",
+          clauses: reviewClauses.filter(
+            (clause) =>
+              clause.severity === "high" && countsTowardDeviationMetric(clause),
+          ),
+        },
+        {
+          label: "Medium",
+          clauses: reviewClauses.filter(
+            (clause) =>
+              clause.severity === "medium" &&
+              countsTowardDeviationMetric(clause),
+          ),
+        },
+        {
+          label: "Low",
+          clauses: reviewClauses.filter(
+            (clause) =>
+              clause.severity === "low" && countsTowardDeviationMetric(clause),
+          ),
+        },
+        {
+          label: "Missing",
+          clauses: reviewClauses.filter((clause) =>
+            firstAnalysisMissingClauseIds.has(clause.id),
+          ),
+        },
+      ].map((item) => {
+        const itemReviewed = item.clauses.filter(
+          (clause) => clauseStatus(clause).reviewed,
+        ).length;
+        return {
+          label: item.label,
+          reviewed: itemReviewed,
+          unreviewed: Math.max(0, item.clauses.length - itemReviewed),
+          total: item.clauses.length,
+        };
+      });
       return {
-        label: item.label,
-        reviewed: itemReviewed,
-        unreviewed: Math.max(0, item.clauses.length - itemReviewed),
-        total: item.clauses.length,
+        total: reviewClauses.length,
+        unreviewed: Math.max(0, reviewClauses.length - reviewed),
+        usedRecommendations: reviewClauses.filter(
+          (clause) => clauseStatus(clause).usedRecommendation,
+        ).length,
+        noAction: reviewClauses.filter(
+          (clause) => clauseStatus(clause).noAction,
+        ).length,
+        submitted: reviewClauses.filter(
+          (clause) => clauseStatus(clause).submitted,
+        ).length,
+        readyForCsv: reviewClauses.filter(
+          (clause) => clauseStatus(clause).readyForCsv,
+        ).length,
+        breakdown,
       };
-    });
-
-    return {
-      total: reviewClauses.length,
-      unreviewed: Math.max(0, reviewClauses.length - reviewed),
-      usedRecommendations: reviewClauses.filter((clause) => clauseStatus(clause).usedRecommendation).length,
-      noAction: reviewClauses.filter((clause) => clauseStatus(clause).noAction).length,
-      submitted: reviewClauses.filter((clause) => clauseStatus(clause).submitted).length,
-      readyForCsv: reviewClauses.filter((clause) => clauseStatus(clause).readyForCsv).length,
-      breakdown,
-    };
-  }, [firstAnalysisAllClauses, firstAnalysisMissingClauseIds, firstAnalysisVersionLabel, stateOf]);
-
+    }, [
+      firstAnalysisAllClauses,
+      firstAnalysisMissingClauseIds,
+      firstAnalysisVersionLabel,
+      stateOf,
+    ]);
   if (!initiative || !supplier || !contract || !v1) return null;
-
-  const historyCategoryTotal = historyCategoryItems.reduce((sum, category) => sum + category.count, 0);
+  const historyCategoryTotal = historyCategoryItems.reduce(
+    (sum, category) => sum + category.count,
+    0,
+  );
   const historyCategoryPanel = (
     <CategorySidebar
       categories={historyCategoryItems}
@@ -1510,7 +1976,14 @@ export function ContractResults({
             supplierName={supplier.name}
             leftLabel={leftVersion.version}
             rightLabel={rightVersion.version}
-            comparisonControl={<PairSelector versions={versions} pair={pair} onChange={setPair} compact />}
+            comparisonControl={
+              <PairSelector
+                versions={versions}
+                pair={pair}
+                onChange={setPair}
+                compact
+              />
+            }
           />
         ) : null
       }
@@ -1518,10 +1991,18 @@ export function ContractResults({
       highlightedId={highlightClauseId}
     />
   );
-  const categoryOpenRows = comparisonSections.open.filter((row) => matchesCategory(row.id));
-  const categoryNewIssueRows = comparisonSections.newIssues.filter((row) => matchesCategory(row.id));
-  const categoryClosedRows = comparisonSections.closed.filter((row) => matchesCategory(row.id));
-  const categoryUnmarkedRows = comparisonSections.unmarked.filter((row) => matchesCategory(row.id));
+  const categoryOpenRows = comparisonSections.open.filter((row) =>
+    matchesCategory(row.id),
+  );
+  const categoryNewIssueRows = comparisonSections.newIssues.filter((row) =>
+    matchesCategory(row.id),
+  );
+  const categoryClosedRows = comparisonSections.closed.filter((row) =>
+    matchesCategory(row.id),
+  );
+  const categoryUnmarkedRows = comparisonSections.unmarked.filter((row) =>
+    matchesCategory(row.id),
+  );
   const categoryAllRows = [
     ...categoryOpenRows,
     ...categoryNewIssueRows,
@@ -1535,7 +2016,8 @@ export function ContractResults({
     met: categoryOpenRows.filter((row) => row.pill.status === "met").length,
     closed: categoryClosedRows.length,
     supplierChanges: categoryNewIssueRows.length,
-    needReview: categoryOpenStats.pendingReview + categoryNewIssueStats.pendingReview,
+    needReview:
+      categoryOpenStats.pendingReview + categoryNewIssueStats.pendingReview,
     high: categoryAllRows.filter((row) => {
       const clause = row.curr ?? row.prev;
       return clause?.severity === "high" && !clause.resolved;
@@ -1550,18 +2032,10 @@ export function ContractResults({
     }).length,
     totalClauses: stripStats.contract.total,
   };
-  const designOpenRows = filterRowsByQuickState(
-    categoryOpenRows,
-  );
-  const designNewIssueRows = filterRowsByQuickState(
-    categoryNewIssueRows,
-  );
-  const designClosedRows = filterRowsByQuickState(
-    categoryClosedRows,
-  );
-  const designUnmarkedRows = filterRowsByQuickState(
-    categoryUnmarkedRows,
-  );
+  const designOpenRows = filterRowsByQuickState(categoryOpenRows);
+  const designNewIssueRows = filterRowsByQuickState(categoryNewIssueRows);
+  const designClosedRows = filterRowsByQuickState(categoryClosedRows);
+  const designUnmarkedRows = filterRowsByQuickState(categoryUnmarkedRows);
   const activeEvidenceMetric: EvidenceMetricKey | null =
     quickFilter === "open-items" ||
     quickFilter === "met" ||
@@ -1577,16 +2051,18 @@ export function ContractResults({
         : null;
   const activeMetricLabel =
     activeEvidenceMetric && activeEvidenceMetric !== "total"
-      ? ({
-          "open-items": "Open items",
-          met: "Met",
-          closed: "Closed",
-          changes: "Supplier changes",
-          "need-action": "Need review",
-          high: "High",
-          medium: "Medium",
-          low: "Low",
-        } satisfies Record<Exclude<EvidenceMetricKey, "total">, string>)[activeEvidenceMetric]
+      ? (
+          {
+            "open-items": "Open items",
+            met: "Met",
+            closed: "Closed",
+            changes: "Supplier changes",
+            "need-action": "Need review",
+            high: "High",
+            medium: "Medium",
+            low: "Low",
+          } satisfies Record<Exclude<EvidenceMetricKey, "total">, string>
+        )[activeEvidenceMetric]
       : null;
   const clearEvidenceMetric = () => {
     setQuickFilter(null);
@@ -1600,14 +2076,18 @@ export function ContractResults({
     quickFilter === "need-action" ||
     Boolean(severityQuickFilter);
   const showDesignNewIssueSection =
-    quickFilter === null || quickFilter === "changes" || quickFilter === "need-action" || Boolean(severityQuickFilter);
+    quickFilter === null ||
+    quickFilter === "changes" ||
+    quickFilter === "need-action" ||
+    Boolean(severityQuickFilter);
   const showDesignClosedSection =
     quickFilter === null ||
     quickFilter === "closed" ||
     quickFilter === "open-items" ||
     quickFilter === "met" ||
     Boolean(severityQuickFilter);
-  const showDesignUnmarkedSection = quickFilter === null || Boolean(severityQuickFilter);
+  const showDesignUnmarkedSection =
+    quickFilter === null || Boolean(severityQuickFilter);
   const firstAnalysisActiveMetrics = Array.from(firstAnalysisMetricFilters);
   const selectFirstAnalysisMetric = (metric: FirstAnalysisMetricKey) => {
     setFirstAnalysisMetricFilters((current) => {
@@ -1617,15 +2097,19 @@ export function ContractResults({
       return next;
     });
   };
-  const firstAnalysisMetricLabels = firstAnalysisActiveMetrics.map((metric) => ({
-    key: metric,
-    label: ({
-      high: "High Deviation",
-      medium: "Medium Deviation",
-      low: "Low Deviation",
-      missing: "Missing Clauses",
-    } satisfies Record<FirstAnalysisMetricKey, string>)[metric],
-  }));
+  const firstAnalysisMetricLabels = firstAnalysisActiveMetrics.map(
+    (metric) => ({
+      key: metric,
+      label: (
+        {
+          high: "High Deviation",
+          medium: "Medium Deviation",
+          low: "Low Deviation",
+          missing: "Missing Clauses",
+        } satisfies Record<FirstAnalysisMetricKey, string>
+      )[metric],
+    }),
+  );
   const clearFirstAnalysisMetric = (metric: FirstAnalysisMetricKey) => {
     setFirstAnalysisMetricFilters((current) => {
       const next = new Set(current);
@@ -1633,14 +2117,16 @@ export function ContractResults({
       return next;
     });
   };
-  const clearAllFirstAnalysisMetrics = () => setFirstAnalysisMetricFilters(new Set());
+  const clearAllFirstAnalysisMetrics = () =>
+    setFirstAnalysisMetricFilters(new Set());
   const firstAnalysisRecommendationTargets = firstAnalysisVersion
     ? firstAnalysisVersion.clauses
-        .filter((clause) =>
-          isFirstAnalysisReviewClause(clause) &&
-          Boolean(clause.actionability?.trim()) &&
-          !hasFirstAnalysisAction(clause.id) &&
-          !hasFirstAnalysisDraft(clause.id),
+        .filter(
+          (clause) =>
+            isFirstAnalysisReviewClause(clause) &&
+            Boolean(clause.actionability?.trim()) &&
+            !hasFirstAnalysisAction(clause.id) &&
+            !hasFirstAnalysisDraft(clause.id),
         )
         .map((clause) => ({
           id: clause.id,
@@ -1654,14 +2140,20 @@ export function ContractResults({
     : [];
   const firstAnalysisRecommendationClauses = firstAnalysisVersion
     ? firstAnalysisVersion.clauses.filter(
-        (clause) => isFirstAnalysisReviewClause(clause) && Boolean(clause.actionability?.trim()),
+        (clause) =>
+          isFirstAnalysisReviewClause(clause) &&
+          Boolean(clause.actionability?.trim()),
       )
     : [];
-  const firstAnalysisPendingRecommendationCount = firstAnalysisRecommendationClauses.filter((clause) => {
-    const state = stateOf(clause.id);
-    const request = state.requests[firstAnalysisVersionLabel];
-    return state.roundDecisions[firstAnalysisVersionLabel] === "request-update" && request?.state !== "submitted";
-  }).length;
+  const firstAnalysisPendingRecommendationCount =
+    firstAnalysisRecommendationClauses.filter((clause) => {
+      const state = stateOf(clause.id);
+      const request = state.requests[firstAnalysisVersionLabel];
+      return (
+        state.roundDecisions[firstAnalysisVersionLabel] === "request-update" &&
+        request?.state !== "submitted"
+      );
+    }).length;
   const firstAnalysisRecommendationsQueued =
     firstAnalysisRecommendationClauses.length > 0 &&
     firstAnalysisRecommendationTargets.length === 0 &&
@@ -1671,32 +2163,43 @@ export function ContractResults({
     firstAnalysisRecommendationTargets.length === 0 &&
     firstAnalysisPendingRecommendationCount === 0;
   const bulkAppliedRecommendationIdSet = new Set(bulkAppliedRecommendationIds);
-  const firstAnalysisUndoableRecommendationIds = firstAnalysisRecommendationClauses
-    .filter((clause) => bulkAppliedRecommendationIdSet.has(clause.id))
-    .filter((clause) => {
-      const state = stateOf(clause.id);
-      const request = state.requests[firstAnalysisVersionLabel];
-      return (
-        state.roundDecisions[firstAnalysisVersionLabel] === "request-update" &&
-        request?.state !== "submitted"
-      );
-    })
-    .map((clause) => clause.id);
-  const firstAnalysisUndoRecommendationCount = firstAnalysisUndoableRecommendationIds.length;
-  const canUndoFirstAnalysisRecommendations = firstAnalysisUndoRecommendationCount > 0;
-  const firstAnalysisApplyAllLabel =
-    canUndoFirstAnalysisRecommendations
-      ? `Undo recommendations (${firstAnalysisUndoRecommendationCount})`
-      : firstAnalysisRecommendationTargets.length > 0
+  const firstAnalysisUndoableRecommendationIds =
+    firstAnalysisRecommendationClauses
+      .filter((clause) => bulkAppliedRecommendationIdSet.has(clause.id))
+      .filter((clause) => {
+        const state = stateOf(clause.id);
+        const request = state.requests[firstAnalysisVersionLabel];
+        return (
+          state.roundDecisions[firstAnalysisVersionLabel] ===
+            "request-update" && request?.state !== "submitted"
+        );
+      })
+      .map((clause) => clause.id);
+  const firstAnalysisUndoRecommendationCount =
+    firstAnalysisUndoableRecommendationIds.length;
+  const canUndoFirstAnalysisRecommendations =
+    firstAnalysisUndoRecommendationCount > 0;
+  const firstAnalysisApplyAllLabel = canUndoFirstAnalysisRecommendations
+    ? `Undo recommendations (${firstAnalysisUndoRecommendationCount})`
+    : firstAnalysisRecommendationTargets.length > 0
       ? `Apply all recommendations (${firstAnalysisRecommendationTargets.length})`
       : firstAnalysisRecommendationsQueued
-      ? "Recommendations added to review"
-      : "All recommendations reviewed";
-  const firstAnalysisRecommendationApplyOptions = buildRecommendationApplyOptions(firstAnalysisRecommendationTargets);
-  const firstAnalysisAvailableRecommendationApplyOptions = firstAnalysisRecommendationApplyOptions.filter((option) => option.count > 0);
-  const applyAllRecommendations = (targets: RecommendationTargetItem[], scope?: RecommendationApplyOption) => {
+        ? "Recommendations added to review"
+        : "All recommendations reviewed";
+  const firstAnalysisRecommendationApplyOptions =
+    buildRecommendationApplyOptions(firstAnalysisRecommendationTargets);
+  const firstAnalysisAvailableRecommendationApplyOptions =
+    firstAnalysisRecommendationApplyOptions.filter(
+      (option) => option.count > 0,
+    );
+  const applyAllRecommendations = (
+    targets: RecommendationTargetItem[],
+    scope?: RecommendationApplyOption,
+  ) => {
     if (!firstAnalysisVersion || targets.length === 0) return;
-    const bulkClauseIds = new Set(pendingRequestItems.map((item) => item.clauseId));
+    const bulkClauseIds = new Set(
+      pendingRequestItems.map((item) => item.clauseId),
+    );
     targets.forEach((item) => bulkClauseIds.add(item.id));
     decisions.acceptPendingRequests(
       supplierId,
@@ -1704,7 +2207,10 @@ export function ContractResults({
       firstAnalysisVersion.version,
       targets.map((item) => ({ clauseId: item.id, request: item.request })),
     );
-    setBulkReviewSelection({ version: firstAnalysisVersion.version, clauseIds: Array.from(bulkClauseIds) });
+    setBulkReviewSelection({
+      version: firstAnalysisVersion.version,
+      clauseIds: Array.from(bulkClauseIds),
+    });
     setBulkAppliedRecommendationIds(targets.map((item) => item.id));
     setBulkAppliedRecommendationScopeLabel(scope?.undoLabel ?? null);
     toast({
@@ -1713,9 +2219,18 @@ export function ContractResults({
     });
   };
   const undoAppliedRecommendations = () => {
-    if (!firstAnalysisVersion || firstAnalysisUndoableRecommendationIds.length === 0) return;
+    if (
+      !firstAnalysisVersion ||
+      firstAnalysisUndoableRecommendationIds.length === 0
+    )
+      return;
     firstAnalysisUndoableRecommendationIds.forEach((id) => {
-      decisions.removePendingRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version);
+      decisions.removePendingRequest(
+        supplierId,
+        decisionContractId,
+        id,
+        firstAnalysisVersion.version,
+      );
     });
     setBulkAppliedRecommendationIds([]);
     setBulkAppliedRecommendationScopeLabel(null);
@@ -1734,220 +2249,461 @@ export function ContractResults({
       quickSeverityFilters={firstAnalysisSelectedSeverities}
       quickReviewFilter="need-review"
       missingClauseIds={firstAnalysisMissingClauseIds}
-      quickMissingClauseIds={firstAnalysisMissingSelected ? firstAnalysisMissingClauseIds : null}
+      quickMissingClauseIds={
+        firstAnalysisMissingSelected ? firstAnalysisMissingClauseIds : null
+      }
       neutralActions
       hideSubclauseReference
       displayMode={designOption === "row-scale" ? "row-scale" : "default"}
       onSetNoAction={(id) =>
-        decisions.changeDecision(supplierId, decisionContractId, id, firstAnalysisVersion.version, "no-action")
+        decisions.changeDecision(
+          supplierId,
+          decisionContractId,
+          id,
+          firstAnalysisVersion.version,
+          "no-action",
+        )
       }
       onStartDraft={(id, initialDraft) =>
-        decisions.startDraftRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version, initialDraft)
+        decisions.startDraftRequest(
+          supplierId,
+          decisionContractId,
+          id,
+          firstAnalysisVersion.version,
+          initialDraft,
+        )
       }
       onUseRecommendation={(id, request) =>
-        decisions.acceptRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version, request)
+        decisions.acceptRequest(
+          supplierId,
+          decisionContractId,
+          id,
+          firstAnalysisVersion.version,
+          request,
+        )
       }
       onUndoDecision={(id) =>
-        decisions.clearRoundDecision(supplierId, decisionContractId, id, firstAnalysisVersion.version)
+        decisions.clearRoundDecision(
+          supplierId,
+          decisionContractId,
+          id,
+          firstAnalysisVersion.version,
+        )
       }
       onUpdateDraft={(id, patch) =>
-        decisions.updateDraftRequestText(supplierId, decisionContractId, id, firstAnalysisVersion.version, patch)
+        decisions.updateDraftRequestText(
+          supplierId,
+          decisionContractId,
+          id,
+          firstAnalysisVersion.version,
+          patch,
+        )
       }
       onCancelDraft={(id) =>
-        decisions.cancelDraftRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version)
+        decisions.cancelDraftRequest(
+          supplierId,
+          decisionContractId,
+          id,
+          firstAnalysisVersion.version,
+        )
       }
       onSubmitDraft={(id) =>
-        decisions.submitDraftRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version)
+        decisions.submitDraftRequest(
+          supplierId,
+          decisionContractId,
+          id,
+          firstAnalysisVersion.version,
+        )
       }
       onOpenDetail={(id) => setDetailClauseId(id)}
       highlightedId={highlightClauseId}
     />
   ) : null;
-  const firstAnalysisDesignContent = firstAnalysisVersion && mode === "comparison" && versions.length < 2 ? (
-    <FirstAnalysisDesignOptions
-      option={designOption}
-      metrics={firstAnalysisMetrics}
-      clausesToReview={firstAnalysisReviewList}
-      visibleCount={firstAnalysisVisibleClauses.length}
-      categoryRail={categoryRail}
-      categoryPanel={categoryPanel}
-      categoryStrip={categoryStrip}
-      activeCategoryLabels={activeCategories}
-      onClearCategory={clearActiveCategories}
-      onClearCategoryFilter={clearActiveCategory}
-      activeMetricLabels={firstAnalysisMetricLabels}
-      onClearMetric={clearFirstAnalysisMetric}
-      onClearAllMetrics={clearAllFirstAnalysisMetrics}
-      activeMetrics={firstAnalysisActiveMetrics}
-      onMetricSelect={selectFirstAnalysisMetric}
-    />
-  ) : null;
-  const comparisonDesignContent = leftVersion && rightVersion && hasVersionComparison ? (
-    <ComparisonDesignOptions
-      option={designOption}
-      comparisonControl={<PairSelector versions={versions} pair={pair} onChange={setPair} compact />}
-      stripStats={stripStats}
-      panel={comparisonModel.panel}
-      contractName={contract.name}
-      supplierName={supplier.name}
-      leftLabel={leftVersion.version}
-      rightLabel={rightVersion.version}
-      categoryRail={categoryRail}
-      categoryPanel={categoryPanel}
-      categoryStrip={categoryStrip}
-      activeCategoryLabels={activeCategories}
-      onClearCategory={clearActiveCategories}
-      onClearCategoryFilter={clearActiveCategory}
-      activeMetricLabel={activeMetricLabel}
-      onClearMetric={clearEvidenceMetric}
-      activeEvidenceMetric={activeEvidenceMetric}
-      onEvidenceMetricSelect={selectEvidenceMetric}
-      evidenceMetrics={evidenceMetrics}
-      openItems={
-        <ComparisonSection
-          title="Open Items"
-          description="Clauses you previously asked the supplier to change."
-          accent="primary"
-          rows={designOpenRows}
-          leftLabel={leftVersion.version}
-          rightLabel={rightVersion.version}
-          visible={showDesignOpenSection}
-          bucket="open"
-          stats={comparisonModel.bucketStats.open_items}
-          closureOf={(id) => stateOf(id).closures[rightVersion.version]}
-          requestOf={(id) => {
-            const latest = getLatestRequest(stateOf(id), leftVersion.version);
-            return latest ? { ...latest.request, fromVersion: latest.version } : {};
-          }}
-          basketRequestOf={(id) => stateOf(id).requests[rightVersion.version]}
-          draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
-          onClose={(id) => {
-            const display = leftVersion.clauses.find((c) => c.id === id) ?? rightVersion.clauses.find((c) => c.id === id);
-            const prev = stateOf(id).closures[rightVersion.version];
-            closeWithUndo(id, display?.title ?? id.toUpperCase(), prev);
-          }}
-          onKeepOpen={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open")}
-          onFollowUp={(id) =>
-            decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version, {
-              requestedChange: "",
-              rationale: "",
-            })
-          }
-          onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
-          onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-          onSubmitDraft={(id) => {
-            decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version);
-            decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "follow-up");
-          }}
-          onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
-          onOpenDetail={setDetailClauseId}
-          pinnedIds={pinnedClauseIds}
-          onTogglePin={togglePin}
-          recentlyClosed={recentlyClosed}
-          onUndoClose={undoClose}
-          layout="plain"
-        />
-      }
-      newChanges={
-        <ComparisonSection
-          title="New Changes"
-          description="Material changes the supplier made without being asked, plus clauses that didn't exist before."
-          accent="destructive"
-          rows={designNewIssueRows}
-          leftLabel={leftVersion.version}
-          rightLabel={rightVersion.version}
-          visible={showDesignNewIssueSection}
-          bucket="new"
-          stats={comparisonModel.bucketStats.new_changes}
-          closureOf={() => undefined}
-          requestOf={(id) => stateOf(id).requests[rightVersion.version] ?? {}}
-          basketRequestOf={(id) => stateOf(id).requests[rightVersion.version]}
-          draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
-          onClose={(id) => decisions.setRoundDecision(supplierId, decisionContractId, id, rightVersion.version, "no-action")}
-          onKeepOpen={(id) => decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-          onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
-          onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-          onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-          onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
-          onOpenDetail={setDetailClauseId}
-          pinnedIds={pinnedClauseIds}
-          onTogglePin={togglePin}
-          layout="plain"
-        />
-      }
-      closedItems={
-        <ComparisonSection
-          title="Closed"
-          description="Clauses you marked as resolved for this round."
-          accent="success"
-          rows={designClosedRows}
-          leftLabel={leftVersion.version}
-          rightLabel={rightVersion.version}
-          visible={showDesignClosedSection}
-          bucket="closed"
-          stats={comparisonModel.bucketStats.closed}
-          closureOf={(id) => stateOf(id).closures[rightVersion.version]}
-          requestOf={(id) => {
-            const latest = getLatestRequest(stateOf(id), leftVersion.version);
-            return latest ? { ...latest.request, fromVersion: latest.version } : {};
-          }}
-          onClose={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "closed")}
-          onKeepOpen={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open")}
-          onOpenDetail={setDetailClauseId}
-          pinnedIds={pinnedClauseIds}
-          onTogglePin={togglePin}
-          layout="plain"
-        />
-      }
-      unmarkedClauses={
-        <UnmarkedSection
-          rows={designUnmarkedRows}
-          leftLabel={leftVersion.version}
-          rightLabel={rightVersion.version}
-          visible={showDesignUnmarkedSection}
-          defaultOpen={false}
-          requestOf={(id) => stateOf(id).requests[rightVersion.version] ?? {}}
-          draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
-          isRequested={(id) => stateOf(id).roundDecisions[rightVersion.version] === "request-update"}
-          decisionOf={(id) => stateOf(id).roundDecisions[rightVersion.version]}
-          isDrafting={(id) => Boolean(stateOf(id).draftRequests?.[rightVersion.version])}
-          onRequestChange={(id) => decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-          onSetNoAction={(id) => decisions.changeDecision(supplierId, decisionContractId, id, rightVersion.version, "no-action")}
-          onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
-          onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-          onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-          onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
-          onOpenDetail={setDetailClauseId}
-        />
-      }
-    />
-  ) : null;
-
+  const firstAnalysisDesignContent =
+    firstAnalysisVersion && mode === "comparison" && versions.length < 2 ? (
+      <FirstAnalysisDesignOptions
+        option={designOption}
+        metrics={firstAnalysisMetrics}
+        clausesToReview={firstAnalysisReviewList}
+        visibleCount={firstAnalysisVisibleClauses.length}
+        categoryRail={categoryRail}
+        categoryPanel={categoryPanel}
+        categoryStrip={categoryStrip}
+        activeCategoryLabels={activeCategories}
+        onClearCategory={clearActiveCategories}
+        onClearCategoryFilter={clearActiveCategory}
+        activeMetricLabels={firstAnalysisMetricLabels}
+        onClearMetric={clearFirstAnalysisMetric}
+        onClearAllMetrics={clearAllFirstAnalysisMetrics}
+        activeMetrics={firstAnalysisActiveMetrics}
+        onMetricSelect={selectFirstAnalysisMetric}
+      />
+    ) : null;
+  const comparisonDesignContent =
+    leftVersion && rightVersion && hasVersionComparison ? (
+      <ComparisonDesignOptions
+        option={designOption}
+        comparisonControl={
+          <PairSelector
+            versions={versions}
+            pair={pair}
+            onChange={setPair}
+            compact
+          />
+        }
+        stripStats={stripStats}
+        panel={comparisonModel.panel}
+        contractName={contract.name}
+        supplierName={supplier.name}
+        leftLabel={leftVersion.version}
+        rightLabel={rightVersion.version}
+        categoryRail={categoryRail}
+        categoryPanel={categoryPanel}
+        categoryStrip={categoryStrip}
+        activeCategoryLabels={activeCategories}
+        onClearCategory={clearActiveCategories}
+        onClearCategoryFilter={clearActiveCategory}
+        activeMetricLabel={activeMetricLabel}
+        onClearMetric={clearEvidenceMetric}
+        activeEvidenceMetric={activeEvidenceMetric}
+        onEvidenceMetricSelect={selectEvidenceMetric}
+        evidenceMetrics={evidenceMetrics}
+        openItems={
+          <ComparisonSection
+            title="Open Items"
+            description="Clauses you previously asked the supplier to change."
+            accent="primary"
+            rows={designOpenRows}
+            leftLabel={leftVersion.version}
+            rightLabel={rightVersion.version}
+            visible={showDesignOpenSection}
+            bucket="open"
+            stats={comparisonModel.bucketStats.open_items}
+            closureOf={(id) => stateOf(id).closures[rightVersion.version]}
+            requestOf={(id) => {
+              const latest = getLatestRequest(stateOf(id), leftVersion.version);
+              return latest
+                ? { ...latest.request, fromVersion: latest.version }
+                : {};
+            }}
+            basketRequestOf={(id) => stateOf(id).requests[rightVersion.version]}
+            draftOf={(id) =>
+              stateOf(id).draftRequests?.[rightVersion.version] ?? {}
+            }
+            onClose={(id) => {
+              const display =
+                leftVersion.clauses.find((c) => c.id === id) ??
+                rightVersion.clauses.find((c) => c.id === id);
+              const prev = stateOf(id).closures[rightVersion.version];
+              closeWithUndo(id, display?.title ?? id.toUpperCase(), prev);
+            }}
+            onKeepOpen={(id) =>
+              decisions.setClosure(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+                "keep-open",
+              )
+            }
+            onFollowUp={(id) =>
+              decisions.startDraftRequest(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+                { requestedChange: "", rationale: "" },
+              )
+            }
+            onUpdateText={(id, patch) =>
+              decisions.updateDraftRequestText(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+                patch,
+              )
+            }
+            onCancelDraft={(id) =>
+              decisions.cancelDraftRequest(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+              )
+            }
+            onSubmitDraft={(id) => {
+              decisions.submitDraftRequest(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+              );
+              decisions.setClosure(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+                "follow-up",
+              );
+            }}
+            onRemoveRequest={(id) =>
+              decisions.removePendingRequest(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+              )
+            }
+            onOpenDetail={setDetailClauseId}
+            pinnedIds={pinnedClauseIds}
+            onTogglePin={togglePin}
+            recentlyClosed={recentlyClosed}
+            onUndoClose={undoClose}
+            layout="plain"
+          />
+        }
+        newChanges={
+          <ComparisonSection
+            title="New Changes"
+            description="Material changes the supplier made without being asked, plus clauses that didn't exist before."
+            accent="destructive"
+            rows={designNewIssueRows}
+            leftLabel={leftVersion.version}
+            rightLabel={rightVersion.version}
+            visible={showDesignNewIssueSection}
+            bucket="new"
+            stats={comparisonModel.bucketStats.new_changes}
+            closureOf={() => undefined}
+            requestOf={(id) => stateOf(id).requests[rightVersion.version] ?? {}}
+            basketRequestOf={(id) => stateOf(id).requests[rightVersion.version]}
+            draftOf={(id) =>
+              stateOf(id).draftRequests?.[rightVersion.version] ?? {}
+            }
+            onClose={(id) =>
+              decisions.setRoundDecision(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+                "no-action",
+              )
+            }
+            onKeepOpen={(id) =>
+              decisions.startDraftRequest(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+              )
+            }
+            onUpdateText={(id, patch) =>
+              decisions.updateDraftRequestText(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+                patch,
+              )
+            }
+            onCancelDraft={(id) =>
+              decisions.cancelDraftRequest(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+              )
+            }
+            onSubmitDraft={(id) =>
+              decisions.submitDraftRequest(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+              )
+            }
+            onRemoveRequest={(id) =>
+              decisions.removePendingRequest(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+              )
+            }
+            onOpenDetail={setDetailClauseId}
+            pinnedIds={pinnedClauseIds}
+            onTogglePin={togglePin}
+            layout="plain"
+          />
+        }
+        closedItems={
+          <ComparisonSection
+            title="Closed"
+            description="Clauses you marked as resolved for this round."
+            accent="success"
+            rows={designClosedRows}
+            leftLabel={leftVersion.version}
+            rightLabel={rightVersion.version}
+            visible={showDesignClosedSection}
+            bucket="closed"
+            stats={comparisonModel.bucketStats.closed}
+            closureOf={(id) => stateOf(id).closures[rightVersion.version]}
+            requestOf={(id) => {
+              const latest = getLatestRequest(stateOf(id), leftVersion.version);
+              return latest
+                ? { ...latest.request, fromVersion: latest.version }
+                : {};
+            }}
+            onClose={(id) =>
+              decisions.setClosure(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+                "closed",
+              )
+            }
+            onKeepOpen={(id) =>
+              decisions.setClosure(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+                "keep-open",
+              )
+            }
+            onOpenDetail={setDetailClauseId}
+            pinnedIds={pinnedClauseIds}
+            onTogglePin={togglePin}
+            layout="plain"
+          />
+        }
+        unmarkedClauses={
+          <UnmarkedSection
+            rows={designUnmarkedRows}
+            leftLabel={leftVersion.version}
+            rightLabel={rightVersion.version}
+            visible={showDesignUnmarkedSection}
+            defaultOpen={false}
+            requestOf={(id) => stateOf(id).requests[rightVersion.version] ?? {}}
+            draftOf={(id) =>
+              stateOf(id).draftRequests?.[rightVersion.version] ?? {}
+            }
+            isRequested={(id) =>
+              stateOf(id).roundDecisions[rightVersion.version] ===
+              "request-update"
+            }
+            decisionOf={(id) =>
+              stateOf(id).roundDecisions[rightVersion.version]
+            }
+            isDrafting={(id) =>
+              Boolean(stateOf(id).draftRequests?.[rightVersion.version])
+            }
+            onRequestChange={(id) =>
+              decisions.startDraftRequest(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+              )
+            }
+            onSetNoAction={(id) =>
+              decisions.changeDecision(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+                "no-action",
+              )
+            }
+            onUpdateText={(id, patch) =>
+              decisions.updateDraftRequestText(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+                patch,
+              )
+            }
+            onCancelDraft={(id) =>
+              decisions.cancelDraftRequest(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+              )
+            }
+            onSubmitDraft={(id) =>
+              decisions.submitDraftRequest(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+              )
+            }
+            onRemoveRequest={(id) =>
+              decisions.removePendingRequest(
+                supplierId,
+                decisionContractId,
+                id,
+                rightVersion.version,
+              )
+            }
+            onOpenDetail={setDetailClauseId}
+          />
+        }
+      />
+    ) : null;
   return (
-    <div className="min-h-screen bg-background">
+    <div
+      className={cn(
+        "min-h-screen bg-background",
+        reviewGeneratePresentation === "inline-tray" &&
+          "cpv2-results-inline-review-host",
+      )}
+    >
+      {" "}
       {compactHeader ? (
         <div className="sticky top-0 z-30 border-b border-[rgba(0,0,0,0.08)] bg-white">
+          {" "}
           <CompactContractTopbar
             backLabel={compactBackLabel}
             onBack={onBack}
             referenceLine={dashboardReferenceLine}
-            analysisLabel={firstAnalysisDemo ? `${firstAnalysisVersionLabel.toUpperCase()} Analysis` : undefined}
+            analysisLabel={
+              firstAnalysisDemo
+                ? `${firstAnalysisVersionLabel.toUpperCase()} Analysis`
+                : undefined
+            }
             firstAnalysisDemo={firstAnalysisDemo}
             demoAvailable={availableVersions.length >= 2}
             onFirstAnalysisDemoChange={toggleFirstAnalysisDemo}
-          />
+          />{" "}
           <ModeSwitcher
             mode={mode}
             onChange={switchMode}
             comparisonLabel="Review"
             historyDisabled={!firstAnalysisDemo && versions.length < 2}
-            onApplyAllRecommendations={() => applyAllRecommendations(firstAnalysisRecommendationTargets)}
-            onApplyRecommendationOption={(option) => applyAllRecommendations(option.targets, option)}
+            onApplyAllRecommendations={() =>
+              applyAllRecommendations(firstAnalysisRecommendationTargets)
+            }
+            onApplyRecommendationOption={(option) =>
+              applyAllRecommendations(option.targets, option)
+            }
             onUndoAllRecommendations={undoAppliedRecommendations}
-            applyAllRecommendationsDisabled={!firstAnalysisDemo || firstAnalysisRecommendationTargets.length === 0}
-            applyAllRecommendationsQueued={firstAnalysisDemo && firstAnalysisRecommendationsQueued}
-            applyAllRecommendationsReviewed={firstAnalysisDemo && firstAnalysisRecommendationsReviewed}
-            applyAllRecommendationsUndoable={firstAnalysisDemo && canUndoFirstAnalysisRecommendations}
+            applyAllRecommendationsDisabled={
+              !firstAnalysisDemo ||
+              firstAnalysisRecommendationTargets.length === 0
+            }
+            applyAllRecommendationsQueued={
+              firstAnalysisDemo && firstAnalysisRecommendationsQueued
+            }
+            applyAllRecommendationsReviewed={
+              firstAnalysisDemo && firstAnalysisRecommendationsReviewed
+            }
+            applyAllRecommendationsUndoable={
+              firstAnalysisDemo && canUndoFirstAnalysisRecommendations
+            }
             recommendationApplyOptions={firstAnalysisRecommendationApplyOptions}
             recommendationCount={firstAnalysisRecommendationTargets.length}
             undoRecommendationCount={firstAnalysisUndoRecommendationCount}
@@ -1955,171 +2711,275 @@ export function ContractResults({
             onReviewGenerate={() => setRequestReviewOpen(true)}
             reviewGenerateDisabled={reviewGenerateDisabled}
             requestCount={reviewGenerateRequestItems.length}
-          />
+          />{" "}
         </div>
       ) : (
         <>
-          {/* Top header */}
+          {" "}
+          {/* Top header */}{" "}
           <div className="border-b border-border bg-card sticky top-0 z-30">
+            {" "}
             <div className="max-w-[1400px] mx-auto px-orbit-m py-orbit-base">
+              {" "}
               <div className="flex flex-wrap items-center justify-between gap-orbit-s">
-                <CpButton onClick={onBack} className="inline-flex h-8 items-center gap-orbit-xs text-sm text-muted-foreground hover:text-foreground">
-                  <ChevronLeft className="w-4 h-4" /> {backLabel ?? `Back to ${supplier.name}`}
-                </CpButton>
+                {" "}
+                {onBack ? (
+                  <CpButton
+                    onClick={onBack}
+                    className="inline-flex h-8 items-center gap-orbit-xs cpv2-type-sm text-muted-foreground hover:text-foreground"
+                  >
+                    {" "}
+                    <ChevronLeft className="w-4 h-4" />{" "}
+                    {backLabel ?? `Back to ${supplier.name}`}{" "}
+                  </CpButton>
+                ) : null}{" "}
                 <div
                   className={cn(
                     "flex flex-wrap items-center justify-start gap-orbit-s sm:justify-end",
-                    isResponsiveTestingRoute && "clauseiq-responsive-dashboard-actions",
+                    isResponsiveTestingRoute &&
+                      "clauseiq-responsive-dashboard-actions",
                   )}
                 >
-                  <SupplierGroupingPopover supplierId={supplierId} supplierName={supplier.name} />
-                  {firstAnalysisDemo && mode === "comparison" && (
-                    canUndoFirstAnalysisRecommendations ? (
+                  {" "}
+                  <SupplierGroupingPopover
+                    supplierId={supplierId}
+                    supplierName={supplier.name}
+                  />{" "}
+                  {firstAnalysisDemo &&
+                    mode === "comparison" &&
+                    (canUndoFirstAnalysisRecommendations ? (
                       <Button
                         variant="outline"
                         className="h-9 gap-orbit-xs bg-white"
                         onClick={undoAppliedRecommendations}
                       >
-                        <RotateCcw className="w-3.5 h-3.5" />
+                        {" "}
+                        <RotateCcw className="w-3.5 h-3.5" />{" "}
                         {bulkAppliedRecommendationScopeLabel
                           ? `Undo ${bulkAppliedRecommendationScopeLabel} recommendations (${firstAnalysisUndoRecommendationCount})`
-                          : firstAnalysisApplyAllLabel}
+                          : firstAnalysisApplyAllLabel}{" "}
                       </Button>
-                    ) : firstAnalysisAvailableRecommendationApplyOptions.length > 0 ? (
+                    ) : firstAnalysisAvailableRecommendationApplyOptions.length >
+                      0 ? (
                       <Select
                         value=""
                         onValueChange={(value) => {
-                          const option = firstAnalysisAvailableRecommendationApplyOptions.find((candidate) => candidate.id === value);
-                          if (option) applyAllRecommendations(option.targets, option);
+                          const option =
+                            firstAnalysisAvailableRecommendationApplyOptions.find(
+                              (candidate) => candidate.id === value,
+                            );
+                          if (option)
+                            applyAllRecommendations(option.targets, option);
                         }}
                       >
+                        {" "}
                         <SelectTrigger
                           className={cn(
-                            "clauseiq-v5-select-hug",
-                            isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger",
+                            "cpv2-clauseiq-select-hug",
+                            isResponsiveTestingRoute &&
+                              "clauseiq-responsive-apply-trigger",
                           )}
                           aria-label="Apply Recommendations"
                         >
-                          <Sparkles className="mr-orbit-xs h-3.5 w-3.5" />
-                          <SelectValue placeholder={`Apply Recommendations (${firstAnalysisRecommendationTargets.length})`} />
-                        </SelectTrigger>
+                          {" "}
+                          <Sparkles className="mr-orbit-xs h-3.5 w-3.5" />{" "}
+                          <SelectValue
+                            placeholder={`Apply Recommendations (${firstAnalysisRecommendationTargets.length})`}
+                          />{" "}
+                        </SelectTrigger>{" "}
                         <SelectContent>
-                          {firstAnalysisAvailableRecommendationApplyOptions.map((option) => (
-                            <SelectItem key={option.id} value={option.id}>
-                              {option.label} ({option.count})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
+                          {" "}
+                          {firstAnalysisAvailableRecommendationApplyOptions.map(
+                            (option) => (
+                              <SelectItem key={option.id} value={option.id}>
+                                {" "}
+                                {option.label} ({option.count}){" "}
+                              </SelectItem>
+                            ),
+                          )}{" "}
+                        </SelectContent>{" "}
                       </Select>
                     ) : (
-                      <Button
-                        variant="outline"
-                        disabled
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        {firstAnalysisApplyAllLabel}
+                      <Button variant="outline" disabled>
+                        {" "}
+                        <CheckCircle2 className="w-3.5 h-3.5" />{" "}
+                        {firstAnalysisApplyAllLabel}{" "}
                       </Button>
-                    )
-                  )}
+                    ))}{" "}
                   <CpButton
                     type="button"
                     className="cpv2-results-primary-button"
                     disabled={reviewGenerateDisabled}
                     onClick={() => setRequestReviewOpen(true)}
                   >
-                    <Download className="w-3.5 h-3.5" />
-                    Review &amp; Generate{reviewGenerateRequestItems.length > 0 ? ` (${reviewGenerateRequestItems.length})` : ""}
-                  </CpButton>
-                  <Button variant="default" className="h-9 gap-orbit-xs" onClick={() => setUploadOpen(true)}>
-                    <Upload className="w-3.5 h-3.5" /> Upload New Version
-                  </Button>
+                    {" "}
+                    <Download className="w-3.5 h-3.5" /> Review &amp; Generate
+                    {reviewGenerateRequestItems.length > 0
+                      ? ` (${reviewGenerateRequestItems.length})`
+                      : ""}{" "}
+                  </CpButton>{" "}
+                  <Button
+                    variant="default"
+                    className="h-9 gap-orbit-xs"
+                    onClick={() => setUploadOpen(true)}
+                  >
+                    {" "}
+                    <Upload className="w-3.5 h-3.5" /> Upload New Version{" "}
+                  </Button>{" "}
                   <Button
                     variant="outline"
                     className="h-9 gap-orbit-xs"
                     disabled={versions.length === 0}
                     onClick={() => latest && setDeleteTarget(latest.version)}
                   >
-                    <Trash2 className="w-3.5 h-3.5" /> Delete Version
-                  </Button>
-                </div>
-              </div>
+                    {" "}
+                    <Trash2 className="w-3.5 h-3.5" /> Delete Version{" "}
+                  </Button>{" "}
+                </div>{" "}
+              </div>{" "}
               <div className="mt-orbit-s grid gap-orbit-base lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px] lg:items-end">
+                {" "}
                 <div className="min-w-0">
-                  <p className="text-xs v5-orbit-weight-semibold text-muted-foreground uppercase tracking-wider">
-                    {initiative.name} · {initiative.reference} · {supplier.name}
-                  </p>
+                  {" "}
+                  <p className="cpv2-type-xs cpv2-orbit-weight-semibold text-muted-foreground uppercase ">
+                    {" "}
+                    {initiative.name} · {initiative.reference} ·{" "}
+                    {supplier.name}{" "}
+                  </p>{" "}
                   <div className="mt-orbit-xs flex flex-wrap items-center gap-x-orbit-base gap-y-orbit-s">
-                    <h1 className="v5-orbit-heading-3">{contract.name}</h1>
-                    <Badge variant="outline">{contract.type}</Badge>
-                  </div>
+                    {" "}
+                    <h1 className="cpv2-orbit-heading-3">
+                      {contract.name}
+                    </h1>{" "}
+                    <Badge variant="outline">{contract.type}</Badge>{" "}
+                  </div>{" "}
                   <div className="mt-orbit-s flex items-center gap-orbit-s flex-wrap">
-                    <span className="text-sm text-muted-foreground">
-                      {versions.length} round{versions.length !== 1 ? "s" : ""}
-                      {latest && <> · Latest updated {latest.uploadedAt}</>}
-                    </span>
-                  </div>
+                    {" "}
+                    <span className="cpv2-type-sm text-muted-foreground">
+                      {" "}
+                      {versions.length} round{versions.length !== 1 ? "s" : ""}{" "}
+                      {latest && (
+                        <> · Latest updated {latest.uploadedAt}</>
+                      )}{" "}
+                    </span>{" "}
+                  </div>{" "}
                   {versions.length > 0 && (
-                    <p className="mt-orbit-s max-w-3xl text-xs text-muted-foreground">
-                      Use the <span className="v5-orbit-weight-semibold text-foreground">Review</span> tab to mark which clauses need to change, then switch to <span className="v5-orbit-weight-semibold text-foreground">Changes</span> to see how the supplier responded.
+                    <p className="mt-orbit-s max-w-3xl cpv2-type-xs text-muted-foreground">
+                      {" "}
+                      Use the{" "}
+                      <span className="cpv2-orbit-weight-semibold text-foreground">
+                        Review
+                      </span>{" "}
+                      tab to mark which clauses need to change, then switch to{" "}
+                      <span className="cpv2-orbit-weight-semibold text-foreground">
+                        Changes
+                      </span>{" "}
+                      to see how the supplier responded.{" "}
                     </p>
-                  )}
-                </div>
-
+                  )}{" "}
+                </div>{" "}
                 <div className="w-full rounded-lg border border-border bg-muted/30 px-orbit-base py-orbit-base">
+                  {" "}
                   <div className="flex flex-wrap items-center justify-between gap-orbit-s">
-                    <p className="text-[11px] v5-orbit-weight-semibold uppercase tracking-wider text-muted-foreground">Review summary</p>
+                    {" "}
+                    <p className="cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-muted-foreground">
+                      Review summary
+                    </p>{" "}
                     {versions.length >= 2 && (
-                      <p className="text-xs text-muted-foreground">
-                        <span className="v5-orbit-weight-semibold text-foreground">{clausesRequiringAction}</span>{" "}
-                        clause{clausesRequiringAction === 1 ? "" : "s"} require action
+                      <p className="cpv2-type-xs text-muted-foreground">
+                        {" "}
+                        <span className="cpv2-orbit-weight-semibold text-foreground">
+                          {clausesRequiringAction}
+                        </span>{" "}
+                        clause{clausesRequiringAction === 1 ? "" : "s"} require
+                        action{" "}
                       </p>
-                    )}
-                  </div>
+                    )}{" "}
+                  </div>{" "}
                   <div className="mt-orbit-base grid grid-cols-5 gap-orbit-s">
-                    <SummaryStat label="High" value={v1Counts.high} tone="text-destructive" />
-                    <SummaryStat label="Medium" value={v1Counts.medium} tone="text-warning" />
-                    <SummaryStat label="Low" value={v1Counts.low} tone="text-success" />
-                    <SummaryStat label="Requested" value={v1Counts.requested} tone="text-primary" />
-                    <SummaryStat label="Total" value={v1Counts.total} tone="text-foreground" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+                    {" "}
+                    <SummaryStat
+                      label="High"
+                      value={v1Counts.high}
+                      tone="text-destructive"
+                    />{" "}
+                    <SummaryStat
+                      label="Medium"
+                      value={v1Counts.medium}
+                      tone="text-warning"
+                    />{" "}
+                    <SummaryStat
+                      label="Low"
+                      value={v1Counts.low}
+                      tone="text-success"
+                    />{" "}
+                    <SummaryStat
+                      label="Requested"
+                      value={v1Counts.requested}
+                      tone="text-primary"
+                    />{" "}
+                    <SummaryStat
+                      label="Total"
+                      value={v1Counts.total}
+                      tone="text-foreground"
+                    />{" "}
+                  </div>{" "}
+                </div>{" "}
+              </div>{" "}
+            </div>{" "}
+          </div>{" "}
         </>
-      )}
-
-      {compactHeader && firstAnalysisDemo && <FirstAnalysisContextBanner />}
-
-      {/* Verdict banner — only when at least 2 versions exist */}
-      {!compactHeader && versions.length >= 2 && leftVersion && rightVersion && leftVersion.version !== rightVersion.version && (
-        <div className="max-w-[1600px] mx-auto px-orbit-base pt-orbit-m">
-          <VersionVerdictBanner
-            leftVersion={leftVersion}
-            rightVersion={rightVersion}
-            versions={versions}
-            allDecisions={allDecisions}
-            decision={decisions_[rightVersion.version] ?? null}
-            onDecision={(d) =>
-              setDecisions_((prev) => ({ ...prev, [rightVersion.version]: d }))
-            }
-            onJumpToOpen={() => {
-              setTab("changes");
-              setFilter("open");
-              setTimeout(() => document.getElementById("comparison-buckets")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
-            }}
-            onJumpToChanges={() => {
-              setTab("changes");
-              setFilter("new-issues");
-              setTimeout(() => document.getElementById("comparison-buckets")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
-            }}
-          />
-        </div>
-      )}
-
-      {/* Negotiation trend strip — V1 → Vn (TASK-07) */}
+      )}{" "}
+      {compactHeader && firstAnalysisDemo && <FirstAnalysisContextBanner />}{" "}
+      {/* Verdict banner — only when at least 2 versions exist */}{" "}
+      {!compactHeader &&
+        versions.length >= 2 &&
+        leftVersion &&
+        rightVersion &&
+        leftVersion.version !== rightVersion.version && (
+          <div className="max-w-[1600px] mx-auto px-orbit-base pt-orbit-m">
+            {" "}
+            <VersionVerdictBanner
+              leftVersion={leftVersion}
+              rightVersion={rightVersion}
+              versions={versions}
+              allDecisions={allDecisions}
+              decision={decisions_[rightVersion.version] ?? null}
+              onDecision={(d) =>
+                setDecisions_((prev) => ({
+                  ...prev,
+                  [rightVersion.version]: d,
+                }))
+              }
+              onJumpToOpen={() => {
+                setTab("changes");
+                setFilter("open");
+                setTimeout(
+                  () =>
+                    document
+                      .getElementById("comparison-buckets")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+                  60,
+                );
+              }}
+              onJumpToChanges={() => {
+                setTab("changes");
+                setFilter("new-issues");
+                setTimeout(
+                  () =>
+                    document
+                      .getElementById("comparison-buckets")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+                  60,
+                );
+              }}
+            />{" "}
+          </div>
+        )}{" "}
+      {/* Negotiation trend strip — V1 → Vn (TASK-07) */}{" "}
       {!compactHeader && versions.length >= 2 && (
         <div className="max-w-[1600px] mx-auto px-orbit-base pt-orbit-base">
+          {" "}
           <NegotiationTrendStrip
             versions={versions}
             allDecisions={allDecisions}
@@ -2130,10 +2990,9 @@ export function ContractResults({
               setPair({ left: versions[idx - 1].version, right: v });
               setTab("changes");
             }}
-          />
+          />{" "}
         </div>
-      )}
-
+      )}{" "}
       {mode === "history" && firstAnalysisDemo ? (
         <HistoryComingSoon />
       ) : mode === "history" ? (
@@ -2144,6 +3003,7 @@ export function ContractResults({
         comparisonDesignContent
       ) : (
         <div className="mx-auto grid max-w-[1600px] grid-cols-[240px_minmax(0,1fr)] gap-orbit-m px-orbit-base py-orbit-m">
+          {" "}
           <CategorySidebar
             categories={comparisonCategoryItems}
             total={categoryTotal}
@@ -2151,29 +3011,36 @@ export function ContractResults({
             sort={categorySort}
             onSortChange={setCategorySort}
             onSelectCategory={toggleActiveCategory}
-          />
-
-          <div id="comparison-work-column" className="min-w-0 space-y-orbit-base">
+          />{" "}
+          <div
+            id="comparison-work-column"
+            className="min-w-0 space-y-orbit-base"
+          >
+            {" "}
             {versions.length >= 2 && (
               <div className="flex min-w-0 flex-wrap items-center gap-x-orbit-m gap-y-orbit-s border-b border-border px-orbit-xs pb-orbit-s">
+                {" "}
                 <div className="flex shrink-0 items-center gap-orbit-m">
+                  {" "}
                   <ComparisonTabButton
                     active={tab === "changes"}
                     icon={<IconArrowsDiff size={14} stroke={1.8} />}
                     count={targetCounts.total}
                     onClick={() => setTab("changes")}
                   >
-                    Changes
-                  </ComparisonTabButton>
+                    {" "}
+                    Changes{" "}
+                  </ComparisonTabButton>{" "}
                   <ComparisonTabButton
                     active={tab === "all"}
                     icon={<IconList size={14} stroke={1.8} />}
                     count={targetCounts.total}
                     onClick={() => setTab("all")}
                   >
-                    All clauses
-                  </ComparisonTabButton>
-                </div>
+                    {" "}
+                    All clauses{" "}
+                  </ComparisonTabButton>{" "}
+                </div>{" "}
                 <ComparisonToolbarControls
                   search={search}
                   onSearchChange={setSearch}
@@ -2181,13 +3048,16 @@ export function ContractResults({
                   onFilterChange={setFilter}
                   showBucketFilter={tab === "changes"}
                   onResetToLatest={resetPair}
-                />
+                />{" "}
               </div>
-            )}
-
+            )}{" "}
             {versions.length < 2 && (
               <div className="flex min-w-0 flex-wrap items-center justify-between gap-orbit-s rounded-md border border-border bg-[#f8f7f5] px-orbit-base py-orbit-s">
-                <ReviewGuidance versionLabel={reviewVersion?.version ?? reviewVersionLabel} compact />
+                {" "}
+                <ReviewGuidance
+                  versionLabel={reviewVersion?.version ?? reviewVersionLabel}
+                  compact
+                />{" "}
                 <ComparisonToolbarControls
                   search={search}
                   onSearchChange={setSearch}
@@ -2195,38 +3065,74 @@ export function ContractResults({
                   onFilterChange={setFilter}
                   showBucketFilter={false}
                   onResetToLatest={resetPair}
-                />
+                />{" "}
               </div>
-            )}
-
+            )}{" "}
             {tab === "review" || versions.length < 2 || tab === "all" ? (
               <ReviewScreen
-                version={tab === "all" ? (rightVersion ?? reviewVersion ?? v1) : (reviewVersion ?? v1)}
+                version={
+                  tab === "all"
+                    ? (rightVersion ?? reviewVersion ?? v1)
+                    : (reviewVersion ?? v1)
+                }
                 stateOf={stateOf}
                 activeCategories={activeCategories}
                 search={search}
                 quickSeverityFilter={severityQuickFilter}
-                quickReviewFilter={quickFilter === "need-action" ? "need-review" : null}
+                quickReviewFilter={
+                  quickFilter === "need-action" ? "need-review" : null
+                }
                 onSetNoAction={(id) =>
-                  decisions.changeDecision(supplierId, decisionContractId, id, (rightVersion ?? reviewVersion ?? v1).version, "no-action")
+                  decisions.changeDecision(
+                    supplierId,
+                    decisionContractId,
+                    id,
+                    (rightVersion ?? reviewVersion ?? v1).version,
+                    "no-action",
+                  )
                 }
                 onStartDraft={(id, initialDraft) =>
-                  decisions.startDraftRequest(supplierId, decisionContractId, id, (rightVersion ?? reviewVersion ?? v1).version, initialDraft)
+                  decisions.startDraftRequest(
+                    supplierId,
+                    decisionContractId,
+                    id,
+                    (rightVersion ?? reviewVersion ?? v1).version,
+                    initialDraft,
+                  )
                 }
                 onUpdateDraft={(id, patch) =>
-                  decisions.updateDraftRequestText(supplierId, decisionContractId, id, (rightVersion ?? reviewVersion ?? v1).version, patch)
+                  decisions.updateDraftRequestText(
+                    supplierId,
+                    decisionContractId,
+                    id,
+                    (rightVersion ?? reviewVersion ?? v1).version,
+                    patch,
+                  )
                 }
                 onCancelDraft={(id) =>
-                  decisions.cancelDraftRequest(supplierId, decisionContractId, id, (rightVersion ?? reviewVersion ?? v1).version)
+                  decisions.cancelDraftRequest(
+                    supplierId,
+                    decisionContractId,
+                    id,
+                    (rightVersion ?? reviewVersion ?? v1).version,
+                  )
                 }
                 onSubmitDraft={(id) =>
-                  decisions.submitDraftRequest(supplierId, decisionContractId, id, (rightVersion ?? reviewVersion ?? v1).version)
+                  decisions.submitDraftRequest(
+                    supplierId,
+                    decisionContractId,
+                    id,
+                    (rightVersion ?? reviewVersion ?? v1).version,
+                  )
                 }
                 onOpenDetail={(id) => setDetailClauseId(id)}
                 highlightedId={highlightClauseId}
               />
-            ) : leftVersion && rightVersion && leftVersion.version !== rightVersion.version ? (
+            ) : leftVersion &&
+              rightVersion &&
+              leftVersion.version !== rightVersion.version ? (
               <div className="space-y-orbit-base" id="comparison-buckets">
+                {" "}
                 <ComparisonSection
                   title="Open Items"
                   description="Clauses you previously asked the supplier to change."
@@ -2239,36 +3145,91 @@ export function ContractResults({
                   stats={comparisonModel.bucketStats.open_items}
                   closureOf={(id) => stateOf(id).closures[rightVersion.version]}
                   requestOf={(id) => {
-                    const latest = getLatestRequest(stateOf(id), leftVersion.version);
-                    return latest ? { ...latest.request, fromVersion: latest.version } : {};
+                    const latest = getLatestRequest(
+                      stateOf(id),
+                      leftVersion.version,
+                    );
+                    return latest
+                      ? { ...latest.request, fromVersion: latest.version }
+                      : {};
                   }}
-                  basketRequestOf={(id) => stateOf(id).requests[rightVersion.version]}
-                  draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
+                  basketRequestOf={(id) =>
+                    stateOf(id).requests[rightVersion.version]
+                  }
+                  draftOf={(id) =>
+                    stateOf(id).draftRequests?.[rightVersion.version] ?? {}
+                  }
                   onClose={(id) => {
-                    const display = leftVersion.clauses.find((c) => c.id === id) ?? rightVersion.clauses.find((c) => c.id === id);
+                    const display =
+                      leftVersion.clauses.find((c) => c.id === id) ??
+                      rightVersion.clauses.find((c) => c.id === id);
                     const prev = stateOf(id).closures[rightVersion.version];
                     closeWithUndo(id, display?.title ?? id.toUpperCase(), prev);
                   }}
-                  onKeepOpen={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open")}
-                  onFollowUp={(id) =>
-                    decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version, {
-                      requestedChange: "",
-                      rationale: "",
-                    })
+                  onKeepOpen={(id) =>
+                    decisions.setClosure(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                      "keep-open",
+                    )
                   }
-                  onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
-                  onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+                  onFollowUp={(id) =>
+                    decisions.startDraftRequest(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                      { requestedChange: "", rationale: "" },
+                    )
+                  }
+                  onUpdateText={(id, patch) =>
+                    decisions.updateDraftRequestText(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                      patch,
+                    )
+                  }
+                  onCancelDraft={(id) =>
+                    decisions.cancelDraftRequest(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                    )
+                  }
                   onSubmitDraft={(id) => {
-                    decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version);
-                    decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "follow-up");
+                    decisions.submitDraftRequest(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                    );
+                    decisions.setClosure(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                      "follow-up",
+                    );
                   }}
-                  onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
+                  onRemoveRequest={(id) =>
+                    decisions.removePendingRequest(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                    )
+                  }
                   onOpenDetail={setDetailClauseId}
                   pinnedIds={pinnedClauseIds}
                   onTogglePin={togglePin}
                   recentlyClosed={recentlyClosed}
                   onUndoClose={undoClose}
-                />
+                />{" "}
                 <ComparisonSection
                   title="New Changes"
                   description="Material changes the supplier made without being asked, plus clauses that didn't exist before."
@@ -2280,19 +3241,69 @@ export function ContractResults({
                   bucket="new"
                   stats={comparisonModel.bucketStats.new_changes}
                   closureOf={() => undefined}
-                  requestOf={(id) => stateOf(id).requests[rightVersion.version] ?? {}}
-                  basketRequestOf={(id) => stateOf(id).requests[rightVersion.version]}
-                  draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
-                  onClose={(id) => decisions.setRoundDecision(supplierId, decisionContractId, id, rightVersion.version, "no-action")}
-                  onKeepOpen={(id) => decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-                  onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
-                  onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-                  onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-                  onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
+                  requestOf={(id) =>
+                    stateOf(id).requests[rightVersion.version] ?? {}
+                  }
+                  basketRequestOf={(id) =>
+                    stateOf(id).requests[rightVersion.version]
+                  }
+                  draftOf={(id) =>
+                    stateOf(id).draftRequests?.[rightVersion.version] ?? {}
+                  }
+                  onClose={(id) =>
+                    decisions.setRoundDecision(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                      "no-action",
+                    )
+                  }
+                  onKeepOpen={(id) =>
+                    decisions.startDraftRequest(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                    )
+                  }
+                  onUpdateText={(id, patch) =>
+                    decisions.updateDraftRequestText(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                      patch,
+                    )
+                  }
+                  onCancelDraft={(id) =>
+                    decisions.cancelDraftRequest(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                    )
+                  }
+                  onSubmitDraft={(id) =>
+                    decisions.submitDraftRequest(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                    )
+                  }
+                  onRemoveRequest={(id) =>
+                    decisions.removePendingRequest(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                    )
+                  }
                   onOpenDetail={setDetailClauseId}
                   pinnedIds={pinnedClauseIds}
                   onTogglePin={togglePin}
-                />
+                />{" "}
                 <ComparisonSection
                   title="Closed"
                   description="Clauses you marked as resolved for this round."
@@ -2305,45 +3316,121 @@ export function ContractResults({
                   stats={comparisonModel.bucketStats.closed}
                   closureOf={(id) => stateOf(id).closures[rightVersion.version]}
                   requestOf={(id) => {
-                    const latest = getLatestRequest(stateOf(id), leftVersion.version);
-                    return latest ? { ...latest.request, fromVersion: latest.version } : {};
+                    const latest = getLatestRequest(
+                      stateOf(id),
+                      leftVersion.version,
+                    );
+                    return latest
+                      ? { ...latest.request, fromVersion: latest.version }
+                      : {};
                   }}
-                  onClose={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "closed")}
-                  onKeepOpen={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open")}
+                  onClose={(id) =>
+                    decisions.setClosure(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                      "closed",
+                    )
+                  }
+                  onKeepOpen={(id) =>
+                    decisions.setClosure(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                      "keep-open",
+                    )
+                  }
                   onOpenDetail={setDetailClauseId}
                   pinnedIds={pinnedClauseIds}
                   onTogglePin={togglePin}
-                />
+                />{" "}
                 <UnmarkedSection
                   rows={unmarkedRows}
                   leftLabel={leftVersion.version}
                   rightLabel={rightVersion.version}
                   visible={showUnmarkedSection}
                   defaultOpen={filter === "unmarked"}
-                  requestOf={(id) => stateOf(id).requests[rightVersion.version] ?? {}}
-                  draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
-                  isRequested={(id) => stateOf(id).roundDecisions[rightVersion.version] === "request-update"}
-                  decisionOf={(id) => stateOf(id).roundDecisions[rightVersion.version]}
-                  isDrafting={(id) => Boolean(stateOf(id).draftRequests?.[rightVersion.version])}
-                  onRequestChange={(id) => decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-                  onSetNoAction={(id) => decisions.changeDecision(supplierId, decisionContractId, id, rightVersion.version, "no-action")}
-                  onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
-                  onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-                  onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-                  onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
+                  requestOf={(id) =>
+                    stateOf(id).requests[rightVersion.version] ?? {}
+                  }
+                  draftOf={(id) =>
+                    stateOf(id).draftRequests?.[rightVersion.version] ?? {}
+                  }
+                  isRequested={(id) =>
+                    stateOf(id).roundDecisions[rightVersion.version] ===
+                    "request-update"
+                  }
+                  decisionOf={(id) =>
+                    stateOf(id).roundDecisions[rightVersion.version]
+                  }
+                  isDrafting={(id) =>
+                    Boolean(stateOf(id).draftRequests?.[rightVersion.version])
+                  }
+                  onRequestChange={(id) =>
+                    decisions.startDraftRequest(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                    )
+                  }
+                  onSetNoAction={(id) =>
+                    decisions.changeDecision(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                      "no-action",
+                    )
+                  }
+                  onUpdateText={(id, patch) =>
+                    decisions.updateDraftRequestText(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                      patch,
+                    )
+                  }
+                  onCancelDraft={(id) =>
+                    decisions.cancelDraftRequest(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                    )
+                  }
+                  onSubmitDraft={(id) =>
+                    decisions.submitDraftRequest(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                    )
+                  }
+                  onRemoveRequest={(id) =>
+                    decisions.removePendingRequest(
+                      supplierId,
+                      decisionContractId,
+                      id,
+                      rightVersion.version,
+                    )
+                  }
                   onOpenDetail={setDetailClauseId}
-                />
+                />{" "}
               </div>
             ) : (
-              <div className="rounded-lg border border-border bg-card p-orbit-xxl text-center text-sm text-muted-foreground">
-                Select two different versions to compare.
+              <div className="rounded-lg border border-border bg-card p-orbit-xxl text-center cpv2-type-sm text-muted-foreground">
+                {" "}
+                Select two different versions to compare.{" "}
               </div>
-            )}
-          </div>
+            )}{" "}
+          </div>{" "}
         </div>
-      )}
-
-      {/* Unified clause slide-over */}
+      )}{" "}
+      {/* Unified clause slide-over */}{" "}
       {detail && (
         <ClauseSlideOver
           clauseId={detail.id}
@@ -2365,36 +3452,83 @@ export function ContractResults({
             params.set("clause", id);
             setSearchParams(params, { replace: false });
             setHighlightClauseId(id);
-            setTimeout(() => document.getElementById(`history-row-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 80);
-            window.setTimeout(() => setHighlightClauseId((current) => (current === id ? null : current)), 2200);
+            setTimeout(
+              () =>
+                document
+                  .getElementById(`history-row-${id}`)
+                  ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+              80,
+            );
+            window.setTimeout(
+              () =>
+                setHighlightClauseId((current) =>
+                  current === id ? null : current,
+                ),
+              2200,
+            );
           }}
           onCloseClause={(id) => {
-            decisions.setClosure(supplierId, decisionContractId, id, rightVersion?.version ?? "v1", "closed");
+            decisions.setClosure(
+              supplierId,
+              decisionContractId,
+              id,
+              rightVersion?.version ?? "v1",
+              "closed",
+            );
             setDetailClauseId(null);
           }}
           onKeepOpen={(id) =>
-            decisions.setClosure(supplierId, decisionContractId, id, rightVersion?.version ?? "v1", "keep-open")
+            decisions.setClosure(
+              supplierId,
+              decisionContractId,
+              id,
+              rightVersion?.version ?? "v1",
+              "keep-open",
+            )
           }
           onMarkNewIssue={(id) =>
-            decisions.setRoundDecision(supplierId, decisionContractId, id, rightVersion?.version ?? "v1", "request-update")
+            decisions.setRoundDecision(
+              supplierId,
+              decisionContractId,
+              id,
+              rightVersion?.version ?? "v1",
+              "request-update",
+            )
           }
         />
-      )}
-
-      <RequestReviewDialog
-        open={requestReviewOpen}
-        onOpenChange={setRequestReviewOpen}
-        requests={reviewGenerateRequestItems}
-        supplierName={supplier.name}
-        csvNeedsUpdate={csvNeedsUpdate}
-        bulkSummaryMode={firstAnalysisDemo && bulkReviewSummaryMode}
-        reviewProgress={firstAnalysisDemo ? firstAnalysisReviewProgress : undefined}
-        onSubmit={() => {
-          generateRequestedChangesCsv();
-        }}
-      />
-
-      {/* Upload new version */}
+      )}{" "}
+      {reviewGeneratePresentation === "inline-tray" ? (
+        <RequestReviewTray
+          open={requestReviewOpen}
+          onOpenChange={setRequestReviewOpen}
+          requests={reviewGenerateRequestItems}
+          supplierName={supplier.name}
+          csvNeedsUpdate={csvNeedsUpdate}
+          bulkSummaryMode={firstAnalysisDemo && bulkReviewSummaryMode}
+          reviewProgress={
+            firstAnalysisDemo ? firstAnalysisReviewProgress : undefined
+          }
+          onSubmit={() => {
+            generateRequestedChangesCsv();
+          }}
+        />
+      ) : (
+        <RequestReviewDialog
+          open={requestReviewOpen}
+          onOpenChange={setRequestReviewOpen}
+          requests={reviewGenerateRequestItems}
+          supplierName={supplier.name}
+          csvNeedsUpdate={csvNeedsUpdate}
+          bulkSummaryMode={firstAnalysisDemo && bulkReviewSummaryMode}
+          reviewProgress={
+            firstAnalysisDemo ? firstAnalysisReviewProgress : undefined
+          }
+          onSubmit={() => {
+            generateRequestedChangesCsv();
+          }}
+        />
+      )}{" "}
+      {/* Upload new version */}{" "}
       <UploadVersionDialog
         open={uploadOpen}
         onOpenChange={setUploadOpen}
@@ -2404,8 +3538,7 @@ export function ContractResults({
         contractName={contract.name}
         nextVersionLabel={`v${availableVersions.length + 1}`}
         onConfirm={onUploadVersion}
-      />
-
+      />{" "}
       <CpOrbitConfirmOverlay
         open={acceptConfirmOpen}
         onOpenChange={setAcceptConfirmOpen}
@@ -2414,10 +3547,12 @@ export function ContractResults({
         confirmLabel="Accept Version"
         onConfirm={() => {
           if (!rightVersion) return;
-          setDecisions_((prev) => ({ ...prev, [rightVersion.version]: "accepted" }));
+          setDecisions_((prev) => ({
+            ...prev,
+            [rightVersion.version]: "accepted",
+          }));
         }}
-      />
-
+      />{" "}
       <CpOrbitConfirmOverlay
         open={!!deleteTarget}
         onOpenChange={(nextOpen) => {
@@ -2428,15 +3563,19 @@ export function ContractResults({
         confirmLabel="Delete Version"
         destructive
         onConfirm={() => deleteTarget && onDeleteVersion(deleteTarget)}
-      />
+      />{" "}
     </div>
   );
 }
-
-// ---- Upload dialog ---------------------------------------------------------
-
 function UploadVersionDialog({
-  open, onOpenChange, initiativeName, initiativeRef, supplierName, contractName, nextVersionLabel, onConfirm,
+  open,
+  onOpenChange,
+  initiativeName,
+  initiativeRef,
+  supplierName,
+  contractName,
+  nextVersionLabel,
+  onConfirm,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -2450,22 +3589,28 @@ function UploadVersionDialog({
   const [file, setFile] = useState<File | null>(null);
   const [label, setLabel] = useState(nextVersionLabel);
   const [processing, setProcessing] = useState(false);
-
   useEffect(() => {
-    if (open) { setFile(null); setLabel(nextVersionLabel); setProcessing(false); }
+    if (open) {
+      setFile(null);
+      setLabel(nextVersionLabel);
+      setProcessing(false);
+    }
   }, [open, nextVersionLabel]);
-
   const handleConfirm = () => {
     if (!file) return;
     setProcessing(true);
-    setTimeout(() => { onConfirm(file, label); setProcessing(false); }, 900);
+    setTimeout(() => {
+      onConfirm(file, label);
+      setProcessing(false);
+    }, 900);
   };
-  const documentType: "PDF" | "DOC" | "Unknown" = file?.name.toLowerCase().endsWith(".pdf")
+  const documentType: "PDF" | "DOC" | "Unknown" = file?.name
+    .toLowerCase()
+    .endsWith(".pdf")
     ? "PDF"
     : file?.name.toLowerCase().endsWith(".docx")
       ? "DOC"
       : "Unknown";
-
   return (
     <CpOrbitOverlay
       open={open}
@@ -2474,56 +3619,107 @@ function UploadVersionDialog({
       description="Upload the supplier's updated contract to compare changes against the previous version."
       footer={
         <div className="flex justify-end gap-orbit-s">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={processing}>Cancel</Button>
-          <Button onClick={handleConfirm} disabled={!file || !label || processing} className="gap-orbit-xs">
-            {processing ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing…</> : <><Upload className="w-3.5 h-3.5" /> Upload &amp; analyse</>}
-          </Button>
+          {" "}
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={processing}
+          >
+            Cancel
+          </Button>{" "}
+          <Button
+            onClick={handleConfirm}
+            disabled={!file || !label || processing}
+            className="gap-orbit-xs"
+          >
+            {" "}
+            {processing ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing…
+              </>
+            ) : (
+              <>
+                <Upload className="w-3.5 h-3.5" /> Upload &amp; analyse
+              </>
+            )}{" "}
+          </Button>{" "}
         </div>
       }
     >
-        <div className="space-y-orbit-base">
-          <div className="rounded-md border border-border bg-muted/30 p-orbit-base text-xs space-y-orbit-xs">
-            <p><span className="text-muted-foreground">Initiative:</span> <span className="v5-orbit-weight-medium text-foreground"> {initiativeName} · {initiativeRef}</span></p>
-            <p><span className="text-muted-foreground">Supplier:</span> <span className="v5-orbit-weight-medium text-foreground"> {supplierName}</span></p>
-            <p><span className="text-muted-foreground">Contract:</span> <span className="v5-orbit-weight-medium text-foreground"> {contractName}</span></p>
-          </div>
-          <div className="space-y-orbit-xs">
-            <label className="text-[11px] v5-orbit-weight-semibold text-muted-foreground uppercase">Version label</label>
-            <Input value={label} onChange={(e) => setLabel(e.target.value)} className="h-9" />
-          </div>
-          <div className="space-y-orbit-xs">
-            <label className="text-[11px] v5-orbit-weight-semibold text-muted-foreground uppercase">Contract file</label>
-            {file ? (
-              <FileItem
-                filename={file.name}
-                documentType={documentType}
-                trailing={
-                  <Button variant="ghost" onClick={() => setFile(null)}>
-                    Change
-                  </Button>
-                }
-              />
-            ) : (
-              <Dropzone
-                ariaLabel="Upload contract version"
-                accept=".pdf,.docx,.txt"
-                onFileSelected={setFile}
-                acceptedFileTypesLabel="File types supported: PDF, DOCX, or TXT."
-                maxFileSizeLabel="Maximum upload file size: 100 MB"
-              />
-            )}
-          </div>
-        </div>
+      {" "}
+      <div className="space-y-orbit-base">
+        {" "}
+        <div className="rounded-md border border-border bg-muted/30 p-orbit-base cpv2-type-xs space-y-orbit-xs">
+          {" "}
+          <p>
+            <span className="text-muted-foreground">Initiative:</span>{" "}
+            <span className="cpv2-orbit-weight-medium text-foreground">
+              {" "}
+              {initiativeName} · {initiativeRef}
+            </span>
+          </p>{" "}
+          <p>
+            <span className="text-muted-foreground">Supplier:</span>{" "}
+            <span className="cpv2-orbit-weight-medium text-foreground">
+              {" "}
+              {supplierName}
+            </span>
+          </p>{" "}
+          <p>
+            <span className="text-muted-foreground">Contract:</span>{" "}
+            <span className="cpv2-orbit-weight-medium text-foreground">
+              {" "}
+              {contractName}
+            </span>
+          </p>{" "}
+        </div>{" "}
+        <div className="space-y-orbit-xs">
+          {" "}
+          <label className="cpv2-type-xs cpv2-orbit-weight-semibold text-muted-foreground uppercase">
+            Version label
+          </label>{" "}
+          <Input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            className="h-9"
+          />{" "}
+        </div>{" "}
+        <div className="space-y-orbit-xs">
+          {" "}
+          <label className="cpv2-type-xs cpv2-orbit-weight-semibold text-muted-foreground uppercase">
+            Contract file
+          </label>{" "}
+          {file ? (
+            <FileItem
+              filename={file.name}
+              documentType={documentType}
+              trailing={
+                <Button variant="ghost" onClick={() => setFile(null)}>
+                  {" "}
+                  Change{" "}
+                </Button>
+              }
+            />
+          ) : (
+            <Dropzone
+              ariaLabel="Upload contract version"
+              accept=".pdf,.docx,.txt"
+              onFileSelected={setFile}
+              acceptedFileTypesLabel="File types supported: PDF, DOCX, or TXT."
+              maxFileSizeLabel="Maximum upload file size: 100 MB"
+            />
+          )}{" "}
+        </div>{" "}
+      </div>{" "}
     </CpOrbitOverlay>
   );
 }
-
-// ---- pieces -----------------------------------------------------------------
-
 function formatShortDate(date: string) {
-  return new Date(date).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  return new Date(date).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+  });
 }
-
 function CompactContractTopbar({
   backLabel,
   onBack,
@@ -2533,8 +3729,8 @@ function CompactContractTopbar({
   demoAvailable,
   onFirstAnalysisDemoChange,
 }: {
-  backLabel: string;
-  onBack: () => void;
+  backLabel?: string;
+  onBack?: () => void;
   referenceLine: string;
   analysisLabel?: string;
   firstAnalysisDemo: boolean;
@@ -2543,27 +3739,38 @@ function CompactContractTopbar({
 }) {
   return (
     <div className="flex h-10 items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] px-orbit-base">
-      <CpButton
-        onClick={onBack}
-        className="inline-flex shrink-0 items-center gap-orbit-xs text-[13px] v5-orbit-weight-medium text-primary hover:underline"
-      >
-        <ChevronLeft className="h-3.5 w-3.5" /> {backLabel}
-      </CpButton>
-      <div className="h-3.5 w-px bg-border" aria-hidden />
+      {" "}
+      {onBack && backLabel ? (
+        <>
+          {" "}
+          <CpButton
+            onClick={onBack}
+            className="inline-flex shrink-0 items-center gap-orbit-xs cpv2-type-sm cpv2-orbit-weight-medium text-primary hover:underline"
+          >
+            {" "}
+            <ChevronLeft className="h-3.5 w-3.5" /> {backLabel}{" "}
+          </CpButton>{" "}
+          <div className="h-3.5 w-px bg-border" aria-hidden />{" "}
+        </>
+      ) : null}{" "}
       <div className="flex min-w-0 flex-1 items-center gap-orbit-s">
-        <h1 className="v5-orbit-heading-label min-w-0 truncate text-foreground">{referenceLine}</h1>
-        {analysisLabel && <Chip label={analysisLabel} size="Mini" variant="Information" />}
-      </div>
+        {" "}
+        <h1 className="cpv2-orbit-heading-label min-w-0 truncate text-foreground">
+          {referenceLine}
+        </h1>{" "}
+        {analysisLabel && (
+          <Chip label={analysisLabel} size="Mini" variant="Information" />
+        )}{" "}
+      </div>{" "}
       {demoAvailable && (
         <FirstAnalysisDemoToggle
           active={firstAnalysisDemo}
           onChange={() => onFirstAnalysisDemoChange(!firstAnalysisDemo)}
         />
-      )}
+      )}{" "}
     </div>
   );
 }
-
 function FirstAnalysisDemoToggle({
   active,
   onChange,
@@ -2577,45 +3784,55 @@ function FirstAnalysisDemoToggle({
       aria-pressed={active}
       onClick={onChange}
       className={cn(
-        "ml-auto inline-flex h-7 shrink-0 items-center gap-orbit-s rounded-md border px-orbit-s text-[11px] v5-orbit-weight-medium transition-colors",
+        "ml-auto inline-flex h-7 shrink-0 items-center gap-orbit-s rounded-md border px-orbit-s cpv2-type-xs cpv2-orbit-weight-medium transition-colors",
         active
           ? "border-[#185FA5]/35 bg-[#E6F1FB] text-[#0C447C]"
           : "border-border bg-white text-muted-foreground hover:text-foreground",
       )}
     >
+      {" "}
       <span
         className={cn(
           "h-2 w-2 rounded-full",
           active ? "bg-[#185FA5]" : "bg-muted-foreground/40",
         )}
         aria-hidden
-      />
-      V1 Analysis
+      />{" "}
+      V1 Analysis{" "}
     </CpButton>
   );
 }
-
 function FirstAnalysisContextBanner() {
   return (
     <section className="bg-background">
+      {" "}
       <div className="mx-auto w-full max-w-[1500px] px-orbit-base pt-orbit-base pb-orbit-none">
+        {" "}
         <div className="rounded-lg border border-border bg-card px-orbit-base py-orbit-base shadow-sm">
+          {" "}
           <div className="min-w-0">
+            {" "}
             <div className="flex flex-wrap items-center gap-orbit-s">
-              <h2 className="v5-orbit-heading-5">
-                Validate ClauseIQ recommendations before supplier negotiation
-              </h2>
-            </div>
-            <p className="mt-orbit-xs max-w-none whitespace-nowrap text-xs leading-5 text-muted-foreground">
-              Review each clause, decide whether to use the recommended actionability, edit your own requested change, or mark no action. Requested changes are collected for review and generated as a CSV negotiation log.
-            </p>
-          </div>
-        </div>
-      </div>
+              {" "}
+              <h2 className="cpv2-orbit-heading-5">
+                {" "}
+                Validate ClauseIQ recommendations before supplier
+                negotiation{" "}
+              </h2>{" "}
+            </div>{" "}
+            <p className="mt-orbit-xs max-w-none whitespace-nowrap cpv2-type-xs cpv2-leading-normal text-muted-foreground">
+              {" "}
+              Review each clause, decide whether to use the recommended
+              actionability, edit your own requested change, or mark no action.
+              Requested changes are collected for review and generated as a CSV
+              negotiation log.{" "}
+            </p>{" "}
+          </div>{" "}
+        </div>{" "}
+      </div>{" "}
     </section>
   );
 }
-
 function ModeSwitcher({
   mode,
   onChange,
@@ -2661,11 +3878,13 @@ function ModeSwitcher({
   const applyAllButtonLabel = applyAllRecommendationsReviewed
     ? "All recommendations reviewed"
     : canUndoAppliedRecommendations
-    ? `${undoRecommendationScopeLabel ? `Undo ${undoRecommendationScopeLabel} recommendations` : "Undo recommendations"}${undoRecommendationCount > 0 ? ` (${undoRecommendationCount})` : ""}`
-    : applyAllRecommendationsQueued
-    ? "Recommendations added to review"
-    : `Apply Recommendations${recommendationCount > 0 ? ` (${recommendationCount})` : ""}`;
-  const availableRecommendationApplyOptions = recommendationApplyOptions.filter((option) => option.count > 0);
+      ? `${undoRecommendationScopeLabel ? `Undo ${undoRecommendationScopeLabel} recommendations` : "Undo recommendations"}${undoRecommendationCount > 0 ? ` (${undoRecommendationCount})` : ""}`
+      : applyAllRecommendationsQueued
+        ? "Recommendations added to review"
+        : `Apply Recommendations${recommendationCount > 0 ? ` (${recommendationCount})` : ""}`;
+  const availableRecommendationApplyOptions = recommendationApplyOptions.filter(
+    (option) => option.count > 0,
+  );
   const canChooseRecommendationScope =
     Boolean(onApplyRecommendationOption) &&
     !canUndoAppliedRecommendations &&
@@ -2673,10 +3892,9 @@ function ModeSwitcher({
     !applyAllRecommendationsReviewed &&
     !applyAllRecommendationsDisabled &&
     availableRecommendationApplyOptions.length > 0;
-
   const isResponsiveTestingRoute =
-    typeof window !== "undefined" && window.location.pathname.startsWith("/initiatives-responsive-testing");
-
+    typeof window !== "undefined" &&
+    window.location.pathname.startsWith("/initiatives-responsive-testing");
   return (
     <div
       className={cn(
@@ -2684,24 +3902,32 @@ function ModeSwitcher({
         isResponsiveTestingRoute && "clauseiq-responsive-mode-switcher",
       )}
     >
-      <div role="tablist" aria-label="Analysis mode" className="flex items-center">
+      {" "}
+      <div
+        role="tablist"
+        aria-label="Analysis mode"
+        className="flex items-center"
+      >
+        {" "}
         <TabButton
           active={mode === "comparison"}
           onClick={() => onChange("comparison")}
-          ariaControls="clauseiq-v5-comparison-panel"
+          ariaControls="cpv2-clauseiq-comparison-panel"
         >
-          {comparisonLabel}
-        </TabButton>
+          {" "}
+          {comparisonLabel}{" "}
+        </TabButton>{" "}
         <TabButton
           active={mode === "history"}
           disabled={historyDisabled}
           status={historyDisabled ? "Disabled" : "Rest"}
           onClick={() => onChange("history")}
-          ariaControls="clauseiq-v5-history-panel"
+          ariaControls="cpv2-clauseiq-history-panel"
         >
-          History
-        </TabButton>
-      </div>
+          {" "}
+          History{" "}
+        </TabButton>{" "}
+      </div>{" "}
       {mode === "comparison" && (
         <div
           className={cn(
@@ -2709,39 +3935,55 @@ function ModeSwitcher({
             isResponsiveTestingRoute && "clauseiq-responsive-dashboard-actions",
           )}
         >
-          {onApplyAllRecommendations && (
-            canChooseRecommendationScope ? (
+          {" "}
+          {onApplyAllRecommendations &&
+            (canChooseRecommendationScope ? (
               <Select
                 value=""
                 onValueChange={(value) => {
-                  const option = availableRecommendationApplyOptions.find((candidate) => candidate.id === value);
+                  const option = availableRecommendationApplyOptions.find(
+                    (candidate) => candidate.id === value,
+                  );
                   if (option) onApplyRecommendationOption?.(option);
                 }}
               >
+                {" "}
                 <SelectTrigger
                   className={cn(
-                    "clauseiq-v5-select-hug",
-                    isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger",
+                    "cpv2-clauseiq-select-hug",
+                    isResponsiveTestingRoute &&
+                      "clauseiq-responsive-apply-trigger",
                   )}
                   aria-label="Apply Recommendations"
                 >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <SelectValue placeholder={applyAllButtonLabel} />
-                </SelectTrigger>
+                  {" "}
+                  <Sparkles className="h-3.5 w-3.5" />{" "}
+                  <SelectValue placeholder={applyAllButtonLabel} />{" "}
+                </SelectTrigger>{" "}
                 <SelectContent>
+                  {" "}
                   {availableRecommendationApplyOptions.map((option) => (
                     <SelectItem key={option.id} value={option.id}>
-                      {option.label} ({option.count})
+                      {" "}
+                      {option.label} ({option.count}){" "}
                     </SelectItem>
-                  ))}
-                </SelectContent>
+                  ))}{" "}
+                </SelectContent>{" "}
               </Select>
             ) : (
               <Button
                 variant="outline"
-                disabled={!canUndoAppliedRecommendations && applyAllRecommendationsDisabled}
-                onClick={canUndoAppliedRecommendations ? onUndoAllRecommendations : onApplyAllRecommendations}
+                disabled={
+                  !canUndoAppliedRecommendations &&
+                  applyAllRecommendationsDisabled
+                }
+                onClick={
+                  canUndoAppliedRecommendations
+                    ? onUndoAllRecommendations
+                    : onApplyAllRecommendations
+                }
               >
+                {" "}
                 {applyAllRecommendationsReviewed ? (
                   <CheckCircle2 className="h-3.5 w-3.5" />
                 ) : canUndoAppliedRecommendations ? (
@@ -2750,48 +3992,53 @@ function ModeSwitcher({
                   <CheckCircle2 className="h-3.5 w-3.5" />
                 ) : (
                   <Sparkles className="h-3.5 w-3.5" />
-                )}
-                {applyAllButtonLabel}
+                )}{" "}
+                {applyAllButtonLabel}{" "}
               </Button>
-            )
-          )}
+            ))}{" "}
           <CpButton
             type="button"
             className="cpv2-results-primary-button cpv2-results-primary-button--compact"
             disabled={reviewGenerateDisabled}
             onClick={onReviewGenerate}
           >
-            <Download className="h-3.5 w-3.5" />
-            Review &amp; Generate{requestCount > 0 ? ` (${requestCount})` : ""}
-          </CpButton>
+            {" "}
+            <Download className="h-3.5 w-3.5" /> Review &amp; Generate
+            {requestCount > 0 ? ` (${requestCount})` : ""}{" "}
+          </CpButton>{" "}
         </div>
-      )}
+      )}{" "}
     </div>
   );
 }
-
 function HistoryComingSoon() {
   return (
     <main
-      id="clauseiq-v5-history-panel"
+      id="cpv2-clauseiq-history-panel"
       className="grid min-h-[calc(100vh-88px)] place-items-center bg-[#F7F9FC] px-orbit-base py-orbit-xxl"
     >
+      {" "}
       <div className="flex max-w-[420px] flex-col items-center text-center">
+        {" "}
         <div className="grid h-12 w-12 place-items-center rounded-full border border-[#DDE5F0] bg-white text-[#185FA5] shadow-sm">
-          <History className="h-5 w-5" />
-        </div>
-        <p className="mt-orbit-base text-[10px] v5-orbit-weight-semibold uppercase tracking-[0.12em] text-muted-foreground">
-          History
-        </p>
-        <h1 className="v5-orbit-heading-4 mt-orbit-xs text-foreground">Coming Soon</h1>
-        <p className="mt-orbit-s text-sm leading-6 text-muted-foreground">
-          This view is being prepared.
-        </p>
-      </div>
+          {" "}
+          <History className="h-5 w-5" />{" "}
+        </div>{" "}
+        <p className="mt-orbit-base cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-muted-foreground">
+          {" "}
+          History{" "}
+        </p>{" "}
+        <h1 className="cpv2-orbit-heading-4 mt-orbit-xs text-foreground">
+          Coming Soon
+        </h1>{" "}
+        <p className="mt-orbit-s cpv2-type-sm cpv2-leading-relaxed text-muted-foreground">
+          {" "}
+          This view is being prepared.{" "}
+        </p>{" "}
+      </div>{" "}
     </main>
   );
 }
-
 function ComparisonHeader({
   versions,
   pair,
@@ -2814,28 +4061,61 @@ function ComparisonHeader({
   onSeeMoreChanges: () => void;
 }) {
   const { contract, comparison } = stripStats;
-
   return (
     <>
-      <div className="flex h-8 items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] bg-[#f8f7f5] px-orbit-base text-[11px] text-muted-foreground">
-        <span className="shrink-0 text-[10px] v5-orbit-weight-medium uppercase tracking-[0.04em]">Comparing</span>
+      {" "}
+      <div className="flex h-8 items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] bg-[#f8f7f5] px-orbit-base cpv2-type-xs text-muted-foreground">
+        {" "}
+        <span className="shrink-0 cpv2-type-xs cpv2-orbit-weight-medium uppercase ">
+          Comparing
+        </span>{" "}
         {versions.length >= 2 ? (
-          <PairSelector versions={versions} pair={pair} onChange={onPairChange} compact />
+          <PairSelector
+            versions={versions}
+            pair={pair}
+            onChange={onPairChange}
+            compact
+          />
         ) : (
-          <span className="text-[10px] text-muted-foreground">{contract.version || pair.right}</span>
-        )}
-        <span className="shrink-0 rounded px-orbit-xs py-orbit-xxs text-[10px] v5-orbit-weight-medium text-muted-foreground">
-          Total Clauses - <strong className="text-foreground">{contract.total}</strong>
-        </span>
-        <InlineMetIndicator comparison={comparison} hasVersionComparison={hasVersionComparison} />
-        <div className="ml-auto rounded-md border border-border bg-white px-orbit-s py-orbit-xxs text-[10px]">
-          <span className="mr-orbit-xs uppercase text-muted-foreground">Score</span>
-          <strong className="text-[13px] text-foreground">{contract.score}</strong>
-          <span className={comparison.scoreDelta > 0 ? "ml-orbit-xs text-[#3B6D11]" : comparison.scoreDelta < 0 ? "ml-orbit-xs text-[#A32D2D]" : "ml-orbit-xs text-muted-foreground"}>
-            {comparison.scoreDelta > 0 ? `↑+${comparison.scoreDelta}` : comparison.scoreDelta < 0 ? `↓-${Math.abs(comparison.scoreDelta)}` : "→0"}
+          <span className="cpv2-type-xs text-muted-foreground">
+            {contract.version || pair.right}
           </span>
-        </div>
-      </div>
+        )}{" "}
+        <span className="shrink-0 rounded px-orbit-xs py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium text-muted-foreground">
+          {" "}
+          Total Clauses -{" "}
+          <strong className="text-foreground">{contract.total}</strong>{" "}
+        </span>{" "}
+        <InlineMetIndicator
+          comparison={comparison}
+          hasVersionComparison={hasVersionComparison}
+        />{" "}
+        <div className="ml-auto rounded-md border border-border bg-white px-orbit-s py-orbit-xxs cpv2-type-xs">
+          {" "}
+          <span className="mr-orbit-xs uppercase text-muted-foreground">
+            Score
+          </span>{" "}
+          <strong className="cpv2-type-sm text-foreground">
+            {contract.score}
+          </strong>{" "}
+          <span
+            className={
+              comparison.scoreDelta > 0
+                ? "ml-orbit-xs text-[#3B6D11]"
+                : comparison.scoreDelta < 0
+                  ? "ml-orbit-xs text-[#A32D2D]"
+                  : "ml-orbit-xs text-muted-foreground"
+            }
+          >
+            {" "}
+            {comparison.scoreDelta > 0
+              ? `↑+${comparison.scoreDelta}`
+              : comparison.scoreDelta < 0
+                ? `↓-${Math.abs(comparison.scoreDelta)}`
+                : "→0"}{" "}
+          </span>{" "}
+        </div>{" "}
+      </div>{" "}
       <HybridVersionMovementPanel
         data={panel}
         hasComparison={hasVersionComparison}
@@ -2843,20 +4123,22 @@ function ComparisonHeader({
         movers={movers}
         onMoverSelect={onMoverSelect}
         onSeeMoreChanges={onSeeMoreChanges}
-      />
+      />{" "}
     </>
   );
 }
-
 function InlineMetIndicator({
   comparison,
   hasVersionComparison,
 }: {
-  comparison: ReturnType<typeof deriveComparisonModel>["stripStats"]["comparison"];
+  comparison: ReturnType<
+    typeof deriveComparisonModel
+  >["stripStats"]["comparison"];
   hasVersionComparison: boolean;
 }) {
   if (!hasVersionComparison || comparison.requestedTotal === 0) return null;
-  const allMet = comparison.notMet === 0 && comparison.met === comparison.requestedTotal;
+  const allMet =
+    comparison.notMet === 0 && comparison.met === comparison.requestedTotal;
   const noneMet = comparison.met === 0;
   const color = allMet ? "#3B6D11" : noneMet ? "#A32D2D" : "#854F0B";
   const label = allMet
@@ -2864,21 +4146,28 @@ function InlineMetIndicator({
     : noneMet
       ? "None met yet"
       : `${comparison.met} of ${comparison.requestedTotal} met`;
-  const Icon = allMet ? IconCircleCheck : noneMet ? AlertTriangle : CheckCircle2;
-
+  const Icon = allMet
+    ? IconCircleCheck
+    : noneMet
+      ? AlertTriangle
+      : CheckCircle2;
   return (
-    <span className="ml-orbit-xs inline-flex shrink-0 items-center gap-orbit-xs text-[10px]" style={{ color }}>
-      <Icon className="h-3.5 w-3.5" size={13} stroke={1.8} aria-hidden />
-      <span className="text-[11px] v5-orbit-weight-medium">{label}</span>
+    <span
+      className="ml-orbit-xs inline-flex shrink-0 items-center gap-orbit-xs cpv2-type-xs"
+      style={{ color }}
+    >
+      {" "}
+      <Icon className="h-3.5 w-3.5" size={13} stroke={1.8} aria-hidden />{" "}
+      <span className="cpv2-type-xs cpv2-orbit-weight-medium">{label}</span>{" "}
       {!noneMet && (
-        <span className="text-[10px] v5-orbit-weight-regular text-muted-foreground">
-          · {comparison.met}/{comparison.requestedTotal}
+        <span className="cpv2-type-xs cpv2-orbit-weight-regular text-muted-foreground">
+          {" "}
+          · {comparison.met}/{comparison.requestedTotal}{" "}
         </span>
-      )}
+      )}{" "}
     </span>
   );
 }
-
 function HistoryHeader({
   versions,
   model,
@@ -2898,62 +4187,119 @@ function HistoryHeader({
   const latest = versions.at(-1);
   return (
     <>
-      <div className="flex h-8 items-center gap-orbit-xs border-b border-[rgba(0,0,0,0.08)] bg-[#FAEEDA]/40 px-orbit-base text-[10px] v5-orbit-weight-medium text-[#633806]">
-        <IconInfoCircle size={13} stroke={1.8} />
-        Showing all {versions.length} rounds · {first?.version ?? "v1"} through {latest?.version ?? "v1"}
-        {first && latest && <> · {formatShortDate(first.uploadedAt)} to {formatShortDate(latest.uploadedAt)}</>}
-      </div>
+      {" "}
+      <div className="flex h-8 items-center gap-orbit-xs border-b border-[rgba(0,0,0,0.08)] bg-[#FAEEDA]/40 px-orbit-base cpv2-type-xs cpv2-orbit-weight-medium text-[#633806]">
+        {" "}
+        <IconInfoCircle size={13} stroke={1.8} /> Showing all {versions.length}{" "}
+        rounds · {first?.version ?? "v1"} through {latest?.version ?? "v1"}{" "}
+        {first && latest && (
+          <>
+            {" "}
+            · {formatShortDate(first.uploadedAt)} to{" "}
+            {formatShortDate(latest.uploadedAt)}
+          </>
+        )}{" "}
+      </div>{" "}
       <div className="grid grid-cols-4 gap-orbit-base border-b border-[rgba(0,0,0,0.08)] bg-white px-orbit-base py-orbit-base">
-        <HistoryStatCard value={model.stats.totalClauses} label="Total clauses" trend={`across ${model.stats.roundCount} rounds`} />
-        <HistoryStatCard value={model.stats.stillOpen} label="Still open" trend={`after ${model.stats.roundCount} rounds`} tone="danger" />
-        <HistoryStatCard value={model.stats.avgRoundsToResolve} label="Avg rounds to resolve" trend="computed from met clauses" tone="success" />
-        <HistoryStatCard value={`${model.stats.settledByRound3Pct}%`} label="Settled by round 3" trend="benchmark 65%" tone={model.stats.settledByRound3Pct >= 65 ? "success" : "danger"} />
-      </div>
+        {" "}
+        <HistoryStatCard
+          value={model.stats.totalClauses}
+          label="Total clauses"
+          trend={`across ${model.stats.roundCount} rounds`}
+        />{" "}
+        <HistoryStatCard
+          value={model.stats.stillOpen}
+          label="Still open"
+          trend={`after ${model.stats.roundCount} rounds`}
+          tone="danger"
+        />{" "}
+        <HistoryStatCard
+          value={model.stats.avgRoundsToResolve}
+          label="Avg rounds to resolve"
+          trend="computed from met clauses"
+          tone="success"
+        />{" "}
+        <HistoryStatCard
+          value={`${model.stats.settledByRound3Pct}%`}
+          label="Settled by round 3"
+          trend="benchmark 65%"
+          tone={model.stats.settledByRound3Pct >= 65 ? "success" : "danger"}
+        />{" "}
+      </div>{" "}
       <div className="flex items-center gap-orbit-s border-b border-[rgba(0,0,0,0.08)] bg-[#f8f7f5] px-orbit-base py-orbit-s">
+        {" "}
         {(Object.keys(historyFilterLabels) as HistoryFilter[]).map((filter) => (
           <CpButton
             key={filter}
             type="button"
             onClick={() => onFilterChange(filter)}
-            className={`inline-flex h-7 items-center gap-orbit-xs rounded-full px-orbit-base text-[10px] v5-orbit-weight-medium ${
-              activeFilter === filter
-                ? "bg-[#1a2744] text-white"
-                : "border border-border bg-white text-muted-foreground hover:text-foreground"
-            }`}
+            className={`inline-flex h-7 items-center gap-orbit-xs rounded-full px-orbit-base cpv2-type-xs cpv2-orbit-weight-medium ${activeFilter === filter ? "bg-[#1a2744] text-white" : "border border-border bg-white text-muted-foreground hover:text-foreground"}`}
           >
-            {historyFilterLabels[filter]}
-            <span className={`rounded-full px-orbit-xs py-orbit-micro text-[9px] ${activeFilter === filter ? "bg-white/20" : "bg-muted"}`}>
-              {model.filterCounts[filter]}
-            </span>
+            {" "}
+            {historyFilterLabels[filter]}{" "}
+            <span
+              className={`rounded-full px-orbit-xs py-orbit-micro cpv2-type-xs ${activeFilter === filter ? "bg-white/20" : "bg-muted"}`}
+            >
+              {" "}
+              {model.filterCounts[filter]}{" "}
+            </span>{" "}
           </CpButton>
-        ))}
-        <Select value={activeSort} onValueChange={(value) => onSortChange(value as HistorySort)}>
-          <SelectTrigger className="ml-auto h-8 w-[210px] bg-white text-xs">
-            <SelectValue />
-          </SelectTrigger>
+        ))}{" "}
+        <Select
+          value={activeSort}
+          onValueChange={(value) => onSortChange(value as HistorySort)}
+        >
+          {" "}
+          <SelectTrigger className="ml-auto h-8 w-[210px] bg-white cpv2-type-xs">
+            {" "}
+            <SelectValue />{" "}
+          </SelectTrigger>{" "}
           <SelectContent>
-            <SelectItem value="contentious">Sort: Most contentious</SelectItem>
-            <SelectItem value="clause_id">Sort: Clause ID</SelectItem>
-            <SelectItem value="current_status">Sort: Current status</SelectItem>
-            <SelectItem value="rounds_to_resolve">Sort: Rounds to resolve</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+            {" "}
+            <SelectItem value="contentious">
+              Sort: Most contentious
+            </SelectItem>{" "}
+            <SelectItem value="clause_id">Sort: Clause ID</SelectItem>{" "}
+            <SelectItem value="current_status">Sort: Current status</SelectItem>{" "}
+            <SelectItem value="rounds_to_resolve">
+              Sort: Rounds to resolve
+            </SelectItem>{" "}
+          </SelectContent>{" "}
+        </Select>{" "}
+      </div>{" "}
     </>
   );
 }
-
-function HistoryStatCard({ value, label, trend, tone = "neutral" }: { value: ReactNode; label: string; trend: string; tone?: "neutral" | "success" | "danger" }) {
-  const trendClass = tone === "success" ? "text-[#3B6D11]" : tone === "danger" ? "text-[#A32D2D]" : "text-muted-foreground";
+function HistoryStatCard({
+  value,
+  label,
+  trend,
+  tone = "neutral",
+}: {
+  value: ReactNode;
+  label: string;
+  trend: string;
+  tone?: "neutral" | "success" | "danger";
+}) {
+  const trendClass =
+    tone === "success"
+      ? "text-[#3B6D11]"
+      : tone === "danger"
+        ? "text-[#A32D2D]"
+        : "text-muted-foreground";
   return (
     <div className="rounded-md bg-[#f8f7f5] px-orbit-base py-orbit-s">
-      <p className="text-lg v5-orbit-weight-medium tabular-nums text-foreground">{value}</p>
-      <p className="text-[9px] v5-orbit-weight-medium uppercase text-muted-foreground">{label}</p>
-      <p className={`mt-orbit-xs text-[9px] ${trendClass}`}>{trend}</p>
+      {" "}
+      <p className="cpv2-type-lg cpv2-orbit-weight-medium tabular-nums text-foreground">
+        {value}
+      </p>{" "}
+      <p className="cpv2-type-xs cpv2-orbit-weight-medium uppercase text-muted-foreground">
+        {label}
+      </p>{" "}
+      <p className={`mt-orbit-xs cpv2-type-xs ${trendClass}`}>{trend}</p>{" "}
     </div>
   );
 }
-
 function ComparisonToolbarControls({
   search,
   onSearchChange,
@@ -2971,63 +4317,85 @@ function ComparisonToolbarControls({
 }) {
   return (
     <div className="ml-auto flex min-w-0 flex-1 flex-wrap items-center justify-end gap-orbit-s">
+      {" "}
       <div className="relative min-w-[180px] flex-1 sm:max-w-[260px]">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        {" "}
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />{" "}
         <Input
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder="Filter by name or ID..."
-          className="h-8 bg-card pl-orbit-l text-xs"
-        />
-      </div>
+          className="h-8 bg-card pl-orbit-l cpv2-type-xs"
+        />{" "}
+      </div>{" "}
       {showBucketFilter && (
         <>
-          <Select value={filter} onValueChange={(value) => onFilterChange(value as FilterKey)}>
-            <SelectTrigger className="h-8 w-[160px] bg-card text-xs">
-              <SelectValue />
-            </SelectTrigger>
+          {" "}
+          <Select
+            value={filter}
+            onValueChange={(value) => onFilterChange(value as FilterKey)}
+          >
+            {" "}
+            <SelectTrigger className="h-8 w-[160px] bg-card cpv2-type-xs">
+              {" "}
+              <SelectValue />{" "}
+            </SelectTrigger>{" "}
             <SelectContent>
-              <SelectItem value="all">All buckets</SelectItem>
-              <SelectItem value="open">Open Items</SelectItem>
-              <SelectItem value="new-issues">New Changes</SelectItem>
-              <SelectItem value="closed">Closed</SelectItem>
-              <SelectItem value="unmarked">Unmarked clauses</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="ghost" className="h-8 shrink-0 text-[11px] text-muted-foreground" onClick={onResetToLatest}>
-            Reset to latest
-          </Button>
+              {" "}
+              <SelectItem value="all">All buckets</SelectItem>{" "}
+              <SelectItem value="open">Open Items</SelectItem>{" "}
+              <SelectItem value="new-issues">New Changes</SelectItem>{" "}
+              <SelectItem value="closed">Closed</SelectItem>{" "}
+              <SelectItem value="unmarked">Unmarked clauses</SelectItem>{" "}
+            </SelectContent>{" "}
+          </Select>{" "}
+          <Button
+            variant="ghost"
+            className="h-8 shrink-0 cpv2-type-xs text-muted-foreground"
+            onClick={onResetToLatest}
+          >
+            {" "}
+            Reset to latest{" "}
+          </Button>{" "}
         </>
-      )}
+      )}{" "}
     </div>
   );
 }
-
-function ComparisonTabButton({ active, icon, count, onClick, children }: { active: boolean; icon: ReactNode; count: number; onClick: () => void; children: ReactNode }) {
+function ComparisonTabButton({
+  active,
+  icon,
+  count,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  icon: ReactNode;
+  count: number;
+  onClick: () => void;
+  children: ReactNode;
+}) {
   return (
     <CpButton
       type="button"
       onClick={onClick}
-      className={`inline-flex h-10 items-center gap-orbit-xs border-b-2 text-[12px] v5-orbit-weight-medium ${
-        active ? "border-[#1a2744] text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
-      }`}
+      className={`inline-flex h-10 items-center gap-orbit-xs border-b-2 cpv2-type-xs cpv2-orbit-weight-medium ${active ? "border-[#1a2744] text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
     >
-      {icon}
-      {children}
-      <span className="rounded-full bg-muted px-orbit-xs py-orbit-micro text-[9px] text-muted-foreground">{count}</span>
+      {" "}
+      {icon} {children}{" "}
+      <span className="rounded-full bg-muted px-orbit-xs py-orbit-micro cpv2-type-xs text-muted-foreground">
+        {count}
+      </span>{" "}
     </CpButton>
   );
 }
-
 function CompactDivider() {
   return <span className="h-3 w-px shrink-0 bg-border" aria-hidden />;
 }
-
-const changePillConfig: Record<ChangePillStatus, {
-  label: string;
-  className: string;
-  Icon: typeof IconCircleCheck;
-}> = {
+const changePillConfig: Record<
+  ChangePillStatus,
+  { label: string; className: string; Icon: typeof IconCircleCheck }
+> = {
   met: {
     label: "Met",
     className: "bg-[#EAF3DE] text-[#27500A]",
@@ -3054,7 +4422,6 @@ const changePillConfig: Record<ChangePillStatus, {
     Icon: IconPlus,
   },
 };
-
 function ChangePillBadge({ result }: { result: ChangePillResult }) {
   if (!result.status) return null;
   const config = changePillConfig[result.status];
@@ -3063,77 +4430,74 @@ function ChangePillBadge({ result }: { result: ChangePillResult }) {
     (result.status === "improved" || result.status === "regressed") &&
     typeof result.confidence === "number" &&
     result.confidence < CHANGE_DIRECTION_CONFIDENCE_THRESHOLD;
-
   return (
     <span
-      className={`inline-flex items-center gap-orbit-xs rounded-[10px] px-orbit-xs py-orbit-micro text-[9px] v5-orbit-weight-medium ${config.className}`}
+      className={`inline-flex items-center gap-orbit-xs rounded-[10px] px-orbit-xs py-orbit-micro cpv2-type-xs cpv2-orbit-weight-medium ${config.className}`}
     >
-      <Icon size={11} stroke={1.8} />
-      {config.label}
+      {" "}
+      <Icon size={11} stroke={1.8} /> {config.label}{" "}
       {lowConfidence && (
         <Tooltip>
+          {" "}
           <TooltipTrigger asChild>
+            {" "}
             <span className="inline-flex cursor-help items-center">
-              <IconHelp size={10} stroke={1.8} />
-            </span>
-          </TooltipTrigger>
-          <TooltipContent className="text-xs">
-            AI confidence: {result.confidence}%. Verify before accepting.
-          </TooltipContent>
+              {" "}
+              <IconHelp size={10} stroke={1.8} />{" "}
+            </span>{" "}
+          </TooltipTrigger>{" "}
+          <TooltipContent className="cpv2-type-xs">
+            {" "}
+            AI confidence: {result.confidence}%. Verify before accepting.{" "}
+          </TooltipContent>{" "}
         </Tooltip>
-      )}
+      )}{" "}
     </span>
   );
 }
-
 function DecisionBadge({ decision }: { decision: RoundDecision }) {
   if (decision === "request-update") {
     return (
-      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full bg-primary px-orbit-s py-orbit-xs text-[10px] v5-orbit-weight-medium text-primary-foreground">
-        <Sparkles className="h-3 w-3" />
-        Requested
+      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full bg-primary px-orbit-s py-orbit-xs cpv2-type-xs cpv2-orbit-weight-medium text-primary-foreground">
+        {" "}
+        <Sparkles className="h-3 w-3" /> Requested{" "}
       </span>
     );
   }
-
   return (
-    <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full bg-[#EAF3DE] px-orbit-s py-orbit-xs text-[10px] v5-orbit-weight-medium text-[#27500A]">
-      <CheckCircle2 className="h-3 w-3" />
-      No Action
+    <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full bg-[#EAF3DE] px-orbit-s py-orbit-xs cpv2-type-xs cpv2-orbit-weight-medium text-[#27500A]">
+      {" "}
+      <CheckCircle2 className="h-3 w-3" /> No Action{" "}
     </span>
   );
 }
-
 function RequestLifecycleBadge({ request }: { request?: ClauseRequest }) {
   if (request?.state === "pending") {
     return (
-      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full border border-[#185FA5]/25 bg-[#E6F1FB] px-orbit-s py-orbit-xs text-[10px] v5-orbit-weight-medium text-[#0C447C]">
-        <FileText className="h-3 w-3" />
-        Added to Review
+      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full border border-[#185FA5]/25 bg-[#E6F1FB] px-orbit-s py-orbit-xs cpv2-type-xs cpv2-orbit-weight-medium text-[#0C447C]">
+        {" "}
+        <FileText className="h-3 w-3" /> Added to Review{" "}
       </span>
     );
   }
-
   if (request?.state === "submitted") {
     return (
-      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full border border-[#BFD6AB] bg-[#EAF3DE] px-orbit-s py-orbit-xs text-[10px] v5-orbit-weight-medium text-[#27500A]">
-        <CheckCircle2 className="h-3 w-3" />
-        Reviewed
+      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full border border-[#BFD6AB] bg-[#EAF3DE] px-orbit-s py-orbit-xs cpv2-type-xs cpv2-orbit-weight-medium text-[#27500A]">
+        {" "}
+        <CheckCircle2 className="h-3 w-3" /> Reviewed{" "}
       </span>
     );
   }
-
   return <DecisionBadge decision="request-update" />;
 }
-
 function OverviewSectionLabel({ children }: { children: ReactNode }) {
   return (
-    <p className="text-[10px] v5-orbit-weight-semibold uppercase tracking-wider text-muted-foreground">
-      {children}
+    <p className="cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-muted-foreground">
+      {" "}
+      {children}{" "}
     </p>
   );
 }
-
 function ComparisonOverviewPanel({
   state,
   data,
@@ -3147,50 +4511,87 @@ function ComparisonOverviewPanel({
 }) {
   if (state === "closed") return null;
   if (state === "collapsed") {
-    const deltaLabel = data.delta > 0 ? `+${data.delta}` : data.delta < 0 ? `−${Math.abs(data.delta)}` : "0";
-    const deltaColor = data.delta > 0 ? "#3B6D11" : data.delta < 0 ? "#A32D2D" : "hsl(var(--muted-foreground))";
+    const deltaLabel =
+      data.delta > 0
+        ? `+${data.delta}`
+        : data.delta < 0
+          ? `−${Math.abs(data.delta)}`
+          : "0";
+    const deltaColor =
+      data.delta > 0
+        ? "#3B6D11"
+        : data.delta < 0
+          ? "#A32D2D"
+          : "hsl(var(--muted-foreground))";
     return (
-      <div className="flex h-7 items-center gap-orbit-s border-b border-[rgba(0,0,0,0.08)] bg-white px-orbit-base text-[11px]">
-        <span className="shrink-0 v5-orbit-weight-medium text-muted-foreground">
-          {data.previous ? `${pair.from} → ${pair.to}` : "First analysis"}
-        </span>
+      <div className="flex h-7 items-center gap-orbit-s border-b border-[rgba(0,0,0,0.08)] bg-white px-orbit-base cpv2-type-xs">
+        {" "}
+        <span className="shrink-0 cpv2-orbit-weight-medium text-muted-foreground">
+          {" "}
+          {data.previous ? `${pair.from} → ${pair.to}` : "First analysis"}{" "}
+        </span>{" "}
         {data.previous ? (
           <>
-            <MiniDistributionBar distribution={data.previous.distribution} muted />
-            <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <MiniDistributionBar distribution={data.current.distribution} />
-            <span className="shrink-0 v5-orbit-weight-medium tabular-nums" style={{ color: deltaColor }}>
-              {deltaLabel} pts
-            </span>
-            <CompactDivider />
+            {" "}
+            <MiniDistributionBar
+              distribution={data.previous.distribution}
+              muted
+            />{" "}
+            <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />{" "}
+            <MiniDistributionBar distribution={data.current.distribution} />{" "}
+            <span
+              className="shrink-0 cpv2-orbit-weight-medium tabular-nums"
+              style={{ color: deltaColor }}
+            >
+              {" "}
+              {deltaLabel} pts{" "}
+            </span>{" "}
+            <CompactDivider />{" "}
             {data.movement.improved > 0 && (
-              <span className="shrink-0 v5-orbit-weight-medium text-[#3B6D11]">↑ {data.movement.improved} improved</span>
-            )}
+              <span className="shrink-0 cpv2-orbit-weight-medium text-[#3B6D11]">
+                ↑ {data.movement.improved} improved
+              </span>
+            )}{" "}
             {data.movement.declined > 0 && (
-              <span className="shrink-0 v5-orbit-weight-medium text-[#A32D2D]">↓ {data.movement.declined} declined</span>
-            )}
+              <span className="shrink-0 cpv2-orbit-weight-medium text-[#A32D2D]">
+                ↓ {data.movement.declined} declined
+              </span>
+            )}{" "}
           </>
         ) : (
           <MiniDistributionBar distribution={data.current.distribution} />
-        )}
+        )}{" "}
         <CpButton
           type="button"
           onClick={onExpand}
-          className="ml-auto shrink-0 rounded px-orbit-s py-orbit-xxs v5-orbit-weight-medium text-primary hover:bg-primary/5"
+          className="ml-auto shrink-0 rounded px-orbit-s py-orbit-xxs cpv2-orbit-weight-medium text-primary hover:bg-primary/5"
         >
-          Expand
-        </CpButton>
+          {" "}
+          Expand{" "}
+        </CpButton>{" "}
       </div>
     );
   }
-
   return <HybridVersionMovementPanel data={data} />;
 }
-
-function MiniDistributionBar({ distribution, muted }: { distribution: DeviationDistribution; muted?: boolean }) {
+function MiniDistributionBar({
+  distribution,
+  muted,
+}: {
+  distribution: DeviationDistribution;
+  muted?: boolean;
+}) {
   return (
-    <span className={`flex h-1 w-[60px] shrink-0 overflow-hidden rounded-sm bg-muted ${muted ? "opacity-50" : ""}`} style={{ gap: 1 }}>
-      {(Object.keys(deviationDistributionColors) as Array<keyof DeviationDistribution>).map((key) => {
+    <span
+      className={`flex h-1 w-[60px] shrink-0 overflow-hidden rounded-sm bg-muted ${muted ? "opacity-50" : ""}`}
+      style={{ gap: 1 }}
+    >
+      {" "}
+      {(
+        Object.keys(deviationDistributionColors) as Array<
+          keyof DeviationDistribution
+        >
+      ).map((key) => {
         const value = distribution[key];
         if (value <= 0) return null;
         return (
@@ -3203,11 +4604,10 @@ function MiniDistributionBar({ distribution, muted }: { distribution: DeviationD
             }}
           />
         );
-      })}
+      })}{" "}
     </span>
   );
 }
-
 export function ScoringOptionSwitcher({
   value,
   onChange,
@@ -3219,13 +4619,15 @@ export function ScoringOptionSwitcher({
     { value: "issue-score", label: "Score" },
     { value: "hybrid", label: "Hybrid" },
   ];
-
   return (
     <div className="flex items-center gap-orbit-s">
-      <span className="hidden text-[10px] v5-orbit-weight-semibold uppercase tracking-wider text-muted-foreground sm:inline">
-        Scoring options
-      </span>
+      {" "}
+      <span className="hidden cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-muted-foreground sm:inline">
+        {" "}
+        Scoring options{" "}
+      </span>{" "}
       <div className="inline-flex h-7 items-center rounded-full border border-border/80 bg-muted/50 p-orbit-xxs">
+        {" "}
         {options.map((option) => {
           const active = value === option.value;
           return (
@@ -3233,36 +4635,54 @@ export function ScoringOptionSwitcher({
               key={option.value}
               type="button"
               onClick={() => onChange(option.value)}
-              className={`h-6 rounded-full px-orbit-s text-[11px] v5-orbit-weight-medium transition-colors ${
-                active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}
+              className={`h-6 rounded-full px-orbit-s cpv2-type-xs cpv2-orbit-weight-medium transition-colors ${active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
             >
-              {option.label}
+              {" "}
+              {option.label}{" "}
             </CpButton>
           );
-        })}
-      </div>
+        })}{" "}
+      </div>{" "}
     </div>
   );
 }
-
-function ScoringStripSummary({ option, model }: { option: ScoringOptionKey; model: ContractScoringModel }) {
+function ScoringStripSummary({
+  option,
+  model,
+}: {
+  option: ScoringOptionKey;
+  model: ContractScoringModel;
+}) {
   const { current } = model;
-  const delta = current.delta >= 0 ? `↑+${current.delta}` : `↓${Math.abs(current.delta)}`;
+  const delta =
+    current.delta >= 0 ? `↑+${current.delta}` : `↓${Math.abs(current.delta)}`;
   if (option === "hybrid") {
     return (
-      <span className="shrink-0 rounded px-orbit-xs py-orbit-xxs" style={{ color: bandColor[current.band] }}>
-        <strong>{current.score} {current.band}</strong> {delta} · {model.resolvedTotal}/{model.identifiedTotal}
+      <span
+        className="shrink-0 rounded px-orbit-xs py-orbit-xxs"
+        style={{ color: bandColor[current.band] }}
+      >
+        {" "}
+        <strong>
+          {current.score} {current.band}
+        </strong>{" "}
+        {delta} · {model.resolvedTotal}/{model.identifiedTotal}{" "}
       </span>
     );
   }
   return (
-    <span className="shrink-0 rounded px-orbit-xs py-orbit-xxs" style={{ color: bandColor[current.band] }}>
-      <strong>{current.score} {current.band}</strong> {delta}
+    <span
+      className="shrink-0 rounded px-orbit-xs py-orbit-xxs"
+      style={{ color: bandColor[current.band] }}
+    >
+      {" "}
+      <strong>
+        {current.score} {current.band}
+      </strong>{" "}
+      {delta}{" "}
     </span>
   );
 }
-
 function ScoringOptionPanel({
   option,
   model,
@@ -3287,30 +4707,33 @@ function ScoringOptionPanel({
   currentDecision: "accepted" | "changes-requested" | null;
 }) {
   if (option === "hybrid") {
-    return (
-      <HybridScoringOption
-        model={model}
-        versions={versions}
-      />
-    );
+    return <HybridScoringOption model={model} versions={versions} />;
   }
   const current = model.current;
-
   return (
     <div className="rounded-lg border border-border bg-card p-orbit-base">
+      {" "}
       <div className="grid gap-orbit-base lg:grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)]">
+        {" "}
         <div className="space-y-orbit-base">
-          <IssueWeightedScoreOption model={model} onClauseSelect={onClauseSelect} />
-        </div>
-
-        <div className="hidden w-px bg-border lg:block" aria-hidden />
-
+          {" "}
+          <IssueWeightedScoreOption
+            model={model}
+            onClauseSelect={onClauseSelect}
+          />{" "}
+        </div>{" "}
+        <div className="hidden w-px bg-border lg:block" aria-hidden />{" "}
         <div className="space-y-orbit-base">
-          <OverviewSectionLabel>What changed ({leftLabel} → {rightLabel})</OverviewSectionLabel>
-          <HybridChangeList items={changeItems} onClauseSelect={onClauseSelect} />
-        </div>
-      </div>
-
+          {" "}
+          <OverviewSectionLabel>
+            What changed ({leftLabel} → {rightLabel})
+          </OverviewSectionLabel>{" "}
+          <HybridChangeList
+            items={changeItems}
+            onClauseSelect={onClauseSelect}
+          />{" "}
+        </div>{" "}
+      </div>{" "}
       <ScoringPanelFooter
         score={current}
         onRequestChanges={onRequestChanges}
@@ -3318,11 +4741,10 @@ function ScoringOptionPanel({
         currentDecision={currentDecision}
         showVelocity={option === "issue-score"}
         showStallClauseIds={false}
-      />
+      />{" "}
     </div>
   );
 }
-
 function IssueWeightedScoreOption({
   model,
   onClauseSelect,
@@ -3333,13 +4755,19 @@ function IssueWeightedScoreOption({
   const current = model.current;
   return (
     <div className="space-y-orbit-base">
-      <OverviewSectionLabel>What's driving the score</OverviewSectionLabel>
-      <BulletScoreBar score={current.score} previousScore={model.previous?.score} />
-      <HybridRiskDriverRows drivers={current.topDrivers} onClauseSelect={onClauseSelect} />
+      {" "}
+      <OverviewSectionLabel>What's driving the score</OverviewSectionLabel>{" "}
+      <BulletScoreBar
+        score={current.score}
+        previousScore={model.previous?.score}
+      />{" "}
+      <HybridRiskDriverRows
+        drivers={current.topDrivers}
+        onClauseSelect={onClauseSelect}
+      />{" "}
     </div>
   );
 }
-
 function ScoringPanelFooter({
   score,
   onRequestChanges,
@@ -3355,54 +4783,81 @@ function ScoringPanelFooter({
   showVelocity: boolean;
   showStallClauseIds: boolean;
 }) {
-  const stalledIds = score.stalled.map((driver) => driver.clauseId.toUpperCase()).join(", ");
+  const stalledIds = score.stalled
+    .map((driver) => driver.clauseId.toUpperCase())
+    .join(", ");
   return (
-    <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-s border-t border-border pt-orbit-s text-[10px]">
-      <HybridFooterSignal tone={score.dealBreakerPresent ? "danger" : "success"}>
-        {score.dealBreakerPresent ? <ShieldX className="h-3 w-3" /> : <ShieldCheck className="h-3 w-3" />}
-        {score.dealBreakerPresent ? `Deal-breaker: ${score.dealBreakerClause}` : "No deal-breakers"}
-      </HybridFooterSignal>
+    <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-s border-t border-border pt-orbit-s cpv2-type-xs">
+      {" "}
+      <HybridFooterSignal
+        tone={score.dealBreakerPresent ? "danger" : "success"}
+      >
+        {" "}
+        {score.dealBreakerPresent ? (
+          <ShieldX className="h-3 w-3" />
+        ) : (
+          <ShieldCheck className="h-3 w-3" />
+        )}{" "}
+        {score.dealBreakerPresent
+          ? `Deal-breaker: ${score.dealBreakerClause}`
+          : "No deal-breakers"}{" "}
+      </HybridFooterSignal>{" "}
       {showVelocity && (
         <>
-          <CompactDivider />
+          {" "}
+          <CompactDivider />{" "}
           <HybridFooterSignal>
-            <Clock className="h-3 w-3" />
-            {score.velocity} resolved / round
-          </HybridFooterSignal>
+            {" "}
+            <Clock className="h-3 w-3" /> {score.velocity} resolved / round{" "}
+          </HybridFooterSignal>{" "}
         </>
-      )}
+      )}{" "}
       {score.stalled.length > 0 && (
         <>
-          <CompactDivider />
+          {" "}
+          <CompactDivider />{" "}
           <HybridFooterSignal tone="warning">
-            <AlertTriangle className="h-3 w-3" />
-            {score.stalled.length} stalled{showStallClauseIds && stalledIds ? ` (${stalledIds})` : ""}
-          </HybridFooterSignal>
+            {" "}
+            <AlertTriangle className="h-3 w-3" /> {score.stalled.length} stalled
+            {showStallClauseIds && stalledIds ? ` (${stalledIds})` : ""}{" "}
+          </HybridFooterSignal>{" "}
         </>
-      )}
+      )}{" "}
       {currentDecision && (
         <>
-          <CompactDivider />
-          <HybridFooterSignal tone={currentDecision === "accepted" ? "success" : "warning"}>
-            {currentDecision === "accepted" ? "Version accepted" : "Changes requested"}
-          </HybridFooterSignal>
+          {" "}
+          <CompactDivider />{" "}
+          <HybridFooterSignal
+            tone={currentDecision === "accepted" ? "success" : "warning"}
+          >
+            {" "}
+            {currentDecision === "accepted"
+              ? "Version accepted"
+              : "Changes requested"}{" "}
+          </HybridFooterSignal>{" "}
         </>
-      )}
+      )}{" "}
       <div className="ml-auto flex items-center gap-orbit-s">
-        <Button variant="outline" className="h-7 rounded-[5px] px-orbit-base text-[10px]" onClick={onRequestChanges}>
-          Request changes
-        </Button>
+        {" "}
         <Button
-          className="h-7 rounded-[5px] px-orbit-base text-[10px]"
+          variant="outline"
+          className="h-7 rounded-[5px] px-orbit-base cpv2-type-xs"
+          onClick={onRequestChanges}
+        >
+          {" "}
+          Request changes{" "}
+        </Button>{" "}
+        <Button
+          className="h-7 rounded-[5px] px-orbit-base cpv2-type-xs"
           onClick={onAcceptVersion}
         >
-          Accept version
-        </Button>
-      </div>
+          {" "}
+          Accept version{" "}
+        </Button>{" "}
+      </div>{" "}
     </div>
   );
 }
-
 interface HybridMovementPanelData {
   previous?: {
     version: string;
@@ -3417,12 +4872,8 @@ interface HybridMovementPanelData {
     distribution: DeviationDistribution;
   };
   delta: number;
-  movement: {
-    improved: number;
-    declined: number;
-  };
+  movement: { improved: number; declined: number };
 }
-
 function HybridScoringOption({
   model,
   versions,
@@ -3433,16 +4884,16 @@ function HybridScoringOption({
   const data = buildHybridMovementPanelData(model, versions);
   return <HybridVersionMovementPanel data={data} />;
 }
-
 function buildHybridMovementPanelData(
   model: ContractScoringModel,
   versions: ContractVersion[],
 ): HybridMovementPanelData {
-  const currentVersion = versions.find((version) => version.version === model.current.version);
+  const currentVersion = versions.find(
+    (version) => version.version === model.current.version,
+  );
   const previousVersion = model.previous
     ? versions.find((version) => version.version === model.previous?.version)
     : undefined;
-
   return {
     previous: model.previous
       ? {
@@ -3462,7 +4913,6 @@ function buildHybridMovementPanelData(
     movement: movementBetweenVersions(previousVersion, currentVersion),
   };
 }
-
 function distributionFromScore(score: ContractScore): DeviationDistribution {
   const active = score.open.high + score.open.medium + score.open.low;
   return {
@@ -3472,29 +4922,31 @@ function distributionFromScore(score: ContractScore): DeviationDistribution {
     clean: Math.max(0, CLAUSE_FRAMEWORK.length - active),
   };
 }
-
-function movementBetweenVersions(previous?: ContractVersion, current?: ContractVersion) {
+function movementBetweenVersions(
+  previous?: ContractVersion,
+  current?: ContractVersion,
+) {
   if (!previous || !current) return { improved: 0, declined: 0 };
-
   let improved = 0;
   let declined = 0;
   for (const def of CLAUSE_FRAMEWORK) {
-    const prevRank = deviationRank(previous.clauses.find((clause) => clause.id === def.id));
-    const currRank = deviationRank(current.clauses.find((clause) => clause.id === def.id));
+    const prevRank = deviationRank(
+      previous.clauses.find((clause) => clause.id === def.id),
+    );
+    const currRank = deviationRank(
+      current.clauses.find((clause) => clause.id === def.id),
+    );
     if (currRank < prevRank) improved += 1;
     if (currRank > prevRank) declined += 1;
   }
-
   return { improved, declined };
 }
-
 function deviationRank(clause?: ClauseResult) {
   if (!clause || clause.resolved) return 0;
   if (clause.severity === "low") return 1;
   if (clause.severity === "medium") return 2;
   return 3;
 }
-
 function HybridVersionMovementPanel({
   data,
   hasComparison,
@@ -3514,31 +4966,47 @@ function HybridVersionMovementPanel({
   if (!canCompare || !data.previous) {
     return (
       <div className="flex min-h-[70px] items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] bg-white px-orbit-base py-orbit-base">
-        <div className="min-w-[180px] flex-1 text-[10px] v5-orbit-weight-medium text-muted-foreground">
-          First analysis — no comparison available
-        </div>
-        <CompactVersionDistributionSide version={data.current} label="current" versions={versions} current />
+        {" "}
+        <div className="min-w-[180px] flex-1 cpv2-type-xs cpv2-orbit-weight-medium text-muted-foreground">
+          {" "}
+          First analysis — no comparison available{" "}
+        </div>{" "}
+        <CompactVersionDistributionSide
+          version={data.current}
+          label="current"
+          versions={versions}
+          current
+        />{" "}
       </div>
     );
   }
-
   return (
     <div className="border-b border-[rgba(0,0,0,0.08)] bg-white">
+      {" "}
       <div className="flex items-center gap-orbit-base px-orbit-base py-orbit-s">
-        <CompactVersionDistributionSide version={data.previous} label="previous" versions={versions} />
-        <DeltaIndicator delta={data.delta} />
-        <CompactVersionDistributionSide version={data.current} label="current" versions={versions} current />
-      </div>
+        {" "}
+        <CompactVersionDistributionSide
+          version={data.previous}
+          label="previous"
+          versions={versions}
+        />{" "}
+        <DeltaIndicator delta={data.delta} />{" "}
+        <CompactVersionDistributionSide
+          version={data.current}
+          label="current"
+          versions={versions}
+          current
+        />{" "}
+      </div>{" "}
       <MovementSummaryZone
         movers={movers}
         delta={data.delta}
         onMoverSelect={onMoverSelect}
         onSeeMoreChanges={onSeeMoreChanges}
-      />
+      />{" "}
     </div>
   );
 }
-
 function CompactVersionDistributionSide({
   version,
   label,
@@ -3550,90 +5018,163 @@ function CompactVersionDistributionSide({
   versions?: ContractVersion[];
   current?: boolean;
 }) {
-  const uploadedAt = versions?.find((item) => item.version === version.version)?.uploadedAt;
-  const labelText = uploadedAt ? `${version.version} · ${formatShortDate(uploadedAt)}` : version.version;
+  const uploadedAt = versions?.find(
+    (item) => item.version === version.version,
+  )?.uploadedAt;
+  const labelText = uploadedAt
+    ? `${version.version} · ${formatShortDate(uploadedAt)}`
+    : version.version;
   return (
     <div
       aria-label={`${label} version ${labelText}, score ${version.score}`}
       className={cn(
         "grid min-h-[54px] min-w-0 flex-1 grid-cols-[auto_1fr_auto] items-center gap-orbit-base rounded-md border px-orbit-base py-orbit-s",
-        current ? "border-[#185FA5]/35 bg-[rgba(230,241,251,0.55)] shadow-[inset_3px_0_0_#185FA5]" : "border-transparent bg-[#f8f7f5]",
+        current
+          ? "border-[#185FA5]/35 bg-[rgba(230,241,251,0.55)] shadow-[inset_3px_0_0_#185FA5]"
+          : "border-transparent bg-[#f8f7f5]",
       )}
     >
+      {" "}
       <div className="min-w-[62px]">
+        {" "}
         <div className="flex items-center gap-orbit-xs">
-          <span className={cn(
-            "text-[9px] v5-orbit-weight-medium uppercase tracking-[0.04em]",
-            current ? "text-[#185FA5]" : "text-muted-foreground",
-          )}>
-            {labelText}
-          </span>
+          {" "}
+          <span
+            className={cn(
+              "cpv2-type-xs cpv2-orbit-weight-medium uppercase ",
+              current ? "text-[#185FA5]" : "text-muted-foreground",
+            )}
+          >
+            {" "}
+            {labelText}{" "}
+          </span>{" "}
           {current && (
-            <span className="inline-flex items-center gap-orbit-xs rounded-full bg-[#185FA5] px-orbit-xs py-orbit-xxs text-[8px] v5-orbit-weight-semibold uppercase tracking-[0.04em] text-white">
-              <IconEye size={10} stroke={2} aria-hidden />
-              Current version
+            <span className="inline-flex items-center gap-orbit-xs rounded-full bg-[#185FA5] px-orbit-xs py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-white">
+              {" "}
+              <IconEye size={10} stroke={2} aria-hidden /> Current version{" "}
             </span>
-          )}
-        </div>
-        <p className="mt-orbit-xxs text-2xl v5-orbit-weight-medium leading-none text-foreground tabular-nums">{version.score}</p>
-      </div>
+          )}{" "}
+        </div>{" "}
+        <p className="mt-orbit-xxs cpv2-type-2xl cpv2-orbit-weight-medium cpv2-leading-tight text-foreground tabular-nums">
+          {version.score}
+        </p>{" "}
+      </div>{" "}
       <div className="min-w-0">
-        <DistributionCounts distribution={version.distribution} />
-        <CompactDistributionBar distribution={version.distribution} />
-      </div>
-      <span className="w-1" aria-hidden />
+        {" "}
+        <DistributionCounts distribution={version.distribution} />{" "}
+        <CompactDistributionBar distribution={version.distribution} />{" "}
+      </div>{" "}
+      <span className="w-1" aria-hidden />{" "}
     </div>
   );
 }
-
 function DeltaIndicator({ delta }: { delta: number }) {
-  const color = delta > 0 ? "#3B6D11" : delta < 0 ? "#A32D2D" : "hsl(var(--muted-foreground))";
-  const label = delta > 0 ? `+${delta}` : delta < 0 ? `−${Math.abs(delta)}` : "0";
+  const color =
+    delta > 0
+      ? "#3B6D11"
+      : delta < 0
+        ? "#A32D2D"
+        : "hsl(var(--muted-foreground))";
+  const label =
+    delta > 0 ? `+${delta}` : delta < 0 ? `−${Math.abs(delta)}` : "0";
   return (
     <div className="flex shrink-0 flex-col items-center gap-orbit-xxs px-orbit-xxs">
-      <ArrowRight className="h-[13px] w-[13px] text-muted-foreground" />
-      <span className="text-sm v5-orbit-weight-medium leading-none tabular-nums" style={{ color }}>
-        {label}
-      </span>
-      <span className="text-[8px] leading-none text-muted-foreground">pts</span>
+      {" "}
+      <ArrowRight className="h-[13px] w-[13px] text-muted-foreground" />{" "}
+      <span
+        className="cpv2-type-sm cpv2-orbit-weight-medium cpv2-leading-tight tabular-nums"
+        style={{ color }}
+      >
+        {" "}
+        {label}{" "}
+      </span>{" "}
+      <span className="cpv2-type-xs cpv2-leading-tight text-muted-foreground">
+        pts
+      </span>{" "}
     </div>
   );
 }
-
-const deviationDistributionColors: Record<keyof DeviationDistribution, string> = {
-  high: "#A32D2D",
-  medium: "#BA7517",
-  low: "#B4B2A9",
-  clean: "#3B6D11",
-};
-
-function DistributionCounts({ distribution }: { distribution: DeviationDistribution }) {
+const deviationDistributionColors: Record<keyof DeviationDistribution, string> =
+  { high: "#A32D2D", medium: "#BA7517", low: "#B4B2A9", clean: "#3B6D11" };
+function DistributionCounts({
+  distribution,
+}: {
+  distribution: DeviationDistribution;
+}) {
   return (
-    <div className="mb-orbit-xs flex min-w-0 flex-wrap items-center gap-x-orbit-xs gap-y-orbit-xxs text-[10px] text-muted-foreground">
-      <DistributionCount value={distribution.high} label="high" color="#A32D2D" />
-      <span className="text-border">·</span>
-      <DistributionCount value={distribution.medium} label="med" color="#854F0B" />
-      <span className="text-border">·</span>
-      <DistributionCount value={distribution.low} label="low" color="hsl(var(--foreground))" />
-      <span className="text-border">·</span>
-      <DistributionCount value={distribution.clean} label="clean" color="hsl(var(--muted-foreground))" />
+    <div className="mb-orbit-xs flex min-w-0 flex-wrap items-center gap-x-orbit-xs gap-y-orbit-xxs cpv2-type-xs text-muted-foreground">
+      {" "}
+      <DistributionCount
+        value={distribution.high}
+        label="high"
+        color="#A32D2D"
+      />{" "}
+      <span className="text-border">·</span>{" "}
+      <DistributionCount
+        value={distribution.medium}
+        label="med"
+        color="#854F0B"
+      />{" "}
+      <span className="text-border">·</span>{" "}
+      <DistributionCount
+        value={distribution.low}
+        label="low"
+        color="hsl(var(--foreground))"
+      />{" "}
+      <span className="text-border">·</span>{" "}
+      <DistributionCount
+        value={distribution.clean}
+        label="clean"
+        color="hsl(var(--muted-foreground))"
+      />{" "}
     </div>
   );
 }
-
-function DistributionCount({ value, label, color }: { value: number; label: string; color: string }) {
+function DistributionCount({
+  value,
+  label,
+  color,
+}: {
+  value: number;
+  label: string;
+  color: string;
+}) {
   return (
     <span className="whitespace-nowrap">
-      <strong className="v5-orbit-weight-medium tabular-nums" style={{ color }}>{value}</strong> {label}
+      {" "}
+      <strong
+        className="cpv2-orbit-weight-medium tabular-nums"
+        style={{ color }}
+      >
+        {value}
+      </strong>{" "}
+      {label}{" "}
     </span>
   );
 }
-
-function CompactDistributionBar({ distribution }: { distribution: DeviationDistribution }) {
-  const total = Math.max(1, distribution.high + distribution.medium + distribution.low + distribution.clean);
+function CompactDistributionBar({
+  distribution,
+}: {
+  distribution: DeviationDistribution;
+}) {
+  const total = Math.max(
+    1,
+    distribution.high +
+      distribution.medium +
+      distribution.low +
+      distribution.clean,
+  );
   return (
-    <div className="flex h-2 overflow-hidden rounded-[3px] bg-muted" style={{ gap: 1 }}>
-      {(Object.keys(deviationDistributionColors) as Array<keyof DeviationDistribution>).map((key) => {
+    <div
+      className="flex h-2 overflow-hidden rounded-[3px] bg-muted"
+      style={{ gap: 1 }}
+    >
+      {" "}
+      {(
+        Object.keys(deviationDistributionColors) as Array<
+          keyof DeviationDistribution
+        >
+      ).map((key) => {
         const value = distribution[key];
         if (value <= 0) return null;
         return (
@@ -3647,11 +5188,10 @@ function CompactDistributionBar({ distribution }: { distribution: DeviationDistr
             }}
           />
         );
-      })}
+      })}{" "}
     </div>
   );
 }
-
 function MovementSummaryZone({
   movers,
   delta,
@@ -3665,114 +5205,180 @@ function MovementSummaryZone({
 }) {
   return (
     <div className="grid gap-orbit-base border-t border-[rgba(0,0,0,0.08)] bg-[rgba(230,241,251,0.15)] px-orbit-base py-orbit-base min-[900px]:grid-cols-[1fr_1.6fr]">
+      {" "}
       <div className="min-w-0">
+        {" "}
         <div className="flex items-center gap-orbit-s">
-          <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full bg-[#1a2744] text-white" aria-hidden="true">
-            <Sparkles className="h-3 w-3" />
-          </span>
+          {" "}
+          <span
+            className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full bg-[#1a2744] text-white"
+            aria-hidden="true"
+          >
+            {" "}
+            <Sparkles className="h-3 w-3" />{" "}
+          </span>{" "}
           <div className="min-w-0">
-            <p className="text-[9px] v5-orbit-weight-medium uppercase tracking-[0.04em] text-muted-foreground">Supplier-initiated</p>
-            <p className="text-xs v5-orbit-weight-medium text-foreground">What changed this round</p>
-          </div>
-        </div>
-        <MovementNarrative movers={movers} delta={delta} />
+            {" "}
+            <p className="cpv2-type-xs cpv2-orbit-weight-medium uppercase text-muted-foreground">
+              Supplier-initiated
+            </p>{" "}
+            <p className="cpv2-type-xs cpv2-orbit-weight-medium text-foreground">
+              What changed this round
+            </p>{" "}
+          </div>{" "}
+        </div>{" "}
+        <MovementNarrative movers={movers} delta={delta} />{" "}
         {onSeeMoreChanges && (
           <CpButton
             type="button"
             onClick={onSeeMoreChanges}
-            className="ml-orbit-l mt-orbit-xxs rounded px-orbit-xs py-orbit-xxs text-[10px] v5-orbit-weight-medium text-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            className="ml-orbit-l mt-orbit-xxs rounded px-orbit-xs py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium text-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
           >
-            See all changes →
+            {" "}
+            See all changes →{" "}
           </CpButton>
-        )}
-      </div>
+        )}{" "}
+      </div>{" "}
       <div className="min-w-0">
+        {" "}
         {movers.length > 0 && onMoverSelect ? (
           <TopMoversList movers={movers} onMoverSelect={onMoverSelect} />
         ) : (
-          <div className="rounded-[5px] border border-border bg-white px-orbit-s py-orbit-s text-[11px] text-muted-foreground">
-            No clause movements this round.
+          <div className="rounded-[5px] border border-border bg-white px-orbit-s py-orbit-s cpv2-type-xs text-muted-foreground">
+            {" "}
+            No clause movements this round.{" "}
           </div>
-        )}
-      </div>
+        )}{" "}
+      </div>{" "}
     </div>
   );
 }
-
-function MovementNarrative({ movers, delta }: { movers: ComparisonMover[]; delta: number }) {
-  const improved = movers.filter((mover) => mover.direction === "improved").length;
-  const regressed = movers.filter((mover) => mover.direction === "regressed").length;
+function MovementNarrative({
+  movers,
+  delta,
+}: {
+  movers: ComparisonMover[];
+  delta: number;
+}) {
+  const improved = movers.filter(
+    (mover) => mover.direction === "improved",
+  ).length;
+  const regressed = movers.filter(
+    (mover) => mover.direction === "regressed",
+  ).length;
   const created = movers.filter((mover) => mover.direction === "new").length;
   const total = improved + regressed + created;
-  const scoreText = delta > 0 ? `Net change: +${delta} points.` : delta < 0 ? `Net change: -${Math.abs(delta)} points.` : total > 0 ? "Score unchanged." : "";
+  const scoreText =
+    delta > 0
+      ? `Net change: +${delta} points.`
+      : delta < 0
+        ? `Net change: -${Math.abs(delta)} points.`
+        : total > 0
+          ? "Score unchanged."
+          : "";
   const ariaLabel =
     total === 0
       ? delta === 0
         ? "No changes in this round."
         : `Score recalculated. No clause movement this round. ${scoreText}`
       : `${improved ? `${improved} improved` : ""}${improved && regressed ? ", " : ""}${regressed ? `${regressed} regressed` : ""}${(improved || regressed) && created ? ", " : ""}${created ? `${created} new clause${created === 1 ? "" : "s"}` : ""}. ${scoreText}`.trim();
-
   return (
-    <p className="ml-orbit-l mt-orbit-xs min-w-0 text-[12px] leading-[1.55] text-foreground" aria-label={ariaLabel}>
+    <p
+      className="ml-orbit-l mt-orbit-xs min-w-0 cpv2-type-xs leading-[1.55] text-foreground"
+      aria-label={ariaLabel}
+    >
+      {" "}
       {total === 0 ? (
         delta === 0 ? (
           <>No changes in this round.</>
         ) : (
           <>
-            <span className="v5-orbit-weight-medium">Score recalculated.</span> No clause movement this round. <ScoreDeltaText delta={delta} />
+            {" "}
+            <span className="cpv2-orbit-weight-medium">
+              Score recalculated.
+            </span>{" "}
+            No clause movement this round. <ScoreDeltaText delta={delta} />{" "}
           </>
         )
       ) : (
         <>
+          {" "}
           {regressed > improved && regressed > 0 ? (
             <>
-              <NarrativeCount count={regressed} /> <span className="v5-orbit-weight-medium">regressed</span>
-              {improved > 0 && <> , <NarrativeCount count={improved} /> <span className="v5-orbit-weight-medium">improved</span></>}
+              {" "}
+              <NarrativeCount count={regressed} />{" "}
+              <span className="cpv2-orbit-weight-medium">regressed</span>{" "}
+              {improved > 0 && (
+                <>
+                  {" "}
+                  , <NarrativeCount count={improved} />{" "}
+                  <span className="cpv2-orbit-weight-medium">improved</span>
+                </>
+              )}{" "}
             </>
           ) : improved > 0 && regressed > 0 ? (
             <>
-              <NarrativeCount count={improved} /> <span className="v5-orbit-weight-medium">improved</span>, <NarrativeCount count={regressed} /> <span className="v5-orbit-weight-medium">regressed</span>
+              {" "}
+              <NarrativeCount count={improved} />{" "}
+              <span className="cpv2-orbit-weight-medium">improved</span>,{" "}
+              <NarrativeCount count={regressed} />{" "}
+              <span className="cpv2-orbit-weight-medium">regressed</span>{" "}
             </>
           ) : improved > 0 ? (
             <>
-              <NarrativeCount count={improved} /> clause{improved === 1 ? "" : "s"} <span className="v5-orbit-weight-medium">improved</span> this round
+              {" "}
+              <NarrativeCount count={improved} /> clause
+              {improved === 1 ? "" : "s"}{" "}
+              <span className="cpv2-orbit-weight-medium">improved</span> this
+              round{" "}
             </>
           ) : regressed > 0 ? (
             <>
-              <NarrativeCount count={regressed} /> clause{regressed === 1 ? "" : "s"} <span className="v5-orbit-weight-medium">regressed</span>
+              {" "}
+              <NarrativeCount count={regressed} /> clause
+              {regressed === 1 ? "" : "s"}{" "}
+              <span className="cpv2-orbit-weight-medium">regressed</span>{" "}
             </>
-          ) : null}
+          ) : null}{" "}
           {created > 0 && (
             <>
-              {(improved > 0 || regressed > 0) && <>, </>}
-              <NarrativeCount count={created} /> new clause{created === 1 ? "" : "s"}
+              {" "}
+              {(improved > 0 || regressed > 0) && <>, </>}{" "}
+              <NarrativeCount count={created} /> new clause
+              {created === 1 ? "" : "s"}{" "}
             </>
-          )}
-          . {delta === 0 ? "Score unchanged." : <ScoreDeltaText delta={delta} />}
+          )}{" "}
+          .{" "}
+          {delta === 0 ? (
+            "Score unchanged."
+          ) : (
+            <ScoreDeltaText delta={delta} />
+          )}{" "}
         </>
-      )}
+      )}{" "}
     </p>
   );
 }
-
 function NarrativeCount({ count }: { count: number }) {
-  return <span className="v5-orbit-weight-medium tabular-nums">{count}</span>;
+  return <span className="cpv2-orbit-weight-medium tabular-nums">{count}</span>;
 }
-
 function ScoreDeltaText({ delta }: { delta: number }) {
   if (delta === 0) return null;
   const positive = delta > 0;
   return (
     <>
+      {" "}
       Net change:{" "}
-      <span className={`v5-orbit-weight-medium tabular-nums ${positive ? "text-[#27500A]" : "text-[#791F1F]"}`}>
-        {positive ? `+${delta}` : `-${Math.abs(delta)}`} points
-      </span>
-      .
+      <span
+        className={`cpv2-orbit-weight-medium tabular-nums ${positive ? "text-[#27500A]" : "text-[#791F1F]"}`}
+      >
+        {" "}
+        {positive ? `+${delta}` : `-${Math.abs(delta)}`} points{" "}
+      </span>{" "}
+      .{" "}
     </>
   );
 }
-
 function TopMoversList({
   movers,
   onMoverSelect,
@@ -3781,30 +5387,42 @@ function TopMoversList({
   onMoverSelect: (id: string) => void;
 }) {
   const visibleMovers = visibleTopMovers(movers);
-
   return (
     <div className="flex flex-col gap-orbit-xs">
+      {" "}
       {visibleMovers.map((mover) => {
         const regressed = mover.direction === "regressed";
         const created = mover.direction === "new";
         const tone = regressed
           ? "bg-[rgba(252,235,235,0.4)] hover:bg-[rgba(252,235,235,0.65)]"
           : "bg-white hover:bg-[#E6F1FB]/30";
-        const badgeClass = regressed ? "bg-[#A32D2D]" : created ? "bg-[#185FA5]" : "bg-[#3B6D11]";
-        const Icon = regressed ? IconArrowDown : created ? IconPlus : IconArrowUp;
+        const badgeClass = regressed
+          ? "bg-[#A32D2D]"
+          : created
+            ? "bg-[#185FA5]"
+            : "bg-[#3B6D11]";
+        const Icon = regressed
+          ? IconArrowDown
+          : created
+            ? IconPlus
+            : IconArrowUp;
         const transitionLabel = created ? (
           <span>New clause</span>
         ) : (
           <>
-            <strong className="v5-orbit-weight-medium text-foreground">{formatMoverSeverity(mover.previousSeverity)}</strong>
-            <span aria-hidden> → </span>
-            <strong className="v5-orbit-weight-medium text-foreground">{formatMoverSeverity(mover.currentSeverity)}</strong>
+            {" "}
+            <strong className="cpv2-orbit-weight-medium text-foreground">
+              {formatMoverSeverity(mover.previousSeverity)}
+            </strong>{" "}
+            <span aria-hidden> → </span>{" "}
+            <strong className="cpv2-orbit-weight-medium text-foreground">
+              {formatMoverSeverity(mover.currentSeverity)}
+            </strong>{" "}
           </>
         );
         const accessibleTransition = created
           ? "new clause"
           : `moved from ${formatMoverSeverity(mover.previousSeverity)} to ${formatMoverSeverity(mover.currentSeverity)}`;
-
         return (
           <CpButton
             key={mover.id}
@@ -3813,26 +5431,37 @@ function TopMoversList({
             aria-label={`${mover.name}, ${accessibleTransition}`}
             className={`grid w-full grid-cols-[16px_24px_minmax(0,1fr)_auto_12px] items-center gap-orbit-s rounded-[5px] border border-border px-orbit-s py-orbit-xs text-left transition-colors hover:border-[#185FA5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${tone}`}
           >
-            <span className={`grid h-4 w-4 place-items-center rounded-full text-white ${badgeClass}`} aria-hidden="true">
-              <Icon size={10} stroke={2} />
-            </span>
-            <span className="tabular-nums text-[9px] text-muted-foreground">{mover.id.toUpperCase()}</span>
-            <span className="min-w-0 truncate text-[11px] v5-orbit-weight-medium text-foreground">{mover.name}</span>
-            <span className="shrink-0 text-[9px] text-muted-foreground">{transitionLabel}</span>
-            <span className="text-xs text-muted-foreground" aria-hidden>›</span>
+            {" "}
+            <span
+              className={`grid h-4 w-4 place-items-center rounded-full text-white ${badgeClass}`}
+              aria-hidden="true"
+            >
+              {" "}
+              <Icon size={10} stroke={2} />{" "}
+            </span>{" "}
+            <span className="tabular-nums cpv2-type-xs text-muted-foreground">
+              {mover.id.toUpperCase()}
+            </span>{" "}
+            <span className="min-w-0 truncate cpv2-type-xs cpv2-orbit-weight-medium text-foreground">
+              {mover.name}
+            </span>{" "}
+            <span className="shrink-0 cpv2-type-xs text-muted-foreground">
+              {transitionLabel}
+            </span>{" "}
+            <span className="cpv2-type-xs text-muted-foreground" aria-hidden>
+              ›
+            </span>{" "}
           </CpButton>
         );
-      })}
+      })}{" "}
     </div>
   );
 }
-
 const panelSeverityColor: Record<"high" | "medium" | "low", string> = {
   high: "#A32D2D",
   medium: "#854F0B",
   low: "#5F5E5A",
 };
-
 function HybridRiskDriverRows({
   drivers,
   onClauseSelect,
@@ -3842,82 +5471,126 @@ function HybridRiskDriverRows({
 }) {
   return (
     <div>
-      <OverviewSectionLabel>Top risk drivers</OverviewSectionLabel>
+      {" "}
+      <OverviewSectionLabel>Top risk drivers</OverviewSectionLabel>{" "}
       <div className="mt-orbit-s divide-y divide-border">
+        {" "}
         {drivers.length === 0 ? (
-          <div className="py-orbit-s text-xs text-muted-foreground">No open risk drivers.</div>
-        ) : drivers.slice(0, 3).map((driver) => {
-          const stalled = driver.roundsUnchanged >= 2;
-          return (
-            <CpButton
-              key={driver.clauseId}
-              type="button"
-              onClick={() => onClauseSelect(driver.clauseId)}
-              className="grid w-full grid-cols-[minmax(0,1fr)_28px] items-start gap-orbit-base py-orbit-s text-left hover:bg-muted/35"
-            >
-              <span className="flex min-w-0 items-start gap-orbit-s">
-                <span
-                  className="mt-orbit-xs h-[5px] w-[5px] shrink-0 rounded-full"
-                  style={{ backgroundColor: panelSeverityColor[driver.severity] }}
-                />
-                <span className="min-w-0">
-                  <span className="block truncate text-[11px] v5-orbit-weight-medium text-foreground">{driver.clauseName}</span>
-                  <span className="block truncate text-[10px] text-muted-foreground">
-                    {driver.clauseId.toUpperCase()}
-                    {stalled && <> · stalled {driver.roundsUnchanged} rounds</>}
-                  </span>
-                </span>
-              </span>
-              <span
-                className="text-right text-[10px] v5-orbit-weight-medium tabular-nums"
-                style={{ color: panelSeverityColor[driver.severity] }}
+          <div className="py-orbit-s cpv2-type-xs text-muted-foreground">
+            No open risk drivers.
+          </div>
+        ) : (
+          drivers.slice(0, 3).map((driver) => {
+            const stalled = driver.roundsUnchanged >= 2;
+            return (
+              <CpButton
+                key={driver.clauseId}
+                type="button"
+                onClick={() => onClauseSelect(driver.clauseId)}
+                className="grid w-full grid-cols-[minmax(0,1fr)_28px] items-start gap-orbit-base py-orbit-s text-left hover:bg-muted/35"
               >
-                −{driver.weightedCost}
-              </span>
-            </CpButton>
-          );
-        })}
-      </div>
+                {" "}
+                <span className="flex min-w-0 items-start gap-orbit-s">
+                  {" "}
+                  <span
+                    className="mt-orbit-xs h-[5px] w-[5px] shrink-0 rounded-full"
+                    style={{
+                      backgroundColor: panelSeverityColor[driver.severity],
+                    }}
+                  />{" "}
+                  <span className="min-w-0">
+                    {" "}
+                    <span className="block truncate cpv2-type-xs cpv2-orbit-weight-medium text-foreground">
+                      {driver.clauseName}
+                    </span>{" "}
+                    <span className="block truncate cpv2-type-xs text-muted-foreground">
+                      {" "}
+                      {driver.clauseId.toUpperCase()}{" "}
+                      {stalled && (
+                        <> · stalled {driver.roundsUnchanged} rounds</>
+                      )}{" "}
+                    </span>{" "}
+                  </span>{" "}
+                </span>{" "}
+                <span
+                  className="text-right cpv2-type-xs cpv2-orbit-weight-medium tabular-nums"
+                  style={{ color: panelSeverityColor[driver.severity] }}
+                >
+                  {" "}
+                  −{driver.weightedCost}{" "}
+                </span>{" "}
+              </CpButton>
+            );
+          })
+        )}{" "}
+      </div>{" "}
     </div>
   );
 }
-
 function HybridResolutionRows({ score }: { score: ContractScore }) {
-  const rows: Array<{ key: "high" | "medium" | "low"; label: string; color: string }> = [
+  const rows: Array<{
+    key: "high" | "medium" | "low";
+    label: string;
+    color: string;
+  }> = [
     { key: "high", label: "High", color: "#A32D2D" },
     { key: "medium", label: "Medium", color: "#854F0B" },
     { key: "low", label: "Low", color: "#5F5E5A" },
   ];
   return (
     <div>
-      <OverviewSectionLabel>Resolution progress</OverviewSectionLabel>
+      {" "}
+      <OverviewSectionLabel>Resolution progress</OverviewSectionLabel>{" "}
       <div className="mt-orbit-s space-y-orbit-s">
+        {" "}
         {rows.map((row) => {
           const identified = score.identified[row.key];
           const total = Math.max(1, identified);
           const resolved = score.resolved[row.key];
           const remaining = score.open[row.key];
-          const resolvedWidth = resolved > 0 ? Math.max(3, (resolved / total) * 100) : 3;
+          const resolvedWidth =
+            resolved > 0 ? Math.max(3, (resolved / total) * 100) : 3;
           return (
-            <div key={row.key} className="grid grid-cols-[48px_minmax(0,1fr)_38px] items-center gap-orbit-s">
-              <span className="text-[10px] v5-orbit-weight-medium" style={{ color: row.color }}>{row.label}</span>
+            <div
+              key={row.key}
+              className="grid grid-cols-[48px_minmax(0,1fr)_38px] items-center gap-orbit-s"
+            >
+              {" "}
+              <span
+                className="cpv2-type-xs cpv2-orbit-weight-medium"
+                style={{ color: row.color }}
+              >
+                {row.label}
+              </span>{" "}
               <span className="flex h-2 overflow-hidden rounded-[3px] bg-muted">
-                <span className="bg-[#3B6D11]" style={{ width: `${resolvedWidth}%` }} />
+                {" "}
+                <span
+                  className="bg-[#3B6D11]"
+                  style={{ width: `${resolvedWidth}%` }}
+                />{" "}
                 {remaining > 0 && (
-                  <span style={{ width: `${Math.max(0, 100 - resolvedWidth)}%`, backgroundColor: row.color }} />
-                )}
-              </span>
-              <span className="text-right text-[10px] v5-orbit-weight-medium tabular-nums" style={{ color: row.color }}>
-                {resolved}/{identified}
-              </span>
+                  <span
+                    style={{
+                      width: `${Math.max(0, 100 - resolvedWidth)}%`,
+                      backgroundColor: row.color,
+                    }}
+                  />
+                )}{" "}
+              </span>{" "}
+              <span
+                className="text-right cpv2-type-xs cpv2-orbit-weight-medium tabular-nums"
+                style={{ color: row.color }}
+              >
+                {" "}
+                {resolved}/{identified}{" "}
+              </span>{" "}
             </div>
           );
-        })}
-      </div>
+        })}{" "}
+      </div>{" "}
     </div>
   );
 }
-
 function HybridChangeList({
   items,
   onClauseSelect,
@@ -3927,16 +5600,22 @@ function HybridChangeList({
 }) {
   if (items.length === 0) {
     return (
-      <div className="rounded-md border border-border bg-muted/25 px-orbit-base py-orbit-base text-xs text-muted-foreground">
-        No requested or supplier-initiated changes for this comparison.
+      <div className="rounded-md border border-border bg-muted/25 px-orbit-base py-orbit-base cpv2-type-xs text-muted-foreground">
+        {" "}
+        No requested or supplier-initiated changes for this comparison.{" "}
       </div>
     );
   }
-
-  const statusOrder: PanelChangeStatus[] = ["met", "not_met", "regressed", "improved", "new"];
-
+  const statusOrder: PanelChangeStatus[] = [
+    "met",
+    "not_met",
+    "regressed",
+    "improved",
+    "new",
+  ];
   return (
     <div className="divide-y divide-border">
+      {" "}
       {statusOrder.flatMap((status) => {
         const group = items.filter((item) => item.status === status);
         if (group.length === 0) return [];
@@ -3945,20 +5624,22 @@ function HybridChangeList({
             key={item.id}
             type="button"
             onClick={() => onClauseSelect(item.id)}
-            className={`grid w-full grid-cols-[82px_minmax(0,1fr)_34px] items-center gap-orbit-s py-orbit-s text-left hover:bg-muted/35 ${
-              (status === "regressed" || status === "improved" || status === "new") && index === 0 ? "border-t border-border" : ""
-            }`}
+            className={`grid w-full grid-cols-[82px_minmax(0,1fr)_34px] items-center gap-orbit-s py-orbit-s text-left hover:bg-muted/35 ${(status === "regressed" || status === "improved" || status === "new") && index === 0 ? "border-t border-border" : ""}`}
           >
-            <ChangePillBadge result={{ status }} />
-            <span className="truncate text-[11px] text-foreground">{item.title}</span>
-            <span className="text-right text-[9px] text-muted-foreground">{item.id.toUpperCase()}</span>
+            {" "}
+            <ChangePillBadge result={{ status }} />{" "}
+            <span className="truncate cpv2-type-xs text-foreground">
+              {item.title}
+            </span>{" "}
+            <span className="text-right cpv2-type-xs text-muted-foreground">
+              {item.id.toUpperCase()}
+            </span>{" "}
           </CpButton>
         ));
-      })}
+      })}{" "}
     </div>
   );
 }
-
 function HybridFooterSignal({
   children,
   tone = "neutral",
@@ -3967,14 +5648,28 @@ function HybridFooterSignal({
   tone?: "neutral" | "success" | "warning" | "danger";
 }) {
   const toneClass =
-    tone === "success" ? "text-[#3B6D11]" :
-      tone === "warning" ? "text-[#854F0B]" :
-        tone === "danger" ? "text-[#A32D2D]" :
-          "text-muted-foreground";
-  return <span className={`inline-flex items-center gap-orbit-xs v5-orbit-weight-medium ${toneClass}`}>{children}</span>;
+    tone === "success"
+      ? "text-[#3B6D11]"
+      : tone === "warning"
+        ? "text-[#854F0B]"
+        : tone === "danger"
+          ? "text-[#A32D2D]"
+          : "text-muted-foreground";
+  return (
+    <span
+      className={`inline-flex items-center gap-orbit-xs cpv2-orbit-weight-medium ${toneClass}`}
+    >
+      {children}
+    </span>
+  );
 }
-
-function BulletScoreBar({ score, previousScore }: { score: number; previousScore?: number }) {
+function BulletScoreBar({
+  score,
+  previousScore,
+}: {
+  score: number;
+  previousScore?: number;
+}) {
   const zones = [
     { label: "F", width: 40, color: "#FCEBEB" },
     { label: "D", width: 20, color: "#FAEEDA" },
@@ -3984,42 +5679,67 @@ function BulletScoreBar({ score, previousScore }: { score: number; previousScore
   ];
   return (
     <div>
+      {" "}
       <div className="relative h-3.5 overflow-hidden rounded bg-muted">
+        {" "}
         <div className="absolute inset-0 flex">
+          {" "}
           {zones.map((zone) => (
-            <span key={zone.label} style={{ width: `${zone.width}%`, backgroundColor: zone.color }} />
-          ))}
-        </div>
+            <span
+              key={zone.label}
+              style={{ width: `${zone.width}%`, backgroundColor: zone.color }}
+            />
+          ))}{" "}
+        </div>{" "}
         <div
           className="absolute bottom-[3px] left-0 top-[3px] rounded-sm bg-primary"
           style={{ width: `${score}%` }}
-        />
+        />{" "}
         {previousScore !== undefined && (
           <span
             className="absolute bottom-0 top-0 w-0.5 bg-muted-foreground/35"
             style={{ left: `${previousScore}%` }}
             aria-label={`Previous score ${previousScore}`}
           />
-        )}
-      </div>
-      <div className="mt-orbit-xs grid grid-cols-5 text-[8px] text-muted-foreground">
-        {zones.map((zone) => <span key={zone.label}>{zone.label}</span>)}
-      </div>
+        )}{" "}
+      </div>{" "}
+      <div className="mt-orbit-xs grid grid-cols-5 cpv2-type-xs text-muted-foreground">
+        {" "}
+        {zones.map((zone) => (
+          <span key={zone.label}>{zone.label}</span>
+        ))}{" "}
+      </div>{" "}
     </div>
   );
 }
-
-function SummaryStat({ label, value, tone }: { label: string; value: number; tone: string }) {
+function SummaryStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: string;
+}) {
   return (
     <div className="min-w-0 text-center">
-      <p className="text-[9px] v5-orbit-weight-semibold text-muted-foreground uppercase tracking-normal sm:text-[10px]">{label}</p>
-      <p className={`text-lg v5-orbit-weight-bold tabular-nums leading-tight ${tone}`}>{value}</p>
+      {" "}
+      <p className="cpv2-type-xs cpv2-orbit-weight-semibold text-muted-foreground uppercase ">
+        {label}
+      </p>{" "}
+      <p
+        className={`cpv2-type-lg cpv2-orbit-weight-bold tabular-nums cpv2-leading-tight ${tone}`}
+      >
+        {value}
+      </p>{" "}
     </div>
   );
 }
-
 function PairSelector({
-  versions, pair, onChange, compact = false,
+  versions,
+  pair,
+  onChange,
+  compact = false,
 }: {
   versions: ContractVersion[];
   pair: { left: string; right: string };
@@ -4027,83 +5747,117 @@ function PairSelector({
   compact?: boolean;
 }) {
   const leftVersion = versions.find((version) => version.version === pair.left);
-  const rightVersion = versions.find((version) => version.version === pair.right);
+  const rightVersion = versions.find(
+    (version) => version.version === pair.right,
+  );
   const staticOnly = versions.length <= 2;
   const selectorClass = compact
-    ? "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-orbit-xs text-[11px]"
-    : "inline-flex items-center gap-orbit-xs text-sm";
-  const triggerClass = compact ? "h-6 w-full min-w-0 rounded-md bg-white px-orbit-s text-[11px]" : "h-9 w-[164px] text-sm";
+    ? "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-orbit-xs cpv2-type-xs"
+    : "inline-flex items-center gap-orbit-xs cpv2-type-sm";
+  const triggerClass = compact
+    ? "h-6 w-full min-w-0 rounded-md bg-white px-orbit-s cpv2-type-xs"
+    : "h-9 w-[164px] cpv2-type-sm";
   const formatVersion = (version?: ContractVersion) =>
-    version ? `${version.version} · ${new Date(version.uploadedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : "Version";
-
+    version
+      ? `${version.version} · ${new Date(version.uploadedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+      : "Version";
   if (staticOnly) {
     return (
       <div className={cn(selectorClass, "text-muted-foreground")}>
-        <span className="min-w-0 truncate rounded border border-border bg-white px-orbit-s py-orbit-xxs">{formatVersion(leftVersion)}</span>
-        <ArrowRight className="h-3.5 w-3.5 shrink-0" />
-        <span className="min-w-0 truncate rounded border border-border bg-white px-orbit-s py-orbit-xxs">{formatVersion(rightVersion)}</span>
+        {" "}
+        <span className="min-w-0 truncate rounded border border-border bg-white px-orbit-s py-orbit-xxs">
+          {formatVersion(leftVersion)}
+        </span>{" "}
+        <ArrowRight className="h-3.5 w-3.5 shrink-0" />{" "}
+        <span className="min-w-0 truncate rounded border border-border bg-white px-orbit-s py-orbit-xxs">
+          {formatVersion(rightVersion)}
+        </span>{" "}
       </div>
     );
   }
-
   const updateLeft = (left: string) => {
-    const normalized = normalizeVersionComparisonPair(versions, { from: left, to: pair.right });
+    const normalized = normalizeVersionComparisonPair(versions, {
+      from: left,
+      to: pair.right,
+    });
     onChange({ left: normalized.from, right: normalized.to });
   };
-
   const updateRight = (right: string) => {
-    const normalized = normalizeVersionComparisonPair(versions, { from: pair.left, to: right });
+    const normalized = normalizeVersionComparisonPair(versions, {
+      from: pair.left,
+      to: right,
+    });
     onChange({ left: normalized.from, right: normalized.to });
   };
-
   return (
     <div className={selectorClass}>
+      {" "}
       <Select value={pair.left} onValueChange={updateLeft}>
-        <SelectTrigger className={triggerClass} aria-label="Compare from version">
-          <SelectValue />
-        </SelectTrigger>
+        {" "}
+        <SelectTrigger
+          className={triggerClass}
+          aria-label="Compare from version"
+        >
+          {" "}
+          <SelectValue />{" "}
+        </SelectTrigger>{" "}
         <SelectContent>
+          {" "}
           {versions.map((version) => (
             <SelectItem
               key={version.version}
               value={version.version}
-              disabled={versionOrder(version.version) >= versionOrder(pair.right)}
+              disabled={
+                versionOrder(version.version) >= versionOrder(pair.right)
+              }
             >
-              {formatVersion(version)}
+              {" "}
+              {formatVersion(version)}{" "}
             </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <ArrowRight className={compact ? "h-3.5 w-3.5 text-muted-foreground" : "h-4 w-4 text-muted-foreground"} />
+          ))}{" "}
+        </SelectContent>{" "}
+      </Select>{" "}
+      <ArrowRight
+        className={
+          compact
+            ? "h-3.5 w-3.5 text-muted-foreground"
+            : "h-4 w-4 text-muted-foreground"
+        }
+      />{" "}
       <Select value={pair.right} onValueChange={updateRight}>
+        {" "}
         <SelectTrigger className={triggerClass} aria-label="Compare to version">
-          <SelectValue />
-        </SelectTrigger>
+          {" "}
+          <SelectValue />{" "}
+        </SelectTrigger>{" "}
         <SelectContent>
+          {" "}
           {versions.map((version) => (
             <SelectItem
               key={version.version}
               value={version.version}
-              disabled={versionOrder(version.version) <= versionOrder(pair.left)}
+              disabled={
+                versionOrder(version.version) <= versionOrder(pair.left)
+              }
             >
-              {formatVersion(version)}
+              {" "}
+              {formatVersion(version)}{" "}
             </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+          ))}{" "}
+        </SelectContent>{" "}
+      </Select>{" "}
     </div>
   );
 }
-
-const categorySidebarRowClassName = (active: boolean, disabled = false) => cn(
-  "flex w-full items-center rounded-md border px-orbit-s py-orbit-xs transition-colors",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]",
-  active
-    ? "border-[var(--orbit-color-card-border-selected)] bg-[var(--orbit-color-card-bg-selected)]"
-    : "border-transparent hover:border-[var(--orbit-color-card-border-hover)] hover:bg-[var(--orbit-color-btn-secondary-bg-hover)]",
-  disabled && "opacity-60",
-);
-
+const categorySidebarRowClassName = (active: boolean, disabled = false) =>
+  cn(
+    "flex w-full items-center rounded-md border px-orbit-s py-orbit-xs transition-colors",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]",
+    active
+      ? "border-[var(--orbit-color-card-border-selected)] bg-[var(--orbit-color-card-bg-selected)]"
+      : "border-transparent hover:border-[var(--orbit-color-card-border-hover)] hover:bg-[var(--orbit-color-btn-secondary-bg-hover)]",
+    disabled && "opacity-60",
+  );
 function CategorySidebar({
   categories,
   total,
@@ -4123,17 +5877,27 @@ function CategorySidebar({
 }) {
   void onSortChange;
   const rowRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const sortedCategories = useMemo(() => sortCategorySidebarItems(categories, sort), [categories, sort]);
-  const activeCategorySet = useMemo(() => new Set(activeCategories), [activeCategories]);
-
-  const handleRowKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+  const sortedCategories = useMemo(
+    () => sortCategorySidebarItems(categories, sort),
+    [categories, sort],
+  );
+  const activeCategorySet = useMemo(
+    () => new Set(activeCategories),
+    [activeCategories],
+  );
+  const handleRowKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    index: number,
+  ) => {
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
     event.preventDefault();
     const direction = event.key === "ArrowDown" ? 1 : -1;
-    const nextIndex = Math.max(0, Math.min(rowRefs.current.length - 1, index + direction));
+    const nextIndex = Math.max(
+      0,
+      Math.min(rowRefs.current.length - 1, index + direction),
+    );
     rowRefs.current[nextIndex]?.focus();
   };
-
   return (
     <aside
       className={cn(
@@ -4143,16 +5907,20 @@ function CategorySidebar({
           : "max-h-[540px] w-full",
       )}
     >
+      {" "}
       {variant === "rail" && (
         <div
           tabIndex={0}
           className="mb-orbit-xs rounded-md px-orbit-s py-orbit-xs outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]"
         >
-          <Text as="p" size="Small" variant="Secondary">CATEGORIES</Text>
+          {" "}
+          <Text as="p" size="Small" variant="Secondary">
+            CATEGORIES
+          </Text>{" "}
         </div>
-      )}
-
+      )}{" "}
       <div className="space-y-orbit-xs">
+        {" "}
         <CpButton
           ref={(node) => {
             rowRefs.current[0] = node;
@@ -4162,14 +5930,27 @@ function CategorySidebar({
           aria-label={`Clear category filters, ${total} clauses`}
           onClick={() => onSelectCategory(null)}
           onKeyDown={(event) => handleRowKeyDown(event, 0)}
-          className={cn(categorySidebarRowClassName(activeCategories.length === 0), "justify-between")}
+          className={cn(
+            categorySidebarRowClassName(activeCategories.length === 0),
+            "justify-between",
+          )}
         >
-          <Text as="span" size="Small" variant={activeCategories.length === 0 ? "Bold" : "Secondary"}>
-            All
-          </Text>
-          <Chip label={String(total)} size="Mini" variant="No Status" selected={activeCategories.length === 0} />
-        </CpButton>
-
+          {" "}
+          <Text
+            as="span"
+            size="Small"
+            variant={activeCategories.length === 0 ? "Bold" : "Secondary"}
+          >
+            {" "}
+            All{" "}
+          </Text>{" "}
+          <Chip
+            label={String(total)}
+            size="Mini"
+            variant="No Status"
+            selected={activeCategories.length === 0}
+          />{" "}
+        </CpButton>{" "}
         {sortedCategories.map((category, index) => {
           const active = activeCategorySet.has(category.name);
           const rowIndex = index + 1;
@@ -4184,22 +5965,39 @@ function CategorySidebar({
               aria-label={`${active ? "Remove" : "Add"} ${category.name} category filter, ${category.count} clauses`}
               onClick={() => onSelectCategory(category.name)}
               onKeyDown={(event) => handleRowKeyDown(event, rowIndex)}
-              className={cn(categorySidebarRowClassName(active, category.count === 0), "gap-orbit-s")}
+              className={cn(
+                categorySidebarRowClassName(active, category.count === 0),
+                "gap-orbit-s",
+              )}
             >
-              <span className="min-w-0 flex-1 truncate" style={{ textAlign: "left" }}>
-                <Text as="span" size="Small" variant={active ? "Bold" : "Secondary"}>
-                  {category.name}
-                </Text>
-              </span>
-              <Chip label={String(category.count)} size="Mini" variant="No Status" selected={active} />
+              {" "}
+              <span
+                className="min-w-0 flex-1 truncate"
+                style={{ textAlign: "left" }}
+              >
+                {" "}
+                <Text
+                  as="span"
+                  size="Small"
+                  variant={active ? "Bold" : "Secondary"}
+                >
+                  {" "}
+                  {category.name}{" "}
+                </Text>{" "}
+              </span>{" "}
+              <Chip
+                label={String(category.count)}
+                size="Mini"
+                variant="No Status"
+                selected={active}
+              />{" "}
             </CpButton>
           );
-        })}
-      </div>
+        })}{" "}
+      </div>{" "}
     </aside>
   );
 }
-
 function CategoryStrip({
   categories,
   total,
@@ -4213,20 +6011,32 @@ function CategoryStrip({
   onSelectCategory: (category: string | null) => void;
   categoryPanel: ReactNode;
 }) {
-  const topCategories = useMemo(() => sortCategorySidebarItems(categories, "risk").slice(0, 6), [categories]);
-  const activeCategorySet = useMemo(() => new Set(activeCategories), [activeCategories]);
+  const topCategories = useMemo(
+    () => sortCategorySidebarItems(categories, "risk").slice(0, 6),
+    [categories],
+  );
+  const activeCategorySet = useMemo(
+    () => new Set(activeCategories),
+    [activeCategories],
+  );
   const [panelOpen, setPanelOpen] = useState(false);
   return (
     <Card type="Static" padding="Small">
+      {" "}
       <div className="flex min-w-0 items-start gap-orbit-s">
-        <Text as="span" size="Small" variant="Secondary">Categories</Text>
+        {" "}
+        <Text as="span" size="Small" variant="Secondary">
+          Categories
+        </Text>{" "}
         <div className="min-w-0 flex-1">
+          {" "}
           <QuickFilterGroup ariaLabel="Category filters">
+            {" "}
             <CategoryStripChip
               active={activeCategories.length === 0}
               label={`All ${total}`}
               onClick={() => onSelectCategory(null)}
-            />
+            />{" "}
             {topCategories.map((category) => (
               <CategoryStripChip
                 key={category.name}
@@ -4234,9 +6044,9 @@ function CategoryStrip({
                 label={`${category.name} ${category.count}`}
                 onClick={() => onSelectCategory(category.name)}
               />
-            ))}
-          </QuickFilterGroup>
-        </div>
+            ))}{" "}
+          </QuickFilterGroup>{" "}
+        </div>{" "}
         <Button
           type="button"
           aria-expanded={panelOpen}
@@ -4244,19 +6054,19 @@ function CategoryStrip({
           className="shrink-0"
           onClick={() => setPanelOpen((current) => !current)}
         >
-          <IconList size={12} stroke={1.8} />
-          Categories
-        </Button>
-      </div>
+          {" "}
+          <IconList size={12} stroke={1.8} /> Categories{" "}
+        </Button>{" "}
+      </div>{" "}
       {panelOpen && (
         <div className="mt-orbit-s border-t border-border pt-orbit-s">
-          {categoryPanel}
+          {" "}
+          {categoryPanel}{" "}
         </div>
-      )}
+      )}{" "}
     </Card>
   );
 }
-
 function CategoryStripChip({
   active,
   onClick,
@@ -4268,29 +6078,50 @@ function CategoryStripChip({
 }) {
   return <QuickFilterItem label={label} selected={active} onClick={onClick} />;
 }
-
-// ---- Review (v1) ------------------------------------------------------------
-
-function ReviewGuidance({ versionLabel, compact = false }: { versionLabel: string; compact?: boolean }) {
+function ReviewGuidance({
+  versionLabel,
+  compact = false,
+}: {
+  versionLabel: string;
+  compact?: boolean;
+}) {
   return (
     <div
       className={
         compact
-          ? "flex min-h-9 min-w-[240px] max-w-[360px] flex-1 items-center gap-orbit-s rounded-md border border-primary/20 bg-card px-orbit-base py-orbit-xs text-[11px] leading-snug text-muted-foreground"
-          : "bg-card border border-primary/20 rounded-lg px-orbit-base py-orbit-base text-xs text-muted-foreground flex items-start gap-orbit-s"
+          ? "flex min-h-9 min-w-[240px] max-w-[360px] flex-1 items-center gap-orbit-s rounded-md border border-primary/20 bg-card px-orbit-base py-orbit-xs cpv2-type-xs cpv2-leading-snug text-muted-foreground"
+          : "bg-card border border-primary/20 rounded-lg px-orbit-base py-orbit-base cpv2-type-xs text-muted-foreground flex items-start gap-orbit-s"
       }
     >
-      <Sparkles className={compact ? "h-3.5 w-3.5 shrink-0 text-primary" : "w-3.5 h-3.5 text-primary mt-orbit-xxs shrink-0"} />
+      {" "}
+      <Sparkles
+        className={
+          compact
+            ? "h-3.5 w-3.5 shrink-0 text-primary"
+            : "w-3.5 h-3.5 text-primary mt-orbit-xxs shrink-0"
+        }
+      />{" "}
       <span className="min-w-0">
-        Select <span className="v5-orbit-weight-semibold text-foreground">"Request Change"</span> for clauses you want the supplier to update.
+        {" "}
+        Select{" "}
+        <span className="cpv2-orbit-weight-semibold text-foreground">
+          "Request Change"
+        </span>{" "}
+        for clauses you want the supplier to update.{" "}
         {versionLabel !== "v1" && (
-          <> Notes on <span className="v5-orbit-weight-semibold text-foreground">{versionLabel}</span> override the previous round.</>
-        )}
-      </span>
+          <>
+            {" "}
+            Notes on{" "}
+            <span className="cpv2-orbit-weight-semibold text-foreground">
+              {versionLabel}
+            </span>{" "}
+            override the previous round.
+          </>
+        )}{" "}
+      </span>{" "}
     </div>
   );
 }
-
 function requestLifecycleLabel(request?: ClauseRequest) {
   if (!request?.requestedChange) return undefined;
   return request.state === "submitted" && request.submittedAt
@@ -4299,7 +6130,6 @@ function requestLifecycleLabel(request?: ClauseRequest) {
       ? "Reviewed"
       : "Added to Review";
 }
-
 function ClauseRequestForm({
   versionLabel,
   draft,
@@ -4325,68 +6155,110 @@ function ClauseRequestForm({
 }) {
   const requestValue = draft?.requestedChange ?? request?.requestedChange ?? "";
   const rationaleValue = draft?.rationale ?? request?.rationale ?? "";
-
   return (
     <div
-      className={cn("mt-orbit-base border-t border-border pt-orbit-base", compact ? "space-y-orbit-s" : "space-y-orbit-base")}
+      className={cn(
+        "mt-orbit-base border-t border-border pt-orbit-base",
+        compact ? "space-y-orbit-s" : "space-y-orbit-base",
+      )}
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
+      {" "}
       {inherited && !draft?.requestedChange && !draft?.rationale && (
-        <div className="space-y-orbit-xs rounded-md border-l-2 border-primary bg-primary/5 px-orbit-base py-orbit-s text-xs">
-          <p className="text-[10px] v5-orbit-weight-semibold uppercase tracking-wide text-primary">
-            Currently in effect · from {inherited.version}
-          </p>
-          {inherited.request.requestedChange && <p className="leading-snug text-foreground">{inherited.request.requestedChange}</p>}
-          {inherited.request.rationale && <p className="italic leading-snug text-muted-foreground">{inherited.request.rationale}</p>}
-          <p className="text-[11px] text-muted-foreground">
-            Add a new note below to override this for {versionLabel} onwards.
-          </p>
+        <div className="space-y-orbit-xs rounded-md border-l-2 border-primary bg-primary/5 px-orbit-base py-orbit-s cpv2-type-xs">
+          {" "}
+          <p className="cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-primary">
+            {" "}
+            Currently in effect · from {inherited.version}{" "}
+          </p>{" "}
+          {inherited.request.requestedChange && (
+            <p className="cpv2-leading-snug text-foreground">
+              {inherited.request.requestedChange}
+            </p>
+          )}{" "}
+          {inherited.request.rationale && (
+            <p className="italic cpv2-leading-snug text-muted-foreground">
+              {inherited.request.rationale}
+            </p>
+          )}{" "}
+          <p className="cpv2-type-xs text-muted-foreground">
+            {" "}
+            Add a new note below to override this for {versionLabel}{" "}
+            onwards.{" "}
+          </p>{" "}
         </div>
-      )}
+      )}{" "}
       <div className="grid gap-orbit-base md:grid-cols-2">
+        {" "}
         <div className="space-y-orbit-xs">
-          <label className="text-[11px] v5-orbit-weight-semibold uppercase text-muted-foreground">
-            Requested change ({versionLabel}) <span className="text-destructive">*</span>
-          </label>
+          {" "}
+          <label className="cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-muted-foreground">
+            {" "}
+            Requested change ({versionLabel}){" "}
+            <span className="text-destructive">*</span>{" "}
+          </label>{" "}
           <Textarea
             value={requestValue}
-            onChange={(event) => onUpdate({ requestedChange: event.target.value })}
+            onChange={(event) =>
+              onUpdate({ requestedChange: event.target.value })
+            }
             placeholder={requestPlaceholder}
-            className={cn("min-h-[64px] text-sm", compact && "min-h-[58px] text-xs")}
-          />
-        </div>
+            className={cn(
+              "min-h-[64px] cpv2-type-sm",
+              compact && "min-h-[58px] cpv2-type-xs",
+            )}
+          />{" "}
+        </div>{" "}
         <div className="space-y-orbit-xs">
-          <label className="text-[11px] v5-orbit-weight-semibold uppercase text-muted-foreground">Rationale (optional)</label>
+          {" "}
+          <label className="cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-muted-foreground">
+            Rationale (optional)
+          </label>{" "}
           <Textarea
             value={rationaleValue}
             onChange={(event) => onUpdate({ rationale: event.target.value })}
             placeholder="Why is this change required?"
-            className={cn("min-h-[64px] text-sm", compact && "min-h-[58px] text-xs")}
-          />
-        </div>
-      </div>
+            className={cn(
+              "min-h-[64px] cpv2-type-sm",
+              compact && "min-h-[58px] cpv2-type-xs",
+            )}
+          />{" "}
+        </div>{" "}
+      </div>{" "}
       <div className="flex flex-wrap items-center justify-between gap-orbit-base">
-        <p className="text-[11px] text-muted-foreground">
-          Request will stay editable in review until submitted to the supplier.
-        </p>
+        {" "}
+        <p className="cpv2-type-xs text-muted-foreground">
+          {" "}
+          Request will stay editable in review until submitted to the
+          supplier.{" "}
+        </p>{" "}
         <div className="flex items-center gap-orbit-s">
-          <Button variant="outline" className={cn("h-8 text-xs", compact && "h-7 text-[11px]")} onClick={onCancel}>
-            Cancel
-          </Button>
+          {" "}
           <Button
-            className={cn("h-8 gap-orbit-xs bg-[#1a2744] text-xs text-white hover:bg-[#243454]", compact && "h-7 text-[11px]")}
+            variant="outline"
+            className={cn("h-8 cpv2-type-xs", compact && "h-7 cpv2-type-xs")}
+            onClick={onCancel}
+          >
+            {" "}
+            Cancel{" "}
+          </Button>{" "}
+          <Button
+            className={cn(
+              "h-8 gap-orbit-xs cpv2-type-xs",
+              compact && "h-7 cpv2-type-xs",
+            )}
             disabled={!requestValue.trim()}
             onClick={onSubmit}
           >
-            <Sparkles className="h-3.5 w-3.5" /> {submitLabel}
-          </Button>
-        </div>
-      </div>
+            {" "}
+            <Sparkles className="h-3.5 w-3.5" /> {submitLabel}{" "}
+          </Button>{" "}
+        </div>{" "}
+      </div>{" "}
     </div>
   );
 }
-
 function ClauseDecisionCard({
   id,
   clause,
@@ -4453,7 +6325,10 @@ function ClauseDecisionCard({
   onEditRequest?: () => void;
   onChangeNoAction?: () => void;
   onUndoDecision?: () => void;
-  onUpdateDraft?: (patch: { requestedChange?: string; rationale?: string }) => void;
+  onUpdateDraft?: (patch: {
+    requestedChange?: string;
+    rationale?: string;
+  }) => void;
   onCancelDraft?: () => void;
   onSubmitDraft?: () => void;
   onRemoveRequest?: () => void;
@@ -4461,20 +6336,23 @@ function ClauseDecisionCard({
   neutralActions?: boolean;
 }) {
   const [queuedExpanded, setQueuedExpanded] = useState(false);
-  const pendingBasketRequest = request?.state === "pending" && Boolean(request.requestedChange?.trim());
+  const pendingBasketRequest =
+    request?.state === "pending" && Boolean(request.requestedChange?.trim());
   const showQueuedCompact = pendingBasketRequest && !isDrafting;
   const showDecisionBody = !showQueuedCompact || queuedExpanded;
   const requestPreview = request?.requestedChange?.trim() ?? "";
   const settled = decision === "request-update" || decision === "no-action";
   const noActionIsPrimary = !neutralActions && clause.severity === "low";
   const showRequestActions = !settled && !actions && !pendingBasketRequest;
-  const useFirstAnalysisDeviationStyle = neutralActions && hideSubclauseReference && clause.severity === "high";
-  const severityBadgeLabel = useFirstAnalysisDeviationStyle ? "High Deviation" : clause.severity;
+  const useFirstAnalysisDeviationStyle =
+    neutralActions && hideSubclauseReference && clause.severity === "high";
+  const severityBadgeLabel = useFirstAnalysisDeviationStyle
+    ? "High Deviation"
+    : clause.severity;
   const severityBadgeClass = useFirstAnalysisDeviationStyle
     ? firstAnalysisDeviationBadgeClass
-    : `${severityTone(clause.severity)} shrink-0 rounded-full px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium`;
+    : `${severityTone(clause.severity)} shrink-0 rounded-full px-orbit-xs py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium`;
   const showSeverityBadge = !isPureMissingClause(clause);
-
   if (displayMode === "row-scale" && !actions) {
     return (
       <ClauseRowScaleCard
@@ -4499,71 +6377,104 @@ function ClauseDecisionCard({
         onRequest={onRequest}
         onNoAction={onNoAction}
         onEditRequest={
-          decision === "request-update" ? onEditRequest : decision === "no-action" ? onChangeNoAction : onRequest
+          decision === "request-update"
+            ? onEditRequest
+            : decision === "no-action"
+              ? onChangeNoAction
+              : onRequest
         }
         onUndoDecision={onUndoDecision}
       />
     );
   }
-
   return (
     <div
       id={`clause-row-${id}`}
       className={cn(
         "relative rounded-lg border border-border bg-card px-orbit-base py-orbit-base transition-colors",
-        decision === "request-update" && "border-l-[3px] border-l-[#185FA5] pl-orbit-s",
-        pendingBasketRequest && "border-l-[3px] border-l-[#185FA5] bg-[#E6F1FB]/20 pl-orbit-s",
+        decision === "request-update" &&
+          "border-l-[3px] border-l-[#185FA5] pl-orbit-s",
+        pendingBasketRequest &&
+          "border-l-[3px] border-l-[#185FA5] bg-[#E6F1FB]/20 pl-orbit-s",
         highlighted && "ring-2 ring-primary/40 bg-primary/5",
       )}
     >
+      {" "}
       <div className="flex min-w-0 items-center gap-orbit-s">
-        <span className="w-[22px] shrink-0 tabular-nums text-[9px] v5-orbit-weight-semibold text-muted-foreground">{id.toUpperCase()}</span>
+        {" "}
+        <span className="w-[22px] shrink-0 tabular-nums cpv2-type-xs cpv2-orbit-weight-semibold text-muted-foreground">
+          {id.toUpperCase()}
+        </span>{" "}
         {onTogglePin && (
           <CpButton
             type="button"
-            aria-label={pinned ? "Unpin clause" : "Pin clause across version switches"}
-            title={pinned ? "Unpin clause" : "Pin clause across version switches"}
+            aria-label={
+              pinned ? "Unpin clause" : "Pin clause across version switches"
+            }
+            title={
+              pinned ? "Unpin clause" : "Pin clause across version switches"
+            }
             onClick={(event) => {
               event.stopPropagation();
               onTogglePin();
             }}
-            className={cn("shrink-0 rounded p-orbit-xxs text-muted-foreground/60 hover:bg-muted hover:text-foreground", pinned && "text-primary")}
+            className={cn(
+              "shrink-0 rounded p-orbit-xxs text-muted-foreground/60 hover:bg-muted hover:text-foreground",
+              pinned && "text-primary",
+            )}
           >
-            <Pin className={cn("h-3.5 w-3.5", pinned && "fill-current")} />
+            {" "}
+            <Pin className={cn("h-3.5 w-3.5", pinned && "fill-current")} />{" "}
           </CpButton>
-        )}
-        <h3 className="v5-orbit-heading-label min-w-0 flex-1 truncate text-foreground">{clause.title}</h3>
-        <span className="hidden shrink-0 text-[10px] text-muted-foreground md:inline">
-          {metaPrefix}{hideSubclauseReference ? clause.category : `${clause.subclause} · ${clause.category}`}
-        </span>
-        {changePill?.status && <ChangePillBadge result={changePill} />}
+        )}{" "}
+        <h3 className="cpv2-orbit-heading-label min-w-0 flex-1 truncate text-foreground">
+          {clause.title}
+        </h3>{" "}
+        <span className="hidden shrink-0 cpv2-type-xs text-muted-foreground md:inline">
+          {" "}
+          {metaPrefix}
+          {hideSubclauseReference
+            ? clause.category
+            : `${clause.subclause} · ${clause.category}`}{" "}
+        </span>{" "}
+        {changePill?.status && <ChangePillBadge result={changePill} />}{" "}
         {missingClause && (
-          <Badge
-            variant="outline"
-            className={firstAnalysisDeviationBadgeClass}
-          >
-            Missing Clause
+          <Badge variant="outline" className={firstAnalysisDeviationBadgeClass}>
+            {" "}
+            Missing Clause{" "}
           </Badge>
-        )}
+        )}{" "}
         {showSeverityBadge && (
           <Badge variant="outline" className={severityBadgeClass}>
-            {severityBadgeLabel}
+            {" "}
+            {severityBadgeLabel}{" "}
           </Badge>
-        )}
-        {stateBadge}
-        {pendingBasketRequest && <RequestLifecycleBadge request={request} />}
+        )}{" "}
+        {stateBadge}{" "}
+        {pendingBasketRequest && <RequestLifecycleBadge request={request} />}{" "}
         {settled && !pendingBasketRequest && (
           <>
+            {" "}
             <Tooltip>
+              {" "}
               <TooltipTrigger asChild>
+                {" "}
                 <span>
-                  {decision === "request-update" ? <RequestLifecycleBadge request={request} /> : <DecisionBadge decision={decision} />}
-                </span>
-              </TooltipTrigger>
-              {decision === "request-update" && requestLifecycleLabel(request) && (
-                <TooltipContent className="text-xs">{requestLifecycleLabel(request)}</TooltipContent>
-              )}
-            </Tooltip>
+                  {" "}
+                  {decision === "request-update" ? (
+                    <RequestLifecycleBadge request={request} />
+                  ) : (
+                    <DecisionBadge decision={decision} />
+                  )}{" "}
+                </span>{" "}
+              </TooltipTrigger>{" "}
+              {decision === "request-update" &&
+                requestLifecycleLabel(request) && (
+                  <TooltipContent className="cpv2-type-xs">
+                    {requestLifecycleLabel(request)}
+                  </TooltipContent>
+                )}{" "}
+            </Tooltip>{" "}
             <CpButton
               type="button"
               onClick={(event) => {
@@ -4571,96 +6482,146 @@ function ClauseDecisionCard({
                 if (decision === "request-update") onEditRequest?.();
                 else onChangeNoAction?.();
               }}
-              className="shrink-0 text-[10px] v5-orbit-weight-medium text-primary hover:underline"
+              className="shrink-0 cpv2-type-xs cpv2-orbit-weight-medium text-primary hover:underline"
             >
-              {decision === "request-update" ? "Edit" : "Change"}
-            </CpButton>
+              {" "}
+              {decision === "request-update" ? "Edit" : "Change"}{" "}
+            </CpButton>{" "}
           </>
-        )}
+        )}{" "}
         {isDrafting && (
-          <Badge variant="outline" className="bg-[#E6F1FB] text-[#0C447C] border-[#185FA5]/25 text-[10px]">
-            Drafting request
+          <Badge
+            variant="outline"
+            className="bg-[#E6F1FB] text-[#0C447C] border-[#185FA5]/25 cpv2-type-xs"
+          >
+            {" "}
+            Drafting request{" "}
           </Badge>
-        )}
-      </div>
-
+        )}{" "}
+      </div>{" "}
       {showQueuedCompact && (
-        <div className="mt-orbit-s space-y-orbit-s pl-orbit-l" onClick={(event) => event.stopPropagation()}>
+        <div
+          className="mt-orbit-s space-y-orbit-s pl-orbit-l"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {" "}
           <div className="flex flex-wrap items-center gap-orbit-s rounded-md border border-[#185FA5]/20 bg-[#E6F1FB]/45 px-orbit-base py-orbit-s">
-            <p className="min-w-[180px] flex-1 truncate text-[11px] text-[#0C447C]">
-              <span className="v5-orbit-weight-semibold">Request:</span> {requestPreview}
-            </p>
+            {" "}
+            <p className="min-w-[180px] flex-1 truncate cpv2-type-xs text-[#0C447C]">
+              {" "}
+              <span className="cpv2-orbit-weight-semibold">Request:</span>{" "}
+              {requestPreview}{" "}
+            </p>{" "}
             <div className="flex shrink-0 items-center gap-orbit-xs">
-              <Button variant="outline" className="h-7 px-orbit-s text-[10px]" onClick={onEditRequest}>
-                Edit request
-              </Button>
+              {" "}
+              <Button
+                variant="outline"
+                className="h-7 px-orbit-s cpv2-type-xs"
+                onClick={onEditRequest}
+              >
+                {" "}
+                Edit request{" "}
+              </Button>{" "}
               {onRemoveRequest && (
-                <Button variant="outline" className="h-7 px-orbit-s text-[10px] text-muted-foreground" onClick={onRemoveRequest}>
-                  Remove
+                <Button
+                  variant="outline"
+                  className="h-7 px-orbit-s cpv2-type-xs text-muted-foreground"
+                  onClick={onRemoveRequest}
+                >
+                  {" "}
+                  Remove{" "}
                 </Button>
-              )}
+              )}{" "}
               <Button
                 variant="ghost"
-                className="h-7 gap-orbit-xs px-orbit-s text-[10px] text-primary hover:bg-white/70"
+                className="h-7 gap-orbit-xs px-orbit-s cpv2-type-xs text-primary hover:bg-white/70"
                 onClick={() => setQueuedExpanded((current) => !current)}
               >
-                {queuedExpanded ? "Hide detail" : "View detail"}
-                <ChevronDown className={cn("h-3 w-3 transition-transform", queuedExpanded && "rotate-180")} />
-              </Button>
-            </div>
-          </div>
+                {" "}
+                {queuedExpanded ? "Hide detail" : "View detail"}{" "}
+                <ChevronDown
+                  className={cn(
+                    "h-3 w-3 transition-transform",
+                    queuedExpanded && "rotate-180",
+                  )}
+                />{" "}
+              </Button>{" "}
+            </div>{" "}
+          </div>{" "}
         </div>
-      )}
-
+      )}{" "}
       {showDecisionBody && description && (
-        <p className="mt-orbit-xs pl-orbit-l text-[11px] leading-5 text-muted-foreground">
-          {description}
+        <p className="mt-orbit-xs pl-orbit-l cpv2-type-xs cpv2-leading-normal text-muted-foreground">
+          {" "}
+          {description}{" "}
         </p>
-      )}
+      )}{" "}
       {showDecisionBody && actionability && (
-        <p className="mt-orbit-xs pl-orbit-l text-[11px] leading-5 text-muted-foreground">
-          <Lightbulb className="mr-orbit-xs inline h-3 w-3 text-primary" />
-          <span className="v5-orbit-weight-semibold text-foreground">Actionability:</span> {actionability}
+        <p className="mt-orbit-xs pl-orbit-l cpv2-type-xs cpv2-leading-normal text-muted-foreground">
+          {" "}
+          <Lightbulb className="mr-orbit-xs inline h-3 w-3 text-primary" />{" "}
+          <span className="cpv2-orbit-weight-semibold text-foreground">
+            Actionability:
+          </span>{" "}
+          {actionability}{" "}
         </p>
-      )}
-      {showDecisionBody && extraContent && <div className="mt-orbit-s pl-orbit-l">{extraContent}</div>}
-
+      )}{" "}
+      {showDecisionBody && extraContent && (
+        <div className="mt-orbit-s pl-orbit-l">{extraContent}</div>
+      )}{" "}
       {showRequestActions && (
-        <div className="mt-orbit-s flex items-center gap-orbit-xs pl-orbit-l" onClick={(event) => event.stopPropagation()}>
+        <div
+          className="mt-orbit-s flex items-center gap-orbit-xs pl-orbit-l"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {" "}
           <Button
             variant="secondary"
-            className="h-8 gap-orbit-xs rounded-[5px] px-orbit-base text-[11px] v5-orbit-weight-regular"
+            className="h-8 gap-orbit-xs rounded-[5px] px-orbit-base cpv2-type-xs cpv2-orbit-weight-regular"
             onClick={onRequest}
           >
-            <Sparkles className="h-3 w-3" /> {primaryActionLabel}
-          </Button>
+            {" "}
+            <Sparkles className="h-3 w-3" /> {primaryActionLabel}{" "}
+          </Button>{" "}
           <Button
             variant={noActionIsPrimary ? "default" : "outline"}
-            className={cn("h-8 rounded-[5px] px-orbit-base text-[11px] v5-orbit-weight-regular gap-orbit-xs", noActionIsPrimary && "bg-[#1a2744] text-white hover:bg-[#243454]")}
+            className={cn(
+              "h-8 rounded-[5px] px-orbit-base cpv2-type-xs cpv2-orbit-weight-regular gap-orbit-xs",
+            )}
             onClick={onNoAction}
           >
-            <CheckCircle2 className="h-3 w-3" /> No Action
-          </Button>
+            {" "}
+            <CheckCircle2 className="h-3 w-3" /> No Action{" "}
+          </Button>{" "}
         </div>
-      )}
-
+      )}{" "}
       {actions && !pendingBasketRequest && (
-        <div className="mt-orbit-s flex items-center gap-orbit-xs pl-orbit-l" onClick={(event) => event.stopPropagation()}>
-          {actions}
+        <div
+          className="mt-orbit-s flex items-center gap-orbit-xs pl-orbit-l"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {" "}
+          {actions}{" "}
         </div>
-      )}
-
+      )}{" "}
       {showQueuedCompact && queuedExpanded && (
-        <div className="mt-orbit-s pl-orbit-l" onClick={(event) => event.stopPropagation()}>
-          <div className="rounded-md border border-[#185FA5]/20 bg-[#E6F1FB]/55 px-orbit-base py-orbit-s text-[11px] text-[#0C447C]">
-            <p className="v5-orbit-weight-medium">Added to Review.</p>
-            <p className="mt-orbit-xxs text-[#0C447C]/80">Review and generate all requests when ready.</p>
-          </div>
+        <div
+          className="mt-orbit-s pl-orbit-l"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {" "}
+          <div className="rounded-md border border-[#185FA5]/20 bg-[#E6F1FB]/55 px-orbit-base py-orbit-s cpv2-type-xs text-[#0C447C]">
+            {" "}
+            <p className="cpv2-orbit-weight-medium">Added to Review.</p>{" "}
+            <p className="mt-orbit-xxs text-[#0C447C]/80">
+              Review and generate all requests when ready.
+            </p>{" "}
+          </div>{" "}
         </div>
-      )}
-
+      )}{" "}
       {isDrafting && onUpdateDraft && onCancelDraft && onSubmitDraft && (
         <div className="pl-orbit-l">
+          {" "}
           <ClauseRequestForm
             versionLabel={versionLabel}
             draft={draft}
@@ -4670,13 +6631,12 @@ function ClauseDecisionCard({
             onUpdate={onUpdateDraft}
             onCancel={onCancelDraft}
             onSubmit={onSubmitDraft}
-          />
+          />{" "}
         </div>
-      )}
+      )}{" "}
     </div>
   );
 }
-
 function ClauseRowScaleCard({
   id,
   clause,
@@ -4715,7 +6675,10 @@ function ClauseRowScaleCard({
   request?: ClauseRequest;
   inherited?: { request: ClauseRequest; version: string };
   requestPlaceholder?: string;
-  onUpdateDraft?: (patch: { requestedChange?: string; rationale?: string }) => void;
+  onUpdateDraft?: (patch: {
+    requestedChange?: string;
+    rationale?: string;
+  }) => void;
   onCancelDraft?: () => void;
   onSubmitDraft?: () => void;
   onUseRecommendation?: () => void;
@@ -4726,20 +6689,28 @@ function ClauseRowScaleCard({
 }) {
   const tier = clause.severity;
   const theme = rowScaleSeverityThemes[tier];
-  const cardBackground = missingClause ? rowScaleMissingClauseBackground : theme.background;
+  const cardBackground = missingClause
+    ? rowScaleMissingClauseBackground
+    : theme.background;
   const accentColor = missingClause ? "#A32D2D" : theme.accent;
-  const severityLabel = hideSubclauseReference ? `${titleCaseSeverity(tier)} Deviation` : titleCaseSeverity(tier);
+  const severityLabel = hideSubclauseReference
+    ? `${titleCaseSeverity(tier)} Deviation`
+    : titleCaseSeverity(tier);
   const showSeverityBadge = !isPureMissingClause(clause);
-  const metadata = hideSubclauseReference ? clause.category : `${clause.subclause} · ${clause.category}`;
+  const metadata = hideSubclauseReference
+    ? clause.category
+    : `${clause.subclause} · ${clause.category}`;
   const actionabilityText = actionability?.trim() ?? "";
   const requestText = request?.requestedChange?.trim() ?? "";
   const hasRequest = decision === "request-update" && Boolean(requestText);
-  const handledState = !isDrafting && (hasRequest || decision === "no-action")
-    ? hasRequest
-      ? "request"
-      : "no-action"
-    : null;
-  const acceptedRecommendation = hasRequest && actionabilityText === requestText;
+  const handledState =
+    !isDrafting && (hasRequest || decision === "no-action")
+      ? hasRequest
+        ? "request"
+        : "no-action"
+      : null;
+  const acceptedRecommendation =
+    hasRequest && actionabilityText === requestText;
   const requestForm =
     isDrafting && onUpdateDraft && onCancelDraft && onSubmitDraft ? (
       <ClauseRequestForm
@@ -4754,12 +6725,13 @@ function ClauseRowScaleCard({
         onSubmit={onSubmitDraft}
       />
     ) : null;
-
-  const runAction = (event: MouseEvent<HTMLButtonElement>, action?: () => void) => {
+  const runAction = (
+    event: MouseEvent<HTMLButtonElement>,
+    action?: () => void,
+  ) => {
     event.stopPropagation();
     action?.();
   };
-
   if (handledState) {
     const requestSubmitted = request?.state === "submitted";
     const statusLabel =
@@ -4767,14 +6739,13 @@ function ClauseRowScaleCard({
         ? requestSubmitted
           ? "Reviewed"
           : acceptedRecommendation
-          ? "Added to Review"
-          : "Custom request added"
+            ? "Added to Review"
+            : "Custom request added"
         : "No action selected";
     const preview =
       handledState === "request"
         ? requestText
         : "No supplier change will be requested for this clause.";
-
     return (
       <ClauseReviewModalCard
         domId={`clause-row-${id}`}
@@ -4786,7 +6757,13 @@ function ClauseRowScaleCard({
         sourceDeviationLevel={clause.sourceDeviationLevel}
         request={{ requestedChange: preview }}
         statusLabel={statusLabel}
-        statusTone={requestSubmitted ? "green" : handledState === "request" ? "blue" : "neutral"}
+        statusTone={
+          requestSubmitted
+            ? "green"
+            : handledState === "request"
+              ? "blue"
+              : "neutral"
+        }
         highlighted={highlighted}
         editMode="external"
         onEditRequest={onEditRequest}
@@ -4797,7 +6774,6 @@ function ClauseRowScaleCard({
       />
     );
   }
-
   return (
     <div
       id={`clause-row-${id}`}
@@ -4807,68 +6783,94 @@ function ClauseRowScaleCard({
       )}
       style={{ backgroundColor: cardBackground }}
     >
-      <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: accentColor }} />
+      {" "}
+      <span
+        className="absolute inset-y-0 left-0 w-1"
+        style={{ backgroundColor: accentColor }}
+      />{" "}
       <div className="flex flex-col gap-orbit-s">
+        {" "}
         <div className="flex flex-wrap items-center justify-between gap-orbit-s">
+          {" "}
           <div className="flex flex-wrap items-center gap-orbit-s">
+            {" "}
             {missingClause && (
-              <Badge variant="outline" className={firstAnalysisDeviationBadgeClass}>
-                Missing Clause
+              <Badge
+                variant="outline"
+                className={firstAnalysisDeviationBadgeClass}
+              >
+                {" "}
+                Missing Clause{" "}
               </Badge>
-            )}
+            )}{" "}
             {showSeverityBadge && (
               <Badge variant="outline" className={theme.badgeClass}>
-                {severityLabel}
+                {" "}
+                {severityLabel}{" "}
               </Badge>
-            )}
+            )}{" "}
             {isDrafting && (
-              <Badge variant="outline" className="rounded-full border-[#185FA5]/25 bg-[#E6F1FB] px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#0C447C]">
-                Drafting request
+              <Badge
+                variant="outline"
+                className="rounded-full border-[#185FA5]/25 bg-[#E6F1FB] px-orbit-xs py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium text-[#0C447C]"
+              >
+                {" "}
+                Drafting request{" "}
               </Badge>
-            )}
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            {id.toUpperCase()} · {metadata}
-          </p>
-        </div>
-        <h3 className="v5-orbit-heading-label text-foreground">{clause.title}</h3>
-      </div>
-      {description && <FindingCallout text={description} />}
-      {actionability && <RecommendedActionCallout text={actionability} compactTop={Boolean(description)} />}
+            )}{" "}
+          </div>{" "}
+          <p className="cpv2-type-xs text-muted-foreground">
+            {" "}
+            {id.toUpperCase()} · {metadata}{" "}
+          </p>{" "}
+        </div>{" "}
+        <h3 className="cpv2-orbit-heading-label text-foreground">
+          {clause.title}
+        </h3>{" "}
+      </div>{" "}
+      {description && <FindingCallout text={description} />}{" "}
+      {actionability && (
+        <RecommendedActionCallout
+          text={actionability}
+          compactTop={Boolean(description)}
+        />
+      )}{" "}
       {requestForm ?? (
-        <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-s" onClick={(event) => event.stopPropagation()}>
+        <div
+          className="mt-orbit-base flex flex-wrap items-center gap-orbit-s"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {" "}
           <Button
             variant="outline"
             disabled={!actionabilityText || !onUseRecommendation}
             onClick={(event) => runAction(event, onUseRecommendation)}
           >
-            <Sparkles className="h-3 w-3" /> Use Recommendation
-          </Button>
+            {" "}
+            <Sparkles className="h-3 w-3" /> Use Recommendation{" "}
+          </Button>{" "}
           <Button
             variant="outline"
             onClick={(event) => runAction(event, onRequest)}
           >
-            <Pencil className="h-3 w-3" /> Edit Request
-          </Button>
+            {" "}
+            <Pencil className="h-3 w-3" /> Edit Request{" "}
+          </Button>{" "}
           <Button
             variant="outline"
             onClick={(event) => runAction(event, onNoAction)}
           >
-            <CheckCircle2 className="h-3 w-3" /> No Action
-          </Button>
+            {" "}
+            <CheckCircle2 className="h-3 w-3" /> No Action{" "}
+          </Button>{" "}
         </div>
-      )}
+      )}{" "}
     </div>
   );
 }
-
 const rowScaleSeverityThemes: Record<
   ClauseResult["severity"],
-  {
-    accent: string;
-    background: string;
-    badgeClass: string;
-  }
+  { accent: string; background: string; badgeClass: string }
 > = {
   high: {
     accent: "#A32D2D",
@@ -4878,76 +6880,104 @@ const rowScaleSeverityThemes: Record<
   medium: {
     accent: "#BA7517",
     background: "#FFF9EC",
-    badgeClass: "shrink-0 rounded-full border-[#F1D29B] bg-[#FFF8E8] px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#854F0B]",
+    badgeClass:
+      "shrink-0 rounded-full border-[#F1D29B] bg-[#FFF8E8] px-orbit-xs py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium text-[#854F0B]",
   },
   low: {
     accent: "#3B6D11",
     background: "#F4FAEE",
-    badgeClass: "shrink-0 rounded-full border-[#BFD6AB] bg-[#EAF3DE] px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#27500A]",
+    badgeClass:
+      "shrink-0 rounded-full border-[#BFD6AB] bg-[#EAF3DE] px-orbit-xs py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium text-[#27500A]",
   },
 };
-
 const rowScaleMissingClauseBackground = "#FFF6F4";
-
 function FindingCallout({ text }: { text: string }) {
   return (
     <div className="mt-orbit-base rounded-md border border-border bg-white px-orbit-base py-orbit-s">
+      {" "}
       <div className="flex items-start gap-orbit-s">
+        {" "}
         <span className="mt-orbit-xxs grid h-5 w-5 shrink-0 place-items-center rounded-full border border-border bg-background text-muted-foreground">
-          <Search className="h-3 w-3" />
-        </span>
+          {" "}
+          <Search className="h-3 w-3" />{" "}
+        </span>{" "}
         <div className="min-w-0">
-          <p className="text-[10px] v5-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Finding
-          </p>
-          <p className="mt-orbit-xxs text-[12px] v5-orbit-weight-medium leading-5 text-foreground/85">
-            {renderFindingText(text)}
-          </p>
-        </div>
-      </div>
+          {" "}
+          <p className="cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-muted-foreground">
+            {" "}
+            Finding{" "}
+          </p>{" "}
+          <p className="mt-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium cpv2-leading-normal text-foreground/85">
+            {" "}
+            {renderFindingText(text)}{" "}
+          </p>{" "}
+        </div>{" "}
+      </div>{" "}
     </div>
   );
 }
-
-function RecommendedActionCallout({ text, compactTop = false }: { text: string; compactTop?: boolean }) {
+function RecommendedActionCallout({
+  text,
+  compactTop = false,
+}: {
+  text: string;
+  compactTop?: boolean;
+}) {
   return (
-    <div className={cn(compactTop ? "mt-orbit-s" : "mt-orbit-base", "rounded-md border border-border bg-white px-orbit-base py-orbit-s")}>
+    <div
+      className={cn(
+        compactTop ? "mt-orbit-s" : "mt-orbit-base",
+        "rounded-md border border-border bg-white px-orbit-base py-orbit-s",
+      )}
+    >
+      {" "}
       <div className="flex items-start gap-orbit-s">
+        {" "}
         <span className="mt-orbit-xxs grid h-5 w-5 shrink-0 place-items-center rounded-full border border-border bg-background text-muted-foreground">
-          <Lightbulb className="h-3 w-3" />
-        </span>
+          {" "}
+          <Lightbulb className="h-3 w-3" />{" "}
+        </span>{" "}
         <div className="min-w-0">
-          <p className="text-[10px] v5-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Recommended action
-          </p>
-          <p className="mt-orbit-xxs text-[12px] v5-orbit-weight-medium leading-5 text-foreground">
-            {text}
-          </p>
-        </div>
-      </div>
+          {" "}
+          <p className="cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-muted-foreground">
+            {" "}
+            Recommended action{" "}
+          </p>{" "}
+          <p className="mt-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium cpv2-leading-normal text-foreground">
+            {" "}
+            {text}{" "}
+          </p>{" "}
+        </div>{" "}
+      </div>{" "}
     </div>
   );
 }
-
 function renderFindingText(text: string) {
-  const parts = text.split(/(\b\d+(?:\.\d+)?%?(?:[-\s]?(?:day|days|month|months|year|years|hour|hours|fee|fees))?|\bvs\b|\bbenchmark\b)/gi);
+  const parts = text.split(
+    /(\b\d+(?:\.\d+)?%?(?:[-\s]?(?:day|days|month|months|year|years|hour|hours|fee|fees))?|\bvs\b|\bbenchmark\b)/gi,
+  );
   return parts.map((part, index) => {
     if (!part) return null;
-    const prominent = /^(\d+(?:\.\d+)?%?(?:[-\s]?(?:day|days|month|months|year|years|hour|hours|fee|fees))?|vs|benchmark)$/i.test(part);
+    const prominent =
+      /^(\d+(?:\.\d+)?%?(?:[-\s]?(?:day|days|month|months|year|years|hour|hours|fee|fees))?|vs|benchmark)$/i.test(
+        part,
+      );
     return prominent ? (
-      <span key={`${part}-${index}`} className="v5-orbit-weight-semibold text-foreground">
-        {part}
+      <span
+        key={`${part}-${index}`}
+        className="cpv2-orbit-weight-semibold text-foreground"
+      >
+        {" "}
+        {part}{" "}
       </span>
     ) : (
       <span key={`${part}-${index}`}>{part}</span>
     );
   });
 }
-
 function titleCaseSeverity(severity: ClauseResult["severity"]) {
   return severity.charAt(0).toUpperCase() + severity.slice(1);
 }
-
 interface BasketRequestItem {
   clauseId: string;
   clauseTitle: string;
@@ -4957,12 +6987,10 @@ interface BasketRequestItem {
   sourceDeviationLevel?: ClauseResult["sourceDeviationLevel"];
   request: ClauseRequest;
 }
-
 function versionClauseIndex(version: ContractVersion, clauseId: string) {
   const index = version.clauses.findIndex((clause) => clause.id === clauseId);
   return index === -1 ? Number.MAX_SAFE_INTEGER : index;
 }
-
 function buildBasketRequestItem(
   clauseId: string,
   request: ClauseRequest,
@@ -4973,7 +7001,6 @@ function buildBasketRequestItem(
     version.clauses.find((candidate) => candidate.id === clauseId) ??
     fallbackVersion?.clauses.find((candidate) => candidate.id === clauseId);
   const def = CLAUSE_FRAMEWORK.find((candidate) => candidate.id === clauseId);
-
   return {
     clauseId,
     clauseTitle: clause?.title ?? def?.title ?? clauseId.toUpperCase(),
@@ -4984,7 +7011,6 @@ function buildBasketRequestItem(
     request,
   };
 }
-
 function buildReviewDecisionSignature(
   version: ContractVersion,
   decisionsByClause: Record<string, ClauseDecisionState>,
@@ -4997,12 +7023,13 @@ function buildReviewDecisionSignature(
       const requestedChange = request?.requestedChange?.trim() ?? "";
       const rationale = request?.rationale?.trim() ?? "";
       if (!decision && !requestedChange && !rationale) return null;
-      return [clause.id, decision, requestedChange, rationale].map((part) => part.replace(/\|/g, "\\|")).join("|");
+      return [clause.id, decision, requestedChange, rationale]
+        .map((part) => part.replace(/\|/g, "\\|"))
+        .join("|");
     })
     .filter((item): item is string => Boolean(item))
     .join("\n");
 }
-
 interface RecommendationTargetItem {
   id: string;
   clauseTitle: string;
@@ -5012,9 +7039,7 @@ interface RecommendationTargetItem {
   sourceDeviationLevel?: ClauseResult["sourceDeviationLevel"];
   request: ClauseRequest;
 }
-
 type RecommendationApplyScope = "all" | "high" | "medium" | "low" | "missing";
-
 interface RecommendationApplyOption {
   id: RecommendationApplyScope;
   label: string;
@@ -5023,10 +7048,11 @@ interface RecommendationApplyOption {
   count: number;
   targets: RecommendationTargetItem[];
 }
-
-function buildRecommendationApplyOptions(targets: RecommendationTargetItem[]): RecommendationApplyOption[] {
-  const byScope = (scope: RecommendationApplyScope) => targets.filter((target) => targetMatchesRecommendationScope(target, scope));
-
+function buildRecommendationApplyOptions(
+  targets: RecommendationTargetItem[],
+): RecommendationApplyOption[] {
+  const byScope = (scope: RecommendationApplyScope) =>
+    targets.filter((target) => targetMatchesRecommendationScope(target, scope));
   return [
     {
       id: "all",
@@ -5070,22 +7096,27 @@ function buildRecommendationApplyOptions(targets: RecommendationTargetItem[]): R
     },
   ];
 }
-
-function targetMatchesRecommendationScope(target: RecommendationTargetItem, scope: RecommendationApplyScope) {
+function targetMatchesRecommendationScope(
+  target: RecommendationTargetItem,
+  scope: RecommendationApplyScope,
+) {
   if (scope === "all") return true;
-  if (scope === "missing") return Boolean(target.missingClause && target.sourceDeviationLevel === "None");
-
+  if (scope === "missing")
+    return Boolean(
+      target.missingClause && target.sourceDeviationLevel === "None",
+    );
   const sourceDeviationLevel = target.sourceDeviationLevel?.toLowerCase();
-  return sourceDeviationLevel === scope || (!sourceDeviationLevel && target.severity === scope);
+  return (
+    sourceDeviationLevel === scope ||
+    (!sourceDeviationLevel && target.severity === scope)
+  );
 }
-
 function reviewClauseCardTone(severity?: ClauseResult["severity"]) {
   if (severity === "high") return "border-l-[#E5484D] bg-[#FFF7F7]";
   if (severity === "medium") return "border-l-[#F59E0B] bg-[#FFFBEB]";
   if (severity === "low") return "border-l-[#1BA97F] bg-[#F8FCFA]";
   return "border-l-border bg-white";
 }
-
 function ClauseReviewModalCard({
   domId,
   itemId,
@@ -5128,11 +7159,9 @@ function ClauseReviewModalCard({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<ClauseRequest>(request);
   const pureMissing = Boolean(missingClause && sourceDeviationLevel === "None");
-
   useEffect(() => {
     if (!editing) setDraft(request);
   }, [editing, request]);
-
   const canSave = Boolean(draft.requestedChange?.trim());
   const saveDraft = () => {
     if (!canSave || !onUpdate) return;
@@ -5142,7 +7171,6 @@ function ClauseReviewModalCard({
     });
     setEditing(false);
   };
-
   return (
     <div
       id={domId}
@@ -5152,51 +7180,78 @@ function ClauseReviewModalCard({
         highlighted && "ring-2 ring-primary/40",
       )}
     >
+      {" "}
       <div className="flex flex-wrap items-start justify-between gap-orbit-s">
+        {" "}
         <div className="flex flex-wrap items-center gap-orbit-xs">
+          {" "}
           {pureMissing && (
-            <Badge variant="outline" className={firstAnalysisDeviationBadgeClass}>
-              Missing Clause
+            <Badge
+              variant="outline"
+              className={firstAnalysisDeviationBadgeClass}
+            >
+              {" "}
+              Missing Clause{" "}
             </Badge>
-          )}
+          )}{" "}
           {severity && !pureMissing && (
             <Badge
               variant="outline"
-              className={cn("h-5 rounded-full px-orbit-s text-[9px] v5-orbit-weight-medium", severityTone(severity))}
+              className={cn(
+                "h-5 rounded-full px-orbit-s cpv2-type-xs cpv2-orbit-weight-medium",
+                severityTone(severity),
+              )}
             >
-              {titleCaseSeverity(severity)} Deviation
+              {" "}
+              {titleCaseSeverity(severity)} Deviation{" "}
             </Badge>
-          )}
+          )}{" "}
           <Badge
             variant="outline"
             className={cn(
-              "h-5 rounded-full px-orbit-s text-[9px] v5-orbit-weight-medium",
-              statusTone === "blue" && "border-[#185FA5]/20 bg-[#E6F1FB]/60 text-[#0C447C]",
-              statusTone === "green" && "border-[#BFD6AB] bg-[#EAF3DE] text-[#27500A]",
-              statusTone === "neutral" && "border-border bg-white text-muted-foreground",
+              "h-5 rounded-full px-orbit-s cpv2-type-xs cpv2-orbit-weight-medium",
+              statusTone === "blue" &&
+                "border-[#185FA5]/20 bg-[#E6F1FB]/60 text-[#0C447C]",
+              statusTone === "green" &&
+                "border-[#BFD6AB] bg-[#EAF3DE] text-[#27500A]",
+              statusTone === "neutral" &&
+                "border-border bg-white text-muted-foreground",
             )}
           >
-            {statusLabel}
-          </Badge>
-        </div>
-        <p className="shrink-0 text-[10px] text-muted-foreground">
-          {itemId.toUpperCase()}{category ? ` · ${category}` : ""}
-        </p>
-      </div>
-
+            {" "}
+            {statusLabel}{" "}
+          </Badge>{" "}
+        </div>{" "}
+        <p className="shrink-0 cpv2-type-xs text-muted-foreground">
+          {" "}
+          {itemId.toUpperCase()}
+          {category ? ` · ${category}` : ""}{" "}
+        </p>{" "}
+      </div>{" "}
       <div className="mt-orbit-s min-w-0">
-        <p className="truncate text-[13px] v5-orbit-weight-semibold text-foreground">{title}</p>
-        <p className="mt-orbit-xxs line-clamp-2 text-[11px] leading-4 text-muted-foreground">
-          {request.requestedChange || "No requested change entered yet."}
-        </p>
+        {" "}
+        <p className="truncate cpv2-type-sm cpv2-orbit-weight-semibold text-foreground">
+          {title}
+        </p>{" "}
+        <p className="mt-orbit-xxs line-clamp-2 cpv2-type-xs cpv2-leading-snug text-muted-foreground">
+          {" "}
+          {request.requestedChange || "No requested change entered yet."}{" "}
+        </p>{" "}
         {request.rationale && (
-          <p className="mt-orbit-xs line-clamp-2 text-[11px] leading-4 text-muted-foreground">
-            <span className="v5-orbit-weight-medium text-foreground">Rationale:</span> {request.rationale}
+          <p className="mt-orbit-xs line-clamp-2 cpv2-type-xs cpv2-leading-snug text-muted-foreground">
+            {" "}
+            <span className="cpv2-orbit-weight-medium text-foreground">
+              Rationale:
+            </span>{" "}
+            {request.rationale}{" "}
           </p>
-        )}
-      </div>
-
-      <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-s" onClick={(event) => event.stopPropagation()}>
+        )}{" "}
+      </div>{" "}
+      <div
+        className="mt-orbit-base flex flex-wrap items-center gap-orbit-s"
+        onClick={(event) => event.stopPropagation()}
+      >
+        {" "}
         <Button
           type="button"
           variant="outline"
@@ -5208,65 +7263,88 @@ function ClauseReviewModalCard({
             setEditing((current) => !current);
           }}
         >
-          <Pencil className="h-3.5 w-3.5" />
-          Edit Request
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onRemove}
-        >
-          {secondaryActionIcon === undefined ? <Trash2 className="h-3.5 w-3.5" /> : secondaryActionIcon}
-          {secondaryActionLabel}
-        </Button>
-      </div>
-
+          {" "}
+          <Pencil className="h-3.5 w-3.5" /> Edit Request{" "}
+        </Button>{" "}
+        <Button type="button" variant="outline" onClick={onRemove}>
+          {" "}
+          {secondaryActionIcon === undefined ? (
+            <Trash2 className="h-3.5 w-3.5" />
+          ) : (
+            secondaryActionIcon
+          )}{" "}
+          {secondaryActionLabel}{" "}
+        </Button>{" "}
+      </div>{" "}
       {editing && editMode === "inline" && (
-        <div className="mt-orbit-base rounded-lg border border-border bg-white/85 p-orbit-base" onClick={(event) => event.stopPropagation()}>
+        <div
+          className="mt-orbit-base rounded-lg border border-border bg-white/85 p-orbit-base"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {" "}
           <div className="grid gap-orbit-base">
-            <label className="grid gap-orbit-xs text-xs v5-orbit-weight-medium text-foreground">
-              Requested change
+            {" "}
+            <label className="grid gap-orbit-xs cpv2-type-xs cpv2-orbit-weight-medium text-foreground">
+              {" "}
+              Requested change{" "}
               <Textarea
                 value={draft.requestedChange ?? ""}
-                onChange={(event) => setDraft((current) => ({ ...current, requestedChange: event.target.value }))}
-                className="min-h-[72px] resize-none bg-white text-xs v5-orbit-weight-regular leading-5"
-              />
-            </label>
-            <label className="grid gap-orbit-xs text-xs v5-orbit-weight-medium text-foreground">
-              Rationale
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    requestedChange: event.target.value,
+                  }))
+                }
+                className="min-h-[72px] resize-none bg-white cpv2-type-xs cpv2-orbit-weight-regular cpv2-leading-normal"
+              />{" "}
+            </label>{" "}
+            <label className="grid gap-orbit-xs cpv2-type-xs cpv2-orbit-weight-medium text-foreground">
+              {" "}
+              Rationale{" "}
               <Textarea
                 value={draft.rationale ?? ""}
-                onChange={(event) => setDraft((current) => ({ ...current, rationale: event.target.value }))}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    rationale: event.target.value,
+                  }))
+                }
                 placeholder="Add why this change is needed before supplier negotiation."
-                className="min-h-[64px] resize-none bg-white text-xs v5-orbit-weight-regular leading-5"
-              />
-            </label>
-          </div>
+                className="min-h-[64px] resize-none bg-white cpv2-type-xs cpv2-orbit-weight-regular cpv2-leading-normal"
+              />{" "}
+            </label>{" "}
+          </div>{" "}
           <div className="mt-orbit-base flex justify-end gap-orbit-s">
-            <Button type="button" variant="outline" className="h-8" onClick={() => setEditing(false)}>
-              Cancel
-            </Button>
+            {" "}
             <Button
               type="button"
-              className="h-8 bg-[#1a2744] text-white hover:bg-[#243454]"
+              variant="outline"
+              className="h-8"
+              onClick={() => setEditing(false)}
+            >
+              {" "}
+              Cancel{" "}
+            </Button>{" "}
+            <Button
+              type="button"
+              className="h-8"
               disabled={!canSave}
               onClick={saveDraft}
             >
-              Save changes
-            </Button>
-          </div>
+              {" "}
+              Save changes{" "}
+            </Button>{" "}
+          </div>{" "}
         </div>
-      )}
+      )}{" "}
     </div>
   );
 }
-
 function requestCsvEscape(value: string | number | undefined | null) {
   if (value === undefined || value === null) return "";
   const text = String(value).replace(/"/g, '""');
   return /[",\n]/.test(text) ? `"${text}"` : text;
 }
-
 function requestSeverityLabel(clause?: ClauseResult) {
   if (!clause) return "";
   if (isPureMissingClause(clause)) return "Missing Clause";
@@ -5274,7 +7352,6 @@ function requestSeverityLabel(clause?: ClauseResult) {
     ? clause.sourceDeviationLevel
     : titleCaseSeverity(clause.severity);
 }
-
 function exportRequestChangeCsv(
   meta: {
     initiativeName: string;
@@ -5302,9 +7379,10 @@ function exportRequestChangeCsv(
       "Rationale",
     ],
   ];
-
   for (const item of requests) {
-    const clause = version.clauses.find((candidate) => candidate.id === item.clauseId);
+    const clause = version.clauses.find(
+      (candidate) => candidate.id === item.clauseId,
+    );
     rows.push([
       meta.initiativeName,
       meta.supplierName,
@@ -5320,10 +7398,8 @@ function exportRequestChangeCsv(
       item.request.rationale ?? "",
     ]);
   }
-
   return rows.map((row) => row.map(requestCsvEscape).join(",")).join("\n");
 }
-
 function RequestReviewDialog({
   open,
   onOpenChange,
@@ -5345,127 +7421,300 @@ function RequestReviewDialog({
 }) {
   const requestCount = requests.length;
   const canGenerate = requestCount > 0 || csvNeedsUpdate;
-
   useEffect(() => {
     if (!canGenerate && open) onOpenChange(false);
   }, [canGenerate, onOpenChange, open]);
-
   const submitRequests = () => {
     if (!canGenerate) return;
     onSubmit();
     onOpenChange(false);
   };
-  const csvAlertDescription = `The CSV will include clause IDs, titles, categories, severity, ClauseIQ findings, requested changes, and rationale so you can take it back to the supplier for negotiation. Are you ready to generate it?${
-    csvNeedsUpdate
-      ? " Changes have been made since the last generated CSV. Generate again to update the negotiation log."
-      : ""
-  }`;
-
   return (
     <CpOrbitOverlay
       open={open}
       onOpenChange={onOpenChange}
-      title={bulkSummaryMode ? "Generate CSV from applied recommendations" : "Review and generate selected clauses"}
-      description={
-        bulkSummaryMode
-          ? undefined
-          : `Check the clauses you have chosen, then submit to generate a CSV negotiation log for ${supplierName}.`
-      }
+      title={reviewGenerateTitle(bulkSummaryMode)}
+      description={reviewGenerateDescription(bulkSummaryMode, supplierName)}
       size="Large"
       footer={
         <div className="flex flex-col gap-orbit-base sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-muted-foreground">
-            Confirm to generate the CSV. Nothing is sent to the supplier from this prototype.
-          </p>
+          {" "}
+          <p className="cpv2-type-xs text-muted-foreground">
+            {" "}
+            Confirm to generate the CSV. Nothing is sent to the supplier from
+            this prototype.{" "}
+          </p>{" "}
           {canGenerate && (
             <CpButton
               type="button"
               className="cpv2-results-primary-button cpv2-results-primary-button--compact"
               onClick={submitRequests}
             >
-              <Download className="h-3.5 w-3.5" /> Submit & Generate
+              {" "}
+              <Download className="h-3.5 w-3.5" /> Submit & Generate{" "}
             </CpButton>
-          )}
+          )}{" "}
         </div>
       }
     >
-          <div className="px-orbit-base pt-orbit-base">
-            <Alert
-              type="Information"
-              title={bulkSummaryMode ? "Ready to generate supplier change log" : "Ready to generate selected clauses"}
-              description={csvAlertDescription}
-            />
-          </div>
-
-          {reviewProgress && (
-            <div className="px-orbit-base pb-orbit-base pt-orbit-s">
-              <ReviewGenerateProgressDashboard progress={reviewProgress} />
-            </div>
-          )}
-      </CpOrbitOverlay>
+      {" "}
+      <ReviewGenerateContent
+        bulkSummaryMode={bulkSummaryMode}
+        csvNeedsUpdate={csvNeedsUpdate}
+        reviewProgress={reviewProgress}
+      />{" "}
+    </CpOrbitOverlay>
   );
 }
-
-function ReviewGenerateProgressDashboard({ progress }: { progress: FirstAnalysisReviewProgress }) {
+function RequestReviewTray({
+  open,
+  onOpenChange,
+  requests,
+  supplierName,
+  bulkSummaryMode = false,
+  reviewProgress,
+  csvNeedsUpdate = false,
+  onSubmit,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  requests: BasketRequestItem[];
+  supplierName: string;
+  bulkSummaryMode?: boolean;
+  reviewProgress?: FirstAnalysisReviewProgress;
+  csvNeedsUpdate?: boolean;
+  onSubmit: () => void;
+}) {
+  const requestCount = requests.length;
+  const canGenerate = requestCount > 0 || csvNeedsUpdate;
+  useEffect(() => {
+    if (!canGenerate && open) onOpenChange(false);
+  }, [canGenerate, onOpenChange, open]);
+  if (!open || !canGenerate) return null;
+  const submitRequests = () => {
+    if (!canGenerate) return;
+    onSubmit();
+    onOpenChange(false);
+  };
+  return (
+    <aside
+      className="cpv2-review-generate-tray"
+      role="complementary"
+      aria-label="Review and generate"
+    >
+      {" "}
+      <header className="cpv2-review-generate-tray-header">
+        {" "}
+        <div>
+          {" "}
+          <h2>{reviewGenerateTitle(bulkSummaryMode)}</h2>{" "}
+          {reviewGenerateDescription(bulkSummaryMode, supplierName) ? (
+            <p>{reviewGenerateDescription(bulkSummaryMode, supplierName)}</p>
+          ) : null}{" "}
+        </div>{" "}
+        <CpButton
+          type="button"
+          className="cpv2-review-generate-tray-close"
+          aria-label="Close review and generate"
+          onClick={() => onOpenChange(false)}
+        >
+          {" "}
+          <X className="h-4 w-4" />{" "}
+        </CpButton>{" "}
+      </header>{" "}
+      <div className="cpv2-review-generate-tray-body">
+        {" "}
+        <ReviewGenerateContent
+          bulkSummaryMode={bulkSummaryMode}
+          compact
+          csvNeedsUpdate={csvNeedsUpdate}
+          reviewProgress={reviewProgress}
+        />{" "}
+      </div>{" "}
+      <footer className="cpv2-review-generate-tray-footer">
+        {" "}
+        <p>Nothing is sent to the supplier from this prototype.</p>{" "}
+        <CpButton
+          type="button"
+          className="cpv2-results-primary-button cpv2-results-primary-button--compact"
+          onClick={submitRequests}
+        >
+          {" "}
+          <Download className="h-3.5 w-3.5" /> Submit &amp; Generate{" "}
+        </CpButton>{" "}
+      </footer>{" "}
+    </aside>
+  );
+}
+function reviewGenerateTitle(bulkSummaryMode: boolean) {
+  return bulkSummaryMode
+    ? "Generate CSV from applied recommendations"
+    : "Review and generate selected clauses";
+}
+function reviewGenerateDescription(
+  bulkSummaryMode: boolean,
+  supplierName: string,
+) {
+  return bulkSummaryMode
+    ? undefined
+    : `Check the clauses you have chosen, then submit to generate a CSV negotiation log for ${supplierName}.`;
+}
+function reviewGenerateAlertDescription(csvNeedsUpdate: boolean) {
+  return `The CSV will include clause IDs, titles, categories, severity, ClauseIQ findings, requested changes, and rationale so you can take it back to the supplier for negotiation. Are you ready to generate it?${csvNeedsUpdate ? " Changes have been made since the last generated CSV. Generate again to update the negotiation log." : ""}`;
+}
+function ReviewGenerateContent({
+  bulkSummaryMode,
+  compact = false,
+  csvNeedsUpdate,
+  reviewProgress,
+}: {
+  bulkSummaryMode: boolean;
+  compact?: boolean;
+  csvNeedsUpdate: boolean;
+  reviewProgress?: FirstAnalysisReviewProgress;
+}) {
+  return (
+    <>
+      {" "}
+      <div className={compact ? "p-orbit-base" : "px-orbit-base pt-orbit-base"}>
+        {" "}
+        <Alert
+          type="Information"
+          title={
+            bulkSummaryMode
+              ? "Ready to generate supplier change log"
+              : "Ready to generate selected clauses"
+          }
+          description={reviewGenerateAlertDescription(csvNeedsUpdate)}
+        />{" "}
+      </div>{" "}
+      {reviewProgress && (
+        <div
+          className={
+            compact
+              ? "px-orbit-base pb-orbit-base"
+              : "px-orbit-base pb-orbit-base pt-orbit-s"
+          }
+        >
+          {" "}
+          <ReviewGenerateProgressDashboard
+            progress={reviewProgress}
+            compact={compact}
+          />{" "}
+        </div>
+      )}{" "}
+    </>
+  );
+}
+function ReviewGenerateProgressDashboard({
+  progress,
+  compact = false,
+}: {
+  progress: FirstAnalysisReviewProgress;
+  compact?: boolean;
+}) {
   const reviewed = Math.max(0, progress.total - progress.unreviewed);
-  const percentage = progress.total > 0 ? Math.round((reviewed / progress.total) * 100) : 0;
-
+  const percentage =
+    progress.total > 0 ? Math.round((reviewed / progress.total) * 100) : 0;
   return (
     <section className="rounded-lg border border-border bg-white p-orbit-base">
+      {" "}
       <div className="flex items-start justify-between gap-orbit-base">
+        {" "}
         <div>
-          <p className="text-[10px] v5-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Summary
-          </p>
-          <p className="mt-orbit-xs text-xs leading-5 text-muted-foreground">
-            Check what has been accepted, marked no action, and what is still left unreviewed before generating the CSV.
-          </p>
-        </div>
-        <span className="shrink-0 rounded-full border border-border bg-muted/40 px-orbit-s py-orbit-xxs text-[10px] v5-orbit-weight-medium text-foreground">
-          {percentage}%
-        </span>
-      </div>
-
+          {" "}
+          <p className="cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-muted-foreground">
+            {" "}
+            Summary{" "}
+          </p>{" "}
+          <p className="mt-orbit-xs cpv2-type-xs cpv2-leading-normal text-muted-foreground">
+            {" "}
+            Check what has been accepted, marked no action, and what is still
+            left unreviewed before generating the CSV.{" "}
+          </p>{" "}
+        </div>{" "}
+        <span className="shrink-0 rounded-full border border-border bg-muted/40 px-orbit-s py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium text-foreground">
+          {" "}
+          {percentage}%{" "}
+        </span>{" "}
+      </div>{" "}
       <div className="mt-orbit-base h-2 overflow-hidden rounded-full bg-muted">
-        <span className="block h-full rounded-full bg-[#1a2744]" style={{ width: `${percentage}%` }} />
-      </div>
-
-      <div className="mt-orbit-base grid gap-orbit-s sm:grid-cols-4">
-        <ReviewGenerateMetric label="Used recommendations" value={progress.usedRecommendations} />
-        <ReviewGenerateMetric label="No action" value={progress.noAction} />
-        <ReviewGenerateMetric label="Left unreviewed" value={progress.unreviewed} muted />
-        <ReviewGenerateMetric label="Ready for CSV" value={progress.readyForCsv} />
-      </div>
-
-      <div className="mt-orbit-base grid gap-orbit-s sm:grid-cols-2">
+        {" "}
+        <span
+          className="block h-full rounded-full bg-[#1a2744]"
+          style={{ width: `${percentage}%` }}
+        />{" "}
+      </div>{" "}
+      <div
+        className={cn(
+          "mt-orbit-base grid gap-orbit-s",
+          compact ? "grid-cols-2" : "sm:grid-cols-4",
+        )}
+      >
+        {" "}
+        <ReviewGenerateMetric
+          label="Used recommendations"
+          value={progress.usedRecommendations}
+        />{" "}
+        <ReviewGenerateMetric label="No action" value={progress.noAction} />{" "}
+        <ReviewGenerateMetric
+          label="Left unreviewed"
+          value={progress.unreviewed}
+          muted
+        />{" "}
+        <ReviewGenerateMetric
+          label="Ready for CSV"
+          value={progress.readyForCsv}
+        />{" "}
+      </div>{" "}
+      <div
+        className={cn(
+          "mt-orbit-base grid gap-orbit-s",
+          compact ? "grid-cols-1" : "sm:grid-cols-2",
+        )}
+      >
+        {" "}
         {progress.breakdown.map((item) => {
           const itemReviewed = item.reviewed;
-          const itemPercentage = item.total > 0 ? Math.round((itemReviewed / item.total) * 100) : 0;
+          const itemPercentage =
+            item.total > 0 ? Math.round((itemReviewed / item.total) * 100) : 0;
           return (
-            <div key={item.label} className="rounded-md border border-border bg-muted/20 px-orbit-s py-orbit-s">
+            <div
+              key={item.label}
+              className="rounded-md border border-border bg-muted/20 px-orbit-s py-orbit-s"
+            >
+              {" "}
               <div className="flex items-center justify-between gap-orbit-s">
-                <span className="text-[10px] v5-orbit-weight-medium text-muted-foreground">{item.label}</span>
-                <span className="text-[10px] text-muted-foreground">
-                  {item.unreviewed} left
-                </span>
-              </div>
+                {" "}
+                <span className="cpv2-type-xs cpv2-orbit-weight-medium text-muted-foreground">
+                  {item.label}
+                </span>{" "}
+                <span className="cpv2-type-xs text-muted-foreground">
+                  {" "}
+                  {item.unreviewed} left{" "}
+                </span>{" "}
+              </div>{" "}
               <div className="mt-orbit-s h-1.5 overflow-hidden rounded-full bg-muted">
-                <span className="block h-full rounded-full bg-[#1a2744]/80" style={{ width: `${itemPercentage}%` }} />
-              </div>
+                {" "}
+                <span
+                  className="block h-full rounded-full bg-[#1a2744]/80"
+                  style={{ width: `${itemPercentage}%` }}
+                />{" "}
+              </div>{" "}
             </div>
           );
-        })}
-      </div>
-
+        })}{" "}
+      </div>{" "}
       {progress.submitted > 0 && (
-        <p className="mt-orbit-base text-[11px] text-muted-foreground">
-          {progress.submitted} clause{progress.submitted === 1 ? "" : "s"} already generated in a previous CSV.
+        <p className="mt-orbit-base cpv2-type-xs text-muted-foreground">
+          {" "}
+          {progress.submitted} clause{progress.submitted === 1 ? "" : "s"}{" "}
+          already generated in a previous CSV.{" "}
         </p>
-      )}
+      )}{" "}
     </section>
   );
 }
-
 function ReviewGenerateMetric({
   label,
   value,
@@ -5476,15 +7725,23 @@ function ReviewGenerateMetric({
   muted?: boolean;
 }) {
   return (
-    <div className={cn("rounded-md border border-border bg-[#F7FAFC] px-orbit-s py-orbit-s", muted && "bg-muted/25")}>
-      <p className="text-lg v5-orbit-weight-semibold leading-none text-foreground">{value}</p>
-      <p className="mt-orbit-xs text-[9px] v5-orbit-weight-medium uppercase tracking-[0.04em] text-muted-foreground">
-        {label}
-      </p>
+    <div
+      className={cn(
+        "rounded-md border border-border bg-[#F7FAFC] px-orbit-s py-orbit-s",
+        muted && "bg-muted/25",
+      )}
+    >
+      {" "}
+      <p className="cpv2-type-lg cpv2-orbit-weight-semibold cpv2-leading-tight text-foreground">
+        {value}
+      </p>{" "}
+      <p className="mt-orbit-xs cpv2-type-xs cpv2-orbit-weight-medium uppercase text-muted-foreground">
+        {" "}
+        {label}{" "}
+      </p>{" "}
     </div>
   );
 }
-
 function ReviewScreen({
   version,
   stateOf,
@@ -5521,52 +7778,85 @@ function ReviewScreen({
   hideSubclauseReference?: boolean;
   displayMode?: "default" | "row-scale";
   onSetNoAction: (id: string) => void;
-  onStartDraft: (id: string, initialDraft?: { requestedChange?: string; rationale?: string }) => void;
-  onUseRecommendation: (id: string, request: { requestedChange?: string; rationale?: string }) => void;
+  onStartDraft: (
+    id: string,
+    initialDraft?: { requestedChange?: string; rationale?: string },
+  ) => void;
+  onUseRecommendation: (
+    id: string,
+    request: { requestedChange?: string; rationale?: string },
+  ) => void;
   onUndoDecision: (id: string) => void;
-  onUpdateDraft: (id: string, patch: { requestedChange?: string; rationale?: string }) => void;
+  onUpdateDraft: (
+    id: string,
+    patch: { requestedChange?: string; rationale?: string },
+  ) => void;
   onCancelDraft: (id: string) => void;
   onSubmitDraft: (id: string) => void;
   onOpenDetail: (id: string) => void;
   highlightedId?: string | null;
 }) {
-  const [pendingDraftCancelId, setPendingDraftCancelId] = useState<string | null>(null);
+  const [pendingDraftCancelId, setPendingDraftCancelId] = useState<
+    string | null
+  >(null);
   const q = search.trim().toLowerCase();
   const versionLabel = version.version;
   const activeCategorySet = new Set(activeCategories);
   const rows = version.clauses
     .map((clause, index) => ({ clause, index }))
     .filter(({ clause: c }) => {
-      if (activeCategorySet.size > 0 && !activeCategorySet.has(c.category)) return false;
-      if (quickMissingClauseIds && !quickMissingClauseIds.has(c.id)) return false;
+      if (activeCategorySet.size > 0 && !activeCategorySet.has(c.category))
+        return false;
+      if (quickMissingClauseIds && !quickMissingClauseIds.has(c.id))
+        return false;
       if (
         quickSeverityFilters &&
         quickSeverityFilters.size > 0 &&
-        (!countsTowardDeviationMetric(c) || !quickSeverityFilters.has(c.severity))
-      ) return false;
+        (!countsTowardDeviationMetric(c) ||
+          !quickSeverityFilters.has(c.severity))
+      )
+        return false;
       if (
         !quickSeverityFilters &&
         quickSeverityFilter &&
-        (c.severity !== quickSeverityFilter || c.resolved || !countsTowardDeviationMetric(c))
-      ) return false;
-      if (q && !c.title.toLowerCase().includes(q) && !c.category.toLowerCase().includes(q) && !c.id.includes(q)) return false;
+        (c.severity !== quickSeverityFilter ||
+          c.resolved ||
+          !countsTowardDeviationMetric(c))
+      )
+        return false;
+      if (
+        q &&
+        !c.title.toLowerCase().includes(q) &&
+        !c.category.toLowerCase().includes(q) &&
+        !c.id.includes(q)
+      )
+        return false;
       if (quickReviewFilter === "need-review") {
         if (!quickMissingClauseIds && c.resolved) return false;
         if (displayMode !== "row-scale") {
           const state = stateOf(c.id);
           const decision = state.roundDecisions[versionLabel];
           const request = state.requests[versionLabel];
-          if (decision === "no-action" || decision === "request-update" || request?.requestedChange?.trim()) {
+          if (
+            decision === "no-action" ||
+            decision === "request-update" ||
+            request?.requestedChange?.trim()
+          ) {
             return false;
           }
         }
       }
       return true;
     })
-    .sort((a, b) => severityRank(b.clause.severity) - severityRank(a.clause.severity) || a.index - b.index)
+    .sort(
+      (a, b) =>
+        severityRank(b.clause.severity) - severityRank(a.clause.severity) ||
+        a.index - b.index,
+    )
     .map(({ clause }) => clause);
   return (
     <div className="space-y-orbit-base">
+      {" "}
       {rows.map((c) => {
         const state = stateOf(c.id);
         const decision = state.roundDecisions[versionLabel];
@@ -5574,10 +7864,19 @@ function ReviewScreen({
         const draft = state.draftRequests?.[versionLabel];
         const isDrafting = Boolean(draft);
         const inherited = getLatestRequest(state, versionLabel);
-        const inheritedFromOlder = inherited && inherited.version !== versionLabel ? inherited : undefined;
-        const draftHasText = Boolean(draft?.requestedChange?.trim() || draft?.rationale?.trim());
+        const inheritedFromOlder =
+          inherited && inherited.version !== versionLabel
+            ? inherited
+            : undefined;
+        const draftHasText = Boolean(
+          draft?.requestedChange?.trim() || draft?.rationale?.trim(),
+        );
         const actionabilityDraft = c.actionability?.trim()
-          ? { ...own, requestedChange: own.requestedChange?.trim() || c.actionability.trim() }
+          ? {
+              ...own,
+              requestedChange:
+                own.requestedChange?.trim() || c.actionability.trim(),
+            }
           : own;
         const cancelDraft = () => {
           if (draftHasText) {
@@ -5586,7 +7885,6 @@ function ReviewScreen({
           }
           onCancelDraft(c.id);
         };
-
         return (
           <ClauseDecisionCard
             key={c.id}
@@ -5604,7 +7902,9 @@ function ReviewScreen({
             missingClause={Boolean(missingClauseIds?.has(c.id))}
             hideSubclauseReference={hideSubclauseReference}
             displayMode={displayMode}
-            onUseRecommendation={() => onUseRecommendation(c.id, actionabilityDraft)}
+            onUseRecommendation={() =>
+              onUseRecommendation(c.id, actionabilityDraft)
+            }
             onRequest={() => onStartDraft(c.id, actionabilityDraft)}
             onNoAction={() => onSetNoAction(c.id)}
             onEditRequest={() => onStartDraft(c.id, own)}
@@ -5617,12 +7917,13 @@ function ReviewScreen({
             neutralActions={neutralActions}
           />
         );
-      })}
+      })}{" "}
       {rows.length === 0 && (
-        <div className="bg-card border border-border rounded-lg p-orbit-xxl text-center text-sm text-muted-foreground">
-          No clauses match this category.
+        <div className="bg-card border border-border rounded-lg p-orbit-xxl text-center cpv2-type-sm text-muted-foreground">
+          {" "}
+          No clauses match this category.{" "}
         </div>
-      )}
+      )}{" "}
       <CpOrbitConfirmOverlay
         open={Boolean(pendingDraftCancelId)}
         onOpenChange={(open) => {
@@ -5636,20 +7937,37 @@ function ReviewScreen({
           if (pendingDraftCancelId) onCancelDraft(pendingDraftCancelId);
           setPendingDraftCancelId(null);
         }}
-      />
+      />{" "}
     </div>
   );
 }
-
-// (RequestList tab removed — request editing now lives inline in ReviewScreen.)
-
-// ---- Comparison sections ----------------------------------------------------
-
 function ComparisonSection({
-  title, description, accent, rows, leftLabel, rightLabel, visible, bucket, stats,
-  closureOf, requestOf, basketRequestOf, onClose, onKeepOpen, onFollowUp, onRemoveRequest, onOpenDetail,
-  pinnedIds, onTogglePin, recentlyClosed, onUndoClose, draftOf,
-  onUpdateText, onCancelDraft, onSubmitDraft, layout = "collapsible",
+  title,
+  description,
+  accent,
+  rows,
+  leftLabel,
+  rightLabel,
+  visible,
+  bucket,
+  stats,
+  closureOf,
+  requestOf,
+  basketRequestOf,
+  onClose,
+  onKeepOpen,
+  onFollowUp,
+  onRemoveRequest,
+  onOpenDetail,
+  pinnedIds,
+  onTogglePin,
+  recentlyClosed,
+  onUndoClose,
+  draftOf,
+  onUpdateText,
+  onCancelDraft,
+  onSubmitDraft,
+  layout = "collapsible",
 }: {
   title: string;
   description: string;
@@ -5661,7 +7979,11 @@ function ComparisonSection({
   bucket: "open" | "new" | "closed";
   stats: ComparisonBucketStats;
   closureOf: (id: string) => ClosureDecision | undefined;
-  requestOf: (id: string) => { requestedChange?: string; rationale?: string; fromVersion?: string };
+  requestOf: (id: string) => {
+    requestedChange?: string;
+    rationale?: string;
+    fromVersion?: string;
+  };
   basketRequestOf?: (id: string) => ClauseRequest | undefined;
   draftOf?: (id: string) => { requestedChange?: string; rationale?: string };
   onClose: (id: string) => void;
@@ -5673,46 +7995,73 @@ function ComparisonSection({
   onTogglePin?: (id: string) => void;
   recentlyClosed?: Record<string, number>;
   onUndoClose?: (id: string) => void;
-  onUpdateText?: (id: string, patch: { requestedChange?: string; rationale?: string }) => void;
+  onUpdateText?: (
+    id: string,
+    patch: { requestedChange?: string; rationale?: string },
+  ) => void;
   onCancelDraft?: (id: string) => void;
   onSubmitDraft?: (id: string) => void;
   layout?: "collapsible" | "plain";
 }) {
   const [open, setOpen] = useState(false);
-  const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
-  const [pendingDraftCancelId, setPendingDraftCancelId] = useState<string | null>(null);
+  const [expandedRequestId, setExpandedRequestId] = useState<string | null>(
+    null,
+  );
+  const [pendingDraftCancelId, setPendingDraftCancelId] = useState<
+    string | null
+  >(null);
   if (!visible) return null;
   const accentBar =
-    accent === "primary" ? "bg-primary"
-      : accent === "warning" ? "bg-warning"
-      : accent === "success" ? "bg-success"
-      : "bg-destructive";
+    accent === "primary"
+      ? "bg-primary"
+      : accent === "warning"
+        ? "bg-warning"
+        : accent === "success"
+          ? "bg-success"
+          : "bg-destructive";
   const accentText =
-    accent === "primary" ? "text-primary"
-      : accent === "warning" ? "text-warning-foreground"
-      : accent === "success" ? "text-success"
-      : "text-destructive";
+    accent === "primary"
+      ? "text-primary"
+      : accent === "warning"
+        ? "text-warning-foreground"
+        : accent === "success"
+          ? "text-success"
+          : "text-destructive";
   const accentBg =
-    accent === "primary" ? "bg-primary/5 hover:bg-primary/10"
-      : accent === "warning" ? "bg-warning/10 hover:bg-warning/15"
-      : accent === "success" ? "bg-success/5 hover:bg-success/10"
-      : "bg-destructive/5 hover:bg-destructive/10";
+    accent === "primary"
+      ? "bg-primary/5 hover:bg-primary/10"
+      : accent === "warning"
+        ? "bg-warning/10 hover:bg-warning/15"
+        : accent === "success"
+          ? "bg-success/5 hover:bg-success/10"
+          : "bg-destructive/5 hover:bg-destructive/10";
   const accentBorder =
-    accent === "primary" ? "border-primary/30"
-      : accent === "warning" ? "border-warning/40"
-      : accent === "success" ? "border-success/30"
-      : "border-destructive/30";
+    accent === "primary"
+      ? "border-primary/30"
+      : accent === "warning"
+        ? "border-warning/40"
+        : accent === "success"
+          ? "border-success/30"
+          : "border-destructive/30";
   const emptyMsg =
-    bucket === "open" ? "No open requests for this round."
-      : bucket === "closed" ? "No clauses have been closed for this round yet."
-      : "No new material changes identified.";
+    bucket === "open"
+      ? "No open requests for this round."
+      : bucket === "closed"
+        ? "No clauses have been closed for this round yet."
+        : "No new material changes identified.";
   const visibleStats = summariseComparisonRows(rows);
   const displayedStats = layout === "plain" ? visibleStats : stats;
   const bucketSummary = [
-    displayedStats.pendingReview > 0 ? `${displayedStats.pendingReview} need review` : null,
+    displayedStats.pendingReview > 0
+      ? `${displayedStats.pendingReview} need review`
+      : null,
     displayedStats.actioned > 0 ? `${displayedStats.actioned} actioned` : null,
-    rows.length !== displayedStats.total ? `${visibleStats.visible} shown` : null,
-  ].filter(Boolean).join(" · ");
+    rows.length !== displayedStats.total
+      ? `${visibleStats.visible} shown`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const sortedRows = [...rows].sort((a, b) => {
     if (bucket === "new") {
       const statusDelta =
@@ -5728,157 +8077,222 @@ function ComparisonSection({
     const bTitle = (b.curr ?? b.prev)?.title ?? b.id;
     return aTitle.localeCompare(bTitle);
   });
-
-  const rowsContent = rows.length === 0 ? (
-    <div className="border-t border-border p-orbit-m text-center text-xs text-muted-foreground">{emptyMsg}</div>
-  ) : (
-    <div className="space-y-orbit-s border-t border-border p-orbit-base">
-      {sortedRows.map((r) => {
-        const display = r.curr ?? r.prev!;
-        const req = requestOf(r.id);
-        const basketRequest = basketRequestOf?.(r.id) ?? req;
-        const closure = closureOf(r.id);
-        const isPinned = pinnedIds?.has(r.id) ?? false;
-        const undoExpiresAt = recentlyClosed?.[r.id];
-        const showRowUndo = !!undoExpiresAt && undoExpiresAt > Date.now();
-        const requested = bucket === "new" && (r.actionState === "requested" || r.actionState === "submitted_request");
-        const pendingBasketRequest = basketRequest?.state === "pending" && Boolean(basketRequest.requestedChange?.trim());
-        const noAction = bucket === "new" && r.actionState === "no_action";
-        const supportsInlineRequest = Boolean(draftOf && onUpdateText && onCancelDraft && onSubmitDraft);
-        const drafting =
-          supportsInlineRequest &&
-          (r.actionState === "drafting" || expandedRequestId === r.id);
-        const draft = draftOf?.(r.id) ?? {};
-        const cancelDraft = () => {
-          if (draft.requestedChange?.trim() || draft.rationale?.trim()) {
-            setPendingDraftCancelId(r.id);
-            return;
-          }
-          onCancelDraft?.(r.id);
-          setExpandedRequestId(null);
-        };
-        const comparisonDetails = (
-          <div className="grid gap-orbit-s text-[11px] md:grid-cols-2">
-            {bucket !== "new" && (
-              <div className="rounded-md border-l-2 border-primary bg-primary/5 px-orbit-s py-orbit-s md:col-span-2">
-                <p className="text-[9px] v5-orbit-weight-semibold uppercase tracking-wide text-primary">
-                  Requested{req.fromVersion ? ` · from ${req.fromVersion}` : ""}
-                </p>
-                <p className="mt-orbit-xs leading-snug text-foreground">{req.requestedChange ?? "No request captured"}</p>
-                {req.rationale && <p className="mt-orbit-xs italic leading-snug text-muted-foreground">{req.rationale}</p>}
-              </div>
-            )}
-            <div className={cn("rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s", bucket === "new" && "md:col-span-1")}>
-              <p className="text-[9px] v5-orbit-weight-semibold uppercase tracking-wide text-muted-foreground">{leftLabel}</p>
-              <p className="mt-orbit-xs leading-snug text-muted-foreground">{r.prev?.deviation ?? "Clause did not exist."}</p>
+  const rowsContent =
+    rows.length === 0 ? (
+      <div className="border-t border-border p-orbit-m text-center cpv2-type-xs text-muted-foreground">
+        {emptyMsg}
+      </div>
+    ) : (
+      <div className="space-y-orbit-s border-t border-border p-orbit-base">
+        {" "}
+        {sortedRows.map((r) => {
+          const display = r.curr ?? r.prev!;
+          const req = requestOf(r.id);
+          const basketRequest = basketRequestOf?.(r.id) ?? req;
+          const closure = closureOf(r.id);
+          const isPinned = pinnedIds?.has(r.id) ?? false;
+          const undoExpiresAt = recentlyClosed?.[r.id];
+          const showRowUndo = !!undoExpiresAt && undoExpiresAt > Date.now();
+          const requested =
+            bucket === "new" &&
+            (r.actionState === "requested" ||
+              r.actionState === "submitted_request");
+          const pendingBasketRequest =
+            basketRequest?.state === "pending" &&
+            Boolean(basketRequest.requestedChange?.trim());
+          const noAction = bucket === "new" && r.actionState === "no_action";
+          const supportsInlineRequest = Boolean(
+            draftOf && onUpdateText && onCancelDraft && onSubmitDraft,
+          );
+          const drafting =
+            supportsInlineRequest &&
+            (r.actionState === "drafting" || expandedRequestId === r.id);
+          const draft = draftOf?.(r.id) ?? {};
+          const cancelDraft = () => {
+            if (draft.requestedChange?.trim() || draft.rationale?.trim()) {
+              setPendingDraftCancelId(r.id);
+              return;
+            }
+            onCancelDraft?.(r.id);
+            setExpandedRequestId(null);
+          };
+          const comparisonDetails = (
+            <div className="grid gap-orbit-s cpv2-type-xs md:grid-cols-2">
+              {" "}
+              {bucket !== "new" && (
+                <div className="rounded-md border-l-2 border-primary bg-primary/5 px-orbit-s py-orbit-s md:col-span-2">
+                  {" "}
+                  <p className="cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-primary">
+                    {" "}
+                    Requested
+                    {req.fromVersion ? ` · from ${req.fromVersion}` : ""}{" "}
+                  </p>{" "}
+                  <p className="mt-orbit-xs cpv2-leading-snug text-foreground">
+                    {req.requestedChange ?? "No request captured"}
+                  </p>{" "}
+                  {req.rationale && (
+                    <p className="mt-orbit-xs italic cpv2-leading-snug text-muted-foreground">
+                      {req.rationale}
+                    </p>
+                  )}{" "}
+                </div>
+              )}{" "}
+              <div
+                className={cn(
+                  "rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s",
+                  bucket === "new" && "md:col-span-1",
+                )}
+              >
+                {" "}
+                <p className="cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-muted-foreground">
+                  {leftLabel}
+                </p>{" "}
+                <p className="mt-orbit-xs cpv2-leading-snug text-muted-foreground">
+                  {r.prev?.deviation ?? "Clause did not exist."}
+                </p>{" "}
+              </div>{" "}
+              <div className="rounded-md bg-[#E6F1FB]/45 px-orbit-s py-orbit-s">
+                {" "}
+                <p className="cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-[#185FA5]">
+                  {rightLabel}
+                </p>{" "}
+                <p className="mt-orbit-xs cpv2-leading-snug text-foreground">
+                  {r.curr?.deviation ?? "Clause no longer present."}
+                </p>{" "}
+              </div>{" "}
             </div>
-            <div className="rounded-md bg-[#E6F1FB]/45 px-orbit-s py-orbit-s">
-              <p className="text-[9px] v5-orbit-weight-semibold uppercase tracking-wide text-[#185FA5]">{rightLabel}</p>
-              <p className="mt-orbit-xs leading-snug text-foreground">{r.curr?.deviation ?? "Clause no longer present."}</p>
-            </div>
-          </div>
-        );
-        const rowActions =
-          bucket === "new" ? undefined :
-            bucket === "closed" ? (
-              <Button variant="outline" className="h-8 text-[11px]" onClick={() => onKeepOpen(r.id)}>
-                Reopen
+          );
+          const rowActions =
+            bucket === "new" ? undefined : bucket === "closed" ? (
+              <Button
+                variant="outline"
+                className="h-8 cpv2-type-xs"
+                onClick={() => onKeepOpen(r.id)}
+              >
+                {" "}
+                Reopen{" "}
               </Button>
             ) : (
               <>
+                {" "}
                 <Button
                   variant={closure === "closed" ? "default" : "outline"}
-                  className="h-8 text-[11px]"
+                  className="h-8 cpv2-type-xs"
                   onClick={() => onClose(r.id)}
                 >
-                  {classifyChange(r.prev, r.curr) === "material" ? "Close" : "Close anyway"}
-                </Button>
+                  {" "}
+                  {classifyChange(r.prev, r.curr) === "material"
+                    ? "Close"
+                    : "Close anyway"}{" "}
+                </Button>{" "}
                 <Button
                   variant={closure === "follow-up" ? "secondary" : "outline"}
-                  className="h-8 text-[11px]"
+                  className="h-8 cpv2-type-xs"
                   onClick={() => {
                     onFollowUp?.(r.id);
                     if (supportsInlineRequest) setExpandedRequestId(r.id);
                   }}
                 >
-                  Follow-up
-                </Button>
+                  {" "}
+                  Follow-up{" "}
+                </Button>{" "}
                 <Button
                   variant={closure === "keep-open" ? "secondary" : "outline"}
-                  className="h-8 text-[11px]"
+                  className="h-8 cpv2-type-xs"
                   onClick={() => onKeepOpen(r.id)}
                 >
-                  Keep Open
-                </Button>
+                  {" "}
+                  Keep Open{" "}
+                </Button>{" "}
               </>
             );
-
-        return (
-          <ClauseDecisionCard
-            key={r.id}
-            id={r.id}
-            clause={display}
-            versionLabel={rightLabel}
-            description={display.deviation}
-            decision={bucket === "new" ? (requested ? "request-update" : noAction ? "no-action" : undefined) : undefined}
-            request={basketRequest}
-            draft={draft}
-            isDrafting={drafting}
-            changePill={r.pill}
-            metaPrefix={r.pill.status === "new" ? <span className="mr-orbit-xs text-[#0C447C]">+</span> : null}
-            extraContent={
-              <>
-                {comparisonDetails}
-                {showRowUndo && onUndoClose && (
-                  <CpButton
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onUndoClose(r.id);
-                    }}
-                    className="mt-orbit-s inline-flex items-center gap-orbit-xs text-[11px] text-primary hover:underline"
-                  >
-                    <RotateCcw className="h-3 w-3" /> Undo close
-                  </CpButton>
-                )}
-              </>
-            }
-            actions={rowActions}
-            pinned={isPinned}
-            onTogglePin={onTogglePin ? () => onTogglePin(r.id) : undefined}
-            primaryActionLabel="Request Change"
-            requestPlaceholder={
-              bucket === "open"
-                ? "Describe the follow-up action you want from the supplier"
-                : "Describe the update you want from the supplier"
-            }
-            onRequest={() => {
-              onKeepOpen(r.id);
-              setExpandedRequestId(r.id);
-            }}
-            onNoAction={() => onClose(r.id)}
-            onEditRequest={() => {
-              if (!pendingBasketRequest) onKeepOpen(r.id);
-              setExpandedRequestId(r.id);
-            }}
-            onChangeNoAction={() => {
-              if (!pendingBasketRequest) onKeepOpen(r.id);
-              setExpandedRequestId(r.id);
-            }}
-            onUpdateDraft={onUpdateText ? (patch) => onUpdateText(r.id, patch) : undefined}
-            onCancelDraft={cancelDraft}
-            onSubmitDraft={onSubmitDraft ? () => {
-              onSubmitDraft(r.id);
-              setExpandedRequestId(null);
-            } : undefined}
-            onRemoveRequest={onRemoveRequest ? () => onRemoveRequest(r.id) : undefined}
-            onOpenDetail={() => onOpenDetail(r.id)}
-          />
-        );
-      })}
-    </div>
-  );
-
+          return (
+            <ClauseDecisionCard
+              key={r.id}
+              id={r.id}
+              clause={display}
+              versionLabel={rightLabel}
+              description={display.deviation}
+              decision={
+                bucket === "new"
+                  ? requested
+                    ? "request-update"
+                    : noAction
+                      ? "no-action"
+                      : undefined
+                  : undefined
+              }
+              request={basketRequest}
+              draft={draft}
+              isDrafting={drafting}
+              changePill={r.pill}
+              metaPrefix={
+                r.pill.status === "new" ? (
+                  <span className="mr-orbit-xs text-[#0C447C]">+</span>
+                ) : null
+              }
+              extraContent={
+                <>
+                  {" "}
+                  {comparisonDetails}{" "}
+                  {showRowUndo && onUndoClose && (
+                    <CpButton
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onUndoClose(r.id);
+                      }}
+                      className="mt-orbit-s inline-flex items-center gap-orbit-xs cpv2-type-xs text-primary hover:underline"
+                    >
+                      {" "}
+                      <RotateCcw className="h-3 w-3" /> Undo close{" "}
+                    </CpButton>
+                  )}{" "}
+                </>
+              }
+              actions={rowActions}
+              pinned={isPinned}
+              onTogglePin={onTogglePin ? () => onTogglePin(r.id) : undefined}
+              primaryActionLabel="Request Change"
+              requestPlaceholder={
+                bucket === "open"
+                  ? "Describe the follow-up action you want from the supplier"
+                  : "Describe the update you want from the supplier"
+              }
+              onRequest={() => {
+                onKeepOpen(r.id);
+                setExpandedRequestId(r.id);
+              }}
+              onNoAction={() => onClose(r.id)}
+              onEditRequest={() => {
+                if (!pendingBasketRequest) onKeepOpen(r.id);
+                setExpandedRequestId(r.id);
+              }}
+              onChangeNoAction={() => {
+                if (!pendingBasketRequest) onKeepOpen(r.id);
+                setExpandedRequestId(r.id);
+              }}
+              onUpdateDraft={
+                onUpdateText ? (patch) => onUpdateText(r.id, patch) : undefined
+              }
+              onCancelDraft={cancelDraft}
+              onSubmitDraft={
+                onSubmitDraft
+                  ? () => {
+                      onSubmitDraft(r.id);
+                      setExpandedRequestId(null);
+                    }
+                  : undefined
+              }
+              onRemoveRequest={
+                onRemoveRequest ? () => onRemoveRequest(r.id) : undefined
+              }
+              onOpenDetail={() => onOpenDetail(r.id)}
+            />
+          );
+        })}{" "}
+      </div>
+    );
   const confirmOverlay = (
     <CpOrbitConfirmOverlay
       open={Boolean(pendingDraftCancelId)}
@@ -5896,67 +8310,111 @@ function ComparisonSection({
       }}
     />
   );
-
   if (layout === "plain") {
     return (
       <>
-        <section className={`overflow-hidden rounded-lg border ${accentBorder} bg-card`}>
-          <div className={`flex items-start gap-orbit-base p-orbit-base ${accentBg}`}>
-            <span className={`w-1 self-stretch rounded ${accentBar}`} />
+        {" "}
+        <section
+          className={`overflow-hidden rounded-lg border ${accentBorder} bg-card`}
+        >
+          {" "}
+          <div
+            className={`flex items-start gap-orbit-base p-orbit-base ${accentBg}`}
+          >
+            {" "}
+            <span className={`w-1 self-stretch rounded ${accentBar}`} />{" "}
             <div className="min-w-0 flex-1">
+              {" "}
               <div className="flex flex-wrap items-center gap-orbit-s">
-                <h3 className={`v5-orbit-heading-strong ${accentText}`}>
-                  {title} · <span className="tabular-nums text-foreground">{displayedStats.total}</span>
-                </h3>
+                {" "}
+                <h3 className={`cpv2-orbit-heading-strong ${accentText}`}>
+                  {" "}
+                  {title} ·{" "}
+                  <span className="tabular-nums text-foreground">
+                    {displayedStats.total}
+                  </span>{" "}
+                </h3>{" "}
                 {bucketSummary && (
-                  <span className="text-[11px] v5-orbit-weight-medium text-muted-foreground">{bucketSummary}</span>
-                )}
-              </div>
-              <p className="mt-orbit-xxs text-xs text-muted-foreground">{description}</p>
-            </div>
-          </div>
-          {rowsContent}
-        </section>
-        {confirmOverlay}
+                  <span className="cpv2-type-xs cpv2-orbit-weight-medium text-muted-foreground">
+                    {bucketSummary}
+                  </span>
+                )}{" "}
+              </div>{" "}
+              <p className="mt-orbit-xxs cpv2-type-xs text-muted-foreground">
+                {description}
+              </p>{" "}
+            </div>{" "}
+          </div>{" "}
+          {rowsContent}{" "}
+        </section>{" "}
+        {confirmOverlay}{" "}
       </>
     );
   }
-
   return (
     <>
-      <section className={`overflow-hidden rounded-lg border ${accentBorder} bg-card`}>
+      {" "}
+      <section
+        className={`overflow-hidden rounded-lg border ${accentBorder} bg-card`}
+      >
+        {" "}
         <CpButton
           type="button"
           aria-expanded={open}
           className={`flex w-full items-start gap-orbit-base p-orbit-base text-left transition-colors ${accentBg}`}
           onClick={() => setOpen((current) => !current)}
         >
-          <span className={`w-1 self-stretch rounded ${accentBar}`} />
+          {" "}
+          <span className={`w-1 self-stretch rounded ${accentBar}`} />{" "}
           <div className="min-w-0 flex-1">
+            {" "}
             <div className="flex flex-wrap items-center gap-orbit-s">
-              <h3 className={`v5-orbit-heading-strong ${accentText}`}>
-                {title} · <span className="tabular-nums text-foreground">{displayedStats.total}</span>
-              </h3>
+              {" "}
+              <h3 className={`cpv2-orbit-heading-strong ${accentText}`}>
+                {" "}
+                {title} ·{" "}
+                <span className="tabular-nums text-foreground">
+                  {displayedStats.total}
+                </span>{" "}
+              </h3>{" "}
               {bucketSummary && (
-                <span className="text-[11px] v5-orbit-weight-medium text-muted-foreground">{bucketSummary}</span>
-              )}
-            </div>
-            <p className="mt-orbit-xxs text-xs text-muted-foreground">{description}</p>
-          </div>
-          <ChevronDown className={`mt-orbit-xs h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
-        </CpButton>
-        {open && rowsContent}
-      </section>
-      {confirmOverlay}
+                <span className="cpv2-type-xs cpv2-orbit-weight-medium text-muted-foreground">
+                  {bucketSummary}
+                </span>
+              )}{" "}
+            </div>{" "}
+            <p className="mt-orbit-xxs cpv2-type-xs text-muted-foreground">
+              {description}
+            </p>{" "}
+          </div>{" "}
+          <ChevronDown
+            className={`mt-orbit-xs h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+          />{" "}
+        </CpButton>{" "}
+        {open && rowsContent}{" "}
+      </section>{" "}
+      {confirmOverlay}{" "}
     </>
   );
 }
-
-// ---- Unmarked clauses (collapsible) ----------------------------------------
-
 function UnmarkedSection({
-  rows, leftLabel, rightLabel, visible, defaultOpen,
-  requestOf, draftOf, isRequested, decisionOf, isDrafting, onRequestChange, onSetNoAction, onUpdateText, onCancelDraft, onSubmitDraft, onRemoveRequest, onOpenDetail,
+  rows,
+  leftLabel,
+  rightLabel,
+  visible,
+  defaultOpen,
+  requestOf,
+  draftOf,
+  isRequested,
+  decisionOf,
+  isDrafting,
+  onRequestChange,
+  onSetNoAction,
+  onUpdateText,
+  onCancelDraft,
+  onSubmitDraft,
+  onRemoveRequest,
+  onOpenDetail,
 }: {
   rows: { id: string; prev?: ClauseResult; curr?: ClauseResult }[];
   leftLabel: string;
@@ -5970,7 +8428,10 @@ function UnmarkedSection({
   isDrafting: (id: string) => boolean;
   onRequestChange: (id: string) => void;
   onSetNoAction: (id: string) => void;
-  onUpdateText: (id: string, patch: { requestedChange?: string; rationale?: string }) => void;
+  onUpdateText: (
+    id: string,
+    patch: { requestedChange?: string; rationale?: string },
+  ) => void;
   onCancelDraft: (id: string) => void;
   onSubmitDraft: (id: string) => void;
   onRemoveRequest?: (id: string) => void;
@@ -5979,8 +8440,12 @@ function UnmarkedSection({
   const [open, setOpen] = useState(defaultOpen);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [localSearch, setLocalSearch] = useState("");
-  const [pendingDraftCancelId, setPendingDraftCancelId] = useState<string | null>(null);
-  useEffect(() => { if (defaultOpen) setOpen(true); }, [defaultOpen]);
+  const [pendingDraftCancelId, setPendingDraftCancelId] = useState<
+    string | null
+  >(null);
+  useEffect(() => {
+    if (defaultOpen) setOpen(true);
+  }, [defaultOpen]);
   const q = localSearch.trim().toLowerCase();
   const filteredRows = q
     ? rows.filter((r) => {
@@ -5995,50 +8460,74 @@ function UnmarkedSection({
   if (!visible) return null;
   return (
     <>
+      {" "}
       <div className="bg-card border border-border rounded-lg overflow-hidden">
-          <CpButton
-            type="button"
-            aria-expanded={open}
-            className="w-full flex items-start gap-orbit-base p-orbit-base border-b border-border text-left hover:bg-muted/30 transition-colors"
-            onClick={() => setOpen((current) => !current)}
-          >
-            <span className="w-1 self-stretch rounded bg-muted-foreground/40" />
-            <div className="flex-1">
-              <h3 className="v5-orbit-heading-strong text-foreground">
-                Unmarked clauses · <span className="tabular-nums text-muted-foreground">{rows.length}</span>
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Clauses you didn't previously flag and the supplier didn't materially change. Expand to search this list, or use the <span className="v5-orbit-weight-medium text-foreground">filter and search above</span> to narrow results, then request a change in this round.
-              </p>
-            </div>
-            <ChevronDown className={`w-4 h-4 text-muted-foreground mt-orbit-xs transition-transform ${open ? "rotate-180" : ""}`} />
-          </CpButton>
-        {open && (
-          rows.length === 0 ? (
-            <div className="p-orbit-m text-center text-xs text-muted-foreground">
-              Every clause has either been actioned or already has a material change in this round.
+        {" "}
+        <CpButton
+          type="button"
+          aria-expanded={open}
+          className="w-full flex items-start gap-orbit-base p-orbit-base border-b border-border text-left hover:bg-muted/30 transition-colors"
+          onClick={() => setOpen((current) => !current)}
+        >
+          {" "}
+          <span className="w-1 self-stretch rounded bg-muted-foreground/40" />{" "}
+          <div className="flex-1">
+            {" "}
+            <h3 className="cpv2-orbit-heading-strong text-foreground">
+              {" "}
+              Unmarked clauses ·{" "}
+              <span className="tabular-nums text-muted-foreground">
+                {rows.length}
+              </span>{" "}
+            </h3>{" "}
+            <p className="cpv2-type-xs text-muted-foreground">
+              {" "}
+              Clauses you didn't previously flag and the supplier didn't
+              materially change. Expand to search this list, or use the{" "}
+              <span className="cpv2-orbit-weight-medium text-foreground">
+                filter and search above
+              </span>{" "}
+              to narrow results, then request a change in this round.{" "}
+            </p>{" "}
+          </div>{" "}
+          <ChevronDown
+            className={`w-4 h-4 text-muted-foreground mt-orbit-xs transition-transform ${open ? "rotate-180" : ""}`}
+          />{" "}
+        </CpButton>{" "}
+        {open &&
+          (rows.length === 0 ? (
+            <div className="p-orbit-m text-center cpv2-type-xs text-muted-foreground">
+              {" "}
+              Every clause has either been actioned or already has a material
+              change in this round.{" "}
             </div>
           ) : (
             <>
+              {" "}
               <div className="p-orbit-base border-b border-border bg-muted/20 flex items-center gap-orbit-s">
+                {" "}
                 <div className="flex-1 max-w-md">
+                  {" "}
                   <Searchbox
                     ariaLabel="Search unmarked clauses"
                     value={localSearch}
                     onChange={setLocalSearch}
                     placeholder={`Search ${rows.length} unmarked clauses…`}
-                  />
-                </div>
-                <span className="text-[11px] text-muted-foreground tabular-nums">
-                  {filteredRows.length} / {rows.length}
-                </span>
-              </div>
+                  />{" "}
+                </div>{" "}
+                <span className="cpv2-type-xs text-muted-foreground tabular-nums">
+                  {" "}
+                  {filteredRows.length} / {rows.length}{" "}
+                </span>{" "}
+              </div>{" "}
               {filteredRows.length === 0 ? (
-                <div className="p-orbit-m text-center text-xs text-muted-foreground">
-                  No unmarked clauses match "{localSearch}".
+                <div className="p-orbit-m text-center cpv2-type-xs text-muted-foreground">
+                  {" "}
+                  No unmarked clauses match "{localSearch}".{" "}
                 </div>
               ) : (
                 <div className="space-y-orbit-s p-orbit-base">
+                  {" "}
                   {filteredRows.map((r) => {
                     const display = r.curr ?? r.prev!;
                     const requested = isRequested(r.id);
@@ -6048,7 +8537,10 @@ function UnmarkedSection({
                     const draft = draftOf(r.id);
                     const isExpanded = expandedId === r.id || drafting;
                     const cancelDraft = () => {
-                      if (draft.requestedChange?.trim() || draft.rationale?.trim()) {
+                      if (
+                        draft.requestedChange?.trim() ||
+                        draft.rationale?.trim()
+                      ) {
                         setPendingDraftCancelId(r.id);
                         return;
                       }
@@ -6062,20 +8554,38 @@ function UnmarkedSection({
                         clause={display}
                         versionLabel={rightLabel}
                         description={display.deviation}
-                        decision={requested ? "request-update" : decision === "no-action" ? "no-action" : undefined}
+                        decision={
+                          requested
+                            ? "request-update"
+                            : decision === "no-action"
+                              ? "no-action"
+                              : undefined
+                        }
                         request={req}
                         draft={draft}
                         isDrafting={isExpanded}
                         extraContent={
-                          <div className="grid gap-orbit-s text-[11px] md:grid-cols-2">
+                          <div className="grid gap-orbit-s cpv2-type-xs md:grid-cols-2">
+                            {" "}
                             <div className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s">
-                              <p className="text-[9px] v5-orbit-weight-semibold uppercase tracking-wide text-muted-foreground">{leftLabel}</p>
-                              <p className="mt-orbit-xs leading-snug text-muted-foreground">{r.prev?.deviation ?? "Clause did not exist."}</p>
-                            </div>
+                              {" "}
+                              <p className="cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-muted-foreground">
+                                {leftLabel}
+                              </p>{" "}
+                              <p className="mt-orbit-xs cpv2-leading-snug text-muted-foreground">
+                                {r.prev?.deviation ?? "Clause did not exist."}
+                              </p>{" "}
+                            </div>{" "}
                             <div className="rounded-md bg-[#E6F1FB]/45 px-orbit-s py-orbit-s">
-                              <p className="text-[9px] v5-orbit-weight-semibold uppercase tracking-wide text-[#185FA5]">{rightLabel}</p>
-                              <p className="mt-orbit-xs leading-snug text-foreground">{r.curr?.deviation ?? "Clause no longer present."}</p>
-                            </div>
+                              {" "}
+                              <p className="cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-[#185FA5]">
+                                {rightLabel}
+                              </p>{" "}
+                              <p className="mt-orbit-xs cpv2-leading-snug text-foreground">
+                                {r.curr?.deviation ??
+                                  "Clause no longer present."}
+                              </p>{" "}
+                            </div>{" "}
                           </div>
                         }
                         onRequest={() => {
@@ -6097,17 +8607,20 @@ function UnmarkedSection({
                           onSubmitDraft(r.id);
                           setExpandedId(null);
                         }}
-                        onRemoveRequest={onRemoveRequest ? () => onRemoveRequest(r.id) : undefined}
+                        onRemoveRequest={
+                          onRemoveRequest
+                            ? () => onRemoveRequest(r.id)
+                            : undefined
+                        }
                         onOpenDetail={() => onOpenDetail(r.id)}
                       />
                     );
-                  })}
+                  })}{" "}
                 </div>
-              )}
+              )}{" "}
             </>
-          )
-        )}
-      </div>
+          ))}{" "}
+      </div>{" "}
       <CpOrbitConfirmOverlay
         open={Boolean(pendingDraftCancelId)}
         onOpenChange={(nextOpen) => {
@@ -6122,15 +8635,16 @@ function UnmarkedSection({
           setExpandedId(null);
           setPendingDraftCancelId(null);
         }}
-      />
+      />{" "}
     </>
   );
 }
-
-// ---- Round Tracker ----------------------------------------------------------
-
 function RoundTracker({
-  versions, stateOf, search, activeCategories, onOpenDetail,
+  versions,
+  stateOf,
+  search,
+  activeCategories,
+  onOpenDetail,
 }: {
   versions: ContractVersion[];
   stateOf: (id: string) => ClauseDecisionState;
@@ -6140,10 +8654,16 @@ function RoundTracker({
 }) {
   const activeCategorySet = new Set(activeCategories);
   const rows = CLAUSE_FRAMEWORK.filter((d) => {
-    if (activeCategorySet.size > 0 && !activeCategorySet.has(d.category)) return false;
+    if (activeCategorySet.size > 0 && !activeCategorySet.has(d.category))
+      return false;
     if (search.trim()) {
       const q = search.trim().toLowerCase();
-      if (!d.title.toLowerCase().includes(q) && !d.category.toLowerCase().includes(q) && !d.id.includes(q)) return false;
+      if (
+        !d.title.toLowerCase().includes(q) &&
+        !d.category.toLowerCase().includes(q) &&
+        !d.id.includes(q)
+      )
+        return false;
     }
     return true;
   });
@@ -6154,10 +8674,14 @@ function RoundTracker({
       width: "260px",
       render: (def: (typeof CLAUSE_FRAMEWORK)[number]) => (
         <div>
-          <span className="text-sm v5-orbit-weight-medium text-foreground hover:text-primary">
-            {def.title}
-          </span>
-          <p className="text-[11px] tabular-nums text-muted-foreground">{def.id.toUpperCase()} · {def.category}</p>
+          {" "}
+          <span className="cpv2-type-sm cpv2-orbit-weight-medium text-foreground hover:text-primary">
+            {" "}
+            {def.title}{" "}
+          </span>{" "}
+          <p className="cpv2-type-xs tabular-nums text-muted-foreground">
+            {def.id.toUpperCase()} · {def.category}
+          </p>{" "}
         </div>
       ),
     },
@@ -6165,14 +8689,23 @@ function RoundTracker({
       id: v.version,
       header: (
         <div className="flex flex-col items-center">
-          <span className="tabular-nums text-xs v5-orbit-weight-bold text-foreground">Round {parseInt(v.version.replace("v", ""), 10)}</span>
-          <span className="text-[10px] text-muted-foreground tabular-nums">{v.version}</span>
+          {" "}
+          <span className="tabular-nums cpv2-type-xs cpv2-orbit-weight-bold text-foreground">
+            Round {parseInt(v.version.replace("v", ""), 10)}
+          </span>{" "}
+          <span className="cpv2-type-xs text-muted-foreground tabular-nums">
+            {v.version}
+          </span>{" "}
         </div>
       ),
       render: (def: (typeof CLAUSE_FRAMEWORK)[number]) => {
         const state = stateOf(def.id);
         const outcome = roundOutcome(def.id, v.version, versions, state);
-        return <Badge variant="outline" className={`${outcome.tone} text-[10px]`}>{outcome.label}</Badge>;
+        return (
+          <Badge variant="outline" className={`${outcome.tone} cpv2-type-xs`}>
+            {outcome.label}
+          </Badge>
+        );
       },
     })),
     {
@@ -6181,19 +8714,32 @@ function RoundTracker({
       width: "140px",
       render: (def: (typeof CLAUSE_FRAMEWORK)[number]) => {
         const state = stateOf(def.id);
-        const latest = roundOutcome(def.id, versions.at(-1)!.version, versions, state);
-        return <Badge variant="outline" className={`${latest.tone} text-[10px]`}>{latest.label}</Badge>;
+        const latest = roundOutcome(
+          def.id,
+          versions.at(-1)!.version,
+          versions,
+          state,
+        );
+        return (
+          <Badge variant="outline" className={`${latest.tone} cpv2-type-xs`}>
+            {latest.label}
+          </Badge>
+        );
       },
     },
   ];
-
   return (
     <div className="space-y-orbit-base">
+      {" "}
       <div className="bg-card border border-border rounded-lg p-orbit-base">
-        <h2 className="v5-orbit-heading-5">History</h2>
-        <p className="text-xs text-muted-foreground">Track clause changes and outcomes across negotiation rounds.</p>
-      </div>
+        {" "}
+        <h2 className="cpv2-orbit-heading-5">History</h2>{" "}
+        <p className="cpv2-type-xs text-muted-foreground">
+          Track clause changes and outcomes across negotiation rounds.
+        </p>{" "}
+      </div>{" "}
       <div className="bg-card border border-border rounded-lg overflow-hidden">
+        {" "}
         <OrbitTable
           ariaLabel="Clause negotiation history"
           columns={roundColumns}
@@ -6202,14 +8748,11 @@ function RoundTracker({
           density="Compact"
           onRowSelect={(row) => onOpenDetail(row.id)}
           getRowSelectionLabel={(row) => `Open ${row.title}`}
-        />
-      </div>
+        />{" "}
+      </div>{" "}
     </div>
   );
 }
-
-// ---- Side-by-side detail panel ---------------------------------------------
-
 function ClauseSlideOver({
   clauseId,
   prev,
@@ -6244,138 +8787,248 @@ function ClauseSlideOver({
   onMarkNewIssue: (id: string) => void;
 }) {
   const def = CLAUSE_FRAMEWORK.find((d) => d.id === clauseId);
-  const display = curr ?? prev ?? versions.at(-1)?.clauses.find((clause) => clause.id === clauseId);
+  const display =
+    curr ??
+    prev ??
+    versions.at(-1)?.clauses.find((clause) => clause.id === clauseId);
   const historyRow = buildHistoryRow(clauseId, versions, state);
   if (!def || !display || !historyRow) return null;
   const isNewClause = changePill.status === "new";
   const callout = slideOverCallout(changePill.status, leftLabel);
   const request = getLatestRequest(state, leftLabel)?.request;
-  const latestCell = [...historyRow.cells].reverse().find((cell) => cell.status !== "missing");
-
+  const latestCell = [...historyRow.cells]
+    .reverse()
+    .find((cell) => cell.status !== "missing");
   return (
     <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-foreground/25" onClick={onClose} />
+      {" "}
+      <div className="flex-1 bg-foreground/25" onClick={onClose} />{" "}
       <aside className="flex h-full w-[380px] flex-col border-l border-border bg-white shadow-xl">
+        {" "}
         <div className="shrink-0 border-b border-border px-orbit-base py-orbit-base">
+          {" "}
           <div className="flex items-start justify-between gap-orbit-base">
+            {" "}
             <div className="min-w-0">
-              <p className="text-[9px] v5-orbit-weight-medium uppercase text-muted-foreground">{clauseId.toUpperCase()} · {def.category}</p>
-              <h2 className="v5-orbit-heading-label mt-orbit-xs truncate text-foreground">{display.title}</h2>
+              {" "}
+              <p className="cpv2-type-xs cpv2-orbit-weight-medium uppercase text-muted-foreground">
+                {clauseId.toUpperCase()} · {def.category}
+              </p>{" "}
+              <h2 className="cpv2-orbit-heading-label mt-orbit-xs truncate text-foreground">
+                {display.title}
+              </h2>{" "}
               <div className="mt-orbit-s flex flex-wrap items-center gap-orbit-xs">
-                <Badge variant="outline" className={`${severityTone(display.severity)} text-[9px]`}>{display.severity}</Badge>
-                {changePill.status ? <ChangePillBadge result={changePill} /> : <RoundStatusPill status={historyRow.currentStatus}>{roundStatusLabel(historyRow.currentStatus)}</RoundStatusPill>}
+                {" "}
+                <Badge
+                  variant="outline"
+                  className={`${severityTone(display.severity)} cpv2-type-xs`}
+                >
+                  {display.severity}
+                </Badge>{" "}
+                {changePill.status ? (
+                  <ChangePillBadge result={changePill} />
+                ) : (
+                  <RoundStatusPill status={historyRow.currentStatus}>
+                    {roundStatusLabel(historyRow.currentStatus)}
+                  </RoundStatusPill>
+                )}{" "}
                 <CpButton
                   type="button"
                   onClick={() => onViewHistory(clauseId)}
-                  className="inline-flex items-center gap-orbit-xs rounded-full bg-[#FAEEDA]/70 px-orbit-s py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#633806] hover:bg-[#FAEEDA]"
+                  className="inline-flex items-center gap-orbit-xs rounded-full bg-[#FAEEDA]/70 px-orbit-s py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium text-[#633806] hover:bg-[#FAEEDA]"
                 >
-                  <IconTimeline size={11} stroke={1.8} />
-                  {historyRow.existsInRounds} rounds of history
-                </CpButton>
-              </div>
-            </div>
-            <CpButton type="button" onClick={onClose} className="rounded p-orbit-xs text-muted-foreground hover:bg-muted hover:text-foreground">
-              <X className="h-3.5 w-3.5" />
-            </CpButton>
-          </div>
-        </div>
-
+                  {" "}
+                  <IconTimeline size={11} stroke={1.8} />{" "}
+                  {historyRow.existsInRounds} rounds of history{" "}
+                </CpButton>{" "}
+              </div>{" "}
+            </div>{" "}
+            <CpButton
+              type="button"
+              onClick={onClose}
+              className="rounded p-orbit-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              {" "}
+              <X className="h-3.5 w-3.5" />{" "}
+            </CpButton>{" "}
+          </div>{" "}
+        </div>{" "}
         <div className="shrink-0 border-b border-border bg-[#f8f7f5] px-orbit-base py-orbit-s">
+          {" "}
           <div className="mb-orbit-s flex items-center justify-between">
-            <p className="text-[9px] v5-orbit-weight-medium uppercase text-muted-foreground">Negotiation timeline</p>
+            {" "}
+            <p className="cpv2-type-xs cpv2-orbit-weight-medium uppercase text-muted-foreground">
+              Negotiation timeline
+            </p>{" "}
             {mode === "comparison" && (
-              <CpButton type="button" onClick={() => onViewHistory(clauseId)} className="text-[9px] v5-orbit-weight-medium text-primary hover:underline">
-                View in History →
+              <CpButton
+                type="button"
+                onClick={() => onViewHistory(clauseId)}
+                className="cpv2-type-xs cpv2-orbit-weight-medium text-primary hover:underline"
+              >
+                {" "}
+                View in History →{" "}
               </CpButton>
-            )}
-          </div>
-          <div className="relative flex min-w-0 items-start gap-orbit-base overflow-x-auto px-orbit-xs pb-orbit-xs" aria-label={`Timeline for ${display.title}`}>
-            <div className="absolute left-4 right-4 top-2 h-px bg-border" aria-hidden />
+            )}{" "}
+          </div>{" "}
+          <div
+            className="relative flex min-w-0 items-start gap-orbit-base overflow-x-auto px-orbit-xs pb-orbit-xs"
+            aria-label={`Timeline for ${display.title}`}
+          >
+            {" "}
+            <div
+              className="absolute left-4 right-4 top-2 h-px bg-border"
+              aria-hidden
+            />{" "}
             {historyRow.cells.map((cell, index) => (
-              <div key={cell.version || index} className="relative z-10 flex min-w-[42px] flex-col items-center gap-orbit-xs">
-                <span className={`grid h-4 w-4 place-items-center rounded-full border text-[8px] v5-orbit-weight-medium ${roundStatusTone(cell.status)} ${index === historyRow.cells.length - 1 ? "outline outline-2 outline-offset-1 outline-[#185FA5]" : ""}`}>
-                  {index + 1}
-                </span>
-                <span className="text-[7px] text-muted-foreground">{cell.version || "—"}</span>
+              <div
+                key={cell.version || index}
+                className="relative z-10 flex min-w-[42px] flex-col items-center gap-orbit-xs"
+              >
+                {" "}
+                <span
+                  className={`grid h-4 w-4 place-items-center rounded-full border cpv2-type-xs cpv2-orbit-weight-medium ${roundStatusTone(cell.status)} ${index === historyRow.cells.length - 1 ? "outline outline-2 outline-offset-1 outline-[#185FA5]" : ""}`}
+                >
+                  {" "}
+                  {index + 1}{" "}
+                </span>{" "}
+                <span className="cpv2-type-xs text-muted-foreground">
+                  {cell.version || "—"}
+                </span>{" "}
               </div>
-            ))}
-          </div>
-        </div>
-
+            ))}{" "}
+          </div>{" "}
+        </div>{" "}
         <div className="min-h-0 flex-1 space-y-orbit-base overflow-y-auto px-orbit-base py-orbit-base">
+          {" "}
           {mode === "comparison" ? (
             <>
+              {" "}
               {callout && (
-                <div className={`rounded-md border-l-2 px-orbit-s py-orbit-s text-[10px] ${callout.className}`}>
-                  <p>{callout.text}</p>
+                <div
+                  className={`rounded-md border-l-2 px-orbit-s py-orbit-s cpv2-type-xs ${callout.className}`}
+                >
+                  {" "}
+                  <p>{callout.text}</p>{" "}
                 </div>
-              )}
-              <SectionLabel>{leftLabel} → {rightLabel} diff</SectionLabel>
+              )}{" "}
+              <SectionLabel>
+                {leftLabel} → {rightLabel} diff
+              </SectionLabel>{" "}
               <div className="grid grid-cols-2 gap-orbit-s">
+                {" "}
                 <div className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s opacity-75">
-                  <p className="text-[8px] v5-orbit-weight-medium uppercase text-muted-foreground">{leftLabel} · previous</p>
-                  <p className="mt-orbit-xs text-[10px] text-foreground">{isNewClause ? `(Clause did not exist in ${leftLabel})` : prev?.deviation ?? "—"}</p>
-                </div>
+                  {" "}
+                  <p className="cpv2-type-xs cpv2-orbit-weight-medium uppercase text-muted-foreground">
+                    {leftLabel} · previous
+                  </p>{" "}
+                  <p className="mt-orbit-xs cpv2-type-xs text-foreground">
+                    {isNewClause
+                      ? `(Clause did not exist in ${leftLabel})`
+                      : (prev?.deviation ?? "—")}
+                  </p>{" "}
+                </div>{" "}
                 <div className="rounded-md bg-[#E6F1FB]/50 px-orbit-s py-orbit-s">
-                  <p className="text-[8px] v5-orbit-weight-medium uppercase text-[#185FA5]">{rightLabel} · current</p>
-                  <p className="mt-orbit-xs text-[10px] text-foreground">{curr?.deviation ?? display.deviation}</p>
-                </div>
-              </div>
-              <SectionLabel>AI analysis</SectionLabel>
-              <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s text-[11px] text-muted-foreground">
-                {display.improvementReason ?? display.actionability ?? `Based on the playbook benchmark for ${def.category}, review this clause before accepting the version.`}
-              </p>
-              {(changePill.status === "met" || changePill.status === "not_met") && request?.requestedChange && (
-                <>
-                  <SectionLabel>Your request</SectionLabel>
-                  <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s text-[11px] text-muted-foreground">{request.requestedChange}</p>
-                </>
-              )}
+                  {" "}
+                  <p className="cpv2-type-xs cpv2-orbit-weight-medium uppercase text-[#185FA5]">
+                    {rightLabel} · current
+                  </p>{" "}
+                  <p className="mt-orbit-xs cpv2-type-xs text-foreground">
+                    {curr?.deviation ?? display.deviation}
+                  </p>{" "}
+                </div>{" "}
+              </div>{" "}
+              <SectionLabel>AI analysis</SectionLabel>{" "}
+              <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s cpv2-type-xs text-muted-foreground">
+                {" "}
+                {display.improvementReason ??
+                  display.actionability ??
+                  `Based on the playbook benchmark for ${def.category}, review this clause before accepting the version.`}{" "}
+              </p>{" "}
+              {(changePill.status === "met" ||
+                changePill.status === "not_met") &&
+                request?.requestedChange && (
+                  <>
+                    {" "}
+                    <SectionLabel>Your request</SectionLabel>{" "}
+                    <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s cpv2-type-xs text-muted-foreground">
+                      {request.requestedChange}
+                    </p>{" "}
+                  </>
+                )}{" "}
             </>
           ) : (
             <>
-              <SectionLabel>Description</SectionLabel>
-              <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s text-[11px] text-muted-foreground">{display.deviation}</p>
-              <SectionLabel>Latest diff</SectionLabel>
-              <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s text-[11px] text-muted-foreground">
-                {latestCell?.clause?.improvementReason ?? latestCell?.clause?.deviation ?? "No latest change available."}
-              </p>
-              <SectionLabel>AI analysis</SectionLabel>
-              <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s text-[11px] text-muted-foreground">
-                {display.actionability ?? `Clause history shows ${historyRow.stateChanges} state change${historyRow.stateChanges === 1 ? "" : "s"} across the negotiation.`}
-              </p>
-              <SectionLabel>Round-by-round</SectionLabel>
+              {" "}
+              <SectionLabel>Description</SectionLabel>{" "}
+              <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s cpv2-type-xs text-muted-foreground">
+                {display.deviation}
+              </p>{" "}
+              <SectionLabel>Latest diff</SectionLabel>{" "}
+              <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s cpv2-type-xs text-muted-foreground">
+                {" "}
+                {latestCell?.clause?.improvementReason ??
+                  latestCell?.clause?.deviation ??
+                  "No latest change available."}{" "}
+              </p>{" "}
+              <SectionLabel>AI analysis</SectionLabel>{" "}
+              <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s cpv2-type-xs text-muted-foreground">
+                {" "}
+                {display.actionability ??
+                  `Clause history shows ${historyRow.stateChanges} state change${historyRow.stateChanges === 1 ? "" : "s"} across the negotiation.`}{" "}
+              </p>{" "}
+              <SectionLabel>Round-by-round</SectionLabel>{" "}
               <div className="space-y-orbit-xs">
+                {" "}
                 {historyRow.cells.map((cell, index) => (
-                  <div key={`${cell.version}-${index}`} className="flex items-start justify-between gap-orbit-s rounded-md border border-border px-orbit-s py-orbit-s text-[10px]">
+                  <div
+                    key={`${cell.version}-${index}`}
+                    className="flex items-start justify-between gap-orbit-s rounded-md border border-border px-orbit-s py-orbit-s cpv2-type-xs"
+                  >
+                    {" "}
                     <div>
-                      <p className="v5-orbit-weight-medium text-foreground">Round {index + 1} · {cell.version}</p>
-                      <p className="mt-orbit-xxs text-muted-foreground">{cell.clause?.improvementReason ?? cell.clause?.deviation ?? "Clause not present in this round."}</p>
-                    </div>
-                    <RoundStatusPill status={cell.status}>{cell.label}</RoundStatusPill>
+                      {" "}
+                      <p className="cpv2-orbit-weight-medium text-foreground">
+                        Round {index + 1} · {cell.version}
+                      </p>{" "}
+                      <p className="mt-orbit-xxs text-muted-foreground">
+                        {cell.clause?.improvementReason ??
+                          cell.clause?.deviation ??
+                          "Clause not present in this round."}
+                      </p>{" "}
+                    </div>{" "}
+                    <RoundStatusPill status={cell.status}>
+                      {cell.label}
+                    </RoundStatusPill>{" "}
                   </div>
-                ))}
-              </div>
+                ))}{" "}
+              </div>{" "}
             </>
-          )}
-        </div>
-
+          )}{" "}
+        </div>{" "}
         <div className="flex shrink-0 items-center gap-orbit-s border-t border-border px-orbit-base py-orbit-s">
-          <Button variant="outline" className="h-8 text-xs" onClick={() => toast({ title: "Full text", description: display.excerpt })}>
-            View full text
-          </Button>
+          {" "}
+          <Button
+            variant="outline"
+            className="h-8 cpv2-type-xs"
+            onClick={() =>
+              toast({ title: "Full text", description: display.excerpt })
+            }
+          >
+            {" "}
+            View full text{" "}
+          </Button>{" "}
           <SlideOverPrimaryAction
             status={changePill.status}
             onCloseClause={() => onCloseClause(clauseId)}
             onKeepOpen={() => onKeepOpen(clauseId)}
             onMarkNewIssue={() => onMarkNewIssue(clauseId)}
-          />
-        </div>
-      </aside>
+          />{" "}
+        </div>{" "}
+      </aside>{" "}
     </div>
   );
 }
-
 function slideOverCallout(status: ChangePillStatus | null, leftLabel: string) {
   if (status === "regressed") {
     return {
@@ -6397,7 +9050,6 @@ function slideOverCallout(status: ChangePillStatus | null, leftLabel: string) {
   }
   return null;
 }
-
 function SlideOverPrimaryAction({
   status,
   onCloseClause,
@@ -6409,23 +9061,45 @@ function SlideOverPrimaryAction({
   onKeepOpen: () => void;
   onMarkNewIssue: () => void;
 }) {
-  const className = "ml-auto h-8 bg-[#1a2744] px-orbit-base text-xs text-white hover:bg-[#243454]";
-  if (status === "regressed") return <Button className={className} onClick={onMarkNewIssue}>Request revert</Button>;
-  if (status === "new" || status === "improved") return <Button className={className} onClick={onCloseClause}>Accept</Button>;
-  if (status === "met") return <Button className={className} onClick={onCloseClause}>Mark resolved</Button>;
-  if (status === "not_met") return <Button className={className} onClick={onKeepOpen}>Re-request</Button>;
-  return <Button className={className} onClick={onMarkNewIssue}>Request change</Button>;
+  const className = "ml-auto h-8 px-orbit-base cpv2-type-xs";
+  if (status === "regressed")
+    return (
+      <Button className={className} onClick={onMarkNewIssue}>
+        Request revert
+      </Button>
+    );
+  if (status === "new" || status === "improved")
+    return (
+      <Button className={className} onClick={onCloseClause}>
+        Accept
+      </Button>
+    );
+  if (status === "met")
+    return (
+      <Button className={className} onClick={onCloseClause}>
+        Mark resolved
+      </Button>
+    );
+  if (status === "not_met")
+    return (
+      <Button className={className} onClick={onKeepOpen}>
+        Re-request
+      </Button>
+    );
+  return (
+    <Button className={className} onClick={onMarkNewIssue}>
+      Request change
+    </Button>
+  );
 }
-
-function detailCalloutForStatus(status: ChangePillStatus | null): {
-  title: string;
-  description: string;
-  className: string;
-} | null {
+function detailCalloutForStatus(
+  status: ChangePillStatus | null,
+): { title: string; description: string; className: string } | null {
   if (status === "improved") {
     return {
       title: "Supplier improved this clause without being asked.",
-      description: "You can accept, challenge, or push for further improvement.",
+      description:
+        "You can accept, challenge, or push for further improvement.",
       className: "border-[#3B6D11]/25 bg-[#EAF3DE] text-[#27500A]",
     };
   }
@@ -6445,10 +9119,19 @@ function detailCalloutForStatus(status: ChangePillStatus | null): {
   }
   return null;
 }
-
 function ClauseDetailPanel({
-  clauseId, prev, curr, leftLabel, rightLabel, state, targetVersion,
-  changePill, onClose, onCloseClause, onKeepOpen, onMarkNewIssue,
+  clauseId,
+  prev,
+  curr,
+  leftLabel,
+  rightLabel,
+  state,
+  targetVersion,
+  changePill,
+  onClose,
+  onCloseClause,
+  onKeepOpen,
+  onMarkNewIssue,
 }: {
   clauseId: string;
   prev?: ClauseResult;
@@ -6471,220 +9154,394 @@ function ClauseDetailPanel({
   const directionalCallout = detailCalloutForStatus(changePill.status);
   return (
     <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-foreground/30" onClick={onClose} />
+      {" "}
+      <div className="flex-1 bg-foreground/30" onClick={onClose} />{" "}
       <div className="w-full max-w-3xl bg-background border-l border-border overflow-y-auto">
+        {" "}
         <div className="sticky top-0 bg-background border-b border-border px-orbit-m py-orbit-base flex items-start justify-between gap-orbit-base">
+          {" "}
           <div>
-            <p className="text-[10px] tabular-nums v5-orbit-weight-bold text-muted-foreground">{clauseId.toUpperCase()} · {def.category}</p>
-            <h2 className="v5-orbit-heading-4">{display.title}</h2>
-            <p className="text-xs tabular-nums text-muted-foreground">{display.subclause}</p>
-          </div>
-          <CpButton onClick={onClose} className="text-muted-foreground hover:text-foreground p-orbit-xs">
-            <X className="w-4 h-4" />
-          </CpButton>
-        </div>
-
+            {" "}
+            <p className="cpv2-type-xs tabular-nums cpv2-orbit-weight-bold text-muted-foreground">
+              {clauseId.toUpperCase()} · {def.category}
+            </p>{" "}
+            <h2 className="cpv2-orbit-heading-4">{display.title}</h2>{" "}
+            <p className="cpv2-type-xs tabular-nums text-muted-foreground">
+              {display.subclause}
+            </p>{" "}
+          </div>{" "}
+          <CpButton
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground p-orbit-xs"
+          >
+            {" "}
+            <X className="w-4 h-4" />{" "}
+          </CpButton>{" "}
+        </div>{" "}
         <div className="p-orbit-m space-y-orbit-m">
+          {" "}
           {directionalCallout && (
-            <div className={`rounded-md border px-orbit-base py-orbit-s text-sm ${directionalCallout.className}`}>
-              <p className="v5-orbit-weight-medium">{directionalCallout.title}</p>
-              <p className="mt-orbit-xxs text-xs opacity-85">{directionalCallout.description}</p>
+            <div
+              className={`rounded-md border px-orbit-base py-orbit-s cpv2-type-sm ${directionalCallout.className}`}
+            >
+              {" "}
+              <p className="cpv2-orbit-weight-medium">
+                {directionalCallout.title}
+              </p>{" "}
+              <p className="mt-orbit-xxs cpv2-type-xs opacity-85">
+                {directionalCallout.description}
+              </p>{" "}
             </div>
-          )}
-
-          {/* Summary v1 vs v2 */}
-          <SectionLabel>Summary</SectionLabel>
+          )}{" "}
+          {/* Summary v1 vs v2 */} <SectionLabel>Summary</SectionLabel>{" "}
           {isNewClause ? (
             <SidePanel label={rightLabel} clause={curr} highlight />
           ) : (
             <div className="grid grid-cols-2 gap-orbit-base">
-              <SidePanel label={leftLabel} clause={prev} />
-              <SidePanel label={rightLabel} clause={curr} highlight={change === "material"} />
+              {" "}
+              <SidePanel label={leftLabel} clause={prev} />{" "}
+              <SidePanel
+                label={rightLabel}
+                clause={curr}
+                highlight={change === "material"}
+              />{" "}
             </div>
-          )}
-
-          {/* Inline word-level text diff (TASK-06) */}
+          )}{" "}
+          {/* Inline word-level text diff (TASK-06) */}{" "}
           {!isNewClause && (
             <>
-              <SectionLabel>Clause text — {leftLabel} vs {rightLabel}</SectionLabel>
-              <TextDiff prev={prev?.excerpt} curr={curr?.excerpt} leftLabel={leftLabel} rightLabel={rightLabel} />
+              {" "}
+              <SectionLabel>
+                Clause text — {leftLabel} vs {rightLabel}
+              </SectionLabel>{" "}
+              <TextDiff
+                prev={prev?.excerpt}
+                curr={curr?.excerpt}
+                leftLabel={leftLabel}
+                rightLabel={rightLabel}
+              />{" "}
             </>
-          )}
-
-          {/* Side-by-side excerpts (kept for legal review) */}
-          <SectionLabel>Original text extracts</SectionLabel>
+          )}{" "}
+          {/* Side-by-side excerpts (kept for legal review) */}{" "}
+          <SectionLabel>Original text extracts</SectionLabel>{" "}
           {isNewClause ? (
             <ExcerptPanel label={rightLabel} text={curr?.excerpt} highlight />
           ) : (
             <div className="grid grid-cols-2 gap-orbit-base">
-              <ExcerptPanel label={leftLabel} text={prev?.excerpt} />
-              <ExcerptPanel label={rightLabel} text={curr?.excerpt} highlight={prev?.excerpt !== curr?.excerpt} />
+              {" "}
+              <ExcerptPanel label={leftLabel} text={prev?.excerpt} />{" "}
+              <ExcerptPanel
+                label={rightLabel}
+                text={curr?.excerpt}
+                highlight={prev?.excerpt !== curr?.excerpt}
+              />{" "}
             </div>
-          )}
-
-          {/* Audit trail + AI confidence (TASK-05, TASK-08) */}
-          <SectionLabel>Why this verdict?</SectionLabel>
-          <ClauseAuditPanel clauseId={clauseId} />
-
-          {/* Locations + actionability */}
-          <SectionLabel>Additional locations & actionability</SectionLabel>
+          )}{" "}
+          {/* Audit trail + AI confidence (TASK-05, TASK-08) */}{" "}
+          <SectionLabel>Why this verdict?</SectionLabel>{" "}
+          <ClauseAuditPanel clauseId={clauseId} />{" "}
+          {/* Locations + actionability */}{" "}
+          <SectionLabel>Additional locations & actionability</SectionLabel>{" "}
           <div className="grid grid-cols-2 gap-orbit-base">
+            {" "}
             <div className="rounded-md border border-border bg-card p-orbit-base space-y-orbit-s">
+              {" "}
               <div className="flex items-center justify-between">
-                <span className="text-[10px] tabular-nums v5-orbit-weight-semibold text-muted-foreground uppercase">{leftLabel}</span>
-                <Badge variant="outline" className={severityTone((prev ?? display).severity)}>{prev?.severity ?? "—"}</Badge>
-              </div>
-              <LocationsList items={prev?.locations} />
-            </div>
+                {" "}
+                <span className="cpv2-type-xs tabular-nums cpv2-orbit-weight-semibold text-muted-foreground uppercase">
+                  {leftLabel}
+                </span>{" "}
+                <Badge
+                  variant="outline"
+                  className={severityTone((prev ?? display).severity)}
+                >
+                  {prev?.severity ?? "—"}
+                </Badge>{" "}
+              </div>{" "}
+              <LocationsList items={prev?.locations} />{" "}
+            </div>{" "}
             <div className="rounded-md border border-border bg-card p-orbit-base space-y-orbit-s">
+              {" "}
               <div className="flex items-center justify-between">
-                <span className="text-[10px] tabular-nums v5-orbit-weight-semibold text-muted-foreground uppercase">{rightLabel}</span>
-                <Badge variant="outline" className={severityTone((curr ?? display).severity)}>{curr?.severity ?? "—"}</Badge>
-              </div>
-              <LocationsList items={curr?.locations} />
-            </div>
-          </div>
+                {" "}
+                <span className="cpv2-type-xs tabular-nums cpv2-orbit-weight-semibold text-muted-foreground uppercase">
+                  {rightLabel}
+                </span>{" "}
+                <Badge
+                  variant="outline"
+                  className={severityTone((curr ?? display).severity)}
+                >
+                  {curr?.severity ?? "—"}
+                </Badge>{" "}
+              </div>{" "}
+              <LocationsList items={curr?.locations} />{" "}
+            </div>{" "}
+          </div>{" "}
           {display.actionability && (
             <div className="rounded-md border border-primary/20 bg-primary/5 p-orbit-base space-y-orbit-xs">
-              <p className="text-[10px] v5-orbit-weight-semibold text-primary uppercase tracking-wider flex items-center gap-orbit-xs">
-                <Lightbulb className="w-3 h-3" /> Suggested action
-              </p>
-              <p className="text-sm text-foreground">{display.actionability}</p>
+              {" "}
+              <p className="cpv2-type-xs cpv2-orbit-weight-semibold text-primary uppercase flex items-center gap-orbit-xs">
+                {" "}
+                <Lightbulb className="w-3 h-3" /> Suggested action{" "}
+              </p>{" "}
+              <p className="cpv2-type-sm text-foreground">
+                {display.actionability}
+              </p>{" "}
             </div>
-          )}
-
-          {/* Requested change history */}
+          )}{" "}
+          {/* Requested change history */}{" "}
           {Object.keys(state.requests).length > 0 && (
             <>
-              <SectionLabel>Requested change history</SectionLabel>
+              {" "}
+              <SectionLabel>Requested change history</SectionLabel>{" "}
               <div className="space-y-orbit-s">
+                {" "}
                 {Object.entries(state.requests)
                   .filter(([, r]) => r.requestedChange || r.rationale)
                   .sort((a, b) => a[0].localeCompare(b[0]))
                   .map(([v, r]) => (
-                    <div key={v} className="rounded-md border border-border bg-card p-orbit-base text-sm space-y-orbit-xs">
-                      <p className="text-[10px] v5-orbit-weight-semibold text-primary uppercase tracking-wider">{v}</p>
+                    <div
+                      key={v}
+                      className="rounded-md border border-border bg-card p-orbit-base cpv2-type-sm space-y-orbit-xs"
+                    >
+                      {" "}
+                      <p className="cpv2-type-xs cpv2-orbit-weight-semibold text-primary uppercase ">
+                        {v}
+                      </p>{" "}
                       {r.requestedChange && (
-                        <p><span className="text-[10px] v5-orbit-weight-semibold text-muted-foreground uppercase mr-orbit-s">Ask</span>{r.requestedChange}</p>
-                      )}
+                        <p>
+                          <span className="cpv2-type-xs cpv2-orbit-weight-semibold text-muted-foreground uppercase mr-orbit-s">
+                            Ask
+                          </span>
+                          {r.requestedChange}
+                        </p>
+                      )}{" "}
                       {r.rationale && (
-                        <p><span className="text-[10px] v5-orbit-weight-semibold text-muted-foreground uppercase mr-orbit-s">Why</span>{r.rationale}</p>
-                      )}
+                        <p>
+                          <span className="cpv2-type-xs cpv2-orbit-weight-semibold text-muted-foreground uppercase mr-orbit-s">
+                            Why
+                          </span>
+                          {r.rationale}
+                        </p>
+                      )}{" "}
                     </div>
-                  ))}
-              </div>
+                  ))}{" "}
+              </div>{" "}
             </>
-          )}
-
-
-          {/* Action panel */}
+          )}{" "}
+          {/* Action panel */}{" "}
           <div className="sticky bottom-0 -mx-orbit-m px-orbit-m py-orbit-base bg-background border-t border-border flex items-center justify-between flex-wrap gap-orbit-base">
-            <div className="text-xs text-muted-foreground flex items-center gap-orbit-s">
-              <span className="v5-orbit-weight-semibold">{leftLabel} → {rightLabel}:</span>
+            {" "}
+            <div className="cpv2-type-xs text-muted-foreground flex items-center gap-orbit-s">
+              {" "}
+              <span className="cpv2-orbit-weight-semibold">
+                {leftLabel} → {rightLabel}:
+              </span>{" "}
               {changePill.status ? (
                 <ChangePillBadge result={changePill} />
               ) : (
-                <Badge variant="outline" className={`${materialChangeTone(change)} text-[10px]`}>{materialChangeLabel(change)}</Badge>
-              )}
+                <Badge
+                  variant="outline"
+                  className={`${materialChangeTone(change)} cpv2-type-xs`}
+                >
+                  {materialChangeLabel(change)}
+                </Badge>
+              )}{" "}
               {state.closures[targetVersion] && (
-                <span>· status <span className="v5-orbit-weight-semibold text-foreground">{state.closures[targetVersion]}</span></span>
-              )}
-            </div>
+                <span>
+                  · status{" "}
+                  <span className="cpv2-orbit-weight-semibold text-foreground">
+                    {state.closures[targetVersion]}
+                  </span>
+                </span>
+              )}{" "}
+            </div>{" "}
             <div className="flex items-center gap-orbit-s">
+              {" "}
               {changePill.status === "improved" ? (
                 <>
-                  <Button className="h-8 gap-orbit-xs text-xs" onClick={() => onCloseClause(clauseId)}>
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Accept
-                  </Button>
-                  <Button variant="outline" className="h-8 text-xs gap-orbit-xs" onClick={() => onMarkNewIssue(clauseId)}>
-                    Challenge change
-                  </Button>
+                  {" "}
+                  <Button
+                    className="h-8 gap-orbit-xs cpv2-type-xs"
+                    onClick={() => onCloseClause(clauseId)}
+                  >
+                    {" "}
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Accept{" "}
+                  </Button>{" "}
+                  <Button
+                    variant="outline"
+                    className="h-8 cpv2-type-xs gap-orbit-xs"
+                    onClick={() => onMarkNewIssue(clauseId)}
+                  >
+                    {" "}
+                    Challenge change{" "}
+                  </Button>{" "}
                 </>
               ) : changePill.status === "regressed" ? (
                 <>
-                  <Button className="h-8 gap-orbit-xs text-xs" onClick={() => onMarkNewIssue(clauseId)}>
-                    <AlertTriangle className="w-3.5 h-3.5" /> Request revert
-                  </Button>
-                  <Button variant="outline" className="h-8 text-xs gap-orbit-xs" onClick={() => onCloseClause(clauseId)}>
-                    Accept change
-                  </Button>
+                  {" "}
+                  <Button
+                    className="h-8 gap-orbit-xs cpv2-type-xs"
+                    onClick={() => onMarkNewIssue(clauseId)}
+                  >
+                    {" "}
+                    <AlertTriangle className="w-3.5 h-3.5" /> Request
+                    revert{" "}
+                  </Button>{" "}
+                  <Button
+                    variant="outline"
+                    className="h-8 cpv2-type-xs gap-orbit-xs"
+                    onClick={() => onCloseClause(clauseId)}
+                  >
+                    {" "}
+                    Accept change{" "}
+                  </Button>{" "}
                 </>
               ) : changePill.status === "new" ? (
                 <>
-                  <Button className="h-8 gap-orbit-xs text-xs" onClick={() => onCloseClause(clauseId)}>
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Accept
-                  </Button>
-                  <Button variant="outline" className="h-8 text-xs gap-orbit-xs" onClick={() => onMarkNewIssue(clauseId)}>
-                    Request removal
-                  </Button>
+                  {" "}
+                  <Button
+                    className="h-8 gap-orbit-xs cpv2-type-xs"
+                    onClick={() => onCloseClause(clauseId)}
+                  >
+                    {" "}
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Accept{" "}
+                  </Button>{" "}
+                  <Button
+                    variant="outline"
+                    className="h-8 cpv2-type-xs gap-orbit-xs"
+                    onClick={() => onMarkNewIssue(clauseId)}
+                  >
+                    {" "}
+                    Request removal{" "}
+                  </Button>{" "}
                 </>
               ) : (
                 <>
-                  <Button variant="outline" className="h-8 text-xs gap-orbit-xs" onClick={() => onKeepOpen(clauseId)}>
-                    <ArrowRight className="w-3.5 h-3.5" /> Keep Open
-                  </Button>
-                  <Button variant="default" className="h-8 text-xs gap-orbit-xs" onClick={() => onCloseClause(clauseId)}>
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Close
-                  </Button>
-                  <Button variant="secondary" className="h-8 text-xs gap-orbit-xs" onClick={() => onMarkNewIssue(clauseId)}>
-                    <AlertTriangle className="w-3.5 h-3.5" /> Mark as New Issue
-                  </Button>
+                  {" "}
+                  <Button
+                    variant="outline"
+                    className="h-8 cpv2-type-xs gap-orbit-xs"
+                    onClick={() => onKeepOpen(clauseId)}
+                  >
+                    {" "}
+                    <ArrowRight className="w-3.5 h-3.5" /> Keep Open{" "}
+                  </Button>{" "}
+                  <Button
+                    variant="default"
+                    className="h-8 cpv2-type-xs gap-orbit-xs"
+                    onClick={() => onCloseClause(clauseId)}
+                  >
+                    {" "}
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Close{" "}
+                  </Button>{" "}
+                  <Button
+                    variant="secondary"
+                    className="h-8 cpv2-type-xs gap-orbit-xs"
+                    onClick={() => onMarkNewIssue(clauseId)}
+                  >
+                    {" "}
+                    <AlertTriangle className="w-3.5 h-3.5" /> Mark as New
+                    Issue{" "}
+                  </Button>{" "}
                 </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+              )}{" "}
+            </div>{" "}
+          </div>{" "}
+        </div>{" "}
+      </div>{" "}
     </div>
   );
 }
-
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <p className="text-[10px] v5-orbit-weight-semibold text-muted-foreground uppercase tracking-wider">{children}</p>;
-}
-
-function SidePanel({ label, clause, highlight }: { label: string; clause?: ClauseResult; highlight?: boolean }) {
   return (
-    <div className={`rounded-md border p-orbit-base space-y-orbit-s ${highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
+    <p className="cpv2-type-xs cpv2-orbit-weight-semibold text-muted-foreground uppercase ">
+      {children}
+    </p>
+  );
+}
+function SidePanel({
+  label,
+  clause,
+  highlight,
+}: {
+  label: string;
+  clause?: ClauseResult;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-md border p-orbit-base space-y-orbit-s ${highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}
+    >
+      {" "}
       <div className="flex items-center justify-between">
-        <span className="text-[10px] tabular-nums v5-orbit-weight-semibold text-muted-foreground uppercase">{label}</span>
+        {" "}
+        <span className="cpv2-type-xs tabular-nums cpv2-orbit-weight-semibold text-muted-foreground uppercase">
+          {label}
+        </span>{" "}
         {clause && (
-          <Badge variant="outline" className={severityTone(clause.severity)}>{clause.severity}</Badge>
-        )}
-      </div>
-      <p className="text-sm text-foreground">{clause?.deviation ?? "— Not present —"}</p>
+          <Badge variant="outline" className={severityTone(clause.severity)}>
+            {clause.severity}
+          </Badge>
+        )}{" "}
+      </div>{" "}
+      <p className="cpv2-type-sm text-foreground">
+        {clause?.deviation ?? "— Not present —"}
+      </p>{" "}
     </div>
   );
 }
-
-function ExcerptPanel({ label, text, highlight }: { label: string; text?: string; highlight?: boolean }) {
+function ExcerptPanel({
+  label,
+  text,
+  highlight,
+}: {
+  label: string;
+  text?: string;
+  highlight?: boolean;
+}) {
   return (
-    <div className={`rounded-md border p-orbit-base space-y-orbit-s ${highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
-      <span className="text-[10px] tabular-nums v5-orbit-weight-semibold text-muted-foreground uppercase">{label}</span>
+    <div
+      className={`rounded-md border p-orbit-base space-y-orbit-s ${highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}
+    >
+      {" "}
+      <span className="cpv2-type-xs tabular-nums cpv2-orbit-weight-semibold text-muted-foreground uppercase">
+        {label}
+      </span>{" "}
       {text ? (
-        <p className="text-xs text-muted-foreground italic border-l-2 border-border pl-orbit-s">"{text}"</p>
+        <p className="cpv2-type-xs text-muted-foreground italic border-l-2 border-border pl-orbit-s">
+          "{text}"
+        </p>
       ) : (
-        <p className="text-xs text-muted-foreground italic">— Not present —</p>
-      )}
+        <p className="cpv2-type-xs text-muted-foreground italic">
+          — Not present —
+        </p>
+      )}{" "}
     </div>
   );
 }
-
 function LocationsList({ items }: { items?: string[] }) {
-  if (!items || items.length === 0) return <p className="text-xs text-muted-foreground italic">No additional locations.</p>;
+  if (!items || items.length === 0)
+    return (
+      <p className="cpv2-type-xs text-muted-foreground italic">
+        No additional locations.
+      </p>
+    );
   return (
     <ul className="space-y-orbit-xs">
+      {" "}
       {items.map((l) => (
-        <li key={l} className="text-xs text-foreground tabular-nums flex items-center gap-orbit-xs">
-          <MapPin className="w-3 h-3 text-muted-foreground" /> {l}
+        <li
+          key={l}
+          className="cpv2-type-xs text-foreground tabular-nums flex items-center gap-orbit-xs"
+        >
+          {" "}
+          <MapPin className="w-3 h-3 text-muted-foreground" /> {l}{" "}
         </li>
-      ))}
+      ))}{" "}
     </ul>
   );
 }
-
-// ---- Supplier grouping provenance popover (TASK-04) ------------------------
-
 function SupplierGroupingPopover({
   supplierId,
   supplierName,
@@ -6699,19 +9556,30 @@ function SupplierGroupingPopover({
   const groupingDetails = `Why is this grouped under ${supplierName}? ${g.matchBasis} Source: ${g.source}. Confidence: ${(g.confidence * 100).toFixed(0)}%.`;
   return (
     <Tooltip>
+      {" "}
       <TooltipTrigger asChild>
-        <Button variant="outline" className={`${compact ? "h-7 px-orbit-s text-xs" : "h-9"} gap-orbit-xs`}>
-          <Info className="w-3.5 h-3.5" /> Why grouped?
-          <Badge variant="outline" className={`${compact ? "hidden 2xl:inline-flex" : ""} ${isManual ? "bg-secondary text-secondary-foreground border-border ml-orbit-xs" : "bg-success/10 text-success border-success/20 ml-orbit-xs"}`}>
-            {isManual ? "Manual" : `Auto · ${(g.confidence * 100).toFixed(0)}%`}
-          </Badge>
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{groupingDetails}</TooltipContent>
+        {" "}
+        <Button
+          variant="outline"
+          className={`${compact ? "h-7 px-orbit-s cpv2-type-xs" : "h-9"} gap-orbit-xs`}
+        >
+          {" "}
+          <Info className="w-3.5 h-3.5" /> Why grouped?{" "}
+          <Badge
+            variant="outline"
+            className={`${compact ? "hidden 2xl:inline-flex" : ""} ${isManual ? "bg-secondary text-secondary-foreground border-border ml-orbit-xs" : "bg-success/10 text-success border-success/20 ml-orbit-xs"}`}
+          >
+            {" "}
+            {isManual
+              ? "Manual"
+              : `Auto · ${(g.confidence * 100).toFixed(0)}%`}{" "}
+          </Badge>{" "}
+        </Button>{" "}
+      </TooltipTrigger>{" "}
+      <TooltipContent>{groupingDetails}</TooltipContent>{" "}
     </Tooltip>
   );
 }
-
 function HistoryDesignContent({
   option,
   versions,
@@ -6734,47 +9602,46 @@ function HistoryDesignContent({
   highlightedId: string | null;
 }) {
   const [railTab, setRailTab] = useState<"summary" | "categories">("summary");
-
   if (option === "side-by-side") {
     return (
       <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-base py-orbit-base xl:grid-cols-[360px_minmax(0,1fr)] xl:items-start">
+        {" "}
         <aside className="self-start xl:sticky xl:top-[104px] xl:max-h-[calc(100vh-128px)] xl:overflow-y-auto">
+          {" "}
           <section className="overflow-hidden rounded-lg border border-border bg-card">
-            <HistoryRailTabs active={railTab} onChange={setRailTab} />
+            {" "}
+            <HistoryRailTabs active={railTab} onChange={setRailTab} />{" "}
             <div className="p-orbit-base">
-              {railTab === "summary" ? (
-                summaryRail
-              ) : (
-                categoryPanel
-              )}
-            </div>
-          </section>
-        </aside>
+              {" "}
+              {railTab === "summary" ? summaryRail : categoryPanel}{" "}
+            </div>{" "}
+          </section>{" "}
+        </aside>{" "}
         <div className="min-w-0">
+          {" "}
           <HistoryRoundTable
             versions={versions}
             rows={model.filteredRows}
             onOpenDetail={onOpenDetail}
             highlightedId={highlightedId}
-          />
-        </div>
+          />{" "}
+        </div>{" "}
       </div>
     );
   }
-
   return (
     <div className="mx-auto grid max-w-[1600px] grid-cols-[240px_minmax(0,1fr)] gap-orbit-m px-orbit-base py-orbit-m">
-      {categoryRail}
+      {" "}
+      {categoryRail}{" "}
       <HistoryRoundTable
         versions={versions}
         rows={model.filteredRows}
         onOpenDetail={onOpenDetail}
         highlightedId={highlightedId}
-      />
+      />{" "}
     </div>
   );
 }
-
 function HistoryRailTabs({
   active,
   onChange,
@@ -6784,23 +9651,26 @@ function HistoryRailTabs({
 }) {
   return (
     <div className="grid grid-cols-2 gap-orbit-xs border-b border-border bg-[#f8f7f5] p-orbit-xs">
+      {" "}
       {(["summary", "categories"] as const).map((value) => (
         <CpButton
           key={value}
           type="button"
           onClick={() => onChange(value)}
           className={cn(
-            "h-7 rounded-md text-[11px] v5-orbit-weight-medium capitalize transition-colors",
-            active === value ? "bg-[#1a2744] text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            "h-7 rounded-md cpv2-type-xs cpv2-orbit-weight-medium capitalize transition-colors",
+            active === value
+              ? "bg-[#1a2744] text-white"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
         >
-          {value}
+          {" "}
+          {value}{" "}
         </CpButton>
-      ))}
+      ))}{" "}
     </div>
   );
 }
-
 function HistorySummaryPanel({
   versions,
   model,
@@ -6814,30 +9684,58 @@ function HistorySummaryPanel({
   const latest = versions.at(-1);
   return (
     <div className={cn("space-y-orbit-base", !compact && "mt-orbit-base")}>
+      {" "}
       <div className="rounded-lg border border-border bg-[#f8f7f5] p-orbit-base">
-        <p className="text-[10px] v5-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">Scope</p>
-        <p className="mt-orbit-xs text-sm v5-orbit-weight-semibold text-foreground">
-          {first?.version ?? "v1"} → {latest?.version ?? "v1"}
-        </p>
-        <p className="mt-orbit-xxs text-[11px] text-muted-foreground">
-          {versions.length} rounds{first && latest ? ` · ${formatShortDate(first.uploadedAt)} to ${formatShortDate(latest.uploadedAt)}` : ""}
-        </p>
-      </div>
-      <div className={cn("grid gap-orbit-s", compact ? "grid-cols-2" : "grid-cols-2 lg:grid-cols-4")}>
-        <HistoryStatCard value={model.stats.totalClauses} label="Total clauses" trend={`across ${model.stats.roundCount} rounds`} />
-        <HistoryStatCard value={model.stats.stillOpen} label="Still open" trend="needs attention" tone="danger" />
-        <HistoryStatCard value={model.stats.avgRoundsToResolve} label="Avg resolve" trend="rounds to resolve" tone="success" />
+        {" "}
+        <p className="cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-muted-foreground">
+          Scope
+        </p>{" "}
+        <p className="mt-orbit-xs cpv2-type-sm cpv2-orbit-weight-semibold text-foreground">
+          {" "}
+          {first?.version ?? "v1"} → {latest?.version ?? "v1"}{" "}
+        </p>{" "}
+        <p className="mt-orbit-xxs cpv2-type-xs text-muted-foreground">
+          {" "}
+          {versions.length} rounds
+          {first && latest
+            ? ` · ${formatShortDate(first.uploadedAt)} to ${formatShortDate(latest.uploadedAt)}`
+            : ""}{" "}
+        </p>{" "}
+      </div>{" "}
+      <div
+        className={cn(
+          "grid gap-orbit-s",
+          compact ? "grid-cols-2" : "grid-cols-2 lg:grid-cols-4",
+        )}
+      >
+        {" "}
+        <HistoryStatCard
+          value={model.stats.totalClauses}
+          label="Total clauses"
+          trend={`across ${model.stats.roundCount} rounds`}
+        />{" "}
+        <HistoryStatCard
+          value={model.stats.stillOpen}
+          label="Still open"
+          trend="needs attention"
+          tone="danger"
+        />{" "}
+        <HistoryStatCard
+          value={model.stats.avgRoundsToResolve}
+          label="Avg resolve"
+          trend="rounds to resolve"
+          tone="success"
+        />{" "}
         <HistoryStatCard
           value={`${model.stats.settledByRound3Pct}%`}
           label="Settled R3"
           trend="by round 3"
           tone={model.stats.settledByRound3Pct >= 65 ? "success" : "danger"}
-        />
-      </div>
+        />{" "}
+      </div>{" "}
     </div>
   );
 }
-
 function HistoryRoundTable({
   versions,
   rows,
@@ -6851,28 +9749,40 @@ function HistoryRoundTable({
 }) {
   if (rows.length === 0) {
     return (
-      <div className="py-orbit-mega text-center text-[11px] italic text-muted-foreground">
-        No clauses match the current filters.
+      <div className="py-orbit-mega text-center cpv2-type-xs italic text-muted-foreground">
+        {" "}
+        No clauses match the current filters.{" "}
       </div>
     );
   }
-
   return (
     <div className="min-w-0 overflow-x-auto rounded-lg border border-border bg-card">
+      {" "}
       <div
         className="min-w-[560px]"
-        style={{ display: "grid", gridTemplateColumns: `24px minmax(160px,1.35fr) repeat(${versions.length}, minmax(62px,0.75fr)) minmax(76px,0.8fr) 28px` }}
+        style={{
+          display: "grid",
+          gridTemplateColumns: `24px minmax(160px,1.35fr) repeat(${versions.length}, minmax(62px,0.75fr)) minmax(76px,0.8fr) 28px`,
+        }}
       >
-        <div className="border-b border-border bg-[#f8f7f5] px-orbit-base py-orbit-s" />
-        <div className="border-b border-border bg-[#f8f7f5] px-orbit-base py-orbit-s text-[9px] v5-orbit-weight-medium uppercase tracking-[0.04em] text-muted-foreground">Clause</div>
+        {" "}
+        <div className="border-b border-border bg-[#f8f7f5] px-orbit-base py-orbit-s" />{" "}
+        <div className="border-b border-border bg-[#f8f7f5] px-orbit-base py-orbit-s cpv2-type-xs cpv2-orbit-weight-medium uppercase text-muted-foreground">
+          Clause
+        </div>{" "}
         {versions.map((version, index) => (
-          <div key={version.version} className="border-b border-border bg-[#f8f7f5] px-orbit-s py-orbit-s text-center text-[9px] v5-orbit-weight-medium uppercase tracking-[0.04em] text-muted-foreground">
-            R{index + 1} {version.version}
+          <div
+            key={version.version}
+            className="border-b border-border bg-[#f8f7f5] px-orbit-s py-orbit-s text-center cpv2-type-xs cpv2-orbit-weight-medium uppercase text-muted-foreground"
+          >
+            {" "}
+            R{index + 1} {version.version}{" "}
           </div>
-        ))}
-        <div className="border-b border-border bg-[#f8f7f5] px-orbit-s py-orbit-s text-center text-[9px] v5-orbit-weight-medium uppercase tracking-[0.04em] text-muted-foreground">Status</div>
-        <div className="border-b border-border bg-[#f8f7f5] px-orbit-s py-orbit-s" />
-
+        ))}{" "}
+        <div className="border-b border-border bg-[#f8f7f5] px-orbit-s py-orbit-s text-center cpv2-type-xs cpv2-orbit-weight-medium uppercase text-muted-foreground">
+          Status
+        </div>{" "}
+        <div className="border-b border-border bg-[#f8f7f5] px-orbit-s py-orbit-s" />{" "}
         {rows.map((row) => (
           <CpButton
             id={`history-row-${row.id}`}
@@ -6881,170 +9791,283 @@ function HistoryRoundTable({
             onClick={() => onOpenDetail(row.id)}
             className={`group contents text-left ${highlightedId === row.id ? "[&>*]:bg-[#E6F1FB]" : ""}`}
           >
+            {" "}
             <div className="border-b border-border px-orbit-base py-orbit-s transition-colors group-hover:bg-[#f8f7f5]">
-              {row.stateChanges >= 3 && <span className="mt-orbit-s block h-1.5 w-1.5 rounded-full bg-[#A32D2D]" title="Highly contentious" />}
-            </div>
+              {" "}
+              {row.stateChanges >= 3 && (
+                <span
+                  className="mt-orbit-s block h-1.5 w-1.5 rounded-full bg-[#A32D2D]"
+                  title="Highly contentious"
+                />
+              )}{" "}
+            </div>{" "}
             <div className="min-w-0 border-b border-border px-orbit-base py-orbit-s transition-colors group-hover:bg-[#f8f7f5]">
-              <p className="truncate text-[11px] v5-orbit-weight-medium text-foreground">{row.title}</p>
-              <p className="truncate text-[9px] uppercase text-muted-foreground">{row.id.toUpperCase()} · {row.category}</p>
-            </div>
+              {" "}
+              <p className="truncate cpv2-type-xs cpv2-orbit-weight-medium text-foreground">
+                {row.title}
+              </p>{" "}
+              <p className="truncate cpv2-type-xs uppercase text-muted-foreground">
+                {row.id.toUpperCase()} · {row.category}
+              </p>{" "}
+            </div>{" "}
             {row.cells.map((cell) => (
-              <div key={`${row.id}-${cell.version}`} className="border-b border-border px-orbit-s py-orbit-s text-center transition-colors group-hover:bg-[#f8f7f5]">
-                <RoundStatusPill status={cell.status}>{cell.label}</RoundStatusPill>
+              <div
+                key={`${row.id}-${cell.version}`}
+                className="border-b border-border px-orbit-s py-orbit-s text-center transition-colors group-hover:bg-[#f8f7f5]"
+              >
+                {" "}
+                <RoundStatusPill status={cell.status}>
+                  {cell.label}
+                </RoundStatusPill>{" "}
               </div>
-            ))}
+            ))}{" "}
             <div className="border-b border-border px-orbit-s py-orbit-s text-center transition-colors group-hover:bg-[#f8f7f5]">
-              {row.currentPill.status ? <ChangePillBadge result={row.currentPill} /> : <RoundStatusPill status={row.currentStatus}>{roundStatusLabel(row.currentStatus)}</RoundStatusPill>}
-            </div>
-            <div className="border-b border-border px-orbit-s py-orbit-s text-center text-sm text-muted-foreground transition-colors group-hover:bg-[#f8f7f5]">›</div>
+              {" "}
+              {row.currentPill.status ? (
+                <ChangePillBadge result={row.currentPill} />
+              ) : (
+                <RoundStatusPill status={row.currentStatus}>
+                  {roundStatusLabel(row.currentStatus)}
+                </RoundStatusPill>
+              )}{" "}
+            </div>{" "}
+            <div className="border-b border-border px-orbit-s py-orbit-s text-center cpv2-type-sm text-muted-foreground transition-colors group-hover:bg-[#f8f7f5]">
+              ›
+            </div>{" "}
           </CpButton>
-        ))}
-      </div>
+        ))}{" "}
+      </div>{" "}
     </div>
   );
 }
-
-function RoundStatusPill({ status, children }: { status: RoundStatus; children: ReactNode }) {
+function RoundStatusPill({
+  status,
+  children,
+}: {
+  status: RoundStatus;
+  children: ReactNode;
+}) {
   return (
-    <span className={`inline-flex rounded-full border px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium ${roundStatusTone(status)}`}>
-      {children}
+    <span
+      className={`inline-flex rounded-full border px-orbit-xs py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium ${roundStatusTone(status)}`}
+    >
+      {" "}
+      {children}{" "}
     </span>
   );
 }
-
 function roundStatusTone(status: RoundStatus) {
-  if (status === "requested") return "border-[#185FA5]/25 bg-[#E6F1FB] text-[#185FA5]";
-  if (status === "open") return "border-[#BA7517]/25 bg-[#FAEEDA] text-[#633806]";
-  if (status === "updated") return "border-border bg-muted text-muted-foreground";
-  if (status === "met") return "border-[#3B6D11]/25 bg-[#EAF3DE] text-[#27500A]";
-  if (status === "not_met") return "border-[#A32D2D]/25 bg-[#FCEBEB] text-[#791F1F]";
-  if (status === "regressed") return "border-[#A32D2D]/25 bg-[#FAEEDA] text-[#633806]";
-  if (status === "new") return "border-[#185FA5]/25 bg-[#E6F1FB] text-[#0C447C]";
+  if (status === "requested")
+    return "border-[#185FA5]/25 bg-[#E6F1FB] text-[#185FA5]";
+  if (status === "open")
+    return "border-[#BA7517]/25 bg-[#FAEEDA] text-[#633806]";
+  if (status === "updated")
+    return "border-border bg-muted text-muted-foreground";
+  if (status === "met")
+    return "border-[#3B6D11]/25 bg-[#EAF3DE] text-[#27500A]";
+  if (status === "not_met")
+    return "border-[#A32D2D]/25 bg-[#FCEBEB] text-[#791F1F]";
+  if (status === "regressed")
+    return "border-[#A32D2D]/25 bg-[#FAEEDA] text-[#633806]";
+  if (status === "new")
+    return "border-[#185FA5]/25 bg-[#E6F1FB] text-[#0C447C]";
   return "border-transparent bg-transparent text-muted-foreground";
 }
-
 function roundStatusLabel(status: RoundStatus) {
   if (status === "not_met") return "Not met";
   if (status === "requested") return "Req";
   if (status === "updated") return "Upd";
-  return status === "missing" ? "—" : status.charAt(0).toUpperCase() + status.slice(1);
+  return status === "missing"
+    ? "—"
+    : status.charAt(0).toUpperCase() + status.slice(1);
 }
-
-// ---- Clause audit + AI confidence (TASK-05 / TASK-08, R3 DI-15 + DI-17) ---
-
 function ClauseAuditPanel({ clauseId }: { clauseId: string }) {
   const audit = getClauseAudit(clauseId);
   const conf = confidenceLabel(audit.confidence);
   const history = audit.history ?? [];
   return (
     <div className="rounded-md border border-border bg-card p-orbit-base space-y-orbit-base">
+      {" "}
       <div className="flex items-start justify-between gap-orbit-base flex-wrap">
+        {" "}
         <div>
-          <p className="text-[10px] tabular-nums v5-orbit-weight-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-orbit-xs">
-            <ShieldCheck className="w-3 h-3" /> {audit.ruleId} · {audit.ruleName}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Rule version <span className="tabular-nums">{audit.ruleVersion}</span>
-          </p>
-        </div>
-        {/* DI-17: numeric band + reasoning shown inline, no hover required */}
+          {" "}
+          <p className="cpv2-type-xs tabular-nums cpv2-orbit-weight-semibold text-muted-foreground uppercase flex items-center gap-orbit-xs">
+            {" "}
+            <ShieldCheck className="w-3 h-3" /> {audit.ruleId} ·{" "}
+            {audit.ruleName}{" "}
+          </p>{" "}
+          <p className="cpv2-type-xs text-muted-foreground">
+            {" "}
+            Rule version{" "}
+            <span className="tabular-nums">{audit.ruleVersion}</span>{" "}
+          </p>{" "}
+        </div>{" "}
+        {/* DI-17: numeric band + reasoning shown inline, no hover required */}{" "}
         <div className="flex flex-col items-end gap-orbit-xs">
-          <Badge variant="outline" className={`${conf.tone} text-[11px] gap-orbit-xs`}>
+          {" "}
+          <Badge
+            variant="outline"
+            className={`${conf.tone} cpv2-type-xs gap-orbit-xs`}
+          >
+            {" "}
             <Sigma className="w-3 h-3" /> {conf.label} confidence ·{" "}
-            <span className="tabular-nums">{(audit.confidence * 100).toFixed(0)}%</span>
-            <span className="opacity-60 tabular-nums">({conf.range})</span>
-          </Badge>
-          <p className="text-[11px] text-muted-foreground max-w-[280px] text-right">{conf.reasoning}</p>
-        </div>
-      </div>
-
+            <span className="tabular-nums">
+              {(audit.confidence * 100).toFixed(0)}%
+            </span>{" "}
+            <span className="opacity-60 tabular-nums">({conf.range})</span>{" "}
+          </Badge>{" "}
+          <p className="cpv2-type-xs text-muted-foreground max-w-[280px] text-right">
+            {conf.reasoning}
+          </p>{" "}
+        </div>{" "}
+      </div>{" "}
       <Tabs defaultValue="rule" className="w-full">
+        {" "}
         <TabsList className="h-8">
-          <TabsTrigger value="rule" className="text-[11px] h-7">Active rule</TabsTrigger>
-          <TabsTrigger value="history" className="text-[11px] h-7 gap-orbit-xs">
-            <History className="w-3 h-3" /> Rule history
+          {" "}
+          <TabsTrigger value="rule" className="cpv2-type-xs h-7">
+            Active rule
+          </TabsTrigger>{" "}
+          <TabsTrigger
+            value="history"
+            className="cpv2-type-xs h-7 gap-orbit-xs"
+          >
+            {" "}
+            <History className="w-3 h-3" /> Rule history{" "}
             {history.length > 0 && (
-              <span className="ml-orbit-xxs px-orbit-xs rounded bg-muted text-[10px] tabular-nums text-muted-foreground">
-                {history.length}
+              <span className="ml-orbit-xxs px-orbit-xs rounded bg-muted cpv2-type-xs tabular-nums text-muted-foreground">
+                {" "}
+                {history.length}{" "}
               </span>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="rule" className="m-orbit-none mt-orbit-base space-y-orbit-base">
+            )}{" "}
+          </TabsTrigger>{" "}
+        </TabsList>{" "}
+        <TabsContent
+          value="rule"
+          className="m-orbit-none mt-orbit-base space-y-orbit-base"
+        >
+          {" "}
           <div>
-            <p className="text-[10px] v5-orbit-weight-semibold uppercase text-muted-foreground tracking-wider">Expectation</p>
-            <p className="text-sm text-foreground">{audit.expectation}</p>
-          </div>
+            {" "}
+            <p className="cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-muted-foreground ">
+              Expectation
+            </p>{" "}
+            <p className="cpv2-type-sm text-foreground">
+              {audit.expectation}
+            </p>{" "}
+          </div>{" "}
           {audit.matchedExcerpt && (
             <div>
-              <p className="text-[10px] v5-orbit-weight-semibold uppercase text-muted-foreground tracking-wider">Matched clause excerpt</p>
-              <p className="text-xs italic text-muted-foreground border-l-2 border-primary/40 pl-orbit-s mt-orbit-xs">"{audit.matchedExcerpt}"</p>
-              {audit.location && <p className="text-[11px] tabular-nums text-muted-foreground mt-orbit-xs">Location: {audit.location}</p>}
+              {" "}
+              <p className="cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-muted-foreground ">
+                Matched clause excerpt
+              </p>{" "}
+              <p className="cpv2-type-xs italic text-muted-foreground border-l-2 border-primary/40 pl-orbit-s mt-orbit-xs">
+                "{audit.matchedExcerpt}"
+              </p>{" "}
+              {audit.location && (
+                <p className="cpv2-type-xs tabular-nums text-muted-foreground mt-orbit-xs">
+                  Location: {audit.location}
+                </p>
+              )}{" "}
             </div>
-          )}
+          )}{" "}
           <div>
-            <p className="text-[10px] v5-orbit-weight-semibold uppercase text-muted-foreground tracking-wider">AI rationale</p>
-            <p className="text-xs text-foreground">{audit.rationale}</p>
-          </div>
+            {" "}
+            <p className="cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-muted-foreground ">
+              AI rationale
+            </p>{" "}
+            <p className="cpv2-type-xs text-foreground">
+              {audit.rationale}
+            </p>{" "}
+          </div>{" "}
           {audit.confidence < 0.7 && (
-            <div className="rounded border border-destructive/30 bg-destructive/5 p-orbit-s text-[11px] text-destructive flex items-center gap-orbit-xs">
-              <AlertTriangle className="w-3 h-3" /> Low confidence — review the source clause before accepting.
+            <div className="rounded border border-destructive/30 bg-destructive/5 p-orbit-s cpv2-type-xs text-destructive flex items-center gap-orbit-xs">
+              {" "}
+              <AlertTriangle className="w-3 h-3" /> Low confidence — review the
+              source clause before accepting.{" "}
             </div>
-          )}
+          )}{" "}
           {audit.evidenceUrl && (
             <CpLinkText
               href={audit.evidenceUrl}
-              className="inline-flex items-center gap-orbit-xs text-xs text-primary hover:underline"
+              className="inline-flex items-center gap-orbit-xs cpv2-type-xs text-primary hover:underline"
               label="View evidence"
               external
             />
-          )}
-        </TabsContent>
-
+          )}{" "}
+        </TabsContent>{" "}
         <TabsContent value="history" className="m-orbit-none mt-orbit-base">
+          {" "}
           {history.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">No prior versions recorded for this rule.</p>
+            <p className="cpv2-type-xs text-muted-foreground italic">
+              No prior versions recorded for this rule.
+            </p>
           ) : (
             <ol className="space-y-orbit-s border-l border-border pl-orbit-base">
+              {" "}
               {history.map((h, i) => {
                 const prevExpectation = history[i + 1]?.expectation;
-                const changedExpectation = prevExpectation && prevExpectation !== h.expectation;
+                const changedExpectation =
+                  prevExpectation && prevExpectation !== h.expectation;
                 return (
                   <li key={h.version} className="relative">
-                    <span className="absolute -left-[18px] top-1 w-2.5 h-2.5 rounded-full bg-primary/70 border-2 border-card" aria-hidden />
+                    {" "}
+                    <span
+                      className="absolute -left-[18px] top-1 w-2.5 h-2.5 rounded-full bg-primary/70 border-2 border-card"
+                      aria-hidden
+                    />{" "}
                     <div className="flex flex-wrap items-baseline gap-orbit-s">
-                      <span className="tabular-nums text-[11px] v5-orbit-weight-semibold text-foreground">{h.version}</span>
-                      <span className="text-[10px] text-muted-foreground">{h.date}</span>
-                      <span className="text-[10px] text-muted-foreground">· {h.author}</span>
+                      {" "}
+                      <span className="tabular-nums cpv2-type-xs cpv2-orbit-weight-semibold text-foreground">
+                        {h.version}
+                      </span>{" "}
+                      <span className="cpv2-type-xs text-muted-foreground">
+                        {h.date}
+                      </span>{" "}
+                      <span className="cpv2-type-xs text-muted-foreground">
+                        · {h.author}
+                      </span>{" "}
                       {i === 0 && (
-                        <Badge variant="outline" className="text-[9px] h-4 px-orbit-xs bg-primary/10 text-primary border-primary/30">
-                          current
+                        <Badge
+                          variant="outline"
+                          className="cpv2-type-xs h-4 px-orbit-xs bg-primary/10 text-primary border-primary/30"
+                        >
+                          {" "}
+                          current{" "}
                         </Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-foreground mt-orbit-xxs">{h.change}</p>
+                      )}{" "}
+                    </div>{" "}
+                    <p className="cpv2-type-xs text-foreground mt-orbit-xxs">
+                      {h.change}
+                    </p>{" "}
                     {changedExpectation && (
-                      <div className="mt-orbit-xs text-[11px] rounded border border-border bg-muted/30 p-orbit-s space-y-orbit-xxs">
+                      <div className="mt-orbit-xs cpv2-type-xs rounded border border-border bg-muted/30 p-orbit-s space-y-orbit-xxs">
+                        {" "}
                         <p>
+                          {" "}
                           <span className="text-destructive line-through decoration-destructive">
-                            {prevExpectation}
-                          </span>
-                        </p>
+                            {" "}
+                            {prevExpectation}{" "}
+                          </span>{" "}
+                        </p>{" "}
                         <p>
+                          {" "}
                           <span className="text-success underline decoration-success decoration-2 underline-offset-2">
-                            {h.expectation}
-                          </span>
-                        </p>
+                            {" "}
+                            {h.expectation}{" "}
+                          </span>{" "}
+                        </p>{" "}
                       </div>
-                    )}
+                    )}{" "}
                   </li>
                 );
-              })}
+              })}{" "}
             </ol>
-          )}
-        </TabsContent>
-      </Tabs>
+          )}{" "}
+        </TabsContent>{" "}
+      </Tabs>{" "}
     </div>
   );
 }

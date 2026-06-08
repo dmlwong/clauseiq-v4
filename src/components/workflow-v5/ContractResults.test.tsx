@@ -34,12 +34,15 @@ function renderContractResults(route = firstAnalysisRoute) {
 }
 
 function openRecommendationMenu() {
-  fireEvent.click(screen.getByRole("button", { name: /apply recommendations/i }));
+  fireEvent.click(screen.getByRole("button", { name: /bulk apply recommendation/i }));
 }
 
-function applyRecommendationOption(name: RegExp) {
+function applyRecommendationOptions(...names: RegExp[]) {
   openRecommendationMenu();
-  fireEvent.click(screen.getByRole("option", { name }));
+  names.forEach((name) => {
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name }));
+  });
+  fireEvent.click(screen.getByRole("button", { name: /apply selected/i }));
 }
 
 function generateCsv() {
@@ -64,7 +67,7 @@ describe("ContractResults V5 review controls", () => {
   it("applies scoped recommendations and undoes only that applied scope", async () => {
     renderContractResults();
 
-    applyRecommendationOption(/Apply High only/i);
+    applyRecommendationOptions(/High/i);
 
     expect(await screen.findByRole("button", { name: /undo high recommendations/i })).toBeInTheDocument();
     expect(localStorage.getItem("ciq-v5-clause-decisions")).toContain("request-update");
@@ -75,19 +78,19 @@ describe("ContractResults V5 review controls", () => {
     await waitFor(() => {
       expect(screen.queryByRole("button", { name: /undo high recommendations/i })).not.toBeInTheDocument();
     });
-    expect(screen.getByRole("button", { name: /apply recommendations/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /bulk apply recommendation/i })).toBeInTheDocument();
   });
 
   it("regenerates a stale CSV with current request items after review changes", async () => {
     renderContractResults();
 
-    applyRecommendationOption(/Apply High only/i);
+    applyRecommendationOptions(/High/i);
     generateCsv();
 
     expect(mocks.downloadCsv).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem("ciq-v5-generated-csv:sup-1:ct-1:first-analysis-demo:v1")).toBeTruthy();
 
-    applyRecommendationOption(/Apply Medium only/i);
+    applyRecommendationOptions(/Medium/i);
 
     fireEvent.click(screen.getByRole("button", { name: /review & generate/i }));
 

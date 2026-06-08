@@ -1164,6 +1164,14 @@ function MetricCell({
           "w-full cursor-pointer rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#185FA5]/35",
           active && "shadow-[inset_3px_0_0_var(--orbit-color-efficio-blue)]",
         )}
+        style={{
+          display: "block",
+          height: "auto",
+          overflow: "visible",
+          padding: 0,
+          textAlign: "left",
+          whiteSpace: "normal",
+        }}
       >
         <Card type="Static" padding="Small" state={active ? "Accent" : isHovered ? "Highlight" : "Default"}>
           {content}

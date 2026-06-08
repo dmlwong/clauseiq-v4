@@ -1,26 +1,28 @@
 .button {
   display: flex;
   align-items: center;
-  gap: var(--orbit-space-s);
-  padding: 0 var(--orbit-space-base);
+  justify-content: center;
+  box-sizing: border-box;
+  gap: var(--orbit-multistate-button-gap);
+  padding: var(--orbit-multistate-button-padding);
   height: var(--orbit-multistate-height);
-  background-color: transparent;
-  border-radius: var(--orbit-radius-sm);
+  background-color: var(--orbit-multistate-button-bg);
+  border-radius: var(--orbit-multistate-button-radius);
   box-shadow: none;
   border: none;
   cursor: pointer;
   font-family: var(--orbit-font-family-sans);
   overflow: hidden;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease;
 }
 
-.button:hover:not(:disabled) {
-  background-color: var(--orbit-color-bg-hover);
+.button:hover:not(:disabled):not(.selected) {
+  background-color: var(--orbit-multistate-button-bg-hover);
 }
 
 .button.selected {
-  background-color: var(--orbit-color-white);
-  box-shadow: var(--orbit-shadow-md);
+  background-color: var(--orbit-multistate-button-selected-bg);
+  box-shadow: var(--orbit-multistate-button-selected-shadow);
 }
 
 .button:focus-visible {
@@ -43,23 +45,34 @@
   justify-content: center;
   width: var(--orbit-multistate-icon-size);
   height: var(--orbit-multistate-icon-size);
-  padding: var(--orbit-space-s);
+  padding: 0;
 }
 
 .label {
-  font-size: var(--orbit-text-sm);
-  font-weight: var(--orbit-font-weight-regular);
-  line-height: var(--orbit-leading-relaxed);
-  color: var(--orbit-color-text-primary);
+  font-size: var(--orbit-multistate-label-size);
+  font-weight: var(--orbit-multistate-label-weight);
+  line-height: var(--orbit-multistate-label-line-height);
+  color: var(--orbit-multistate-label-color);
   white-space: nowrap;
 }
 
 .group {
   display: inline-flex;
-  align-items: flex-start;
-  gap: var(--orbit-space-s);
-  padding: var(--orbit-space-xs);
-  background-color: var(--orbit-color-status-high-bg-no-status);
+  align-items: center;
+  box-sizing: border-box;
+  gap: var(--orbit-multistate-group-gap);
+  height: var(--orbit-multistate-group-height);
+  padding: var(--orbit-multistate-group-padding);
+  background-color: var(--orbit-multistate-group-bg);
   border-radius: var(--orbit-multistate-group-radius);
   overflow: hidden;
+}
+
+.groupFullWidth {
+  width: 100%;
+}
+
+.groupFullWidth .button {
+  flex: 1 1 0;
+  min-width: 0;
 }

@@ -1,11 +1,7 @@
 import {
   useCallback,
   useEffect,
-  useRef,
   useState,
-  type ChangeEvent,
-  type DragEvent,
-  type MouseEvent,
   type ReactNode,
 } from "react";
 import {
@@ -21,9 +17,8 @@ import {
   Pencil,
   Scale,
   Sparkles,
-  Upload,
 } from "lucide-react";
-import { LinkText, Text } from "@orbit";
+import { Dropzone, Text } from "@orbit";
 
 import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
 import { StateCard, type CardState } from "@/components/clauseiq-v5/StateCard";
@@ -601,6 +596,7 @@ export function PostAnalysisNextActions({
 export function AnalysisParameterCards({
   selectedParameter,
   cardState,
+  categoryCardState = "active",
   locked = false,
   onBasisSelect,
   onCategorySelect,
@@ -609,6 +605,7 @@ export function AnalysisParameterCards({
 }: {
   selectedParameter: AnalysisParameterSelection | null;
   cardState: CardState;
+  categoryCardState?: CardState;
   locked?: boolean;
   onBasisSelect: (option: CiqParameterOption, value: string) => void;
   onCategorySelect: (option: CiqParameterOption, value: string) => void;
@@ -656,7 +653,7 @@ export function AnalysisParameterCards({
       </StateCard>
 
       {basisSelected && categoryRequired && (
-        <StateCard state={categorySelected ? "default" : "active"}>
+        <StateCard state={categorySelected ? "default" : categoryCardState}>
           <h2 className="v5-orbit-heading-5 mb-orbit-xs">Category</h2>
           {!categorySelected ? (
             <>
@@ -859,80 +856,13 @@ export function PlaybookDisclaimer({ variant, parameter }: { variant: "callout" 
 }
 
 export function ClauseIqDropzone({ onFile }: { onFile: (file: File | null) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [dragActive, setDragActive] = useState(false);
-
-  const openFilePicker = useCallback(() => {
-    inputRef.current?.click();
-  }, []);
-
-  const handleFile = useCallback((file?: File | null) => {
-    if (file) onFile(file);
-  }, [onFile]);
-
-  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    handleFile(event.target.files?.[0]);
-    event.target.value = "";
-  };
-
-  const handleChooseFiles = (event?: MouseEvent<HTMLAnchorElement>) => {
-    event?.preventDefault();
-    event?.stopPropagation();
-    openFilePicker();
-  };
-
-  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setDragActive(true);
-  };
-
-  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    setDragActive(false);
-    handleFile(event.dataTransfer.files?.[0]);
-  };
-
   return (
-    <div className="flex flex-col gap-orbit-s">
-      <input
-        ref={inputRef}
-        className="sr-only"
-        type="file"
-        accept="application/pdf,.pdf"
-        aria-label="Upload contract PDF"
-        tabIndex={-1}
-        onChange={handleInputChange}
-      />
-      <div
-        role="group"
-        aria-label="Upload contract PDF"
-        data-drag-active={dragActive ? "true" : "false"}
-        className={cn(
-          "flex min-h-[var(--orbit-dropzone-min-height)] cursor-pointer flex-col items-center justify-center gap-orbit-base rounded-md border-2 border-dashed border-[var(--orbit-color-card-border-accent)] bg-[var(--orbit-color-card-bg-accent)] p-orbit-base transition-colors",
-          dragActive && "border-[var(--orbit-color-card-border-highlight)] bg-[var(--orbit-color-card-bg-default)]",
-        )}
-        onClick={(event) => {
-          if ((event.target as HTMLElement).closest("a")) return;
-          openFilePicker();
-        }}
-        onDragEnter={handleDragOver}
-        onDragOver={handleDragOver}
-        onDragLeave={() => setDragActive(false)}
-        onDrop={handleDrop}
-      >
-        <span className="inline-flex h-[var(--orbit-space-xxl)] w-[var(--orbit-space-xxl)] items-center justify-center" aria-hidden="true">
-          <Upload className="h-8 w-8 text-muted-foreground" strokeWidth={2} />
-        </span>
-        <div className="flex flex-wrap items-center justify-center gap-orbit-xs text-center">
-          <Text variant="Primary" size="Paragraph">Drag &amp; drop or</Text>
-          <span className="clauseiq-v5-dropzone-link">
-            <LinkText label="choose files" href="#" onClick={handleChooseFiles} />
-          </span>
-          <Text variant="Primary" size="Paragraph">to upload</Text>
-        </div>
-        <Text variant="Secondary" size="Paragraph">File types supported: .pdf files.</Text>
-        <Text variant="Secondary" size="Paragraph">Maximum upload file size: 100 MB</Text>
-      </div>
-    </div>
+    <Dropzone
+      ariaLabel="Upload contract PDF"
+      accept="application/pdf,.pdf"
+      onFileSelected={onFile}
+      acceptedFileTypesLabel="File types supported: .pdf files."
+      maxFileSizeLabel="Maximum upload file size: 100 MB"
+    />
   );
 }

@@ -18,6 +18,7 @@ import {
   Searchbox,
   TabButton,
   Table as OrbitTable,
+  Button as OrbitButton,
   Text,
 } from "@orbit";
 import { showV5OrbitToast as toast } from "@/components/clauseiq-v5/V5OrbitToast";
@@ -26,6 +27,7 @@ import { Input } from "@/components/clauseiq-v5/orbit-ui/input";
 import { Textarea } from "@/components/clauseiq-v5/orbit-ui/textarea";
 import { Badge } from "@/components/clauseiq-v5/orbit-ui/badge";
 import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
+import { Checkbox } from "@/components/clauseiq-v5/orbit-ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/clauseiq-v5/orbit-ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/clauseiq-v5/orbit-ui/select";
 import { ChevronDown } from "lucide-react";
@@ -1693,7 +1695,7 @@ export function ContractResults({
       : "All recommendations reviewed";
   const firstAnalysisRecommendationApplyOptions = buildRecommendationApplyOptions(firstAnalysisRecommendationTargets);
   const firstAnalysisAvailableRecommendationApplyOptions = firstAnalysisRecommendationApplyOptions.filter((option) => option.count > 0);
-  const applyAllRecommendations = (targets: RecommendationTargetItem[], scope?: RecommendationApplyOption) => {
+  const applyAllRecommendations = (targets: RecommendationTargetItem[], scope?: RecommendationApplyScopeMeta) => {
     if (!firstAnalysisVersion || targets.length === 0) return;
     const bulkClauseIds = new Set(pendingRequestItems.map((item) => item.clauseId));
     targets.forEach((item) => bulkClauseIds.add(item.id));
@@ -1710,6 +1712,12 @@ export function ContractResults({
       title: "Recommendations added to review",
       description: `${targets.length} ${scope?.toastLabel ?? "recommendation"}${targets.length === 1 ? "" : "s"} added. Review and generate the CSV when ready.`,
     });
+  };
+  const applyRecommendationOptions = (options: RecommendationApplyOption[]) => {
+    applyAllRecommendations(
+      mergeRecommendationApplyTargets(options),
+      buildRecommendationApplyScopeMeta(options),
+    );
   };
   const undoAppliedRecommendations = () => {
     if (!firstAnalysisVersion || firstAnalysisUndoableRecommendationIds.length === 0) return;
@@ -1930,7 +1938,6 @@ export function ContractResults({
             backLabel={compactBackLabel}
             onBack={onBack}
             referenceLine={dashboardReferenceLine}
-            analysisLabel={firstAnalysisDemo ? `${firstAnalysisVersionLabel.toUpperCase()} Analysis` : undefined}
             firstAnalysisDemo={firstAnalysisDemo}
             demoAvailable={availableVersions.length >= 2}
             onFirstAnalysisDemoChange={toggleFirstAnalysisDemo}
@@ -1941,7 +1948,7 @@ export function ContractResults({
             comparisonLabel="Review"
             historyDisabled={!firstAnalysisDemo && versions.length < 2}
             onApplyAllRecommendations={() => applyAllRecommendations(firstAnalysisRecommendationTargets)}
-            onApplyRecommendationOption={(option) => applyAllRecommendations(option.targets, option)}
+            onApplyRecommendationOptions={applyRecommendationOptions}
             onUndoAllRecommendations={undoAppliedRecommendations}
             applyAllRecommendationsDisabled={!firstAnalysisDemo || firstAnalysisRecommendationTargets.length === 0}
             applyAllRecommendationsQueued={firstAnalysisDemo && firstAnalysisRecommendationsQueued}
@@ -1985,31 +1992,12 @@ export function ContractResults({
                           : firstAnalysisApplyAllLabel}
                       </Button>
                     ) : firstAnalysisAvailableRecommendationApplyOptions.length > 0 ? (
-                      <Select
-                        value=""
-                        onValueChange={(value) => {
-                          const option = firstAnalysisAvailableRecommendationApplyOptions.find((candidate) => candidate.id === value);
-                          if (option) applyAllRecommendations(option.targets, option);
-                        }}
-                      >
-                        <SelectTrigger
-                          className={cn(
-                            "clauseiq-v5-select-hug",
-                            isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger",
-                          )}
-                          aria-label="Apply Recommendations"
-                        >
-                          <Sparkles className="mr-orbit-xs h-3.5 w-3.5" />
-                          <SelectValue placeholder={`Apply Recommendations (${firstAnalysisRecommendationTargets.length})`} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {firstAnalysisAvailableRecommendationApplyOptions.map((option) => (
-                            <SelectItem key={option.id} value={option.id}>
-                              {option.label} ({option.count})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <RecommendationBulkApplyMenu
+                        className={cn(isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger")}
+                        options={firstAnalysisAvailableRecommendationApplyOptions}
+                        recommendationCount={firstAnalysisRecommendationTargets.length}
+                        onApply={applyRecommendationOptions}
+                      />
                     ) : (
                       <Button
                         variant="outline"
@@ -2527,7 +2515,6 @@ function CompactContractTopbar({
   backLabel,
   onBack,
   referenceLine,
-  analysisLabel,
   firstAnalysisDemo,
   demoAvailable,
   onFirstAnalysisDemoChange,
@@ -2535,7 +2522,6 @@ function CompactContractTopbar({
   backLabel: string;
   onBack: () => void;
   referenceLine: string;
-  analysisLabel?: string;
   firstAnalysisDemo: boolean;
   demoAvailable: boolean;
   onFirstAnalysisDemoChange: (enabled: boolean) => void;
@@ -2551,7 +2537,6 @@ function CompactContractTopbar({
       <div className="h-3.5 w-px bg-border" aria-hidden />
       <div className="flex min-w-0 flex-1 items-center gap-orbit-s">
         <h1 className="v5-orbit-heading-label min-w-0 truncate text-foreground">{referenceLine}</h1>
-        {analysisLabel && <Chip label={analysisLabel} size="Mini" variant="Information" />}
       </div>
       {demoAvailable && (
         <FirstAnalysisDemoToggle
@@ -2621,7 +2606,7 @@ function ModeSwitcher({
   comparisonLabel = "Review",
   historyDisabled = false,
   onApplyAllRecommendations,
-  onApplyRecommendationOption,
+  onApplyRecommendationOptions,
   onUndoAllRecommendations,
   applyAllRecommendationsDisabled = true,
   applyAllRecommendationsQueued = false,
@@ -2640,7 +2625,7 @@ function ModeSwitcher({
   comparisonLabel?: string;
   historyDisabled?: boolean;
   onApplyAllRecommendations?: () => void;
-  onApplyRecommendationOption?: (option: RecommendationApplyOption) => void;
+  onApplyRecommendationOptions?: (options: RecommendationApplyOption[]) => void;
   onUndoAllRecommendations?: () => void;
   applyAllRecommendationsDisabled?: boolean;
   applyAllRecommendationsQueued?: boolean;
@@ -2663,10 +2648,10 @@ function ModeSwitcher({
     ? `${undoRecommendationScopeLabel ? `Undo ${undoRecommendationScopeLabel} recommendations` : "Undo recommendations"}${undoRecommendationCount > 0 ? ` (${undoRecommendationCount})` : ""}`
     : applyAllRecommendationsQueued
     ? "Recommendations added to review"
-    : `Apply Recommendations${recommendationCount > 0 ? ` (${recommendationCount})` : ""}`;
+    : `Bulk Apply Recommendation${recommendationCount > 0 ? ` (${recommendationCount})` : ""}`;
   const availableRecommendationApplyOptions = recommendationApplyOptions.filter((option) => option.count > 0);
   const canChooseRecommendationScope =
-    Boolean(onApplyRecommendationOption) &&
+    Boolean(onApplyRecommendationOptions) &&
     !canUndoAppliedRecommendations &&
     !applyAllRecommendationsQueued &&
     !applyAllRecommendationsReviewed &&
@@ -2710,31 +2695,12 @@ function ModeSwitcher({
         >
           {onApplyAllRecommendations && (
             canChooseRecommendationScope ? (
-              <Select
-                value=""
-                onValueChange={(value) => {
-                  const option = availableRecommendationApplyOptions.find((candidate) => candidate.id === value);
-                  if (option) onApplyRecommendationOption?.(option);
-                }}
-              >
-                <SelectTrigger
-                  className={cn(
-                    "clauseiq-v5-select-hug",
-                    isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger",
-                  )}
-                  aria-label="Apply Recommendations"
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <SelectValue placeholder={applyAllButtonLabel} />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableRecommendationApplyOptions.map((option) => (
-                    <SelectItem key={option.id} value={option.id}>
-                      {option.label} ({option.count})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <RecommendationBulkApplyMenu
+                className={cn(isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger")}
+                options={availableRecommendationApplyOptions}
+                recommendationCount={recommendationCount}
+                onApply={(options) => onApplyRecommendationOptions?.(options)}
+              />
             ) : (
               <Button
                 variant="outline"
@@ -2763,6 +2729,144 @@ function ModeSwitcher({
             <Download className="h-3.5 w-3.5" />
             Review &amp; Generate{requestCount > 0 ? ` (${requestCount})` : ""}
           </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RecommendationBulkApplyMenu({
+  options,
+  recommendationCount,
+  onApply,
+  className,
+}: {
+  options: RecommendationApplyOption[];
+  recommendationCount: number;
+  onApply: (options: RecommendationApplyOption[]) => void;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<RecommendationApplyScope[]>([]);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const selectedOptions = useMemo(
+    () => options.filter((option) => selectedIds.includes(option.id)),
+    [options, selectedIds],
+  );
+  const selectedTargetCount = useMemo(
+    () => mergeRecommendationApplyTargets(selectedOptions).length,
+    [selectedOptions],
+  );
+  const buttonLabel = `Bulk Apply Recommendation${recommendationCount > 0 ? ` (${recommendationCount})` : ""}`;
+
+  useEffect(() => {
+    setSelectedIds((current) => {
+      const availableIds = new Set(options.map((option) => option.id));
+      const next = current.filter((id) => availableIds.has(id));
+      return next.length === current.length ? current : next;
+    });
+  }, [options]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [open]);
+
+  const toggleOption = (id: RecommendationApplyScope) => {
+    setSelectedIds((current) => {
+      if (current.includes(id)) {
+        return current.filter((candidate) => candidate !== id);
+      }
+
+      if (id === "all") {
+        return ["all"];
+      }
+
+      return [...current.filter((candidate) => candidate !== "all"), id];
+    });
+  };
+
+  const applySelectedOptions = () => {
+    if (selectedOptions.length === 0 || selectedTargetCount === 0) return;
+    onApply(selectedOptions);
+    setSelectedIds([]);
+    setOpen(false);
+  };
+  const applySelectedDisabled = selectedOptions.length === 0 || selectedTargetCount === 0;
+
+  return (
+    <div ref={rootRef} className={cn("clauseiq-v5-recommendation-bulk", className)}>
+      <Button
+        variant="outline"
+        className="clauseiq-v5-recommendation-bulk-trigger"
+        aria-label="Bulk Apply Recommendation"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <Sparkles className="h-3.5 w-3.5" />
+        <span>{buttonLabel}</span>
+        <ChevronDown className="h-3.5 w-3.5" />
+      </Button>
+      {open && (
+        <div
+          className="clauseiq-v5-recommendation-bulk-menu"
+          role="menu"
+          aria-label="Bulk Apply Recommendation options"
+        >
+          <div className="clauseiq-v5-recommendation-bulk-subheader">Select Recommendation Group</div>
+          <div className="clauseiq-v5-recommendation-bulk-list">
+            {options.map((option) => {
+              const checked = selectedIds.includes(option.id);
+
+              return (
+                <div
+                  key={option.id}
+                  role="menuitemcheckbox"
+                  tabIndex={0}
+                  aria-checked={checked}
+                  className={cn("clauseiq-v5-recommendation-bulk-option", checked && "is-selected")}
+                  onClick={() => toggleOption(option.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === " " || event.key === "Enter") {
+                      event.preventDefault();
+                      toggleOption(option.id);
+                    }
+                  }}
+                >
+                  <span aria-hidden="true" className="clauseiq-v5-recommendation-bulk-checkbox">
+                    <Checkbox
+                      checked={checked}
+                      className="pointer-events-none"
+                      aria-label={option.label}
+                    />
+                  </span>
+                  <span className="clauseiq-v5-recommendation-bulk-label">{option.label}</span>
+                  <span className="clauseiq-v5-recommendation-bulk-count">{option.count}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="clauseiq-v5-recommendation-bulk-footer">
+            <OrbitButton
+              variant="Primary"
+              size="Small"
+              state={applySelectedDisabled ? "Disabled" : "Default"}
+              className="w-full"
+              disabled={applySelectedDisabled}
+              onClick={applySelectedOptions}
+            >
+              Apply Selected
+            </OrbitButton>
+          </div>
         </div>
       )}
     </div>
@@ -4325,7 +4429,6 @@ function ClauseRequestForm({
   onSubmit: () => void;
 }) {
   const requestValue = draft?.requestedChange ?? request?.requestedChange ?? "";
-  const rationaleValue = draft?.rationale ?? request?.rationale ?? "";
 
   return (
     <div
@@ -4345,24 +4448,15 @@ function ClauseRequestForm({
           </p>
         </div>
       )}
-      <div className="grid gap-orbit-base md:grid-cols-2">
+      <div className="grid w-full gap-orbit-base">
         <div className="space-y-orbit-xs">
           <label className="text-[11px] v5-orbit-weight-semibold uppercase text-muted-foreground">
-            Requested change ({versionLabel}) <span className="text-destructive">*</span>
+            REQUESTED CHANGE <span className="text-destructive">*</span>
           </label>
           <Textarea
             value={requestValue}
             onChange={(event) => onUpdate({ requestedChange: event.target.value })}
             placeholder={requestPlaceholder}
-            className={cn("min-h-[64px] text-sm", compact && "min-h-[58px] text-xs")}
-          />
-        </div>
-        <div className="space-y-orbit-xs">
-          <label className="text-[11px] v5-orbit-weight-semibold uppercase text-muted-foreground">Rationale (optional)</label>
-          <Textarea
-            value={rationaleValue}
-            onChange={(event) => onUpdate({ rationale: event.target.value })}
-            placeholder="Why is this change required?"
             className={cn("min-h-[64px] text-sm", compact && "min-h-[58px] text-xs")}
           />
         </div>
@@ -5016,6 +5110,11 @@ interface RecommendationTargetItem {
 
 type RecommendationApplyScope = "all" | "high" | "medium" | "low" | "missing";
 
+interface RecommendationApplyScopeMeta {
+  toastLabel: string;
+  undoLabel: string;
+}
+
 interface RecommendationApplyOption {
   id: RecommendationApplyScope;
   label: string;
@@ -5031,7 +5130,7 @@ function buildRecommendationApplyOptions(targets: RecommendationTargetItem[]): R
   return [
     {
       id: "all",
-      label: "Apply all recommendations",
+      label: "All recommendations",
       toastLabel: "recommendation",
       undoLabel: "all",
       count: targets.length,
@@ -5039,7 +5138,7 @@ function buildRecommendationApplyOptions(targets: RecommendationTargetItem[]): R
     },
     {
       id: "high",
-      label: "Apply High only",
+      label: "High",
       toastLabel: "High recommendation",
       undoLabel: "High",
       count: byScope("high").length,
@@ -5047,7 +5146,7 @@ function buildRecommendationApplyOptions(targets: RecommendationTargetItem[]): R
     },
     {
       id: "medium",
-      label: "Apply Medium only",
+      label: "Medium",
       toastLabel: "Medium recommendation",
       undoLabel: "Medium",
       count: byScope("medium").length,
@@ -5055,7 +5154,7 @@ function buildRecommendationApplyOptions(targets: RecommendationTargetItem[]): R
     },
     {
       id: "low",
-      label: "Apply Low only",
+      label: "Low",
       toastLabel: "Low recommendation",
       undoLabel: "Low",
       count: byScope("low").length,
@@ -5063,13 +5162,38 @@ function buildRecommendationApplyOptions(targets: RecommendationTargetItem[]): R
     },
     {
       id: "missing",
-      label: "Apply Missing clauses only",
+      label: "Missing clauses",
       toastLabel: "Missing clause recommendation",
       undoLabel: "Missing clause",
       count: byScope("missing").length,
       targets: byScope("missing"),
     },
   ];
+}
+
+function mergeRecommendationApplyTargets(options: RecommendationApplyOption[]) {
+  const seenTargetIds = new Set<string>();
+  const targets: RecommendationTargetItem[] = [];
+
+  options.forEach((option) => {
+    option.targets.forEach((target) => {
+      if (seenTargetIds.has(target.id)) return;
+      seenTargetIds.add(target.id);
+      targets.push(target);
+    });
+  });
+
+  return targets;
+}
+
+function buildRecommendationApplyScopeMeta(options: RecommendationApplyOption[]): RecommendationApplyScopeMeta | undefined {
+  if (options.length === 0) return undefined;
+  if (options.length === 1) return options[0];
+
+  return {
+    toastLabel: "selected recommendation",
+    undoLabel: "selected",
+  };
 }
 
 function targetMatchesRecommendationScope(target: RecommendationTargetItem, scope: RecommendationApplyScope) {

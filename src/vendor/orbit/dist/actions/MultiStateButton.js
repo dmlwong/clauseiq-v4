@@ -7,11 +7,11 @@ import { Badge } from '../indicators/Badge';
 import styles from './MultiStateButton.module.css';
 export var MultiStateButton = function (_a) {
     var label = _a.label, _b = _a.selected, selected = _b === void 0 ? false : _b, _c = _a.disabled, disabled = _c === void 0 ? false : _c, onClick = _a.onClick, leftIcon = _a.leftIcon, rightIcon = _a.rightIcon, count = _a.count, tabIndex = _a.tabIndex;
-    return (_jsxs("button", { type: "button", role: "tab", "aria-selected": selected, disabled: disabled, tabIndex: disabled ? -1 : tabIndex !== null && tabIndex !== void 0 ? tabIndex : 0, onClick: disabled ? undefined : onClick, className: clsx(styles.button, selected && styles.selected), children: [leftIcon && (_jsx("span", { className: styles.iconSlot, children: _jsx(FaIcon, { icon: leftIcon, size: 12, color: "var(--orbit-color-dove-gray)" }) })), _jsx("span", { className: styles.label, children: label }), count !== undefined && _jsx(Badge, { label: String(count), status: "Green" }), rightIcon && (_jsx("span", { className: styles.iconSlot, children: _jsx(FaIcon, { icon: rightIcon, size: 12, color: "var(--orbit-color-dove-gray)" }) }))] }));
+    return (_jsxs("button", { type: "button", "aria-pressed": selected, disabled: disabled, tabIndex: disabled ? -1 : tabIndex !== null && tabIndex !== void 0 ? tabIndex : 0, onClick: disabled ? undefined : onClick, className: clsx(styles.button, selected && styles.selected), children: [leftIcon && (_jsx("span", { className: styles.iconSlot, children: _jsx(FaIcon, { icon: leftIcon, size: 12, color: "var(--orbit-color-dove-gray)" }) })), _jsx("span", { className: styles.label, children: label }), count !== undefined && _jsx(Badge, { label: String(count), status: "Green" }), rightIcon && (_jsx("span", { className: styles.iconSlot, children: _jsx(FaIcon, { icon: rightIcon, size: 12, color: "var(--orbit-color-dove-gray)" }) }))] }));
 };
 export var MultiStateGroup = function (_a) {
     var _b, _c;
-    var children = _a.children, _d = _a.ariaLabel, ariaLabel = _d === void 0 ? 'Options' : _d, value = _a.value, defaultValue = _a.defaultValue, onValueChange = _a.onValueChange;
+    var children = _a.children, _d = _a.ariaLabel, ariaLabel = _d === void 0 ? 'Options' : _d, value = _a.value, defaultValue = _a.defaultValue, onValueChange = _a.onValueChange, _f = _a.fullWidth, fullWidth = _f === void 0 ? false : _f;
     var _e = React.useState(defaultValue), uncontrolledValue = _e[0], setUncontrolledValue = _e[1];
     var isControlled = value !== undefined;
     var selectedValue = isControlled ? value : uncontrolledValue;
@@ -29,21 +29,21 @@ export var MultiStateGroup = function (_a) {
         var _a;
         if (!['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'].includes(event.key))
             return;
-        var tabs = Array.from(event.currentTarget.querySelectorAll('[role="tab"]:not(:disabled)'));
-        var currentIndex = tabs.indexOf(document.activeElement);
-        if (tabs.length === 0 || currentIndex === -1)
+        var buttons = Array.from(event.currentTarget.querySelectorAll('button:not(:disabled)'));
+        var currentIndex = buttons.indexOf(document.activeElement);
+        if (buttons.length === 0 || currentIndex === -1)
             return;
         event.preventDefault();
         var nextIndex = event.key === 'Home'
             ? 0
             : event.key === 'End'
-                ? tabs.length - 1
+                ? buttons.length - 1
                 : event.key === 'ArrowRight' || event.key === 'ArrowDown'
-                    ? (currentIndex + 1) % tabs.length
-                    : (currentIndex - 1 + tabs.length) % tabs.length;
-        (_a = tabs[nextIndex]) === null || _a === void 0 ? void 0 : _a.focus();
+                    ? (currentIndex + 1) % buttons.length
+                    : (currentIndex - 1 + buttons.length) % buttons.length;
+        (_a = buttons[nextIndex]) === null || _a === void 0 ? void 0 : _a.focus();
     };
-    return (_jsx("div", { role: "tablist", "aria-label": ariaLabel, className: styles.group, onKeyDown: handleKeyDown, children: React.Children.map(children, function (child) {
+    return (_jsx("div", { role: "group", "aria-label": ariaLabel, className: clsx(styles.group, fullWidth && styles.groupFullWidth), onKeyDown: handleKeyDown, children: React.Children.map(children, function (child) {
             if (!React.isValidElement(child))
                 return child;
             var childValue = child.props.value;

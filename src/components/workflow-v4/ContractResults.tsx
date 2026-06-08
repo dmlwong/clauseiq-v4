@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef, type KeyboardEvent, type MouseEve
 import { useSearchParams } from "react-router-dom";
 import { Chip } from "@orbit";
 import {
-  ChevronLeft, AlertTriangle, CheckCircle2, Search, MapPin, Lightbulb,
+  ChevronLeft, AlertTriangle, Check, CheckCircle2, Search, MapPin, Lightbulb,
   GitCompare, History, X, ArrowRight, Upload, Trash2, FileText, Loader2,
   Info, ShieldCheck, ExternalLink, Sigma, Pin, RotateCcw,
   Clock, ShieldX, Pencil, CircleMinus, ClipboardList, FileCheck2, FileDown,
@@ -2716,8 +2716,17 @@ function ModeSwitcher({
     ? `${undoRecommendationScopeLabel ? `Undo ${undoRecommendationScopeLabel} recommendations` : "Undo recommendations"}${undoRecommendationCount > 0 ? ` (${undoRecommendationCount})` : ""}`
     : applyAllRecommendationsQueued
     ? "Recommendations added to review"
-    : `Apply recommendations${recommendationCount > 0 ? ` (${recommendationCount})` : ""}`;
+    : `Bulk Apply Recommendation${recommendationCount > 0 ? ` (${recommendationCount})` : ""}`;
   const availableRecommendationApplyOptions = recommendationApplyOptions.filter((option) => option.count > 0);
+  const availableRecommendationApplyOptionIds = availableRecommendationApplyOptions.map((option) => option.id).join("|");
+  const [selectedRecommendationScopeIds, setSelectedRecommendationScopeIds] = useState<RecommendationApplyScope[]>([]);
+  const selectedRecommendationApplyOptions = availableRecommendationApplyOptions.filter((option) =>
+    selectedRecommendationScopeIds.includes(option.id),
+  );
+  const selectedRecommendationTargets = selectedRecommendationApplyOptions.some((option) => option.id === "all")
+    ? availableRecommendationApplyOptions.find((option) => option.id === "all")?.targets ?? []
+    : uniqueRecommendationTargets(selectedRecommendationApplyOptions.flatMap((option) => option.targets));
+  const selectedRecommendationCount = selectedRecommendationTargets.length;
   const canChooseRecommendationScope =
     Boolean(onApplyRecommendationOption) &&
     !canUndoAppliedRecommendations &&
@@ -2725,6 +2734,48 @@ function ModeSwitcher({
     !applyAllRecommendationsReviewed &&
     !applyAllRecommendationsDisabled &&
     availableRecommendationApplyOptions.length > 0;
+
+  useEffect(() => {
+    const availableIds = new Set(availableRecommendationApplyOptionIds.split("|").filter(Boolean));
+
+    setSelectedRecommendationScopeIds((current) => current.filter((id) => availableIds.has(id)));
+  }, [availableRecommendationApplyOptionIds]);
+
+  const toggleRecommendationScope = (optionId: RecommendationApplyScope, nextChecked: boolean) => {
+    setSelectedRecommendationScopeIds((current) => {
+      if (!nextChecked) {
+        return current.filter((id) => id !== optionId);
+      }
+
+      if (optionId === "all") {
+        return ["all"];
+      }
+
+      const withoutAll = current.filter((id) => id !== "all");
+      return withoutAll.includes(optionId) ? withoutAll : [...withoutAll, optionId];
+    });
+  };
+
+  const applySelectedRecommendationScopes = () => {
+    if (!onApplyRecommendationOption || selectedRecommendationCount === 0) {
+      return;
+    }
+
+    const selectedOption =
+      selectedRecommendationApplyOptions.length === 1 ? selectedRecommendationApplyOptions[0] : null;
+    const bulkOption: RecommendationApplyOption = selectedOption ?? {
+      id: "all",
+      label: "Bulk Apply Recommendation",
+      toastLabel: "selected recommendation",
+      undoLabel: "selected",
+      count: selectedRecommendationCount,
+      targets: selectedRecommendationTargets,
+    };
+
+    onApplyRecommendationOption(bulkOption);
+    setSelectedRecommendationScopeIds([]);
+  };
+
   const reviewIcon =
     comparisonLabel === "V1 Analysis" ? (
       <FileSearch key="comparison-icon" className="h-[13px] w-[13px]" />
@@ -2774,18 +2825,47 @@ function ModeSwitcher({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
-                <DropdownMenuLabel className="text-xs">Apply by deviation level</DropdownMenuLabel>
+                <DropdownMenuLabel className="text-xs">Select recommendation groups</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {availableRecommendationApplyOptions.map((option) => (
-                  <DropdownMenuItem
-                    key={option.id}
-                    className="gap-3 text-xs"
-                    onSelect={() => onApplyRecommendationOption?.(option)}
+                {availableRecommendationApplyOptions.map((option) => {
+                  const checked = selectedRecommendationScopeIds.includes(option.id);
+
+                  return (
+                    <DropdownMenuItem
+                      key={option.id}
+                      className="gap-2 text-xs"
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        toggleRecommendationScope(option.id, !checked);
+                      }}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border",
+                          checked
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-white text-transparent",
+                        )}
+                      >
+                        {checked && <Check className="h-3 w-3" />}
+                      </span>
+                      <span>{option.label}</span>
+                      <span className="ml-auto tabular-nums text-muted-foreground">{option.count}</span>
+                    </DropdownMenuItem>
+                  );
+                })}
+                <DropdownMenuSeparator />
+                <div className="p-1">
+                  <Button
+                    size="sm"
+                    className="h-7 w-full text-xs"
+                    disabled={selectedRecommendationCount === 0}
+                    onClick={applySelectedRecommendationScopes}
                   >
-                    <span>{option.label}</span>
-                    <span className="ml-auto tabular-nums text-muted-foreground">{option.count}</span>
-                  </DropdownMenuItem>
-                ))}
+                    Bulk Apply Recommendation{selectedRecommendationCount > 0 ? ` (${selectedRecommendationCount})` : ""}
+                  </Button>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
@@ -5012,6 +5092,19 @@ interface RecommendationTargetItem {
   request: ClauseRequest;
 }
 
+function uniqueRecommendationTargets(targets: RecommendationTargetItem[]) {
+  const seen = new Set<string>();
+
+  return targets.filter((target) => {
+    if (seen.has(target.id)) {
+      return false;
+    }
+
+    seen.add(target.id);
+    return true;
+  });
+}
+
 type RecommendationApplyScope = "all" | "high" | "medium" | "low" | "missing";
 
 interface RecommendationApplyOption {
@@ -5037,7 +5130,7 @@ function buildRecommendationApplyOptions(targets: RecommendationTargetItem[]): R
     },
     {
       id: "high",
-      label: "Apply High only",
+      label: "Apply High",
       toastLabel: "High recommendation",
       undoLabel: "High",
       count: byScope("high").length,
@@ -5045,7 +5138,7 @@ function buildRecommendationApplyOptions(targets: RecommendationTargetItem[]): R
     },
     {
       id: "medium",
-      label: "Apply Medium only",
+      label: "Apply Medium",
       toastLabel: "Medium recommendation",
       undoLabel: "Medium",
       count: byScope("medium").length,
@@ -5053,7 +5146,7 @@ function buildRecommendationApplyOptions(targets: RecommendationTargetItem[]): R
     },
     {
       id: "low",
-      label: "Apply Low only",
+      label: "Apply Low",
       toastLabel: "Low recommendation",
       undoLabel: "Low",
       count: byScope("low").length,
@@ -5061,7 +5154,7 @@ function buildRecommendationApplyOptions(targets: RecommendationTargetItem[]): R
     },
     {
       id: "missing",
-      label: "Apply Missing clauses only",
+      label: "Apply Missing clauses",
       toastLabel: "Missing clause recommendation",
       undoLabel: "Missing clause",
       count: byScope("missing").length,

@@ -1,24 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode, type RefObject } from "react";
-import {
-  BadgeCheck,
-  BarChart2,
-  BookOpen,
-  Building2,
-  Check,
-  ChevronDown,
-  ClipboardList,
-  Download,
-  FilePlus2,
-  FileText,
-  Info,
-  ListChecks,
-  Loader2,
-  RotateCw,
-  Scale,
-  Search,
-  Sparkles,
-} from "lucide-react";
-import { Card, Chip, Dropzone, InlineBanner, MultiStateButton, MultiStateGroup } from "@orbit";
+import { Card, Chip, Dropzone, FA, FaIcon, InlineBanner, MultiStateButton, MultiStateGroup, Spinner, Toggle } from "@orbit";
 
 import {
   BASIS_PARAMETER_OPTIONS,
@@ -97,6 +78,37 @@ const ICON_CHECK = "\uf00c";
 const ICON_CIRCLE_EXCLAMATION = "\uf06a";
 const ICON_TRIANGLE_EXCLAMATION = "\uf071";
 const ICON_SLIDERS = "\uf1de";
+const CP_SHARED_FA = {
+  badgeCheck: "\uf058",
+  bookOpen: "\uf02d",
+  building: "\uf1ad",
+  chart: "\uf080",
+  chevronDown: FA.angleDown,
+  clipboardList: "\uf46d",
+  download: "\uf019",
+  filePlus: "\uf319",
+  listChecks: "\uf0ae",
+  rotate: "\uf2f1",
+  scale: "\uf24e",
+  search: "\uf002",
+  sparkles: "\ue5d6",
+};
+
+function CpSharedIcon({
+  className,
+  icon,
+  size = 16,
+}: {
+  className?: string;
+  icon: string;
+  size?: number;
+}) {
+  return (
+    <span className={className} aria-hidden="true">
+      <FaIcon icon={icon} size={size} />
+    </span>
+  );
+}
 
 export function getCpClauseIqFooterState(
   workflow: ClauseIqWorkflow,
@@ -163,7 +175,7 @@ export function CpStateCard({
     >
       <Card
         type="Static"
-        state={state === "active" ? "Highlight" : state === "disabled" ? "Disabled" : "Default"}
+        state={state === "disabled" ? "Disabled" : "Default"}
       >
         {children}
       </Card>
@@ -185,9 +197,8 @@ export function CpPlaybookDisclaimer({
   }
 
   return (
-    <div className="mb-orbit-base flex items-start gap-orbit-s rounded-md border border-primary/20 bg-primary/5 px-orbit-base py-orbit-s text-[11px] leading-snug text-muted-foreground">
-      <Info className="mt-orbit-xxs h-3 w-3 shrink-0 text-primary" />
-      <span>{copy}</span>
+    <div className="mb-orbit-base">
+      <InlineBanner variant="Information" contrast="Low" label={copy} />
     </div>
   );
 }
@@ -347,16 +358,11 @@ export function CpAnalysisCard({
               <h3 className="v5-orbit-heading-4">Here is your Analysis Result</h3>
               <label className="flex items-center gap-orbit-s text-sm v5-orbit-weight-medium text-foreground">
                 <span>Save To Content Search</span>
-                <CpButton
-                  type="button"
-                  role="switch"
-                  aria-checked={saveToDocuments}
-                  aria-label="Save To Content Search"
-                  className={cn("cp-switch", saveToDocuments && "is-on")}
-                  onClick={() => setSaveToDocuments((current) => !current)}
-                >
-                  <span />
-                </CpButton>
+                <Toggle
+                  ariaLabel="Save To Content Search"
+                  checked={saveToDocuments}
+                  onChange={setSaveToDocuments}
+                />
               </label>
             </div>
           </div>
@@ -391,20 +397,20 @@ export function CpAnalysisCard({
                 className="h-10 w-full gap-orbit-s"
                 onClick={onViewResult}
               >
-                <BarChart2 className="h-4 w-4" />
+                <CpSharedIcon icon={CP_SHARED_FA.chart} size={14} />
                 View Result
               </CpButton>
             )}
             <div className={cn("clauseiq-responsive-secondary-actions grid gap-orbit-s", onRunAgain && onDownload ? "sm:grid-cols-2" : "grid-cols-1")}>
               {onRunAgain && (
                 <CpButton orbitVariant="Secondary" className="h-10 gap-orbit-s" onClick={onRunAgain}>
-                  <RotateCw className="h-4 w-4" />
+                  <CpSharedIcon icon={CP_SHARED_FA.rotate} size={14} />
                   Run Another Analysis
                 </CpButton>
               )}
               {onDownload && (
                 <CpButton orbitVariant="Secondary" className="h-10 gap-orbit-s" onClick={onDownload}>
-                  <Download className="h-4 w-4" />
+                  <CpSharedIcon icon={CP_SHARED_FA.download} size={14} />
                   Download Report
                 </CpButton>
               )}
@@ -510,7 +516,7 @@ export function CpSupplierOutputsPanel({
             placeholder="Search suppliers or files"
           />
 
-          <div className="clauseiq-v5-output-scope-control">
+          <div className="cp-clauseiq-output-scope-control">
             <MultiStateGroup
               ariaLabel="Output scope"
               value={outputScope}
@@ -770,7 +776,7 @@ function CpSelectedSummaryRow({
       )}
     >
       <div className="flex min-w-0 items-center gap-orbit-s">
-        <Check className={cn("h-4 w-4 shrink-0", disabled ? "text-muted-foreground" : "text-success")} />
+        <CpSharedIcon className={cn("shrink-0", disabled ? "text-muted-foreground" : "text-success")} icon={FA.check} size={14} />
         <span className={cn("truncate text-sm v5-orbit-weight-medium", disabled ? "text-muted-foreground" : "text-foreground")}>
           {label}
         </span>
@@ -889,9 +895,9 @@ function CpParameterKindSelector({
 }
 
 function CpParameterIcon({ kind }: { kind: CiqParameterKind }) {
-  if (kind === "Governing Law") return <Scale className="h-4 w-4" />;
-  if (kind === "Category") return <ListChecks className="h-4 w-4" />;
-  return <BookOpen className="h-4 w-4" />;
+  if (kind === "Governing Law") return <CpSharedIcon icon={CP_SHARED_FA.scale} size={14} />;
+  if (kind === "Category") return <CpSharedIcon icon={CP_SHARED_FA.listChecks} size={14} />;
+  return <CpSharedIcon icon={CP_SHARED_FA.bookOpen} size={14} />;
 }
 
 function CpClauseIqOverviewCard({
@@ -907,7 +913,7 @@ function CpClauseIqOverviewCard({
     <CpStateCard state="default">
       <div className="flex items-center gap-orbit-base mb-orbit-base">
         <div className="h-10 w-10 rounded-lg bg-primary text-primary-foreground grid place-items-center">
-          <Sparkles className="h-5 w-5" />
+          <CpSharedIcon icon={CP_SHARED_FA.sparkles} size={18} />
         </div>
         <h1 className="v5-orbit-heading-4">ClauseIQ</h1>
       </div>
@@ -917,13 +923,13 @@ function CpClauseIqOverviewCard({
       </p>
       <div className={cn("rounded-lg bg-muted/50 border border-border p-orbit-base space-y-orbit-base", step === "welcome" && "mb-orbit-m")}>
         <div className="text-sm v5-orbit-weight-medium text-foreground mb-orbit-xs">Summary</div>
-        <CpSummaryRow icon={<ListChecks className="h-4 w-4 text-ciq" />} text="Reviews every clause against your benchmark playbook." />
-        <CpSummaryRow icon={<Building2 className="h-4 w-4 text-ciq" />} text={currentInitiativeCopy} />
-        <CpSummaryRow icon={<FilePlus2 className="h-4 w-4 text-ciq" />} text="Exports a shareable report with severity and actions." />
+        <CpSummaryRow icon={<CpSharedIcon className="text-ciq" icon={CP_SHARED_FA.listChecks} size={14} />} text="Reviews every clause against your benchmark playbook." />
+        <CpSummaryRow icon={<CpSharedIcon className="text-ciq" icon={CP_SHARED_FA.building} size={14} />} text={currentInitiativeCopy} />
+        <CpSummaryRow icon={<CpSharedIcon className="text-ciq" icon={CP_SHARED_FA.filePlus} size={14} />} text="Exports a shareable report with severity and actions." />
       </div>
       {step === "welcome" && onStart && (
         <CpButton orbitVariant="Primary" className="w-full" onClick={onStart}>
-          <Sparkles className="h-4 w-4 mr-orbit-s" />
+          <CpSharedIcon className="mr-orbit-s" icon={CP_SHARED_FA.sparkles} size={14} />
           Get Started
         </CpButton>
       )}
@@ -963,7 +969,7 @@ function CpInitiativeStep({
           Choose the initiative to analyse the contract against.
         </p>
         <CpButton orbitVariant="Primary" className="w-full" onClick={onOpenInitiativeModal}>
-          <Search className="h-4 w-4 mr-orbit-s" />
+          <CpSharedIcon className="mr-orbit-s" icon={CP_SHARED_FA.search} size={14} />
           Search Initiatives
         </CpButton>
       </CpStateCard>
@@ -1030,15 +1036,15 @@ function CpProcessingStep({
       <h2 className="v5-orbit-heading-5 mb-orbit-base">{heading}</h2>
       <div className="flex items-center justify-between border border-border rounded-lg px-orbit-base py-orbit-s mb-orbit-base">
         <div className="flex items-center gap-orbit-s min-w-0">
-          <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+          <CpSharedIcon className="text-muted-foreground shrink-0" icon={FA.file} size={14} />
           <span className="text-sm truncate">{workflow.file?.name ?? "Contract.pdf"}</span>
         </div>
         <span className="text-xs v5-orbit-weight-medium text-success inline-flex items-center gap-orbit-xs">
-          <Check className="h-3.5 w-3.5" /> Uploaded
+          <CpSharedIcon icon={FA.check} size={12} /> Uploaded
         </span>
       </div>
       <div className="flex items-center gap-orbit-base py-orbit-s">
-        <Loader2 className="h-5 w-5 animate-spin text-ciq" />
+        <Spinner size="Inline" label="Analysing contract" />
         <span className="text-sm v5-orbit-weight-medium">{copy}</span>
       </div>
       <CpPlaybookDisclaimer variant="inline" parameter={parameter} />
@@ -1232,7 +1238,7 @@ function CpPostAnalysisNextActions({
         const completed = completedMilestoneIds.includes(milestone.id);
         return completed ? (
           <CpButton orbitVariant="Secondary" className="h-9 gap-orbit-s" disabled>
-            <Check className="h-4 w-4" />
+            <CpSharedIcon icon={FA.check} size={14} />
             Completed
           </CpButton>
         ) : (
@@ -1254,7 +1260,7 @@ function CpPostAnalysisNextActions({
           className="flex w-full items-center gap-orbit-base rounded-lg border border-border bg-card p-orbit-base text-left"
           onClick={onStartAnotherInitiative}
         >
-          <Sparkles className="h-6 w-6 shrink-0 text-primary" />
+          <CpSharedIcon className="shrink-0 text-primary" icon={CP_SHARED_FA.sparkles} size={20} />
           <span className="min-w-0">
             <span className="block text-sm v5-orbit-weight-medium text-foreground">
               Analyse Contract on Another Initiative
@@ -1270,7 +1276,7 @@ function CpPostAnalysisNextActions({
         <section className="rounded-lg border border-border bg-card p-orbit-base" aria-labelledby="cp-update-milestone-title">
           <div className="flex items-start justify-between gap-orbit-base">
             <div className="flex min-w-0 items-start gap-orbit-s">
-              <ClipboardList className="mt-orbit-xs h-5 w-5 shrink-0 text-primary" />
+              <CpSharedIcon className="mt-orbit-xs shrink-0 text-primary" icon={CP_SHARED_FA.clipboardList} size={18} />
               <div>
                 <h3 id="cp-update-milestone-title" className="v5-orbit-heading-label">
                   Update Milestone
@@ -1296,7 +1302,7 @@ function CpPostAnalysisNextActions({
             className="flex w-full items-center gap-orbit-base rounded-lg border border-border bg-card p-orbit-base text-left"
             onClick={onCompleteInitiative}
           >
-            <BadgeCheck className="h-6 w-6 shrink-0 text-primary" />
+            <CpSharedIcon className="shrink-0 text-primary" icon={CP_SHARED_FA.badgeCheck} size={20} />
             <span className="min-w-0">
               <span className="block text-sm v5-orbit-weight-medium text-foreground">Complete Initiative</span>
               <span className="mt-orbit-xs block text-base text-muted-foreground">
@@ -1377,7 +1383,7 @@ function CpSupplierPanelEmptyState({
     <div className="w-full px-orbit-s py-orbit-s text-center">
       <div className="mx-auto max-w-[260px]">
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-lg border border-slate-200 bg-white text-primary shadow-sm">
-          {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
+          {loading ? <Spinner size="Inline" label="Loading supplier outputs" /> : <CpSharedIcon icon={CP_SHARED_FA.search} size={18} />}
         </div>
         <h3 className="v5-orbit-heading-5 mt-orbit-m">{title}</h3>
         <p className="mt-orbit-s text-sm leading-relaxed text-muted-foreground">{copy}</p>
@@ -1391,7 +1397,7 @@ function CpNoPreviousAnalysisState({ onRunAgain }: { onRunAgain?: () => void }) 
     <Card type="Static" state="Default" padding="Base">
       <div className="text-center">
         <div className="mx-auto grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary">
-          <FileText className="h-5 w-5" />
+          <CpSharedIcon icon={FA.file} size={18} />
         </div>
         <h3 className="v5-orbit-heading-5 mt-orbit-base">No analysis outputs yet</h3>
         <p className="mx-auto mt-orbit-s max-w-sm text-sm text-muted-foreground">
@@ -1399,7 +1405,7 @@ function CpNoPreviousAnalysisState({ onRunAgain }: { onRunAgain?: () => void }) 
         </p>
         {onRunAgain && (
           <CpButton orbitVariant="Primary" className="mt-orbit-base h-9 gap-orbit-s" onClick={onRunAgain}>
-            <RotateCw className="h-4 w-4" />
+            <CpSharedIcon icon={CP_SHARED_FA.rotate} size={14} />
             Run first analysis
           </CpButton>
         )}
@@ -1452,7 +1458,7 @@ function CpSupplierOutputGroup({
             aria-expanded={open}
             aria-controls={contentId}
             className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted-foreground"
-            icon={<ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} />}
+            icon={<CpSharedIcon className={cn("transition-transform", open && "rotate-180")} icon={CP_SHARED_FA.chevronDown} size={14} />}
             onClick={onToggle}
           />
         </div>
@@ -1512,13 +1518,13 @@ function CpCompactOutputRow({
 
       <div className="clauseiq-responsive-compact-output-actions mt-orbit-base grid grid-cols-3 gap-orbit-xs">
         <CpCompactActionButton label="View Results" onClick={onViewResult}>
-          <BarChart2 className="h-3.5 w-3.5" />
+          <CpSharedIcon icon={CP_SHARED_FA.chart} size={13} />
         </CpCompactActionButton>
         <CpCompactActionButton label="Re-Run" onClick={onRunAgain}>
-          <RotateCw className="h-3.5 w-3.5" />
+          <CpSharedIcon icon={CP_SHARED_FA.rotate} size={13} />
         </CpCompactActionButton>
         <CpCompactActionButton label="Download" onClick={onDownload}>
-          <Download className="h-3.5 w-3.5" />
+          <CpSharedIcon icon={CP_SHARED_FA.download} size={13} />
         </CpCompactActionButton>
       </div>
     </article>

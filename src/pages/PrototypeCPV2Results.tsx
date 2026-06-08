@@ -47,7 +47,7 @@ export default function PrototypeCPV2Results() {
             </div>
             <HeaderActions uploadCount="5" showCloud />
           </header>
-          <main className="cpv2-results-dashboard-shell" data-prototype="prototype-cp-v2-results" data-theme="orbit">
+          <main className="cpv2-results-dashboard-shell" data-prototype="prototype-cp-v2-results" data-theme="efficio-cp">
             <ContractResults
               initiativeId={searchParams.get("initiativeId") ?? "init-1"}
               supplierId={searchParams.get("supplierId") ?? "sup-1"}

@@ -79,17 +79,19 @@ export function OutputPanelResultsContent({
 
 interface SupplierOutputsPanelProps extends ResultsViewProps {
   className?: string;
+  initialOutputScope?: OutputScope;
 }
 
 export function SupplierOutputsPanel({
   initiative,
+  initialOutputScope = "mine",
   onRunAgain,
   onDownload,
   onViewResult,
   outputState = "filled",
   className,
 }: SupplierOutputsPanelProps) {
-  const [outputScope, setOutputScope] = useState<OutputScope>("mine");
+  const [outputScope, setOutputScope] = useState<OutputScope>(initialOutputScope);
   const [query, setQuery] = useState("");
   const allRows = useMemo(() => flattenSupplierAnalyses(initiative.suppliers), [initiative.suppliers]);
   const hasOutputs = allRows.length > 0;
@@ -127,6 +129,10 @@ export function SupplierOutputsPanel({
   useEffect(() => {
     setOpenSupplierIds(suppliers[0] ? [suppliers[0].id] : []);
   }, [suppliers]);
+
+  useEffect(() => {
+    setOutputScope(initialOutputScope);
+  }, [initialOutputScope]);
 
   const toggleSupplier = (supplierId: string) => {
     setOpenSupplierIds((current) =>

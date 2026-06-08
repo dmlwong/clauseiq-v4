@@ -98,7 +98,7 @@ export function Select({ value, defaultValue, onValueChange, children }: SelectP
       data-orbit-adapter="select"
     >
       {meta.leadingIcon && (
-        <span aria-hidden="true" className="clauseiq-v5-select-leading-icon">
+        <span aria-hidden="true" className="cpv2-clauseiq-select-leading-icon">
           {meta.leadingIcon}
         </span>
       )}

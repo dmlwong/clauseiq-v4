@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 import { FA, FaIcon } from "@orbit";
-import { useLocation, useNavigate } from "react-router-dom";
 import { CpNotificationsRailControl } from "@/components/prototype-cp-shared/CpNotifications";
-import { CpDropdown, CpIconButton, CpRailButton } from "@/components/prototype-cp-shared/orbit";
+import { CpIconButton, CpRailButton } from "@/components/prototype-cp-shared/orbit";
 
 export const CP_FA = {
   admin: "\uf0c0",
@@ -23,6 +22,7 @@ export const CP_FA = {
   download: "\uf019",
   ellipsis: "\uf141",
   file: FA.file,
+  filePlus: "\uf319",
   filter: "\uf0b0",
   gear: "\uf013",
   globe: "\uf0ac",
@@ -48,31 +48,6 @@ export const CP_FA = {
 
 export function CpIcon({ icon, size = 14, color }: { icon: string; size?: number; color?: string }) {
   return <FaIcon icon={icon} size={size} color={color ?? "currentColor"} />;
-}
-
-const PROTOTYPE_SWITCH_OPTIONS = [
-  { label: "Prototype CP", value: "prototype-cp", basePath: "/prototype-cp" },
-  { label: "Prototype CP - v2", value: "prototype-cp-v2", basePath: "/prototype-cp-v2" },
-] as const;
-
-type PrototypeSwitchValue = (typeof PROTOTYPE_SWITCH_OPTIONS)[number]["value"];
-
-function getCurrentPrototype(pathname: string): PrototypeSwitchValue {
-  return pathname.startsWith("/prototype-cp-v2") ? "prototype-cp-v2" : "prototype-cp";
-}
-
-function buildPrototypeSwitchPath(pathname: string, search: string, target: PrototypeSwitchValue) {
-  const targetOption = PROTOTYPE_SWITCH_OPTIONS.find((option) => option.value === target) ?? PROTOTYPE_SWITCH_OPTIONS[0];
-  const currentBase = pathname.startsWith("/prototype-cp-v2") ? "/prototype-cp-v2" : "/prototype-cp";
-  const suffix = pathname.startsWith(currentBase) ? pathname.slice(currentBase.length) : "";
-  const params = new URLSearchParams(search);
-
-  if (params.get("source") === "prototype-cp" || params.get("source") === "prototype-cp-v2") {
-    params.set("source", targetOption.value);
-  }
-
-  const query = params.toString();
-  return `${targetOption.basePath}${suffix}${query ? `?${query}` : ""}`;
 }
 
 function RailButton({
@@ -128,42 +103,6 @@ export function CpRail() {
   );
 }
 
-export function HeaderActions({ uploadCount = "47", showCloud = false }: { uploadCount?: string; showCloud?: boolean }) {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const currentPrototype = getCurrentPrototype(location.pathname);
-
-  return (
-    <div className="cpv2-header-actions">
-      <CpDropdown
-        ariaLabel="Switch prototype"
-        className="cpv2-prototype-switcher"
-        options={PROTOTYPE_SWITCH_OPTIONS}
-        value={currentPrototype}
-        onChange={(value) => navigate(buildPrototypeSwitchPath(location.pathname, location.search, value as PrototypeSwitchValue))}
-      />
-      <CpIconButton
-        className="cpv2-icon-button"
-        ariaLabel="Upload"
-        icon={(
-          <>
-            <CpIcon icon={CP_FA.upload} size={14} />
-            {uploadCount ? <span className="cpv2-yellow-count">{uploadCount}</span> : null}
-          </>
-        )}
-      />
-      <CpIconButton
-        className="cpv2-icon-button"
-        ariaLabel="Guidance"
-        icon={<CpIcon icon={CP_FA.hand} size={17} color="#f0ab00" />}
-      />
-      {showCloud ? (
-        <CpIconButton
-          className="cpv2-icon-button muted"
-          ariaLabel="Cloud disabled"
-          icon={<CpIcon icon={CP_FA.cloud} size={15} />}
-        />
-      ) : null}
-    </div>
-  );
+export function HeaderActions() {
+  return null;
 }

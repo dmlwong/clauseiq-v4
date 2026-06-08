@@ -1,17 +1,27 @@
 import * as React from "react";
 import {
+  Badge,
   Button as OrbitButton,
+  Card,
   Chip,
+  DocumentGlyph,
   Dropdown,
   FileItem,
+  FA,
+  FaIcon,
   IconButton as OrbitIconButton,
+  InlineBanner,
   LinkText,
+  Overlay,
   Searchbox,
+  Spinner,
+  StepCircle,
+  StatusIndicator,
   TabButton,
   Table as OrbitTable,
+  Toggle,
   type TableColumn,
 } from "@orbit";
-import { X } from "lucide-react";
 
 type OrbitButtonVariant = "Primary" | "Secondary" | "Tertiary" | "Positive" | "Destructive";
 type OrbitButtonSize = "Small" | "Medium";
@@ -255,12 +265,142 @@ export function CpFileRow({
         trailing={(
           <CpIconButton
             ariaLabel={removeLabel}
-            icon={<X size={14} aria-hidden="true" />}
+            icon={<FaIcon icon={FA.xmark} size={14} />}
             onClick={onRemove}
           />
         )}
       />
     </div>
+  );
+}
+
+export function CpCard({
+  children,
+  className,
+  padding = "Base",
+  state = "Default",
+  style,
+  type = "Static",
+}: {
+  children: React.ReactNode;
+  className?: string;
+  padding?: React.ComponentProps<typeof Card>["padding"];
+  state?: React.ComponentProps<typeof Card>["state"];
+  style?: React.CSSProperties;
+  type?: React.ComponentProps<typeof Card>["type"];
+}) {
+  return (
+    <div className={className} data-cp-orbit-adapter="card">
+      <Card padding={padding} state={state} style={style} type={type}>
+        {children}
+      </Card>
+    </div>
+  );
+}
+
+export function CpInlineBanner({
+  className,
+  contrast = "Low",
+  icon,
+  label,
+  status,
+  variant,
+}: {
+  className?: string;
+  contrast?: React.ComponentProps<typeof InlineBanner>["contrast"];
+  icon?: string;
+  label: string;
+  status?: string;
+  variant: React.ComponentProps<typeof InlineBanner>["variant"];
+}) {
+  return (
+    <div className={className} data-cp-orbit-adapter="inline-banner">
+      <InlineBanner contrast={contrast} icon={icon} label={label} status={status} variant={variant} />
+    </div>
+  );
+}
+
+export function CpModal({
+  ariaLabel,
+  children,
+  className,
+  height = "Viewport",
+  onClose,
+  size = "Default",
+  visible,
+}: {
+  ariaLabel: string;
+  children: React.ReactNode;
+  className?: string;
+  height?: React.ComponentProps<typeof Overlay>["height"];
+  onClose: () => void;
+  size?: React.ComponentProps<typeof Overlay>["size"];
+  visible: boolean;
+}) {
+  return (
+    <Overlay ariaLabel={ariaLabel} height={height} onClose={onClose} size={size} visible={visible}>
+      <div className={className} data-cp-orbit-adapter="modal">
+        {children}
+      </div>
+    </Overlay>
+  );
+}
+
+export function CpStepCircle(props: React.ComponentProps<typeof StepCircle>) {
+  return (
+    <span data-cp-orbit-adapter="step-circle">
+      <StepCircle {...props} />
+    </span>
+  );
+}
+
+export function CpDocumentGlyph(props: React.ComponentProps<typeof DocumentGlyph>) {
+  return (
+    <span data-cp-orbit-adapter="document-glyph">
+      <DocumentGlyph {...props} />
+    </span>
+  );
+}
+
+export function CpSpinner({ className }: { className?: string }) {
+  return (
+    <span className={className} data-cp-orbit-adapter="spinner">
+      <Spinner />
+    </span>
+  );
+}
+
+export function CpToggle({
+  checked,
+  disabled,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  label: string;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <span data-cp-orbit-adapter="toggle">
+      <Toggle ariaLabel={label} checked={checked} onChange={onChange} state={disabled ? "Disabled" : "Active"} />
+    </span>
+  );
+}
+
+export function CpBadge(props: React.ComponentProps<typeof Badge>) {
+  return (
+    <span data-cp-orbit-adapter="badge">
+      <Badge {...props} />
+    </span>
+  );
+}
+
+export function CpStatusIndicator(props: React.ComponentProps<typeof StatusIndicator>) {
+  return (
+    <span data-cp-orbit-adapter="status-indicator">
+      <StatusIndicator {...props} />
+    </span>
   );
 }
 

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { ArrowRight, Columns3, List } from "lucide-react";
+import { ArrowRight, Columns3, List } from "./CpResultIcons";
 import {
   Badge,
   Button,
@@ -11,11 +11,13 @@ import {
   TabButton,
   Text,
 } from "@orbit";
-
 import { cn } from "@/lib/utils";
-import type { ComparisonStripStats, DeviationDistribution, VersionPanelData } from "@/lib/clauseiq-v4-comparison";
+import type {
+  ComparisonStripStats,
+  DeviationDistribution,
+  VersionPanelData,
+} from "@/lib/clauseiq-v4-comparison";
 import { CpButton } from "@/components/prototype-cp-shared/orbit";
-
 export type ComparisonDesignOption = "evolved" | "side-by-side" | "row-scale";
 export type EvidenceMetricKey =
   | "open-items"
@@ -28,7 +30,6 @@ export type EvidenceMetricKey =
   | "low"
   | "total";
 export type FirstAnalysisMetricKey = "high" | "medium" | "low" | "missing";
-
 export interface EvidenceMetricCounts {
   openItems: number;
   met: number;
@@ -40,7 +41,6 @@ export interface EvidenceMetricCounts {
   low: number;
   totalClauses: number;
 }
-
 export interface FirstAnalysisMetrics {
   needReview: number;
   requested: number;
@@ -52,19 +52,28 @@ export interface FirstAnalysisMetrics {
   distribution: DeviationDistribution;
   versionLabel: string;
 }
-
-const designOptions: Array<{ value: ComparisonDesignOption; label: string; icon: ReactNode }> = [
-  { value: "row-scale", label: "A · Row scale", icon: <List className="h-3.5 w-3.5" /> },
-  { value: "side-by-side", label: "Current · Side-by-side", icon: <Columns3 className="h-3.5 w-3.5" /> },
+const designOptions: Array<{
+  value: ComparisonDesignOption;
+  label: string;
+  icon: ReactNode;
+}> = [
+  {
+    value: "row-scale",
+    label: "A · Row scale",
+    icon: <List className="h-3.5 w-3.5" />,
+  },
+  {
+    value: "side-by-side",
+    label: "Current · Side-by-side",
+    icon: <Columns3 className="h-3.5 w-3.5" />,
+  },
 ];
-
 const distributionColours: Record<keyof DeviationDistribution, string> = {
   high: "#A32D2D",
   medium: "#BA7517",
   low: "#B4B2A9",
   clean: "#3B6D11",
 };
-
 export function DesignOptionSwitcher({
   value,
   onChange,
@@ -78,6 +87,7 @@ export function DesignOptionSwitcher({
       aria-label="Comparison design"
       className="flex min-w-0 items-center gap-orbit-xs overflow-x-auto rounded-md border border-border bg-white p-orbit-xxs"
     >
+      {" "}
       {designOptions.map((option) => {
         const active = option.value === value;
         return (
@@ -88,21 +98,23 @@ export function DesignOptionSwitcher({
             ariaControls="comparison-work-column"
             onClick={() => onChange(option.value)}
             className={cn(
-              "h-6 shrink-0 rounded-[5px] px-orbit-s text-[10px]",
-              active ? "bg-[#1a2744] text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              "h-6 shrink-0 rounded-[5px] px-orbit-s cpv2-type-xs",
+              active
+                ? "bg-[#1a2744] text-white"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
+            {" "}
             <span className="inline-flex items-center gap-orbit-xs">
-              {option.icon}
-              {option.label}
-            </span>
+              {" "}
+              {option.icon} {option.label}{" "}
+            </span>{" "}
           </TabButton>
         );
-      })}
+      })}{" "}
     </div>
   );
 }
-
 export function ComparisonDesignOptions({
   option,
   comparisonControl,
@@ -154,8 +166,11 @@ export function ComparisonDesignOptions({
   onEvidenceMetricSelect?: (metric: EvidenceMetricKey) => void;
   evidenceMetrics?: EvidenceMetricCounts;
 }) {
-  const categoryLabels = activeCategoryLabels ?? (activeCategoryLabel ? [activeCategoryLabel] : []);
-  const hasActiveFilters = Boolean(activeMetricLabel || categoryLabels.length > 0);
+  const categoryLabels =
+    activeCategoryLabels ?? (activeCategoryLabel ? [activeCategoryLabel] : []);
+  const hasActiveFilters = Boolean(
+    activeMetricLabel || categoryLabels.length > 0,
+  );
   const activeFilterChips = hasActiveFilters ? (
     <ActiveFilterBar
       activeMetricLabel={activeMetricLabel}
@@ -165,12 +180,14 @@ export function ComparisonDesignOptions({
       onClearCategoryFilter={onClearCategoryFilter}
     />
   ) : null;
-
   if (option === "side-by-side" || option === "row-scale") {
     return (
       <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-base py-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
+        {" "}
         <aside className="xl:sticky xl:top-[100px] xl:max-h-[calc(100vh-180px)] xl:self-start xl:overflow-y-auto">
+          {" "}
           <section className="overflow-hidden rounded-lg border border-border bg-card p-orbit-base">
+            {" "}
             <ComparisonSummaryRail
               panel={panel}
               stripStats={stripStats}
@@ -182,25 +199,29 @@ export function ComparisonDesignOptions({
               activeMetric={activeEvidenceMetric}
               onMetricSelect={onEvidenceMetricSelect}
               metrics={evidenceMetrics}
-            />
-            <CategoryFiltersSection activeFilterChips={activeFilterChips}>{categoryPanel}</CategoryFiltersSection>
-          </section>
-        </aside>
+            />{" "}
+            <CategoryFiltersSection activeFilterChips={activeFilterChips}>
+              {categoryPanel}
+            </CategoryFiltersSection>{" "}
+          </section>{" "}
+        </aside>{" "}
         <div id="comparison-work-column" className="min-w-0 space-y-orbit-base">
+          {" "}
           <WorkflowStack
             openItems={openItems}
             newChanges={newChanges}
             closedItems={closedItems}
             unmarkedClauses={unmarkedClauses}
-          />
-        </div>
+          />{" "}
+        </div>{" "}
       </div>
     );
   }
-
   return (
     <div className="mx-auto w-full max-w-[1500px] space-y-orbit-base px-orbit-base py-orbit-base">
+      {" "}
       <section className="grid items-stretch gap-orbit-base xl:grid-cols-2">
+        {" "}
         <NarrativeSummary
           stripStats={stripStats}
           activeMetric={activeEvidenceMetric}
@@ -208,33 +229,39 @@ export function ComparisonDesignOptions({
           metrics={evidenceMetrics}
           grouped
           activeFilterChips={activeFilterChips}
-        />
+        />{" "}
         <VersionMovementCard
           panel={panel}
           leftLabel={leftLabel}
           rightLabel={rightLabel}
           comparisonControl={comparisonControl}
-        />
-      </section>
-
+        />{" "}
+      </section>{" "}
       <div className="min-[900px]:flex min-[900px]:items-start min-[900px]:gap-orbit-base">
+        {" "}
         <div className="hidden w-60 shrink-0 min-[900px]:block">
-          <SidebarFiltersPanel activeFilterChips={activeFilterChips}>{categoryRail}</SidebarFiltersPanel>
-        </div>
-        <div id="comparison-work-column" className="flex min-w-0 flex-1 flex-col gap-orbit-base">
-          <div className="min-[900px]:hidden">{categoryStrip}</div>
+          {" "}
+          <SidebarFiltersPanel activeFilterChips={activeFilterChips}>
+            {categoryRail}
+          </SidebarFiltersPanel>{" "}
+        </div>{" "}
+        <div
+          id="comparison-work-column"
+          className="flex min-w-0 flex-1 flex-col gap-orbit-base"
+        >
+          {" "}
+          <div className="min-[900px]:hidden">{categoryStrip}</div>{" "}
           <WorkflowStack
             openItems={openItems}
             newChanges={newChanges}
             closedItems={closedItems}
             unmarkedClauses={unmarkedClauses}
-          />
-        </div>
-      </div>
+          />{" "}
+        </div>{" "}
+      </div>{" "}
     </div>
   );
 }
-
 export function FirstAnalysisDesignOptions({
   option,
   metrics,
@@ -270,8 +297,11 @@ export function FirstAnalysisDesignOptions({
   activeMetrics?: FirstAnalysisMetricKey[];
   onMetricSelect?: (metric: FirstAnalysisMetricKey) => void;
 }) {
-  const categoryLabels = activeCategoryLabels ?? (activeCategoryLabel ? [activeCategoryLabel] : []);
-  const hasActiveFilters = Boolean(categoryLabels.length > 0 || (activeMetricLabels?.length ?? 0) > 0);
+  const categoryLabels =
+    activeCategoryLabels ?? (activeCategoryLabel ? [activeCategoryLabel] : []);
+  const hasActiveFilters = Boolean(
+    categoryLabels.length > 0 || (activeMetricLabels?.length ?? 0) > 0,
+  );
   const clearAllActiveFilters = () => {
     onClearAllMetrics();
     if (categoryLabels.length > 0) onClearCategory();
@@ -286,57 +316,74 @@ export function FirstAnalysisDesignOptions({
       onClearCategoryFilter={onClearCategoryFilter}
     />
   ) : null;
-
   if (option === "side-by-side" || option === "row-scale") {
     return (
       <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-base py-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
+        {" "}
         <aside className="xl:sticky xl:top-[100px] xl:max-h-[calc(100vh-180px)] xl:self-start xl:overflow-y-auto">
+          {" "}
           <section className="overflow-hidden rounded-lg border border-border bg-card p-orbit-base">
-            <FirstAnalysisReviewCountPanel visibleCount={visibleCount} />
+            {" "}
+            <FirstAnalysisReviewCountPanel visibleCount={visibleCount} />{" "}
             <FirstAnalysisSummaryPanel
               metrics={metrics}
               activeMetrics={activeMetrics}
               onMetricSelect={onMetricSelect}
               compact
-            />
-            <CategoryFiltersSection activeFilterChips={activeFilterChips}>{categoryPanel}</CategoryFiltersSection>
-          </section>
-        </aside>
+            />{" "}
+            <CategoryFiltersSection activeFilterChips={activeFilterChips}>
+              {categoryPanel}
+            </CategoryFiltersSection>{" "}
+          </section>{" "}
+        </aside>{" "}
         <div id="comparison-work-column" className="min-w-0 space-y-orbit-base">
-          <FirstAnalysisReviewShell>{clausesToReview}</FirstAnalysisReviewShell>
-        </div>
+          {" "}
+          <FirstAnalysisReviewShell>
+            {clausesToReview}
+          </FirstAnalysisReviewShell>{" "}
+        </div>{" "}
       </div>
     );
   }
-
   return (
     <div className="mx-auto w-full max-w-[1500px] space-y-orbit-base px-orbit-base py-orbit-base">
+      {" "}
       <section className="grid items-stretch gap-orbit-base xl:grid-cols-2">
+        {" "}
         <InitialAnalysisSummaryCard
           metrics={metrics}
           activeMetrics={activeMetrics}
           onMetricSelect={onMetricSelect}
           activeFilterChips={activeFilterChips}
-        />
-        <CurrentRiskProfileCard metrics={metrics} />
-      </section>
-
+        />{" "}
+        <CurrentRiskProfileCard metrics={metrics} />{" "}
+      </section>{" "}
       <div className="min-[900px]:flex min-[900px]:items-start min-[900px]:gap-orbit-base">
+        {" "}
         <div className="hidden w-60 shrink-0 min-[900px]:block">
+          {" "}
           <div className="space-y-orbit-base">
-            <FirstAnalysisReviewCountPanel visibleCount={visibleCount} />
-            <SidebarFiltersPanel activeFilterChips={activeFilterChips}>{categoryRail}</SidebarFiltersPanel>
-          </div>
-        </div>
-        <div id="comparison-work-column" className="flex min-w-0 flex-1 flex-col gap-orbit-base">
-          <div className="min-[900px]:hidden">{categoryStrip}</div>
-          <FirstAnalysisReviewShell>{clausesToReview}</FirstAnalysisReviewShell>
-        </div>
-      </div>
+            {" "}
+            <FirstAnalysisReviewCountPanel visibleCount={visibleCount} />{" "}
+            <SidebarFiltersPanel activeFilterChips={activeFilterChips}>
+              {categoryRail}
+            </SidebarFiltersPanel>{" "}
+          </div>{" "}
+        </div>{" "}
+        <div
+          id="comparison-work-column"
+          className="flex min-w-0 flex-1 flex-col gap-orbit-base"
+        >
+          {" "}
+          <div className="min-[900px]:hidden">{categoryStrip}</div>{" "}
+          <FirstAnalysisReviewShell>
+            {clausesToReview}
+          </FirstAnalysisReviewShell>{" "}
+        </div>{" "}
+      </div>{" "}
     </div>
   );
 }
-
 function ActiveFilterBar({
   activeMetricLabel,
   onClearMetric,
@@ -358,37 +405,52 @@ function ActiveFilterBar({
   onClearCategory: () => void;
   onClearCategoryFilter?: (category: string) => void;
 }) {
-  const categoryLabels = activeCategoryLabels ?? (activeCategoryLabel ? [activeCategoryLabel] : []);
-  const filterCount = (activeMetricLabel ? 1 : 0) + metricFilters.length + categoryLabels.length;
+  const categoryLabels =
+    activeCategoryLabels ?? (activeCategoryLabel ? [activeCategoryLabel] : []);
+  const filterCount =
+    (activeMetricLabel ? 1 : 0) + metricFilters.length + categoryLabels.length;
   if (filterCount === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-orbit-xs">
+      {" "}
       {activeMetricLabel && onClearMetric && (
-        <FilterChip label={`Filter: ${activeMetricLabel}`} onClear={onClearMetric} />
-      )}
+        <FilterChip
+          label={`Filter: ${activeMetricLabel}`}
+          onClear={onClearMetric}
+        />
+      )}{" "}
       {metricFilters.map((filter) => (
         <FilterChip
           key={filter.key}
           label={`Filter: ${filter.label}`}
           onClear={() => onClearMetricFilter?.(filter.key)}
         />
-      ))}
+      ))}{" "}
       {categoryLabels.map((label) => (
         <FilterChip
           key={label}
           label={`Category: ${label}`}
-          onClear={() => (onClearCategoryFilter ? onClearCategoryFilter(label) : onClearCategory())}
+          onClear={() =>
+            onClearCategoryFilter
+              ? onClearCategoryFilter(label)
+              : onClearCategory()
+          }
         />
-      ))}
+      ))}{" "}
       {filterCount > 1 && onClearAllMetrics && (
-        <Button type="button" variant="Tertiary" size="Medium" onClick={onClearAllMetrics}>
-          Clear All
+        <Button
+          type="button"
+          variant="Tertiary"
+          size="Medium"
+          onClick={onClearAllMetrics}
+        >
+          {" "}
+          Clear All{" "}
         </Button>
-      )}
+      )}{" "}
     </div>
   );
 }
-
 function SidebarFiltersPanel({
   children,
   activeFilterChips,
@@ -398,12 +460,12 @@ function SidebarFiltersPanel({
 }) {
   return (
     <div className="space-y-orbit-base">
-      {children}
-      <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>
+      {" "}
+      {children}{" "}
+      <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>{" "}
     </div>
   );
 }
-
 function CategoryFiltersSection({
   children,
   activeFilterChips,
@@ -413,26 +475,34 @@ function CategoryFiltersSection({
 }) {
   return (
     <div className="mt-orbit-base border-t border-border pt-orbit-base">
+      {" "}
       <div className="mb-orbit-s">
-        <Text as="p" size="Small" variant="Secondary">CATEGORIES</Text>
-      </div>
-      <SidebarFiltersPanel activeFilterChips={activeFilterChips}>{children}</SidebarFiltersPanel>
+        {" "}
+        <Text as="p" size="Small" variant="Secondary">
+          CATEGORIES
+        </Text>{" "}
+      </div>{" "}
+      <SidebarFiltersPanel activeFilterChips={activeFilterChips}>
+        {children}
+      </SidebarFiltersPanel>{" "}
     </div>
   );
 }
-
 function ActiveFiltersSection({ children }: { children?: ReactNode }) {
   if (!children) return null;
   return (
     <div className="border-t border-border pt-orbit-base">
+      {" "}
       <div className="mb-orbit-s">
-        <Text as="p" size="Small" variant="Secondary">ACTIVE FILTERS</Text>
-      </div>
-      {children}
+        {" "}
+        <Text as="p" size="Small" variant="Secondary">
+          ACTIVE FILTERS
+        </Text>{" "}
+      </div>{" "}
+      {children}{" "}
     </div>
   );
 }
-
 function InitialAnalysisSummaryCard({
   metrics,
   activeMetrics,
@@ -445,52 +515,68 @@ function InitialAnalysisSummaryCard({
   activeFilterChips?: ReactNode;
 }) {
   const analysisLabel = `${metrics.versionLabel.toUpperCase()} Analysis`;
-
   return (
     <Card type="Static" padding="Base">
+      {" "}
       <div className="flex flex-wrap items-center gap-orbit-s">
-        <Text as="p" size="Small" variant="Secondary">{analysisLabel} summary</Text>
+        {" "}
+        <Text as="p" size="Small" variant="Secondary">
+          {analysisLabel} summary
+        </Text>{" "}
         {metrics.requested > 0 && (
-          <Badge label={`${metrics.requested} requested`} status="Information" />
-        )}
-      </div>
+          <Badge
+            label={`${metrics.requested} requested`}
+            status="Information"
+          />
+        )}{" "}
+      </div>{" "}
       <Text as="p" size="Paragraph" variant="Primary">
-        ClauseIQ reviewed this contract for the first time. Review flagged clauses and add requested changes to the supplier CSV.
-      </Text>
+        {" "}
+        ClauseIQ reviewed this contract for the first time. Review flagged
+        clauses and add requested changes to the supplier CSV.{" "}
+      </Text>{" "}
       <FirstAnalysisMetricGrid
         metrics={metrics}
         activeMetrics={activeMetrics}
         onMetricSelect={onMetricSelect}
         grouped
-      />
-      <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>
+      />{" "}
+      <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>{" "}
     </Card>
   );
 }
-
-function CurrentRiskProfileCard({ metrics }: { metrics: FirstAnalysisMetrics }) {
+function CurrentRiskProfileCard({
+  metrics,
+}: {
+  metrics: FirstAnalysisMetrics;
+}) {
   const analysisLabel = `${metrics.versionLabel.toUpperCase()} Analysis`;
-
   return (
     <Card type="Static" padding="Base">
+      {" "}
       <div className="mb-orbit-base flex flex-wrap items-center justify-between gap-orbit-s border-b border-border pb-orbit-base">
+        {" "}
         <div>
-          <Text as="p" size="Small" variant="Secondary">Current risk profile</Text>
-          <Text as="p" size="Small" variant="Secondary">{analysisLabel}</Text>
-        </div>
-        <Badge label={metrics.versionLabel} status="Information" />
-      </div>
+          {" "}
+          <Text as="p" size="Small" variant="Secondary">
+            Current risk profile
+          </Text>{" "}
+          <Text as="p" size="Small" variant="Secondary">
+            {analysisLabel}
+          </Text>{" "}
+        </div>{" "}
+        <Badge label={metrics.versionLabel} status="Information" />{" "}
+      </div>{" "}
       <DistributionSide
         label={analysisLabel}
         score={metrics.score}
         distribution={metrics.distribution}
         current
         large
-      />
+      />{" "}
     </Card>
   );
 }
-
 function FirstAnalysisSummaryPanel({
   metrics,
   activeMetrics,
@@ -506,57 +592,76 @@ function FirstAnalysisSummaryPanel({
 }) {
   return (
     <section className="rounded-none border-0 bg-card p-orbit-none">
+      {" "}
       <Card type="Static" padding={compact ? "Small" : "Base"} state="Accent">
+        {" "}
         <div className="flex items-center gap-orbit-s">
+          {" "}
           <RadialIndicator
-            status={metrics.score >= 75 ? "Success" : metrics.score >= 50 ? "Warning" : "Error"}
+            status={
+              metrics.score >= 75
+                ? "Success"
+                : metrics.score >= 50
+                  ? "Warning"
+                  : "Error"
+            }
             progress={metrics.score}
             size={32}
             ariaLabel={`${metrics.score} analysis score`}
-          />
+          />{" "}
           <div className="flex items-baseline gap-orbit-s">
-            <Headings size="Heading 1" style={{ lineHeight: 1 }}>{metrics.score}</Headings>
-            <span className="text-xs leading-none text-muted-foreground">Analysis Score</span>
-          </div>
-        </div>
-        <FirstAnalysisMetricBar metrics={metrics} className="mt-orbit-base" />
-      </Card>
+            {" "}
+            <Headings size="Heading 1" style={{ lineHeight: 1 }}>
+              {metrics.score}
+            </Headings>{" "}
+            <span className="cpv2-type-xs cpv2-leading-tight text-muted-foreground">
+              Analysis Score
+            </span>{" "}
+          </div>{" "}
+        </div>{" "}
+        <FirstAnalysisMetricBar
+          metrics={metrics}
+          className="mt-orbit-base"
+        />{" "}
+      </Card>{" "}
       <FirstAnalysisMetricGrid
         metrics={metrics}
         activeMetrics={activeMetrics}
         onMetricSelect={onMetricSelect}
         density="rail"
-      />
-      <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>
+      />{" "}
+      <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>{" "}
     </section>
   );
 }
-
-function FirstAnalysisReviewCountPanel({ visibleCount }: { visibleCount: number }) {
+function FirstAnalysisReviewCountPanel({
+  visibleCount,
+}: {
+  visibleCount: number;
+}) {
   return (
     <div className="mb-orbit-base px-orbit-xs">
+      {" "}
       <div className="flex items-center justify-between gap-orbit-s">
-        <Headings size="Heading 4">Clauses to Review</Headings>
-        <Chip label={String(visibleCount)} size="Mini" variant="Outline" />
-      </div>
+        {" "}
+        <Headings size="Heading 4">Clauses to Review</Headings>{" "}
+        <Chip label={String(visibleCount)} size="Mini" variant="Outline" />{" "}
+      </div>{" "}
     </div>
   );
 }
-
-function FirstAnalysisReviewShell({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  return (
-    <div>{children}</div>
-  );
+function FirstAnalysisReviewShell({ children }: { children: ReactNode }) {
+  return <div>{children}</div>;
 }
-
-function FilterChip({ label, onClear }: { label: string; onClear: () => void }) {
+function FilterChip({
+  label,
+  onClear,
+}: {
+  label: string;
+  onClear: () => void;
+}) {
   return <OrbitFilter label={label} onRemove={onClear} />;
 }
-
 function WorkflowStack({
   openItems,
   newChanges,
@@ -570,14 +675,11 @@ function WorkflowStack({
 }) {
   return (
     <div className="grid gap-orbit-base">
-      {openItems}
-      {closedItems}
-      {newChanges}
-      {unmarkedClauses}
+      {" "}
+      {openItems} {closedItems} {newChanges} {unmarkedClauses}{" "}
     </div>
   );
 }
-
 export function ComparisonSummaryRail({
   panel,
   stripStats,
@@ -617,30 +719,39 @@ export function ComparisonSummaryRail({
   };
   return (
     <section className="rounded-none border-0 bg-card p-orbit-none">
+      {" "}
       <div>
+        {" "}
         <ScoreHero
           stripStats={stripStats}
           panel={panel}
           leftLabel={leftLabel}
           rightLabel={rightLabel}
           compact
-        />
-      </div>
+        />{" "}
+      </div>{" "}
       <MetricGrid
         metrics={metricCounts}
         activeMetric={activeMetric}
         onMetricSelect={onMetricSelect}
         density="rail"
-      />
-      <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>
+      />{" "}
+      <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>{" "}
       <div className="mt-orbit-base">
-        {comparisonControl && <div className="mb-orbit-base">{comparisonControl}</div>}
-        <VersionDistributionPair panel={panel} leftLabel={leftLabel} rightLabel={rightLabel} layout="rail" />
-      </div>
+        {" "}
+        {comparisonControl && (
+          <div className="mb-orbit-base">{comparisonControl}</div>
+        )}{" "}
+        <VersionDistributionPair
+          panel={panel}
+          leftLabel={leftLabel}
+          rightLabel={rightLabel}
+          layout="rail"
+        />{" "}
+      </div>{" "}
     </section>
   );
 }
-
 function ScoreHero({
   stripStats,
   panel,
@@ -666,32 +777,56 @@ function ScoreHero({
   };
   return (
     <div className={className}>
+      {" "}
       <Card type="Static" padding={compact ? "Small" : "Base"} state="Accent">
-      <div className="flex items-center justify-between gap-orbit-s">
-        <Text as="p" size="Small" variant="Secondary">Score movement</Text>
-        <Badge label={`Current ${rightLabel}`} status="Information" />
-      </div>
-      <div className="mt-orbit-base grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-orbit-s">
-        <ScoreSnapshot label={leftLabel} score={previous.score} band={previous.band} />
-        <div className="flex min-w-10 flex-col items-center justify-center gap-orbit-xs text-muted-foreground">
-          <ArrowRight className="h-4 w-4" />
-          <span className={cn("rounded-full px-orbit-s py-orbit-xxs text-[10px] v5-orbit-weight-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
-            {panel.delta >= 0 ? "+" : ""}
-            {panel.delta} pts
-          </span>
-        </div>
-        <ScoreSnapshot label={rightLabel} score={panel.current.score} band={panel.current.band} current />
-      </div>
-      {showSentence && (
-        <p className="mt-orbit-s text-xs text-muted-foreground">
-          {comparison.met} of {comparison.requestedTotal} requested changes met.
-        </p>
-      )}
-      </Card>
+        {" "}
+        <div className="flex items-center justify-between gap-orbit-s">
+          {" "}
+          <Text as="p" size="Small" variant="Secondary">
+            Score movement
+          </Text>{" "}
+          <Badge label={`Current ${rightLabel}`} status="Information" />{" "}
+        </div>{" "}
+        <div className="mt-orbit-base grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-orbit-s">
+          {" "}
+          <ScoreSnapshot
+            label={leftLabel}
+            score={previous.score}
+            band={previous.band}
+          />{" "}
+          <div className="flex min-w-10 flex-col items-center justify-center gap-orbit-xs text-muted-foreground">
+            {" "}
+            <ArrowRight className="h-4 w-4" />{" "}
+            <span
+              className={cn(
+                "rounded-full px-orbit-s py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium",
+                panel.delta >= 0
+                  ? "bg-success/10 text-success"
+                  : "bg-destructive/10 text-destructive",
+              )}
+            >
+              {" "}
+              {panel.delta >= 0 ? "+" : ""} {panel.delta} pts{" "}
+            </span>{" "}
+          </div>{" "}
+          <ScoreSnapshot
+            label={rightLabel}
+            score={panel.current.score}
+            band={panel.current.band}
+            current
+          />{" "}
+        </div>{" "}
+        {showSentence && (
+          <p className="mt-orbit-s cpv2-type-xs text-muted-foreground">
+            {" "}
+            {comparison.met} of {comparison.requestedTotal} requested changes
+            met.{" "}
+          </p>
+        )}{" "}
+      </Card>{" "}
     </div>
   );
 }
-
 function ScoreSnapshot({
   label,
   score,
@@ -705,20 +840,26 @@ function ScoreSnapshot({
 }) {
   return (
     <Card type="Static" padding="Small" state={current ? "Accent" : "Default"}>
+      {" "}
       <div className="flex items-center gap-orbit-xs">
-        <span className="truncate text-[10px] v5-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
-        {current && (
-          <Badge label="Current" status="Information" />
-        )}
-      </div>
+        {" "}
+        <span className="truncate cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-muted-foreground">
+          {label}
+        </span>{" "}
+        {current && <Badge label="Current" status="Information" />}{" "}
+      </div>{" "}
       <div className="mt-orbit-xs flex items-end gap-orbit-xs">
-        <span className="text-2xl v5-orbit-weight-semibold leading-none text-foreground">{score}</span>
-        <span className="pb-orbit-xxs text-xs v5-orbit-weight-medium text-muted-foreground">{band}</span>
-      </div>
+        {" "}
+        <span className="cpv2-type-2xl cpv2-orbit-weight-semibold cpv2-leading-tight text-foreground">
+          {score}
+        </span>{" "}
+        <span className="pb-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium text-muted-foreground">
+          {band}
+        </span>{" "}
+      </div>{" "}
     </Card>
   );
 }
-
 function ScoreMovementBadge({ panel }: { panel: VersionPanelData }) {
   return (
     <Chip
@@ -728,7 +869,6 @@ function ScoreMovementBadge({ panel }: { panel: VersionPanelData }) {
     />
   );
 }
-
 function VersionMovementCard({
   panel,
   leftLabel,
@@ -742,18 +882,26 @@ function VersionMovementCard({
 }) {
   return (
     <Card type="Static" padding="Small">
+      {" "}
       <div className="mb-orbit-base flex flex-wrap items-center justify-between gap-orbit-s border-b border-border pb-orbit-base">
-        <Text as="p" size="Small" variant="Secondary">Version movement</Text>
+        {" "}
+        <Text as="p" size="Small" variant="Secondary">
+          Version movement
+        </Text>{" "}
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-orbit-s">
-          {comparisonControl}
-          <ScoreMovementBadge panel={panel} />
-        </div>
-      </div>
-      <VersionDistributionPair panel={panel} leftLabel={leftLabel} rightLabel={rightLabel} layout="movement" />
+          {" "}
+          {comparisonControl} <ScoreMovementBadge panel={panel} />{" "}
+        </div>{" "}
+      </div>{" "}
+      <VersionDistributionPair
+        panel={panel}
+        leftLabel={leftLabel}
+        rightLabel={rightLabel}
+        layout="movement"
+      />{" "}
     </Card>
   );
 }
-
 function VersionDistributionPair({
   panel,
   leftLabel,
@@ -778,45 +926,100 @@ function VersionDistributionPair({
   const hideScore = layout === "movement" || layout === "rail";
   const showDelta = layout === "hero";
   const large = layout === "hero";
-
   if (isHero) {
     return (
-      <div className={cn("grid w-full gap-orbit-s rounded-lg border border-border bg-white p-orbit-base lg:grid-cols-[minmax(0,1fr)_56px_minmax(0,1fr)] lg:items-stretch", className)}>
-        <DistributionSide label={leftLabel} score={previous.score} distribution={previous.distribution} large={large} hideScore={hideScore} unframed />
+      <div
+        className={cn(
+          "grid w-full gap-orbit-s rounded-lg border border-border bg-white p-orbit-base lg:grid-cols-[minmax(0,1fr)_56px_minmax(0,1fr)] lg:items-stretch",
+          className,
+        )}
+      >
+        {" "}
+        <DistributionSide
+          label={leftLabel}
+          score={previous.score}
+          distribution={previous.distribution}
+          large={large}
+          hideScore={hideScore}
+          unframed
+        />{" "}
         <div className="hidden h-full flex-col items-center justify-center gap-orbit-xs text-muted-foreground lg:flex">
-          <ArrowRight className="h-4 w-4" />
+          {" "}
+          <ArrowRight className="h-4 w-4" />{" "}
           {showDelta && (
-            <span className={cn("whitespace-nowrap rounded-full px-orbit-s py-orbit-xxs text-[10px] v5-orbit-weight-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
-              {panel.delta >= 0 ? "+" : ""}
-              {panel.delta} pts
+            <span
+              className={cn(
+                "whitespace-nowrap rounded-full px-orbit-s py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium",
+                panel.delta >= 0
+                  ? "bg-success/10 text-success"
+                  : "bg-destructive/10 text-destructive",
+              )}
+            >
+              {" "}
+              {panel.delta >= 0 ? "+" : ""} {panel.delta} pts{" "}
             </span>
-          )}
-        </div>
-        <DistributionSide label={rightLabel} score={panel.current.score} distribution={panel.current.distribution} current large={large} hideScore={hideScore} unframed />
+          )}{" "}
+        </div>{" "}
+        <DistributionSide
+          label={rightLabel}
+          score={panel.current.score}
+          distribution={panel.current.distribution}
+          current
+          large={large}
+          hideScore={hideScore}
+          unframed
+        />{" "}
       </div>
     );
   }
-
   return (
-    <div className={cn("grid w-full gap-orbit-base", isStacked ? "grid-cols-1" : "lg:grid-cols-[minmax(0,1fr)_40px_minmax(0,1fr)] lg:items-stretch", className)}>
-      <DistributionSide label={leftLabel} score={previous.score} distribution={previous.distribution} large={large} hideScore={hideScore} />
+    <div
+      className={cn(
+        "grid w-full gap-orbit-base",
+        isStacked
+          ? "grid-cols-1"
+          : "lg:grid-cols-[minmax(0,1fr)_40px_minmax(0,1fr)] lg:items-stretch",
+        className,
+      )}
+    >
+      {" "}
+      <DistributionSide
+        label={leftLabel}
+        score={previous.score}
+        distribution={previous.distribution}
+        large={large}
+        hideScore={hideScore}
+      />{" "}
       {!isStacked && (
         <div className="hidden h-full flex-col items-center justify-center gap-orbit-xs text-muted-foreground lg:flex">
-          <ArrowRight className="h-4 w-4" />
+          {" "}
+          <ArrowRight className="h-4 w-4" />{" "}
           {showDelta && (
-            <span className={cn("rounded-full px-orbit-s py-orbit-xxs text-[10px] v5-orbit-weight-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
-              vs prior{" "}
-              {panel.delta >= 0 ? "+" : ""}
-              {panel.delta} pts
+            <span
+              className={cn(
+                "rounded-full px-orbit-s py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium",
+                panel.delta >= 0
+                  ? "bg-success/10 text-success"
+                  : "bg-destructive/10 text-destructive",
+              )}
+            >
+              {" "}
+              vs prior {panel.delta >= 0 ? "+" : ""} {panel.delta} pts{" "}
             </span>
-          )}
+          )}{" "}
         </div>
-      )}
-      <DistributionSide label={rightLabel} score={panel.current.score} distribution={panel.current.distribution} current large={large} hideScore={hideScore} />
+      )}{" "}
+      <DistributionSide
+        label={rightLabel}
+        score={panel.current.score}
+        distribution={panel.current.distribution}
+        current
+        large={large}
+        hideScore={hideScore}
+      />{" "}
     </div>
   );
 }
-
 function DistributionSide({
   label,
   score,
@@ -839,45 +1042,98 @@ function DistributionSide({
       type="Static"
       padding="Small"
       state={current ? "Accent" : "Default"}
-      style={unframed ? { borderColor: "transparent", background: current ? "var(--orbit-color-card-bg-accent)" : "transparent" } : undefined}
+      style={
+        unframed
+          ? {
+              borderColor: "transparent",
+              background: current
+                ? "var(--orbit-color-card-bg-accent)"
+                : "transparent",
+            }
+          : undefined
+      }
     >
+      {" "}
       <div className="flex items-center justify-between gap-orbit-base">
+        {" "}
         <div className="flex items-center gap-orbit-s">
-          <Text as="p" size="Small" variant="Secondary">{label}</Text>
-          {current && <Badge label="Current" status="Information" />}
-        </div>
-        {!hideScore && <p className={cn("v5-orbit-weight-semibold text-foreground", large ? "text-lg" : "text-sm")}>{score}</p>}
-      </div>
-      <DistributionBar distribution={distribution} className="mt-orbit-base" />
-      <div className="mt-orbit-s grid grid-cols-4 gap-orbit-xs text-[9px] text-muted-foreground">
-        <span><strong className="text-[#A32D2D]">{distribution.high}</strong> H</span>
-        <span><strong className="text-[#854F0B]">{distribution.medium}</strong> M</span>
-        <span><strong>{distribution.low}</strong> L</span>
-        <span><strong className="text-[#3B6D11]">{distribution.clean}</strong> C</span>
-      </div>
+          {" "}
+          <Text as="p" size="Small" variant="Secondary">
+            {label}
+          </Text>{" "}
+          {current && <Badge label="Current" status="Information" />}{" "}
+        </div>{" "}
+        {!hideScore && (
+          <p
+            className={cn(
+              "cpv2-orbit-weight-semibold text-foreground",
+              large ? "cpv2-type-lg" : "cpv2-type-sm",
+            )}
+          >
+            {score}
+          </p>
+        )}{" "}
+      </div>{" "}
+      <DistributionBar distribution={distribution} className="mt-orbit-base" />{" "}
+      <div className="mt-orbit-s grid grid-cols-4 gap-orbit-xs cpv2-type-xs text-muted-foreground">
+        {" "}
+        <span>
+          <strong className="text-[#A32D2D]">{distribution.high}</strong> H
+        </span>{" "}
+        <span>
+          <strong className="text-[#854F0B]">{distribution.medium}</strong> M
+        </span>{" "}
+        <span>
+          <strong>{distribution.low}</strong> L
+        </span>{" "}
+        <span>
+          <strong className="text-[#3B6D11]">{distribution.clean}</strong> C
+        </span>{" "}
+      </div>{" "}
     </Card>
   );
 }
-
-function DistributionBar({ distribution, className }: { distribution: DeviationDistribution; className?: string }) {
-  const total = Math.max(1, distribution.high + distribution.medium + distribution.low + distribution.clean);
+function DistributionBar({
+  distribution,
+  className,
+}: {
+  distribution: DeviationDistribution;
+  className?: string;
+}) {
+  const total = Math.max(
+    1,
+    distribution.high +
+      distribution.medium +
+      distribution.low +
+      distribution.clean,
+  );
   return (
-    <div className={cn("flex h-2 overflow-hidden rounded-full bg-muted", className)}>
-      {(Object.keys(distributionColours) as Array<keyof DeviationDistribution>).map((key) => {
+    <div
+      className={cn(
+        "flex h-2 overflow-hidden rounded-full bg-muted",
+        className,
+      )}
+    >
+      {" "}
+      {(
+        Object.keys(distributionColours) as Array<keyof DeviationDistribution>
+      ).map((key) => {
         const value = distribution[key];
         if (value <= 0) return null;
         return (
           <span
             key={key}
             className="h-full"
-            style={{ width: `${(value / total) * 100}%`, backgroundColor: distributionColours[key] }}
+            style={{
+              width: `${(value / total) * 100}%`,
+              backgroundColor: distributionColours[key],
+            }}
           />
         );
-      })}
+      })}{" "}
     </div>
   );
 }
-
 function NarrativeSummary({
   stripStats,
   className,
@@ -909,36 +1165,51 @@ function NarrativeSummary({
   };
   return (
     <div className={className}>
+      {" "}
       <Card type="Static" padding="Base" state="Accent">
-      <div className="flex flex-wrap items-center gap-orbit-s">
-        <Text as="p" size="Small" variant="Secondary">What changed this round</Text>
-        <ProgressPill stripStats={stripStats} />
-      </div>
-      <Text as="p" size="Paragraph" variant="Primary">
-        {comparison.supplierChanges} supplier changes were detected between versions. {comparison.met} of {comparison.requestedTotal} requested changes are met, with {actions.pendingReview} clause{actions.pendingReview === 1 ? "" : "s"} still needing review.
-      </Text>
-      <MetricGrid
-        metrics={metricCounts}
-        activeMetric={activeMetric}
-        onMetricSelect={onMetricSelect}
-        density="inline"
-        grouped={grouped}
-      />
-      <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>
-      </Card>
+        {" "}
+        <div className="flex flex-wrap items-center gap-orbit-s">
+          {" "}
+          <Text as="p" size="Small" variant="Secondary">
+            What changed this round
+          </Text>{" "}
+          <ProgressPill stripStats={stripStats} />{" "}
+        </div>{" "}
+        <Text as="p" size="Paragraph" variant="Primary">
+          {" "}
+          {comparison.supplierChanges} supplier changes were detected between
+          versions. {comparison.met} of {comparison.requestedTotal} requested
+          changes are met, with {actions.pendingReview} clause
+          {actions.pendingReview === 1 ? "" : "s"} still needing review.{" "}
+        </Text>{" "}
+        <MetricGrid
+          metrics={metricCounts}
+          activeMetric={activeMetric}
+          onMetricSelect={onMetricSelect}
+          density="inline"
+          grouped={grouped}
+        />{" "}
+        <ActiveFiltersSection>{activeFilterChips}</ActiveFiltersSection>{" "}
+      </Card>{" "}
     </div>
   );
 }
-
 function ProgressPill({ stripStats }: { stripStats: ComparisonStripStats }) {
   const { comparison, actions } = stripStats;
-  const done = Math.max(0, comparison.requestedTotal + comparison.supplierChanges - actions.pendingReview);
+  const done = Math.max(
+    0,
+    comparison.requestedTotal +
+      comparison.supplierChanges -
+      actions.pendingReview,
+  );
   const total = comparison.requestedTotal + comparison.supplierChanges;
   return (
-    <Badge label={`${done} of ${total} reviewed`} status={actions.pendingReview > 0 ? "Warning" : "Success"} />
+    <Badge
+      label={`${done} of ${total} reviewed`}
+      status={actions.pendingReview > 0 ? "Warning" : "Success"}
+    />
   );
 }
-
 const metricDefinitions: Array<{
   key: EvidenceMetricKey;
   label: string;
@@ -946,32 +1217,101 @@ const metricDefinitions: Array<{
   tone?: "success" | "warning" | "destructive";
   group: "workflow" | "risk";
 }> = [
-  { key: "open-items", label: "Open items", value: "openItems", group: "workflow" },
-  { key: "met", label: "Met", value: "met", tone: "success", group: "workflow" },
-  { key: "changes", label: "Supplier changes", value: "supplierChanges", tone: "warning", group: "workflow" },
-  { key: "need-action", label: "Need review", value: "needReview", tone: "destructive", group: "workflow" },
-  { key: "high", label: "High Deviation", value: "high", tone: "destructive", group: "risk" },
-  { key: "medium", label: "Medium Deviation", value: "medium", tone: "warning", group: "risk" },
+  {
+    key: "open-items",
+    label: "Open items",
+    value: "openItems",
+    group: "workflow",
+  },
+  {
+    key: "met",
+    label: "Met",
+    value: "met",
+    tone: "success",
+    group: "workflow",
+  },
+  {
+    key: "changes",
+    label: "Supplier changes",
+    value: "supplierChanges",
+    tone: "warning",
+    group: "workflow",
+  },
+  {
+    key: "need-action",
+    label: "Need review",
+    value: "needReview",
+    tone: "destructive",
+    group: "workflow",
+  },
+  {
+    key: "high",
+    label: "High Deviation",
+    value: "high",
+    tone: "destructive",
+    group: "risk",
+  },
+  {
+    key: "medium",
+    label: "Medium Deviation",
+    value: "medium",
+    tone: "warning",
+    group: "risk",
+  },
   { key: "low", label: "Low Deviation", value: "low", group: "risk" },
-  { key: "total", label: "Total clauses", value: "totalClauses", group: "risk" },
+  {
+    key: "total",
+    label: "Total clauses",
+    value: "totalClauses",
+    group: "risk",
+  },
 ];
-
 const firstAnalysisMetricDefinitions: Array<{
   key: FirstAnalysisMetricKey;
   label: string;
-  value: keyof Pick<FirstAnalysisMetrics, "high" | "medium" | "low" | "missingClauses">;
+  value: keyof Pick<
+    FirstAnalysisMetrics,
+    "high" | "medium" | "low" | "missingClauses"
+  >;
   tone?: "success" | "warning" | "destructive";
   color: string;
   barColor?: string;
   barBorderColor?: string;
   group: "workflow" | "risk";
 }> = [
-  { key: "high", label: "High Deviation", value: "high", tone: "destructive", color: "hsl(var(--destructive))", group: "risk" },
-  { key: "medium", label: "Medium Deviation", value: "medium", tone: "warning", color: "#F0AB00", group: "risk" },
-  { key: "low", label: "Low Deviation", value: "low", color: "#5F5E5A", group: "risk" },
-  { key: "missing", label: "Missing Clauses", value: "missingClauses", color: "hsl(var(--foreground))", barColor: "#ffffff", barBorderColor: "hsl(var(--border))", group: "risk" },
+  {
+    key: "high",
+    label: "High Deviation",
+    value: "high",
+    tone: "destructive",
+    color: "hsl(var(--destructive))",
+    group: "risk",
+  },
+  {
+    key: "medium",
+    label: "Medium Deviation",
+    value: "medium",
+    tone: "warning",
+    color: "#F0AB00",
+    group: "risk",
+  },
+  {
+    key: "low",
+    label: "Low Deviation",
+    value: "low",
+    color: "#5F5E5A",
+    group: "risk",
+  },
+  {
+    key: "missing",
+    label: "Missing Clauses",
+    value: "missingClauses",
+    color: "hsl(var(--foreground))",
+    barColor: "#ffffff",
+    barBorderColor: "hsl(var(--border))",
+    group: "risk",
+  },
 ];
-
 function FirstAnalysisMetricGrid({
   metrics,
   activeMetrics,
@@ -986,53 +1326,75 @@ function FirstAnalysisMetricGrid({
   grouped?: boolean;
 }) {
   const activeMetricSet = new Set(activeMetrics ?? []);
-  const renderMetric = (definition: (typeof firstAnalysisMetricDefinitions)[number]) => (
-      <MetricCell
-        key={definition.key}
-        label={definition.label}
-        value={metrics[definition.value]}
-        active={activeMetricSet.has(definition.key)}
-        onClick={onMetricSelect ? () => onMetricSelect(definition.key) : undefined}
-      />
+  const renderMetric = (
+    definition: (typeof firstAnalysisMetricDefinitions)[number],
+  ) => (
+    <MetricCell
+      key={definition.key}
+      label={definition.label}
+      value={metrics[definition.value]}
+      active={activeMetricSet.has(definition.key)}
+      onClick={
+        onMetricSelect ? () => onMetricSelect(definition.key) : undefined
+      }
+    />
   );
-
   if (grouped) {
-    const workflowMetrics = firstAnalysisMetricDefinitions.filter((definition) => definition.group === "workflow");
-    const riskMetrics = firstAnalysisMetricDefinitions.filter((definition) => definition.group === "risk");
+    const workflowMetrics = firstAnalysisMetricDefinitions.filter(
+      (definition) => definition.group === "workflow",
+    );
+    const riskMetrics = firstAnalysisMetricDefinitions.filter(
+      (definition) => definition.group === "risk",
+    );
     if (workflowMetrics.length === 0) {
       return (
         <div className="mt-orbit-base rounded-lg border border-border/70 bg-white/60 p-orbit-s">
+          {" "}
           <div className="mb-orbit-s">
-            <Text as="p" size="Small" variant="Secondary">RISK</Text>
-          </div>
+            {" "}
+            <Text as="p" size="Small" variant="Secondary">
+              RISK
+            </Text>{" "}
+          </div>{" "}
           <div className="grid grid-cols-2 gap-orbit-s">
-            {riskMetrics.map(renderMetric)}
-          </div>
+            {" "}
+            {riskMetrics.map(renderMetric)}{" "}
+          </div>{" "}
         </div>
       );
     }
     return (
       <div className="mt-orbit-base grid gap-orbit-base lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]">
+        {" "}
         <div className="rounded-lg border border-border/70 bg-white/60 p-orbit-s">
+          {" "}
           <div className="mb-orbit-s">
-            <Text as="p" size="Small" variant="Secondary">WORKFLOW</Text>
-          </div>
+            {" "}
+            <Text as="p" size="Small" variant="Secondary">
+              WORKFLOW
+            </Text>{" "}
+          </div>{" "}
           <div className="grid gap-orbit-s">
-            {workflowMetrics.map(renderMetric)}
-          </div>
-        </div>
+            {" "}
+            {workflowMetrics.map(renderMetric)}{" "}
+          </div>{" "}
+        </div>{" "}
         <div className="rounded-lg border border-border/70 bg-white/60 p-orbit-s">
+          {" "}
           <div className="mb-orbit-s">
-            <Text as="p" size="Small" variant="Secondary">RISK</Text>
-          </div>
+            {" "}
+            <Text as="p" size="Small" variant="Secondary">
+              RISK
+            </Text>{" "}
+          </div>{" "}
           <div className="grid grid-cols-2 gap-orbit-s">
-            {riskMetrics.map(renderMetric)}
-          </div>
-        </div>
+            {" "}
+            {riskMetrics.map(renderMetric)}{" "}
+          </div>{" "}
+        </div>{" "}
       </div>
     );
   }
-
   return (
     <div
       className={cn(
@@ -1040,11 +1402,11 @@ function FirstAnalysisMetricGrid({
         density === "rail" ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-5",
       )}
     >
-      {firstAnalysisMetricDefinitions.map(renderMetric)}
+      {" "}
+      {firstAnalysisMetricDefinitions.map(renderMetric)}{" "}
     </div>
   );
 }
-
 function MetricGrid({
   metrics,
   activeMetric,
@@ -1064,26 +1426,39 @@ function MetricGrid({
       label={definition.label}
       value={metrics[definition.value]}
       tone={definition.tone}
-      active={activeMetric === definition.key || (definition.key === "total" && !activeMetric)}
-      onClick={onMetricSelect ? () => onMetricSelect(definition.key) : undefined}
+      active={
+        activeMetric === definition.key ||
+        (definition.key === "total" && !activeMetric)
+      }
+      onClick={
+        onMetricSelect ? () => onMetricSelect(definition.key) : undefined
+      }
     />
   );
-
   if (grouped) {
     return (
       <div className="mt-orbit-base grid gap-orbit-base lg:grid-cols-2">
+        {" "}
         {(["workflow", "risk"] as const).map((group) => (
-          <div key={group} className="rounded-lg border border-border/70 bg-white/60 p-orbit-s">
-            <Text as="p" size="Small" variant="Secondary">{group === "workflow" ? "Workflow" : "Risk"}</Text>
+          <div
+            key={group}
+            className="rounded-lg border border-border/70 bg-white/60 p-orbit-s"
+          >
+            {" "}
+            <Text as="p" size="Small" variant="Secondary">
+              {group === "workflow" ? "Workflow" : "Risk"}
+            </Text>{" "}
             <div className="grid grid-cols-2 gap-orbit-s">
-              {metricDefinitions.filter((definition) => definition.group === group).map(renderMetric)}
-            </div>
+              {" "}
+              {metricDefinitions
+                .filter((definition) => definition.group === group)
+                .map(renderMetric)}{" "}
+            </div>{" "}
           </div>
-        ))}
+        ))}{" "}
       </div>
     );
   }
-
   return (
     <div
       className={cn(
@@ -1091,23 +1466,36 @@ function MetricGrid({
         density === "rail" ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4",
       )}
     >
-      {metricDefinitions.map(renderMetric)}
+      {" "}
+      {metricDefinitions.map(renderMetric)}{" "}
     </div>
   );
 }
-
-function FirstAnalysisMetricBar({ metrics, className }: { metrics: FirstAnalysisMetrics; className?: string }) {
+function FirstAnalysisMetricBar({
+  metrics,
+  className,
+}: {
+  metrics: FirstAnalysisMetrics;
+  className?: string;
+}) {
   const total = Math.max(
     1,
-    firstAnalysisMetricDefinitions.reduce((sum, definition) => sum + metrics[definition.value], 0),
+    firstAnalysisMetricDefinitions.reduce(
+      (sum, definition) => sum + metrics[definition.value],
+      0,
+    ),
   );
-
   return (
-    <div className={cn("flex h-2 overflow-hidden rounded-full bg-muted", className)}>
+    <div
+      className={cn(
+        "flex h-2 overflow-hidden rounded-full bg-muted",
+        className,
+      )}
+    >
+      {" "}
       {firstAnalysisMetricDefinitions.map((definition) => {
         const value = metrics[definition.value];
         if (value <= 0) return null;
-
         return (
           <span
             key={definition.key}
@@ -1116,15 +1504,16 @@ function FirstAnalysisMetricBar({ metrics, className }: { metrics: FirstAnalysis
             style={{
               width: `${(value / total) * 100}%`,
               backgroundColor: definition.barColor ?? definition.color,
-              border: definition.barBorderColor ? `1px solid ${definition.barBorderColor}` : undefined,
+              border: definition.barBorderColor
+                ? `1px solid ${definition.barBorderColor}`
+                : undefined,
             }}
           />
         );
-      })}
+      })}{" "}
     </div>
   );
 }
-
 function MetricCell({
   label,
   value,
@@ -1140,16 +1529,22 @@ function MetricCell({
 }) {
   const interactive = Boolean(onClick);
   const [isHovered, setIsHovered] = useState(false);
-  const valueVariant = tone === "destructive" ? "Error" : tone === "warning" ? "Warning" : "Bold";
+  const valueVariant =
+    tone === "destructive" ? "Error" : tone === "warning" ? "Warning" : "Bold";
   const content = (
     <>
-      <Text as="p" size="Small" variant="Secondary">{label}</Text>
+      {" "}
+      <Text as="p" size="Small" variant="Secondary">
+        {label}
+      </Text>{" "}
       <div className="mt-orbit-xs">
-        <Text as="p" size="Paragraph" variant={valueVariant}>{value}</Text>
-      </div>
+        {" "}
+        <Text as="p" size="Paragraph" variant={valueVariant}>
+          {value}
+        </Text>{" "}
+      </div>{" "}
     </>
   );
-
   if (interactive) {
     return (
       <CpButton
@@ -1164,17 +1559,31 @@ function MetricCell({
           "w-full cursor-pointer rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#185FA5]/35",
           active && "shadow-[inset_3px_0_0_var(--orbit-color-efficio-blue)]",
         )}
+        style={{
+          display: "block",
+          height: "auto",
+          overflow: "visible",
+          padding: 0,
+          textAlign: "left",
+          whiteSpace: "normal",
+        }}
       >
-        <Card type="Static" padding="Small" state={active ? "Accent" : isHovered ? "Highlight" : "Default"}>
-          {content}
-        </Card>
+        {" "}
+        <Card
+          type="Static"
+          padding="Small"
+          state={active ? "Accent" : isHovered ? "Highlight" : "Default"}
+        >
+          {" "}
+          {content}{" "}
+        </Card>{" "}
       </CpButton>
     );
   }
-
   return (
     <Card type="Static" padding="Small">
-      {content}
+      {" "}
+      {content}{" "}
     </Card>
   );
 }

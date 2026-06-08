@@ -57,7 +57,7 @@ export function AnalysisCard({
       layout
       transition={{ type: "spring", stiffness: 320, damping: 28 }}
     >
-      <Card type="Static" state={highlighted ? "Highlight" : "Default"} padding="Base">
+      <Card type="Static" state={highlighted ? "Feature" : "Default"} padding="Base" indicator={false}>
         {showSupplier && supplier && (
           <div className="mb-orbit-base flex items-center gap-orbit-s border-b border-border/70 pb-orbit-base">
             <SupplierAvatar

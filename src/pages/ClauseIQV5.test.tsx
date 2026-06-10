@@ -33,8 +33,12 @@ function selectServicesCategory() {
   fireEvent.click(screen.getByRole("option", { name: "Services" }));
 }
 
+function selectNoPlaybook() {
+  fireEvent.click(screen.getByRole("radio", { name: "No" }));
+}
+
 function selectUnitedKingdomLaw() {
-  fireEvent.click(screen.getByText("Governing Law"));
+  selectNoPlaybook();
   fireEvent.click(screen.getByRole("option", { name: "United Kingdom" }));
 }
 
@@ -76,10 +80,11 @@ describe("ClauseIQ V5 flow", () => {
     startAndSelectInitiative();
 
     expect(screen.getByRole("heading", { name: "Contract Analysis Parameters" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "Playbook" })).toBeChecked();
-    expect(screen.getByRole("radio", { name: "Governing Law" })).not.toBeChecked();
-    expect(screen.queryByRole("radio", { name: "Category" })).not.toBeInTheDocument();
+    expect(screen.getByText("Do you want to use a playbook for this analysis?")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Yes" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "No" })).not.toBeChecked();
     expect(screen.queryByRole("heading", { name: "Category" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Governing Law" })).not.toBeInTheDocument();
     expect(screen.getByRole("option", { name: CIQ_DEFAULT_PLAYBOOK })).toBeInTheDocument();
     expect(screen.queryByText("Logistics · Sarah Chen")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
@@ -97,6 +102,21 @@ describe("ClauseIQ V5 flow", () => {
     expect(screen.queryByRole("listbox", { name: "Category options" })).not.toBeInTheDocument();
     expect(screen.queryByText("Logistics · Sarah Chen")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Upload Contract" })).toBeInTheDocument();
+  });
+
+  it("shows category and governing law when the user selects no playbook", async () => {
+    renderClauseIQ();
+
+    startAndSelectInitiative();
+    selectNoPlaybook();
+
+    expect(screen.getByRole("radio", { name: "No" })).toBeChecked();
+    expect(screen.queryByRole("option", { name: CIQ_DEFAULT_PLAYBOOK })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Category" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Governing Law" })).toBeInTheDocument();
+    expect(screen.getByRole("listbox", { name: "Category options" })).toBeInTheDocument();
+    expect(screen.getByRole("listbox", { name: "Governing Law options" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
   });
 
   it("allows governing law as the analysis parameter before the required category", async () => {
@@ -123,7 +143,7 @@ describe("ClauseIQ V5 flow", () => {
     selectDefaultPlaybook();
     fireEvent.click(screen.getByRole("button", { name: /change playbook/i }));
 
-    expect(screen.getByRole("radio", { name: "Playbook" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Yes" })).toBeChecked();
     expect(screen.getByRole("option", { name: CIQ_DEFAULT_PLAYBOOK })).toBeInTheDocument();
     expect(screen.queryByText(`Playbook · ${CIQ_DEFAULT_PLAYBOOK}`)).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
@@ -140,6 +160,21 @@ describe("ClauseIQ V5 flow", () => {
     expect(screen.getByText("Governing Law · United Kingdom")).toBeInTheDocument();
     expect(screen.getByRole("listbox", { name: "Category options" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Services" })).toBeInTheDocument();
+    expect(screen.queryByText("Category · Services")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
+  });
+
+  it("clears incompatible selections when switching between playbook choices", async () => {
+    renderClauseIQ();
+
+    startAndSelectInitiative();
+    selectUnitedKingdomLaw();
+    selectServicesCategory();
+    fireEvent.click(screen.getByRole("radio", { name: "Yes" }));
+
+    expect(screen.getByRole("radio", { name: "Yes" })).toBeChecked();
+    expect(screen.getByRole("option", { name: CIQ_DEFAULT_PLAYBOOK })).toBeInTheDocument();
+    expect(screen.queryByText("Governing Law · United Kingdom")).not.toBeInTheDocument();
     expect(screen.queryByText("Category · Services")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
   });
@@ -254,12 +289,13 @@ describe("ClauseIQ V5 flow", () => {
 
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Run Another Analysis" }));
+    fireEvent.click(screen.getByRole("button", { name: "Run Analysis Again" }));
 
-    expect(screen.getByText("Choose whether ClauseIQ should analyse against a playbook or governing law.")).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "Playbook" })).toBeChecked();
-    expect(screen.queryByRole("radio", { name: "Category" })).not.toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "Governing Law" })).not.toBeChecked();
+    expect(screen.getByText("Do you want to use a playbook for this analysis?")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Yes" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "No" })).not.toBeChecked();
+    expect(screen.queryByRole("heading", { name: "Category" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Governing Law" })).not.toBeInTheDocument();
     expect(screen.getByRole("option", { name: CIQ_DEFAULT_PLAYBOOK })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
 
@@ -298,7 +334,7 @@ describe("ClauseIQ V5 flow", () => {
       resultsLayout: "output-panel",
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Run Another Analysis" }));
+    fireEvent.click(screen.getByRole("button", { name: "Run Analysis Again" }));
     selectDefaultPlaybook();
 
     const input = container.querySelector<HTMLInputElement>('input[type="file"]');

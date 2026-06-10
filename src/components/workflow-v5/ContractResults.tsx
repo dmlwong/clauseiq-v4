@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { useState, useMemo, useEffect, useRef, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   ChevronLeft, AlertTriangle, CheckCircle2, Search, MapPin, Lightbulb,
@@ -107,6 +107,11 @@ import {
   type FirstAnalysisMetricKey,
   type FirstAnalysisMetrics,
 } from "./ComparisonDesignOptions";
+import {
+  FIRST_ANALYSIS_STATUS_THEME,
+  FirstAnalysisStatusTag,
+  type FirstAnalysisStatusKey,
+} from "./firstAnalysisStatusTags";
 
 interface Props {
   initiativeId: string;
@@ -203,11 +208,31 @@ interface PanelChangeItem {
 const severityTone = (s: ClauseResult["severity"] | undefined) =>
   s === "high" ? "bg-destructive/10 text-destructive border-destructive/20"
     : s === "medium" ? "bg-warning/15 text-warning-foreground border-warning/30"
-    : s === "low" ? "bg-success/10 text-success border-success/20"
+    : s === "low" ? "bg-muted text-muted-foreground border-border"
     : "bg-muted text-muted-foreground border-border";
+
+function isInitiativesV5Route() {
+  return typeof window !== "undefined" && window.location.pathname.startsWith("/initiatives-v5");
+}
 
 const firstAnalysisDeviationBadgeClass =
   "shrink-0 rounded-full border-[#F3B4B4] bg-[#FFF1F2] px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#A32D2D]";
+const firstAnalysisMissingClauseBadgeClass =
+  "shrink-0 rounded-full border-[#185FA5]/25 bg-[#E6F1FB] px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#0C447C]";
+const firstAnalysisMissingClauseLegacyBadgeClass =
+  "shrink-0 rounded-full px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium";
+const firstAnalysisNoneDeviationBadgeClass =
+  "shrink-0 rounded-full border-[#BFD6AB] bg-[#EAF3DE] px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#27500A]";
+
+function getFirstAnalysisMissingClauseBadgeClass() {
+  return isInitiativesV5Route() ? firstAnalysisMissingClauseBadgeClass : firstAnalysisMissingClauseLegacyBadgeClass;
+}
+
+const firstAnalysisSeverityStatus: Record<ClauseResult["severity"], FirstAnalysisStatusKey> = {
+  high: "high",
+  medium: "medium",
+  low: "low",
+};
 
 const SEVERITY_WEIGHTS: Record<"high" | "medium" | "low", number> = {
   high: 9,
@@ -425,6 +450,10 @@ function isMissingClause(clause: ClauseResult) {
 
 function isPureMissingClause(clause: ClauseResult) {
   return Boolean(clause.missingClause && clause.sourceDeviationLevel === "None");
+}
+
+function isNoneDeviationClause(clause: ClauseResult) {
+  return clause.sourceDeviationLevel === "None" && !clause.missingClause;
 }
 
 function countsTowardDeviationMetric(clause: ClauseResult) {
@@ -1366,6 +1395,16 @@ export function ContractResults({
     ),
   );
   const firstAnalysisMissingSelected = firstAnalysisMetricFilters.has("missing");
+  const firstAnalysisNoneSelected = firstAnalysisMetricFilters.has("none");
+  const firstAnalysisHasMetricFilters = firstAnalysisMetricFilters.size > 0;
+  const matchesFirstAnalysisMetricFilter = (clause: ClauseResult) => {
+    if (!firstAnalysisHasMetricFilters) return true;
+    return (
+      (firstAnalysisSelectedSeverities.has(clause.severity) && countsTowardDeviationMetric(clause)) ||
+      (firstAnalysisMissingSelected && firstAnalysisMissingClauseIds.has(clause.id)) ||
+      (firstAnalysisNoneSelected && isNoneDeviationClause(clause))
+    );
+  };
   const firstAnalysisVisibleClauses = firstAnalysisCategoryClauses.filter((clause) => {
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -1377,13 +1416,10 @@ export function ContractResults({
         return false;
       }
     }
-    if (firstAnalysisMissingSelected && !firstAnalysisMissingClauseIds.has(clause.id)) return false;
-    if (!isFirstAnalysisReviewClause(clause)) return false;
-    if (designOption !== "row-scale" && hasFirstAnalysisAction(clause.id)) return false;
-    if (
-      firstAnalysisSelectedSeverities.size > 0 &&
-      (!countsTowardDeviationMetric(clause) || !firstAnalysisSelectedSeverities.has(clause.severity))
-    ) return false;
+    if (!matchesFirstAnalysisMetricFilter(clause)) return false;
+    const showNoneDeviationClause = firstAnalysisNoneSelected && isNoneDeviationClause(clause);
+    if (!showNoneDeviationClause && !isFirstAnalysisReviewClause(clause)) return false;
+    if (designOption !== "row-scale" && !showNoneDeviationClause && hasFirstAnalysisAction(clause.id)) return false;
     return true;
   });
   const firstAnalysisDistribution: DeviationDistribution = {
@@ -1401,6 +1437,7 @@ export function ContractResults({
     medium: firstAnalysisDistribution.medium,
     low: firstAnalysisDistribution.low,
     missingClauses: firstAnalysisCategoryClauses.filter((clause) => firstAnalysisMissingClauseIds.has(clause.id)).length,
+    noneDeviation: firstAnalysisCategoryClauses.filter(isNoneDeviationClause).length,
     score: firstAnalysisVersion?.overallScore ?? 0,
     distribution: firstAnalysisDistribution,
     versionLabel: firstAnalysisVersionLabel,
@@ -1625,6 +1662,7 @@ export function ContractResults({
       medium: "Medium Deviation",
       low: "Low Deviation",
       missing: "Missing Clauses",
+      none: "None Deviation",
     } satisfies Record<FirstAnalysisMetricKey, string>)[metric],
   }));
   const clearFirstAnalysisMetric = (metric: FirstAnalysisMetricKey) => {
@@ -1742,6 +1780,7 @@ export function ContractResults({
       quickReviewFilter="need-review"
       missingClauseIds={firstAnalysisMissingClauseIds}
       quickMissingClauseIds={firstAnalysisMissingSelected ? firstAnalysisMissingClauseIds : null}
+      quickNoneDeviationFilter={firstAnalysisNoneSelected}
       neutralActions
       hideSubclauseReference
       displayMode={designOption === "row-scale" ? "row-scale" : "default"}
@@ -3284,6 +3323,7 @@ function ComparisonOverviewPanel({
 }
 
 function MiniDistributionBar({ distribution, muted }: { distribution: DeviationDistribution; muted?: boolean }) {
+  const colours = isInitiativesV5Route() ? v5DeviationDistributionColors : deviationDistributionColors;
   return (
     <span className={`flex h-1 w-[60px] shrink-0 overflow-hidden rounded-sm bg-muted ${muted ? "opacity-50" : ""}`} style={{ gap: 1 }}>
       {(Object.keys(deviationDistributionColors) as Array<keyof DeviationDistribution>).map((key) => {
@@ -3295,7 +3335,7 @@ function MiniDistributionBar({ distribution, muted }: { distribution: DeviationD
             style={{
               flex: `${value} 1 0`,
               minWidth: 1,
-              backgroundColor: deviationDistributionColors[key],
+              backgroundColor: colours[key],
             }}
           />
         );
@@ -3703,16 +3743,24 @@ const deviationDistributionColors: Record<keyof DeviationDistribution, string> =
   clean: "#3B6D11",
 };
 
+const v5DeviationDistributionColors: Record<keyof DeviationDistribution, string> = {
+  high: FIRST_ANALYSIS_STATUS_THEME.high.indicatorColor,
+  medium: FIRST_ANALYSIS_STATUS_THEME.medium.indicatorColor,
+  low: FIRST_ANALYSIS_STATUS_THEME.low.indicatorColor,
+  clean: FIRST_ANALYSIS_STATUS_THEME.none.indicatorColor,
+};
+
 function DistributionCounts({ distribution }: { distribution: DeviationDistribution }) {
+  const useV5StatusColours = isInitiativesV5Route();
   return (
     <div className="mb-orbit-xs flex min-w-0 flex-wrap items-center gap-x-orbit-xs gap-y-orbit-xxs text-[10px] text-muted-foreground">
       <DistributionCount value={distribution.high} label="high" color="#A32D2D" />
       <span className="text-border">·</span>
       <DistributionCount value={distribution.medium} label="med" color="#854F0B" />
       <span className="text-border">·</span>
-      <DistributionCount value={distribution.low} label="low" color="hsl(var(--foreground))" />
+      <DistributionCount value={distribution.low} label="low" color={useV5StatusColours ? FIRST_ANALYSIS_STATUS_THEME.low.indicatorColor : "hsl(var(--foreground))"} />
       <span className="text-border">·</span>
-      <DistributionCount value={distribution.clean} label="clean" color="hsl(var(--muted-foreground))" />
+      <DistributionCount value={distribution.clean} label="clean" color={useV5StatusColours ? FIRST_ANALYSIS_STATUS_THEME.none.indicatorColor : "hsl(var(--muted-foreground))"} />
     </div>
   );
 }
@@ -3727,6 +3775,7 @@ function DistributionCount({ value, label, color }: { value: number; label: stri
 
 function CompactDistributionBar({ distribution }: { distribution: DeviationDistribution }) {
   const total = Math.max(1, distribution.high + distribution.medium + distribution.low + distribution.clean);
+  const colours = isInitiativesV5Route() ? v5DeviationDistributionColors : deviationDistributionColors;
   return (
     <div className="flex h-2 overflow-hidden rounded-[3px] bg-muted" style={{ gap: 1 }}>
       {(Object.keys(deviationDistributionColors) as Array<keyof DeviationDistribution>).map((key) => {
@@ -3739,7 +3788,7 @@ function CompactDistributionBar({ distribution }: { distribution: DeviationDistr
             style={{
               flex: `${value} 1 0`,
               minWidth: value / total > 0.02 ? 3 : 1,
-              backgroundColor: deviationDistributionColors[key],
+              backgroundColor: colours[key],
             }}
           />
         );
@@ -4264,7 +4313,7 @@ function CategorySidebar({
           <Text as="span" size="Small" variant={activeCategories.length === 0 ? "Bold" : "Secondary"}>
             All
           </Text>
-          <Chip label={String(total)} size="Mini" variant={activeCategories.length === 0 ? "Additional" : "No Status"} />
+          <Chip label={String(total)} size="Mini" variant={activeCategories.length === 0 ? "Additional" : "No Status"} contrast="Low" />
         </button>
 
         {sortedCategories.map((category, index) => {
@@ -4289,7 +4338,7 @@ function CategorySidebar({
                   {category.name}
                 </Text>
               </span>
-              <Chip label={String(category.count)} size="Mini" variant={active ? "Additional" : "No Status"} />
+              <Chip label={String(category.count)} size="Mini" variant={active ? "Additional" : "No Status"} contrast="Low" />
             </button>
           );
         })}
@@ -4555,10 +4604,21 @@ function ClauseDecisionCard({
   const requestPreview = request?.requestedChange?.trim() ?? "";
   const settled = decision === "request-update" || decision === "no-action";
   const noActionIsPrimary = !neutralActions && clause.severity === "low";
-  const showRequestActions = !settled && !actions && !pendingBasketRequest;
+  const noneDeviationClause = isNoneDeviationClause(clause);
+  const showRequestActions = !noneDeviationClause && !settled && !actions && !pendingBasketRequest;
+  const useV5StatusTags = isInitiativesV5Route() && hideSubclauseReference;
   const useFirstAnalysisDeviationStyle = neutralActions && hideSubclauseReference && clause.severity === "high";
-  const severityBadgeLabel = useFirstAnalysisDeviationStyle ? "High Deviation" : clause.severity;
-  const severityBadgeClass = useFirstAnalysisDeviationStyle
+  const severityStatusKey = noneDeviationClause ? "none" : firstAnalysisSeverityStatus[clause.severity];
+  const severityBadgeLabel = useV5StatusTags
+    ? FIRST_ANALYSIS_STATUS_THEME[severityStatusKey].label
+    : noneDeviationClause
+    ? "None Deviation"
+    : useFirstAnalysisDeviationStyle
+    ? "High Deviation"
+    : clause.severity;
+  const severityBadgeClass = noneDeviationClause
+    ? firstAnalysisNoneDeviationBadgeClass
+    : useFirstAnalysisDeviationStyle
     ? firstAnalysisDeviationBadgeClass
     : `${severityTone(clause.severity)} shrink-0 rounded-full px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium`;
   const showSeverityBadge = !isPureMissingClause(clause);
@@ -4625,18 +4685,26 @@ function ClauseDecisionCard({
           {metaPrefix}{hideSubclauseReference ? clause.category : `${clause.subclause} · ${clause.category}`}
         </span>
         {changePill?.status && <ChangePillBadge result={changePill} />}
-        {missingClause && (
-          <Badge
-            variant="outline"
-            className={firstAnalysisDeviationBadgeClass}
-          >
-            Missing Clause
-          </Badge>
-        )}
         {showSeverityBadge && (
-          <Badge variant="outline" className={severityBadgeClass}>
-            {severityBadgeLabel}
-          </Badge>
+          useV5StatusTags ? (
+            <FirstAnalysisStatusTag status={severityStatusKey} label={severityBadgeLabel} />
+          ) : (
+            <Badge variant="outline" className={severityBadgeClass}>
+              {severityBadgeLabel}
+            </Badge>
+          )
+        )}
+        {missingClause && (
+          useV5StatusTags ? (
+            <FirstAnalysisStatusTag status="missing" />
+          ) : (
+            <Badge
+              variant="outline"
+              className={getFirstAnalysisMissingClauseBadgeClass()}
+            >
+              Missing Clause
+            </Badge>
+          )
         )}
         {stateBadge}
         {pendingBasketRequest && <RequestLifecycleBadge request={request} />}
@@ -4814,8 +4882,34 @@ function ClauseRowScaleCard({
 }) {
   const tier = clause.severity;
   const theme = rowScaleSeverityThemes[tier];
-  const cardState = missingClause ? "Error" : theme.cardState;
-  const severityLabel = hideSubclauseReference ? `${titleCaseSeverity(tier)} Deviation` : titleCaseSeverity(tier);
+  const noneDeviationClause = isNoneDeviationClause(clause);
+  const useV5StatusColours = isInitiativesV5Route();
+  const cardIndicatorToken = useV5StatusColours
+    ? missingClause
+      ? FIRST_ANALYSIS_STATUS_THEME.missing.indicatorColor
+      : noneDeviationClause
+      ? FIRST_ANALYSIS_STATUS_THEME.none.indicatorColor
+      : theme.indicatorToken
+    : missingClause
+    ? "var(--orbit-color-card-indicator-error)"
+    : noneDeviationClause
+    ? "var(--orbit-color-card-indicator-success)"
+    : theme.legacyIndicatorToken;
+  const cardStyle = {
+    minHeight: 104,
+    "--orbit-color-card-indicator-default": cardIndicatorToken,
+  } as CSSProperties;
+  const severityLabel = noneDeviationClause
+    ? "None Deviation"
+    : hideSubclauseReference
+    ? `${titleCaseSeverity(tier)} Deviation`
+    : titleCaseSeverity(tier);
+  const severityStatusKey = noneDeviationClause ? "none" : firstAnalysisSeverityStatus[tier];
+  const severityBadgeClass = noneDeviationClause
+    ? firstAnalysisNoneDeviationBadgeClass
+    : useV5StatusColours
+    ? theme.badgeClass
+    : theme.legacyBadgeClass;
   const showSeverityBadge = !isPureMissingClause(clause);
   const metadata = hideSubclauseReference ? clause.category : `${clause.subclause} · ${clause.category}`;
   const actionabilityText = actionability?.trim() ?? "";
@@ -4890,19 +4984,27 @@ function ClauseRowScaleCard({
       id={`clause-row-${id}`}
       className={cn("rounded-lg transition-colors", highlighted && "ring-2 ring-primary/40")}
     >
-      <Card type="Static" padding="Base" state={cardState} style={{ minHeight: 104 }}>
+      <Card type="Static" padding="Base" state="Default" indicator style={cardStyle}>
         <div className="flex flex-col gap-orbit-s">
           <div className="flex flex-wrap items-center justify-between gap-orbit-s">
             <div className="flex flex-wrap items-center gap-orbit-s">
-              {missingClause && (
-                <Badge variant="outline" className={firstAnalysisDeviationBadgeClass}>
-                  Missing Clause
-                </Badge>
-              )}
               {showSeverityBadge && (
-                <Badge variant="outline" className={theme.badgeClass}>
-                  {severityLabel}
-                </Badge>
+                useV5StatusColours ? (
+                  <FirstAnalysisStatusTag status={severityStatusKey} label={severityLabel} />
+                ) : (
+                  <Badge variant="outline" className={severityBadgeClass}>
+                    {severityLabel}
+                  </Badge>
+                )
+              )}
+              {missingClause && (
+                useV5StatusColours ? (
+                  <FirstAnalysisStatusTag status="missing" />
+                ) : (
+                  <Badge variant="outline" className={getFirstAnalysisMissingClauseBadgeClass()}>
+                    Missing Clause
+                  </Badge>
+                )
               )}
               {isDrafting && (
                 <Badge variant="outline" className="rounded-full border-[#185FA5]/25 bg-[#E6F1FB] px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#0C447C]">
@@ -4918,7 +5020,7 @@ function ClauseRowScaleCard({
         </div>
         {description && <FindingCallout text={description} />}
         {actionability && <RecommendedActionCallout text={actionability} compactTop={Boolean(description)} />}
-        {requestForm ?? (
+        {requestForm ?? (!noneDeviationClause ? (
           <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-s" onClick={(event) => event.stopPropagation()}>
             <Button
               variant="outline"
@@ -4940,7 +5042,7 @@ function ClauseRowScaleCard({
               <CheckCircle2 className="h-3 w-3" /> No Action
             </Button>
           </div>
-        )}
+        ) : null)}
       </Card>
     </div>
   );
@@ -4949,21 +5051,29 @@ function ClauseRowScaleCard({
 const rowScaleSeverityThemes: Record<
   ClauseResult["severity"],
   {
-    cardState: "Error" | "Warning" | "Success";
+    indicatorToken: string;
     badgeClass: string;
+    legacyIndicatorToken: string;
+    legacyBadgeClass: string;
   }
 > = {
   high: {
-    cardState: "Error",
+    indicatorToken: FIRST_ANALYSIS_STATUS_THEME.high.indicatorColor,
     badgeClass: firstAnalysisDeviationBadgeClass,
+    legacyIndicatorToken: "var(--orbit-color-card-indicator-error)",
+    legacyBadgeClass: firstAnalysisDeviationBadgeClass,
   },
   medium: {
-    cardState: "Warning",
+    indicatorToken: FIRST_ANALYSIS_STATUS_THEME.medium.indicatorColor,
     badgeClass: "shrink-0 rounded-full border-[#F1D29B] bg-[#FFF8E8] px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#854F0B]",
+    legacyIndicatorToken: "var(--orbit-color-card-indicator-warning)",
+    legacyBadgeClass: "shrink-0 rounded-full border-[#F1D29B] bg-[#FFF8E8] px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#854F0B]",
   },
   low: {
-    cardState: "Success",
-    badgeClass: "shrink-0 rounded-full border-[#BFD6AB] bg-[#EAF3DE] px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#27500A]",
+    indicatorToken: FIRST_ANALYSIS_STATUS_THEME.low.indicatorColor,
+    badgeClass: "shrink-0 rounded-full border-[#D9D8D2] bg-[#F5F5F2] px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-[#5F5E5A]",
+    legacyIndicatorToken: "var(--orbit-color-card-indicator-success)",
+    legacyBadgeClass: "shrink-0 rounded-full border-border bg-muted px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium text-muted-foreground",
   },
 };
 
@@ -5245,6 +5355,7 @@ function ClauseReviewModalCard({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<ClauseRequest>(request);
   const pureMissing = Boolean(missingClause && sourceDeviationLevel === "None");
+  const useV5StatusTags = isInitiativesV5Route();
 
   useEffect(() => {
     if (!editing) setDraft(request);
@@ -5271,18 +5382,26 @@ function ClauseReviewModalCard({
     >
       <div className="flex flex-wrap items-start justify-between gap-orbit-s">
         <div className="flex flex-wrap items-center gap-orbit-xs">
-          {pureMissing && (
-            <Badge variant="outline" className={firstAnalysisDeviationBadgeClass}>
-              Missing Clause
-            </Badge>
-          )}
           {severity && !pureMissing && (
-            <Badge
-              variant="outline"
-              className={cn("h-5 rounded-full px-orbit-s text-[9px] v5-orbit-weight-medium", severityTone(severity))}
-            >
-              {titleCaseSeverity(severity)} Deviation
-            </Badge>
+            useV5StatusTags ? (
+              <FirstAnalysisStatusTag status={firstAnalysisSeverityStatus[severity]} label={`${titleCaseSeverity(severity)} Deviation`} />
+            ) : (
+              <Badge
+                variant="outline"
+                className={cn("h-5 rounded-full px-orbit-s text-[9px] v5-orbit-weight-medium", severityTone(severity))}
+              >
+                {titleCaseSeverity(severity)} Deviation
+              </Badge>
+            )
+          )}
+          {(useV5StatusTags ? missingClause : pureMissing) && (
+            useV5StatusTags ? (
+              <FirstAnalysisStatusTag status="missing" />
+            ) : (
+              <Badge variant="outline" className={getFirstAnalysisMissingClauseBadgeClass()}>
+                Missing Clause
+              </Badge>
+            )
           )}
           <Badge
             variant="outline"
@@ -5611,6 +5730,7 @@ function ReviewScreen({
   quickReviewFilter,
   missingClauseIds,
   quickMissingClauseIds,
+  quickNoneDeviationFilter = false,
   neutralActions = false,
   hideSubclauseReference = false,
   displayMode = "default",
@@ -5633,6 +5753,7 @@ function ReviewScreen({
   quickReviewFilter?: "need-review" | null;
   missingClauseIds?: Set<string> | null;
   quickMissingClauseIds?: Set<string> | null;
+  quickNoneDeviationFilter?: boolean;
   neutralActions?: boolean;
   hideSubclauseReference?: boolean;
   displayMode?: "default" | "row-scale";
@@ -5650,16 +5771,24 @@ function ReviewScreen({
   const q = search.trim().toLowerCase();
   const versionLabel = version.version;
   const activeCategorySet = new Set(activeCategories);
+  const hasQuickMetricFilter = Boolean(
+    (quickSeverityFilters && quickSeverityFilters.size > 0) ||
+      quickMissingClauseIds ||
+      quickNoneDeviationFilter,
+  );
+  const matchesQuickMetricFilter = (clause: ClauseResult) => {
+    if (!hasQuickMetricFilter) return true;
+    return (
+      Boolean(quickSeverityFilters?.has(clause.severity) && countsTowardDeviationMetric(clause)) ||
+      Boolean(quickMissingClauseIds?.has(clause.id)) ||
+      Boolean(quickNoneDeviationFilter && isNoneDeviationClause(clause))
+    );
+  };
   const rows = version.clauses
     .map((clause, index) => ({ clause, index }))
     .filter(({ clause: c }) => {
       if (activeCategorySet.size > 0 && !activeCategorySet.has(c.category)) return false;
-      if (quickMissingClauseIds && !quickMissingClauseIds.has(c.id)) return false;
-      if (
-        quickSeverityFilters &&
-        quickSeverityFilters.size > 0 &&
-        (!countsTowardDeviationMetric(c) || !quickSeverityFilters.has(c.severity))
-      ) return false;
+      if (!matchesQuickMetricFilter(c)) return false;
       if (
         !quickSeverityFilters &&
         quickSeverityFilter &&
@@ -5667,12 +5796,13 @@ function ReviewScreen({
       ) return false;
       if (q && !c.title.toLowerCase().includes(q) && !c.category.toLowerCase().includes(q) && !c.id.includes(q)) return false;
       if (quickReviewFilter === "need-review") {
-        if (!quickMissingClauseIds && c.resolved) return false;
+        const showNoneDeviationClause = quickNoneDeviationFilter && isNoneDeviationClause(c);
+        if (!showNoneDeviationClause && c.resolved) return false;
         if (displayMode !== "row-scale") {
           const state = stateOf(c.id);
           const decision = state.roundDecisions[versionLabel];
           const request = state.requests[versionLabel];
-          if (decision === "no-action" || decision === "request-update" || request?.requestedChange?.trim()) {
+          if (!showNoneDeviationClause && (decision === "no-action" || decision === "request-update" || request?.requestedChange?.trim())) {
             return false;
           }
         }

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -24,7 +24,6 @@ import UsabilityStudyV4 from "./pages/UsabilityStudyV4.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import PrototypeTimeline from "./pages/PrototypeTimeline.tsx";
 import PrototypeDetail from "./pages/PrototypeDetail.tsx";
-import PrototypeCP from "./pages/PrototypeCP.tsx";
 import PrototypeCPResults from "./pages/PrototypeCPResults.tsx";
 import PrototypeCPV2 from "./pages/PrototypeCPV2.tsx";
 import PrototypeCPV2Results from "./pages/PrototypeCPV2Results.tsx";
@@ -34,6 +33,11 @@ import InitiativeDetailPageV4 from "./pages/delivery-engine-v4/InitiativeDetailP
 import InitiativeDetailPageV5 from "./pages/delivery-engine-v5/InitiativeDetailPageV5.tsx";
 
 const queryClient = new QueryClient();
+
+function PrototypeCPDefaultRedirect() {
+  const location = useLocation();
+  return <Navigate to={`/prototype-cp-v2${location.search}`} replace />;
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -73,7 +77,7 @@ const App = () => (
           <Route path="/usability-v4" element={<UsabilityStudyV4 />} />
           <Route path="/prototypes" element={<PrototypeTimeline />} />
           <Route path="/prototypes/:versionId" element={<PrototypeDetail />} />
-          <Route path="/prototype-cp" element={<PrototypeCP />} />
+          <Route path="/prototype-cp" element={<PrototypeCPDefaultRedirect />} />
           <Route path="/prototype-cp/results" element={<PrototypeCPResults />} />
           <Route path="/prototype-cp-v2" element={<PrototypeCPV2 />} />
           <Route path="/prototype-cp-v2/results" element={<PrototypeCPV2Results />} />

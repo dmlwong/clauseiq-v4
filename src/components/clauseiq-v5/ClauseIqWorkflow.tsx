@@ -18,7 +18,7 @@ import {
   Scale,
   Sparkles,
 } from "lucide-react";
-import { Dropzone, Text } from "@orbit";
+import { Card, Dropzone, Text } from "@orbit";
 
 import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
 import { StateCard, type CardState } from "@/components/clauseiq-v5/StateCard";
@@ -40,6 +40,7 @@ import type {
 
 export type ClauseIqWorkflowStep = "welcome" | "select" | "parameters" | "upload" | "processing" | "results";
 export type AnalysisBasisKind = Exclude<CiqParameterKind, "Category">;
+export type PlaybookChoice = "yes" | "no";
 
 export interface AnalysisBasisSelection {
   kind: AnalysisBasisKind;
@@ -47,6 +48,7 @@ export interface AnalysisBasisSelection {
 }
 
 export interface AnalysisParameterSelection {
+  playbookChoice: PlaybookChoice;
   basis: AnalysisBasisSelection | null;
   category: string | null;
 }
@@ -90,6 +92,7 @@ export const createRerunAnalysis = (fileName: string): ClauseAnalysis => ({
 });
 
 export const createDefaultParameterSelection = (): AnalysisParameterSelection => ({
+  playbookChoice: "yes",
   basis: { ...DEFAULT_BASIS_SELECTION },
   category: null,
 });
@@ -114,9 +117,12 @@ export const buildAnalysisParameters = (
 export const hasCompleteAnalysisParameters = (
   selected: AnalysisParameterSelection | null,
 ): selected is AnalysisParameterSelection & { basis: AnalysisBasisSelection } => {
-  if (!selected?.basis) return false;
-  if (selected.basis.kind === "Playbook") return true;
-  return Boolean(selected.category);
+  if (!selected) return false;
+  const playbookChoice =
+    selected.playbookChoice ??
+    (selected.basis?.kind === "Governing Law" || selected.category ? "no" : "yes");
+  if (playbookChoice === "yes") return selected.basis?.kind === "Playbook";
+  return selected.basis?.kind === "Governing Law" && Boolean(selected.category);
 };
 
 interface UseClauseIqWorkflowOptions {
@@ -246,13 +252,15 @@ export function useClauseIqWorkflow({
 
   const handleBasisSelect = (option: CiqParameterOption, value: string) => {
     if (option.kind === "Category") return;
+    const playbookChoice: PlaybookChoice = option.kind === "Playbook" ? "yes" : "no";
     setSelectedParameter((current) => ({
+      playbookChoice,
       basis: { kind: option.kind, label: value },
-      category: option.kind === "Governing Law" ? current?.category ?? null : null,
+      category: playbookChoice === "no" ? current?.category ?? null : null,
     }));
     setFile(null);
     if (autoAdvanceParameters) {
-      setStep(option.kind === "Playbook" ? "upload" : "parameters");
+      setStep(option.kind === "Playbook" || selectedParameter?.category ? "upload" : "parameters");
     } else {
       setStep("parameters");
     }
@@ -260,11 +268,12 @@ export function useClauseIqWorkflow({
 
   const handleCategorySelect = (_option: CiqParameterOption, value: string) => {
     setSelectedParameter((current) => ({
-      basis: current?.basis ?? null,
+      playbookChoice: "no",
+      basis: current?.basis?.kind === "Governing Law" ? current.basis : null,
       category: value,
     }));
     setFile(null);
-    if (autoAdvanceParameters) {
+    if (autoAdvanceParameters && selectedParameter?.basis?.kind === "Governing Law") {
       setStep("upload");
     } else {
       setStep("parameters");
@@ -273,24 +282,46 @@ export function useClauseIqWorkflow({
 
   const handleRerunBasisSelect = (option: CiqParameterOption, value: string) => {
     if (option.kind === "Category") return;
+    const playbookChoice: PlaybookChoice = option.kind === "Playbook" ? "yes" : "no";
     setRerunSelectedParameter((current) => ({
+      playbookChoice,
       basis: { kind: option.kind, label: value },
-      category: option.kind === "Governing Law" ? current?.category ?? null : null,
+      category: playbookChoice === "no" ? current?.category ?? null : null,
     }));
     setFile(null);
   };
 
   const handleRerunCategorySelect = (_option: CiqParameterOption, value: string) => {
     setRerunSelectedParameter((current) => ({
-      basis: current?.basis ?? null,
+      playbookChoice: "no",
+      basis: current?.basis?.kind === "Governing Law" ? current.basis : null,
       category: value,
     }));
     setFile(null);
   };
 
+  const handlePlaybookChoiceChange = (playbookChoice: PlaybookChoice) => {
+    setSelectedParameter({ playbookChoice, basis: null, category: null });
+    setFile(null);
+    setStep("parameters");
+  };
+
+  const handleRerunPlaybookChoiceChange = (playbookChoice: PlaybookChoice) => {
+    setRerunSelectedParameter({ playbookChoice, basis: null, category: null });
+    setFile(null);
+  };
+
   const handleBasisEdit = () => {
     if (parameterLocked) return;
-    setSelectedParameter((current) => current ? { ...current, basis: null, category: null } : null);
+    setSelectedParameter((current) =>
+      current
+        ? {
+            ...current,
+            basis: null,
+            category: current.playbookChoice === "no" ? current.category : null,
+          }
+        : { playbookChoice: "yes", basis: null, category: null },
+    );
     setFile(null);
     setStep("parameters");
   };
@@ -303,7 +334,15 @@ export function useClauseIqWorkflow({
   };
 
   const handleRerunBasisEdit = () => {
-    setRerunSelectedParameter((current) => current ? { ...current, basis: null, category: null } : null);
+    setRerunSelectedParameter((current) =>
+      current
+        ? {
+            ...current,
+            basis: null,
+            category: current.playbookChoice === "no" ? current.category : null,
+          }
+        : { playbookChoice: "yes", basis: null, category: null },
+    );
     setFile(null);
   };
 
@@ -391,10 +430,12 @@ export function useClauseIqWorkflow({
       handleCategoryEdit,
       handleCategorySelect,
       handleDownload: () => toast.success("Report download queued."),
+      handlePlaybookChoiceChange,
       handleRerunBasisEdit,
       handleRerunBasisSelect,
       handleRerunCategoryEdit,
       handleRerunCategorySelect,
+      handleRerunPlaybookChoiceChange,
       markMilestoneComplete: (milestoneId: string) => {
         setCompletedMilestoneIds((current) => (
           current.includes(milestoneId) ? current : [...current, milestoneId]
@@ -598,6 +639,7 @@ export function AnalysisParameterCards({
   cardState,
   categoryCardState = "active",
   locked = false,
+  onPlaybookChoiceChange = () => undefined,
   onBasisSelect,
   onCategorySelect,
   onBasisEdit,
@@ -607,76 +649,161 @@ export function AnalysisParameterCards({
   cardState: CardState;
   categoryCardState?: CardState;
   locked?: boolean;
+  onPlaybookChoiceChange?: (choice: PlaybookChoice) => void;
   onBasisSelect: (option: CiqParameterOption, value: string) => void;
   onCategorySelect: (option: CiqParameterOption, value: string) => void;
   onBasisEdit: () => void;
   onCategoryEdit: () => void;
 }) {
-  const basisSelected = Boolean(selectedParameter?.basis);
-  const categoryRequired = selectedParameter?.basis?.kind === "Governing Law";
+  const selectedPlaybookChoice =
+    selectedParameter?.playbookChoice ??
+    (selectedParameter?.basis?.kind === "Governing Law" || selectedParameter?.category ? "no" : "yes");
+  const [localPlaybookChoice, setLocalPlaybookChoice] = useState<PlaybookChoice>(selectedPlaybookChoice);
+  const hasExternalParameter = Boolean(selectedParameter?.playbookChoice || selectedParameter?.basis || selectedParameter?.category);
+  const playbookChoice = selectedParameter?.playbookChoice ?? (hasExternalParameter ? selectedPlaybookChoice : localPlaybookChoice);
+  const playbookOption = BASIS_PARAMETER_OPTIONS.find((option) => option.kind === "Playbook");
+  const governingLawOption = BASIS_PARAMETER_OPTIONS.find((option) => option.kind === "Governing Law");
+  const playbookSelected = playbookChoice === "yes" && selectedParameter?.basis?.kind === "Playbook";
+  const governingLawSelected = playbookChoice === "no" && selectedParameter?.basis?.kind === "Governing Law";
   const categorySelected = Boolean(selectedParameter?.category);
-  const selectedBasisKind = selectedParameter?.basis?.kind;
-  const [activeBasisKind, setActiveBasisKind] = useState<AnalysisBasisKind>("Playbook");
 
   useEffect(() => {
-    if (selectedBasisKind) {
-      setActiveBasisKind(selectedBasisKind);
-    }
-  }, [selectedBasisKind]);
+    setLocalPlaybookChoice(selectedPlaybookChoice);
+  }, [selectedPlaybookChoice]);
+
+  const handlePlaybookChoice = (choice: PlaybookChoice) => {
+    setLocalPlaybookChoice(choice);
+    onPlaybookChoiceChange(choice);
+  };
 
   return (
-    <>
-      <StateCard state={basisSelected ? "default" : cardState}>
-        <h2 className="v5-orbit-heading-5 mb-orbit-xs">Contract Analysis Parameters</h2>
-        {!basisSelected ? (
-          <>
-            <p className="text-sm text-muted-foreground mb-orbit-base">
-              Choose whether ClauseIQ should analyse against a playbook or governing law.
-            </p>
-            <ParameterKindSelector
-              activeKind={activeBasisKind}
-              options={BASIS_PARAMETER_OPTIONS}
-              onActiveKindChange={setActiveBasisKind}
-              onSelect={onBasisSelect}
-            />
-          </>
-        ) : (
-          <div className="mt-orbit-s">
+    <Card
+      type="Static"
+      state={cardState === "active" ? "Feature" : cardState === "disabled" ? "Disabled" : "Default"}
+      padding="Base"
+      indicator={false}
+    >
+      <h2 className="v5-orbit-heading-5 mb-orbit-xs">Contract Analysis Parameters</h2>
+      <p className="text-sm text-muted-foreground mb-orbit-base">
+        Do you want to use a playbook for this analysis?
+      </p>
+
+      <PlaybookChoiceSelector
+        value={playbookChoice}
+        disabled={locked}
+        onChange={handlePlaybookChoice}
+      />
+
+      {playbookChoice === "yes" && (
+        <div className="mt-orbit-base">
+          {playbookSelected ? (
             <SelectedSummaryRow
               label={`${selectedParameter!.basis!.kind} \u00b7 ${selectedParameter!.basis!.label}`}
               disabled={locked}
               actionLabel={`Change ${selectedParameter!.basis!.kind}`}
               onAction={onBasisEdit}
             />
-          </div>
-        )}
-      </StateCard>
-
-      {basisSelected && categoryRequired && (
-        <StateCard state={categorySelected ? "default" : categoryCardState}>
-          <h2 className="v5-orbit-heading-5 mb-orbit-xs">Category</h2>
-          {!categorySelected ? (
+          ) : (
             <>
               <p className="text-sm text-muted-foreground mb-orbit-base">
-                Select the category ClauseIQ should use for this analysis.
+                Select the playbook ClauseIQ should use for this analysis.
               </p>
-              {CATEGORY_PARAMETER_OPTION && (
-                <ParameterOptionsList option={CATEGORY_PARAMETER_OPTION} onSelect={onCategorySelect} />
+              {playbookOption && (
+                <ParameterOptionsList option={playbookOption} onSelect={onBasisSelect} />
               )}
             </>
-          ) : (
-            <div className="mt-orbit-s">
+          )}
+        </div>
+      )}
+
+      {playbookChoice === "no" && (
+        <div className="mt-orbit-base grid gap-orbit-base">
+          <section>
+            <h3 className="v5-orbit-heading-label mb-orbit-xs">Category</h3>
+            {categorySelected ? (
               <SelectedSummaryRow
                 label={`Category \u00b7 ${selectedParameter!.category!}`}
                 disabled={locked}
                 actionLabel="Change Category"
                 onAction={onCategoryEdit}
               />
-            </div>
-          )}
-        </StateCard>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground mb-orbit-base">
+                  Select the category ClauseIQ should use for this analysis.
+                </p>
+                {CATEGORY_PARAMETER_OPTION && (
+                  <ParameterOptionsList option={CATEGORY_PARAMETER_OPTION} onSelect={onCategorySelect} />
+                )}
+              </>
+            )}
+          </section>
+
+          <section>
+            <h3 className="v5-orbit-heading-label mb-orbit-xs">Governing Law</h3>
+            {governingLawSelected ? (
+              <SelectedSummaryRow
+                label={`${selectedParameter!.basis!.kind} \u00b7 ${selectedParameter!.basis!.label}`}
+                disabled={locked}
+                actionLabel={`Change ${selectedParameter!.basis!.kind}`}
+                onAction={onBasisEdit}
+              />
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground mb-orbit-base">
+                  Select the governing law ClauseIQ should use for this analysis.
+                </p>
+                {governingLawOption && (
+                  <ParameterOptionsList option={governingLawOption} onSelect={onBasisSelect} />
+                )}
+              </>
+            )}
+          </section>
+        </div>
       )}
-    </>
+    </Card>
+  );
+}
+
+function PlaybookChoiceSelector({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: PlaybookChoice;
+  disabled: boolean;
+  onChange: (choice: PlaybookChoice) => void;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Use playbook"
+      className="grid grid-cols-2 gap-orbit-s"
+    >
+      {(["yes", "no"] as PlaybookChoice[]).map((choice) => {
+        const selected = value === choice;
+        const label = choice === "yes" ? "Yes" : "No";
+
+        return (
+          <button
+            key={choice}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            disabled={disabled}
+            className={cn(
+              "flex min-h-11 cursor-pointer items-center justify-center rounded-lg border bg-card px-orbit-base py-orbit-s text-sm v5-orbit-weight-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+              selected
+                ? "border-primary/60 text-foreground shadow-sm ring-1 ring-primary/20"
+                : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
+            )}
+            onClick={() => onChange(choice)}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -826,10 +953,14 @@ function ParameterIcon({ kind }: { kind: CiqParameterKind }) {
 
 export function parameterDisclaimer(parameter: AnalysisParameterSelection | null) {
   if (!hasCompleteAnalysisParameters(parameter)) {
-    return "Analysis is based on the selected playbook or governing law, plus the required category.";
+    return "Analysis is based on the selected playbook or the selected category and governing law.";
   }
 
-  if (parameter.basis.kind === "Playbook") {
+  const playbookChoice =
+    parameter.playbookChoice ??
+    (parameter.basis?.kind === "Governing Law" || parameter.category ? "no" : "yes");
+
+  if (playbookChoice === "yes") {
     return PLAYBOOK_SCOPE_DISCLAIMER;
   }
 

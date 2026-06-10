@@ -1,5 +1,6 @@
 import { type ReactNode, type RefObject } from "react";
 import { Check, FileText, Loader2, Search } from "lucide-react";
+import { Card } from "@orbit";
 
 import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
 import { StateCard, type CardState } from "@/components/clauseiq-v5/StateCard";
@@ -129,7 +130,7 @@ function InitiativeStep({
 
   if (initiativeMode === "selectable" && !workflow.initiative) {
     return (
-      <StateCard state={workflow.step === "select" ? "active" : "default"}>
+      <Card type="Static" state="Feature" padding="Base" indicator={false}>
         <h2 className="v5-orbit-heading-5 mb-orbit-xs">Select Initiative</h2>
         <p className="text-sm text-muted-foreground mb-orbit-base">
           Choose the initiative to analyse the contract against.
@@ -138,7 +139,7 @@ function InitiativeStep({
           <Search className="h-4 w-4 mr-orbit-s" />
           Search Initiatives
         </Button>
-      </StateCard>
+      </Card>
     );
   }
 
@@ -161,16 +162,14 @@ function InitiativeStep({
 }
 
 function UploadStep({
-  cardState,
   renderSelectedFileRow,
   workflow,
 }: {
-  cardState: CardState;
   renderSelectedFileRow?: (file: File, onRemove: () => void) => ReactNode;
   workflow: ClauseIqWorkflow;
 }) {
   return (
-    <StateCard state={cardState}>
+    <Card type="Static" state="Feature" padding="Base" indicator={false}>
       <h2 className="v5-orbit-heading-5 mb-orbit-base">Upload Contract</h2>
       <PlaybookDisclaimer variant="callout" parameter={workflow.selectedParameter} />
       <ClauseIqDropzone onFile={workflow.actions.validateAndSetFile} />
@@ -179,7 +178,7 @@ function UploadStep({
           {renderSelectedFileRow(workflow.file, workflow.actions.clearFile)}
         </div>
       ) : null}
-    </StateCard>
+    </Card>
   );
 }
 
@@ -187,17 +186,15 @@ function ProcessingStep({
   copy = "Finding clauses in your contract...",
   heading = "Analysing Your Contract",
   parameter,
-  state,
   workflow,
 }: {
   copy?: string;
   heading?: string;
   parameter: ClauseIqWorkflow["selectedParameter"];
-  state: CardState;
   workflow: ClauseIqWorkflow;
 }) {
   return (
-    <StateCard state={state}>
+    <Card type="Static" state="Feature" padding="Base" indicator={false}>
       <h2 className="v5-orbit-heading-5 mb-orbit-base">{heading}</h2>
       <div className="flex items-center justify-between border border-border rounded-lg px-orbit-base py-orbit-s mb-orbit-base">
         <div className="flex items-center gap-orbit-s min-w-0">
@@ -218,7 +215,7 @@ function ProcessingStep({
           ? "The existing analysis history remains available above while this runs."
           : "This may take a moment. We will notify you when the analysis is completed."}
       </p>
-    </StateCard>
+    </Card>
   );
 }
 
@@ -259,6 +256,7 @@ function ResultsStep({
           <AnalysisParameterCards
             selectedParameter={workflow.rerunSelectedParameter}
             cardState={hasCompleteAnalysisParameters(workflow.rerunSelectedParameter) ? "default" : "active"}
+            onPlaybookChoiceChange={workflow.actions.handleRerunPlaybookChoiceChange}
             onBasisSelect={workflow.actions.handleRerunBasisSelect}
             onCategorySelect={workflow.actions.handleRerunCategorySelect}
             onBasisEdit={workflow.actions.handleRerunBasisEdit}
@@ -266,11 +264,11 @@ function ResultsStep({
           />
 
           {hasCompleteAnalysisParameters(workflow.rerunSelectedParameter) && (
-            <StateCard state="active">
+            <Card type="Static" state="Feature" padding="Base" indicator={false}>
               <h2 className="v5-orbit-heading-5 mb-orbit-base">Upload Contract</h2>
               <PlaybookDisclaimer variant="callout" parameter={workflow.rerunSelectedParameter} />
               <ClauseIqDropzone onFile={workflow.actions.validateAndSetFile} />
-            </StateCard>
+            </Card>
           )}
         </div>
       )}
@@ -279,7 +277,6 @@ function ResultsStep({
           copy="Finding clauses in your new contract..."
           heading="Analysing New Contract"
           parameter={workflow.rerunSelectedParameter ?? workflow.selectedParameter}
-          state="active"
           workflow={workflow}
         />
       )}
@@ -359,6 +356,7 @@ function SingleStepJourneyContent({
         selectedParameter={workflow.selectedParameter}
         cardState={workflow.selectedParameter?.basis ? "default" : "active"}
         locked={workflow.parameterLocked}
+        onPlaybookChoiceChange={workflow.actions.handlePlaybookChoiceChange}
         onBasisSelect={workflow.actions.handleBasisSelect}
         onCategorySelect={workflow.actions.handleCategorySelect}
         onBasisEdit={workflow.actions.handleBasisEdit}
@@ -370,7 +368,6 @@ function SingleStepJourneyContent({
   if (workflow.step === "upload") {
     return (
       <UploadStep
-        cardState="active"
         renderSelectedFileRow={renderSelectedFileRow}
         workflow={workflow}
       />
@@ -381,7 +378,6 @@ function SingleStepJourneyContent({
     return (
       <ProcessingStep
         parameter={workflow.selectedParameter}
-        state="active"
         workflow={workflow}
       />
     );
@@ -416,8 +412,6 @@ function StackedJourneyContent({
   const uploadVisible = stepIndex >= 3;
   const selectState: CardState = workflow.step === "select" ? "active" : "default";
   const parametersState: CardState = workflow.step === "parameters" ? "active" : "default";
-  const uploadState: CardState = workflow.step === "upload" ? "active" : "default";
-  const processingState: CardState = workflow.step === "processing" ? "active" : "default";
 
   return (
     <>
@@ -445,6 +439,7 @@ function StackedJourneyContent({
             selectedParameter={workflow.selectedParameter}
             cardState={parametersState}
             locked={workflow.parameterLocked}
+            onPlaybookChoiceChange={workflow.actions.handlePlaybookChoiceChange}
             onBasisSelect={workflow.actions.handleBasisSelect}
             onCategorySelect={workflow.actions.handleCategorySelect}
             onBasisEdit={workflow.actions.handleBasisEdit}
@@ -455,7 +450,7 @@ function StackedJourneyContent({
 
       {uploadVisible && hasCompleteAnalysisParameters(workflow.selectedParameter) && workflow.step !== "processing" && workflow.step !== "results" && (
         <div ref={refs?.upload}>
-          <UploadStep cardState={uploadState} workflow={workflow} />
+          <UploadStep workflow={workflow} />
         </div>
       )}
 
@@ -463,7 +458,6 @@ function StackedJourneyContent({
         <div ref={refs?.processing}>
           <ProcessingStep
             parameter={workflow.selectedParameter}
-            state={processingState}
             workflow={workflow}
           />
         </div>

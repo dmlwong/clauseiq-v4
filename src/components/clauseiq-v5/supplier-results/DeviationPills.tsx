@@ -1,4 +1,7 @@
-import { Chip } from "@/components/clauseiq-v5/orbit-ui/indicators";
+import {
+  FirstAnalysisStatusTag,
+  type FirstAnalysisStatusKey,
+} from "@/components/workflow-v5/firstAnalysisStatusTags";
 import type { DeviationCounts } from "@/data/mock-clauseiq";
 
 interface Props {
@@ -6,16 +9,32 @@ interface Props {
   compact?: boolean;
 }
 
-export function DeviationPills({ deviations, compact = false }: Props) {
-  const size = compact ? "Mini" : "Small";
+const deviationItems: Array<{
+  key: keyof DeviationCounts;
+  label: string;
+  status: FirstAnalysisStatusKey;
+}> = [
+  { key: "missing", label: "Missing", status: "missing" },
+  { key: "high", label: "High", status: "high" },
+  { key: "medium", label: "Medium", status: "medium" },
+  { key: "low", label: "Low", status: "low" },
+  { key: "none", label: "None", status: "none" },
+];
 
+export function DeviationPills({ deviations, compact = false }: Props) {
   return (
     <div className={compact ? "flex flex-wrap gap-orbit-xs" : "flex flex-wrap gap-orbit-s"}>
-      <Chip label={`Missing ${deviations.missing}`} size={size} variant="Information" />
-      <Chip label={`High ${deviations.high}`} size={size} variant="Error" />
-      <Chip label={`Medium ${deviations.medium}`} size={size} variant="Warning" />
-      <Chip label={`Low ${deviations.low}`} size={size} variant="Success" />
-      <Chip label={`None ${deviations.none}`} size={size} variant="Outline" />
+      {deviationItems.map((item) => {
+        const label = `${item.label} ${deviations[item.key]}`;
+        return (
+          <FirstAnalysisStatusTag
+            key={item.key}
+            status={item.status}
+            label={label}
+            size={compact ? "count" : "default"}
+          />
+        );
+      })}
     </div>
   );
 }

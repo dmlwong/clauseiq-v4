@@ -12,6 +12,10 @@ import {
 
 import { cn } from "@/lib/utils";
 import type { ComparisonStripStats, DeviationDistribution, VersionPanelData } from "@/lib/clauseiq-v4-comparison";
+import {
+  FIRST_ANALYSIS_STATUS_THEME,
+  type FirstAnalysisStatusKey,
+} from "./firstAnalysisStatusTags";
 
 export type ComparisonDesignOption = "evolved" | "side-by-side" | "row-scale";
 export type EvidenceMetricKey =
@@ -24,7 +28,7 @@ export type EvidenceMetricKey =
   | "medium"
   | "low"
   | "total";
-export type FirstAnalysisMetricKey = "high" | "medium" | "low" | "missing";
+export type FirstAnalysisMetricKey = "high" | "medium" | "low" | "missing" | "none";
 
 export interface EvidenceMetricCounts {
   openItems: number;
@@ -45,6 +49,7 @@ export interface FirstAnalysisMetrics {
   medium: number;
   low: number;
   missingClauses: number;
+  noneDeviation: number;
   score: number;
   distribution: DeviationDistribution;
   versionLabel: string;
@@ -61,6 +66,17 @@ const distributionColours: Record<keyof DeviationDistribution, string> = {
   low: "#B4B2A9",
   clean: "#3B6D11",
 };
+
+const v5DistributionColours: Record<keyof DeviationDistribution, string> = {
+  high: FIRST_ANALYSIS_STATUS_THEME.high.indicatorColor,
+  medium: FIRST_ANALYSIS_STATUS_THEME.medium.indicatorColor,
+  low: FIRST_ANALYSIS_STATUS_THEME.low.indicatorColor,
+  clean: FIRST_ANALYSIS_STATUS_THEME.none.indicatorColor,
+};
+
+function isInitiativesV5Route() {
+  return typeof window !== "undefined" && window.location.pathname.startsWith("/initiatives-v5");
+}
 
 export function DesignOptionSwitcher({
   value,
@@ -407,7 +423,7 @@ function FirstAnalysisReviewCountPanel({ visibleCount }: { visibleCount: number 
     <div className="mb-orbit-base px-orbit-xs">
       <div className="flex items-center justify-between gap-orbit-s">
         <Headings size="Heading 4">Clauses to Review</Headings>
-        <Chip label={String(visibleCount)} size="Mini" variant="Outline" />
+        <Chip label={String(visibleCount)} size="Mini" variant="Outline" contrast="Low" />
       </div>
     </div>
   );
@@ -588,6 +604,7 @@ function ScoreMovementBadge({ panel }: { panel: VersionPanelData }) {
       label={`Score ${panel.current.score} vs prior ${panel.delta >= 0 ? "+" : ""}${panel.delta} pts`}
       size="Mini"
       variant={panel.delta >= 0 ? "Success" : "Error"}
+      contrast="Low"
     />
   );
 }
@@ -697,6 +714,7 @@ function DistributionSide({
   hideScore?: boolean;
   unframed?: boolean;
 }) {
+  const useV5StatusColours = isInitiativesV5Route();
   return (
     <Card
       type="Static"
@@ -715,7 +733,7 @@ function DistributionSide({
       <div className="mt-orbit-s grid grid-cols-4 gap-orbit-xs text-[9px] text-muted-foreground">
         <span><strong className="text-[#A32D2D]">{distribution.high}</strong> H</span>
         <span><strong className="text-[#854F0B]">{distribution.medium}</strong> M</span>
-        <span><strong>{distribution.low}</strong> L</span>
+        <span><strong style={useV5StatusColours ? { color: FIRST_ANALYSIS_STATUS_THEME.low.indicatorColor } : undefined}>{distribution.low}</strong> L</span>
         <span><strong className="text-[#3B6D11]">{distribution.clean}</strong> C</span>
       </div>
     </Card>
@@ -724,6 +742,7 @@ function DistributionSide({
 
 function DistributionBar({ distribution, className }: { distribution: DeviationDistribution; className?: string }) {
   const total = Math.max(1, distribution.high + distribution.medium + distribution.low + distribution.clean);
+  const colours = isInitiativesV5Route() ? v5DistributionColours : distributionColours;
   return (
     <div className={cn("flex h-2 overflow-hidden rounded-full bg-muted", className)}>
       {(Object.keys(distributionColours) as Array<keyof DeviationDistribution>).map((key) => {
@@ -733,7 +752,7 @@ function DistributionBar({ distribution, className }: { distribution: DeviationD
           <span
             key={key}
             className="h-full"
-            style={{ width: `${(value / total) * 100}%`, backgroundColor: distributionColours[key] }}
+            style={{ width: `${(value / total) * 100}%`, backgroundColor: colours[key] }}
           />
         );
       })}
@@ -819,18 +838,33 @@ const metricDefinitions: Array<{
 const firstAnalysisMetricDefinitions: Array<{
   key: FirstAnalysisMetricKey;
   label: string;
-  value: keyof Pick<FirstAnalysisMetrics, "high" | "medium" | "low" | "missingClauses">;
+  value: keyof Pick<FirstAnalysisMetrics, "high" | "medium" | "low" | "missingClauses" | "noneDeviation">;
   tone?: "success" | "warning" | "destructive";
   color: string;
+  v5Status: FirstAnalysisStatusKey;
   barColor?: string;
   barBorderColor?: string;
   group: "workflow" | "risk";
 }> = [
-  { key: "high", label: "High Deviation", value: "high", tone: "destructive", color: "hsl(var(--destructive))", group: "risk" },
-  { key: "medium", label: "Medium Deviation", value: "medium", tone: "warning", color: "#F0AB00", group: "risk" },
-  { key: "low", label: "Low Deviation", value: "low", color: "#5F5E5A", group: "risk" },
-  { key: "missing", label: "Missing Clauses", value: "missingClauses", color: "hsl(var(--foreground))", barColor: "#ffffff", barBorderColor: "hsl(var(--border))", group: "risk" },
+  { key: "high", label: "High Deviation", value: "high", tone: "destructive", color: "hsl(var(--destructive))", v5Status: "high", group: "risk" },
+  { key: "medium", label: "Medium Deviation", value: "medium", tone: "warning", color: "#F0AB00", v5Status: "medium", group: "risk" },
+  { key: "low", label: "Low Deviation", value: "low", color: "#5F5E5A", v5Status: "low", group: "risk" },
+  { key: "missing", label: "Missing Clauses", value: "missingClauses", color: "hsl(var(--foreground))", v5Status: "missing", barColor: "#ffffff", barBorderColor: "hsl(var(--border))", group: "risk" },
+  { key: "none", label: "None Deviation", value: "noneDeviation", tone: "success", color: "#3B6D11", v5Status: "none", group: "risk" },
 ];
+
+const firstAnalysisMetricBarDefinitions = firstAnalysisMetricDefinitions.filter(
+  (definition) => definition.key !== "none",
+);
+
+const firstAnalysisMetricRowClassName = (active: boolean, disabled = false) => cn(
+  "flex min-h-8 w-full items-center rounded-md border px-orbit-s py-orbit-xs transition-colors",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]",
+  active
+    ? "border-[var(--orbit-color-card-border-highlight)] bg-[var(--orbit-color-card-bg-highlight)]"
+    : "border-transparent hover:border-[var(--orbit-color-card-border-hover)] hover:bg-[var(--orbit-color-btn-secondary-bg-hover)]",
+  disabled && "opacity-60",
+);
 
 function FirstAnalysisMetricGrid({
   metrics,
@@ -846,6 +880,37 @@ function FirstAnalysisMetricGrid({
   grouped?: boolean;
 }) {
   const activeMetricSet = new Set(activeMetrics ?? []);
+  const renderMetricRow = (definition: (typeof firstAnalysisMetricDefinitions)[number]) => {
+    const active = activeMetricSet.has(definition.key);
+    const value = metrics[definition.value];
+    const dotColor = FIRST_ANALYSIS_STATUS_THEME[definition.v5Status].indicatorColor;
+
+    return (
+      <button
+        key={definition.key}
+        type="button"
+        role="button"
+        aria-pressed={active}
+        aria-label={`${active ? "Remove" : "Add"} ${definition.label} filter, ${value} clauses`}
+        onClick={onMetricSelect ? () => onMetricSelect(definition.key) : undefined}
+        className={cn(firstAnalysisMetricRowClassName(active, value === 0), "gap-orbit-s")}
+      >
+        <span className="flex min-w-0 flex-1 items-center gap-orbit-s overflow-hidden" style={{ textAlign: "left" }}>
+          <span
+            aria-hidden="true"
+            className="h-1.5 w-1.5 shrink-0 rounded-full"
+            style={{ backgroundColor: dotColor }}
+          />
+          <span className="min-w-0 truncate leading-none">
+            <Text as="span" size="Small" variant={active ? "Bold" : "Secondary"}>
+              {definition.label}
+            </Text>
+          </span>
+        </span>
+        <Chip label={String(value)} size="Mini" variant={active ? "Additional" : "No Status"} contrast="Low" />
+      </button>
+    );
+  };
   const renderMetric = (definition: (typeof firstAnalysisMetricDefinitions)[number]) => (
       <MetricCell
         key={definition.key}
@@ -893,11 +958,27 @@ function FirstAnalysisMetricGrid({
     );
   }
 
+  if (density === "rail") {
+    return (
+      <div className="mt-orbit-base">
+        <div
+          tabIndex={0}
+          className="mb-orbit-xs rounded-md px-orbit-s py-orbit-xs outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]"
+        >
+          <Text as="p" size="Small" variant="Secondary">DEVIATION LEVEL</Text>
+        </div>
+        <div className="space-y-orbit-xs">
+          {firstAnalysisMetricDefinitions.map(renderMetricRow)}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
         "mt-orbit-base grid gap-orbit-s",
-        density === "rail" ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-5",
+        "grid-cols-2 sm:grid-cols-5",
       )}
     >
       {firstAnalysisMetricDefinitions.map(renderMetric)}
@@ -957,14 +1038,15 @@ function MetricGrid({
 }
 
 function FirstAnalysisMetricBar({ metrics, className }: { metrics: FirstAnalysisMetrics; className?: string }) {
+  const useV5StatusColours = isInitiativesV5Route();
   const total = Math.max(
     1,
-    firstAnalysisMetricDefinitions.reduce((sum, definition) => sum + metrics[definition.value], 0),
+    firstAnalysisMetricBarDefinitions.reduce((sum, definition) => sum + metrics[definition.value], 0),
   );
 
   return (
     <div className={cn("flex h-2 overflow-hidden rounded-full bg-muted", className)}>
-      {firstAnalysisMetricDefinitions.map((definition) => {
+      {firstAnalysisMetricBarDefinitions.map((definition) => {
         const value = metrics[definition.value];
         if (value <= 0) return null;
 
@@ -975,8 +1057,8 @@ function FirstAnalysisMetricBar({ metrics, className }: { metrics: FirstAnalysis
             aria-label={`${definition.label}: ${value}`}
             style={{
               width: `${(value / total) * 100}%`,
-              backgroundColor: definition.barColor ?? definition.color,
-              border: definition.barBorderColor ? `1px solid ${definition.barBorderColor}` : undefined,
+              backgroundColor: useV5StatusColours ? FIRST_ANALYSIS_STATUS_THEME[definition.v5Status].indicatorColor : definition.barColor ?? definition.color,
+              border: !useV5StatusColours && definition.barBorderColor ? `1px solid ${definition.barBorderColor}` : undefined,
             }}
           />
         );

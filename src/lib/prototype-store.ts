@@ -62,11 +62,16 @@ export function isResponsiveTestingPrototype(version: PrototypeVersion) {
 
 export function isPrototypeCP(version: PrototypeVersion) {
   const title = version.title.trim().toLowerCase();
-  return title === "prototype cp" || title === "prototype cp - v1" || version.previewUrl === "/prototype-cp";
+  return (
+    title === "prototype cp" ||
+    title === "prototype cp - v1" ||
+    version.previewUrl === "/prototype-cp" ||
+    version.previewUrl === "/prototype-cp-v2"
+  );
 }
 
 export function prototypePreviewUrl(version: PrototypeVersion) {
-  if (isPrototypeCP(version)) return "/prototype-cp";
+  if (isPrototypeCP(version)) return "/prototype-cp-v2";
   if (isResponsiveTestingPrototype(version)) return "/clauseiq-responsive-testing";
   if (isPrototypeV5(version)) return "/clauseiq-v5";
   if (isPrototypeV4(version)) return "/clauseiq-v4";
@@ -206,7 +211,7 @@ function createPrototypeCPVersion(protoId: string, versionNumber: number): Proto
     title: "Prototype CP - v1",
     goal: "Create a CP/Efficio-themed prototype entry point for the Projects & Initiatives ClauseIQ workflow.",
     notes: "Adds the isolated /prototype-cp experience, including the CP shell, ClauseIQ workflow, supplier output panel, and CP-owned result dashboard route.",
-    previewUrl: "/prototype-cp",
+    previewUrl: "/prototype-cp-v2",
     status: "In progress",
     createdAt: new Date().toISOString(),
     feedback: [],
@@ -222,7 +227,7 @@ function ensureCurrentVersions(prototype: Prototype): Prototype {
         title: "Prototype CP - v1",
         goal: "Create a CP/Efficio-themed prototype entry point for the Projects & Initiatives ClauseIQ workflow.",
         notes: "Adds the isolated /prototype-cp experience, including the CP shell, ClauseIQ workflow, supplier output panel, and CP-owned result dashboard route.",
-        previewUrl: "/prototype-cp",
+        previewUrl: "/prototype-cp-v2",
         status: version.status === "Complete" ? "In progress" as VersionStatus : version.status,
       };
       changed = changed || JSON.stringify(next) !== JSON.stringify(version);

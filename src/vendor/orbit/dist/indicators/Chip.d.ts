@@ -1,9 +1,11 @@
 import React from 'react';
 type ChipSize = 'Default' | 'Mini' | 'Small' | 'Medium';
-type ChipVariant = 'Information' | 'Success' | 'Warning' | 'Error' | 'Additional' | 'No Status' | 'Outline' | 'Disabled';
+type ChipContrast = 'High' | 'Low';
+type ChipVariant = 'Information' | 'Success' | 'Warning' | 'Error' | 'Style 1' | 'Style 2' | 'Style 3' | 'Style 4' | 'Additional' | 'No Status' | 'None' | 'Outline' | 'Disabled';
 export interface ChipBaseProps {
     size?: ChipSize;
     variant?: ChipVariant;
+    contrast?: ChipContrast;
     label: string;
     selected?: boolean;
     disabled?: boolean;

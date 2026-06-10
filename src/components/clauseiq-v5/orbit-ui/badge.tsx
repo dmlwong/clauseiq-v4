@@ -81,7 +81,7 @@ export function Badge({ variant = "default", className, children, ...props }: Ba
 
   return (
     <span {...props} className={cn("inline-flex align-middle", layoutClassName(classNameString))}>
-      <Chip label={label} size="Mini" variant={chipVariant(variant, classNameString)} />
+      <Chip label={label} size="Mini" variant={chipVariant(variant, classNameString)} contrast="Low" />
     </span>
   );
 }

@@ -208,7 +208,6 @@ export function SupplierOutputsPanel({
               latestAnalysisId={latestAnalysisId}
               open={openSupplierIds.includes(supplier.id)}
               onToggle={() => toggleSupplier(supplier.id)}
-              onRunAgain={onRunAgain}
               onDownload={onDownload}
               onViewResult={onViewResult}
             />
@@ -282,7 +281,6 @@ function SupplierOutputGroup({
   latestAnalysisId,
   open,
   onToggle,
-  onRunAgain,
   onDownload,
   onViewResult,
 }: {
@@ -290,7 +288,6 @@ function SupplierOutputGroup({
   latestAnalysisId?: string;
   open: boolean;
   onToggle: () => void;
-  onRunAgain?: () => void;
   onDownload?: () => void;
   onViewResult?: () => void;
 }) {
@@ -349,7 +346,6 @@ function SupplierOutputGroup({
                   key={analysis.id}
                   analysis={analysis}
                   isLatestOutput={analysis.id === latestAnalysisId}
-                  onRunAgain={onRunAgain}
                   onDownload={onDownload}
                   onViewResult={onViewResult}
                 />
@@ -366,13 +362,11 @@ function SupplierOutputGroup({
 function CompactOutputRow({
   analysis,
   isLatestOutput,
-  onRunAgain,
   onDownload,
   onViewResult,
 }: {
   analysis: ClauseAnalysis;
   isLatestOutput: boolean;
-  onRunAgain?: () => void;
   onDownload?: () => void;
   onViewResult?: () => void;
 }) {
@@ -395,12 +389,9 @@ function CompactOutputRow({
         <DeviationPills deviations={analysis.deviations} compact />
       </div>
 
-      <div className="clauseiq-responsive-compact-output-actions mt-orbit-base grid grid-cols-3 gap-orbit-xs">
+      <div className="clauseiq-responsive-compact-output-actions mt-orbit-base grid grid-cols-2 gap-orbit-xs">
         <CompactActionButton label="View Results" onClick={onViewResult}>
           <BarChart2 className="h-3.5 w-3.5" />
-        </CompactActionButton>
-        <CompactActionButton label="Re-Run" onClick={onRunAgain}>
-          <RotateCw className="h-3.5 w-3.5" />
         </CompactActionButton>
         <CompactActionButton label="Download" onClick={onDownload}>
           <Download className="h-3.5 w-3.5" />

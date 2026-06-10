@@ -100,6 +100,26 @@
   --orbit-color-chip-disabled-bg: var(--orbit-color-bg-disabled);
   --orbit-color-chip-disabled-fg: var(--orbit-color-text-disabled);
 
+  /* High-contrast (solid fill) chips — Style × Contrast model. */
+  --orbit-color-chip-high-fg: var(--orbit-color-white);
+  --orbit-color-chip-high-fg-none: var(--orbit-color-text-primary);
+  --orbit-color-chip-high-bg-information: var(--orbit-color-status-high-bg-information);
+  --orbit-color-chip-high-bg-success: var(--orbit-color-status-high-bg-success);
+  --orbit-color-chip-high-bg-warning: var(--orbit-color-status-high-bg-warning);
+  --orbit-color-chip-high-bg-error: var(--orbit-color-status-high-bg-error);
+  --orbit-color-chip-high-bg-style-1: var(--orbit-color-hollywood-cerise);
+  --orbit-color-chip-high-bg-none: var(--orbit-color-status-high-bg-no-status);
+
+  /* Low-contrast (tinted + bordered) categorisation chips — Style 1–4. */
+  --orbit-color-chip-style-1-bg: var(--orbit-color-status-low-bg-additional-1);
+  --orbit-color-chip-style-1-border: var(--orbit-color-status-low-border-additional-1);
+  --orbit-color-chip-style-2-bg: var(--orbit-color-status-low-bg-additional-2);
+  --orbit-color-chip-style-2-border: var(--orbit-color-status-low-border-additional-2);
+  --orbit-color-chip-style-3-bg: var(--orbit-color-status-low-bg-additional-3);
+  --orbit-color-chip-style-3-border: var(--orbit-color-status-low-border-additional-3);
+  --orbit-color-chip-style-4-bg: var(--orbit-color-status-low-bg-additional-4);
+  --orbit-color-chip-style-4-border: var(--orbit-color-status-low-border-additional-4);
+
   /* --------------------------------------------------------------------------
    * 8b. CHECKBOX
    * -------------------------------------------------------------------------- */
@@ -169,6 +189,14 @@
   --orbit-color-status-low-icon-no-status: #cccccc;
   --orbit-color-status-low-fg-no-status: #000000;
 
+  /* Additional — categorisation Style 1–4. */
+  --orbit-color-status-low-bg-additional-1: #e5f1fa;
+  --orbit-color-status-low-border-additional-1: #2a75b1;
+  --orbit-color-status-low-bg-additional-2: #e5edee;
+  --orbit-color-status-low-border-additional-2: #34585c;
+  --orbit-color-status-low-bg-additional-3: #ffe8cf;
+  --orbit-color-status-low-border-additional-3: #c48c00;
+  --orbit-color-status-low-bg-additional-4: var(--orbit-color-swatch-hollywood-cerise-300);
   --orbit-color-status-low-border-additional-4: #ae008d;
 
   /* --------------------------------------------------------------------------

@@ -74,8 +74,8 @@ export function AnalysisCard({
           <div className="space-y-orbit-base">
             <div className="flex flex-wrap items-center justify-between gap-orbit-s">
               <div className="flex min-w-0 flex-wrap items-center gap-orbit-s">
-                <Chip label="Analysis Result" size="Mini" variant="Outline" />
-                {isLatestOutput && <Chip label="Latest output" size="Mini" variant="Outline" />}
+                <Chip label="Analysis Result" size="Mini" variant="No Status" contrast="Low" />
+                {isLatestOutput && <Chip label="Latest output" size="Mini" variant="No Status" contrast="Low" />}
               </div>
               <span className="shrink-0 text-sm text-muted-foreground">
                 {formatAnalysisTimestamp(analysis.analysedAt)}
@@ -131,20 +131,22 @@ export function AnalysisCard({
                 View Result
               </Button>
             )}
-            <div className={cn("clauseiq-responsive-secondary-actions grid gap-orbit-s", onRunAgain && onDownload ? "sm:grid-cols-2" : "grid-cols-1")}>
-              {onRunAgain && (
-                <Button variant="outline" className="h-10 gap-orbit-s" onClick={onRunAgain}>
-                  <RotateCw className="h-4 w-4" />
-                  Run Another Analysis
-                </Button>
-              )}
-              {onDownload && (
+            {(onRunAgain || onDownload) && (
+              <div className={cn("clauseiq-responsive-secondary-actions grid gap-orbit-s", onRunAgain && onDownload ? "sm:grid-cols-2" : "grid-cols-1")}>
+                {onRunAgain && (
+                  <Button variant="outline" className="h-10 gap-orbit-s" onClick={onRunAgain}>
+                    <RotateCw className="h-4 w-4" />
+                    Run Analysis Again
+                  </Button>
+                )}
+                {onDownload && (
                 <Button variant="outline" className="h-10 gap-orbit-s" onClick={onDownload}>
                   <Download className="h-4 w-4" />
                   Download Report
                 </Button>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </Card>

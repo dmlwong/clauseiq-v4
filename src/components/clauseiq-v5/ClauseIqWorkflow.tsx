@@ -666,6 +666,7 @@ export function AnalysisParameterCards({
   const playbookSelected = playbookChoice === "yes" && selectedParameter?.basis?.kind === "Playbook";
   const governingLawSelected = playbookChoice === "no" && selectedParameter?.basis?.kind === "Governing Law";
   const categorySelected = Boolean(selectedParameter?.category);
+  const showPlaybookChoiceSelector = !locked;
 
   useEffect(() => {
     setLocalPlaybookChoice(selectedPlaybookChoice);
@@ -683,19 +684,23 @@ export function AnalysisParameterCards({
       padding="Base"
       indicator={false}
     >
-      <h2 className="v5-orbit-heading-5 mb-orbit-xs">Contract Analysis Parameters</h2>
-      <p className="text-sm text-muted-foreground mb-orbit-base">
-        Do you want to use a playbook for this analysis?
-      </p>
+      <h2 className="v5-orbit-heading-5 mb-orbit-base">Contract Analysis Parameters</h2>
+      {showPlaybookChoiceSelector && (
+        <>
+          <p className="text-sm text-muted-foreground mb-orbit-base">
+            Do you want to use a playbook for this analysis?
+          </p>
 
-      <PlaybookChoiceSelector
-        value={playbookChoice}
-        disabled={locked}
-        onChange={handlePlaybookChoice}
-      />
+          <PlaybookChoiceSelector
+            value={playbookChoice}
+            disabled={locked}
+            onChange={handlePlaybookChoice}
+          />
+        </>
+      )}
 
       {playbookChoice === "yes" && (
-        <div className="mt-orbit-base">
+        <div className={showPlaybookChoiceSelector ? "mt-orbit-base" : "mt-orbit-xs"}>
           {playbookSelected ? (
             <SelectedSummaryRow
               label={`${selectedParameter!.basis!.kind} \u00b7 ${selectedParameter!.basis!.label}`}
@@ -717,7 +722,7 @@ export function AnalysisParameterCards({
       )}
 
       {playbookChoice === "no" && (
-        <div className="mt-orbit-base grid gap-orbit-base">
+        <div className={cn("grid gap-orbit-base", showPlaybookChoiceSelector ? "mt-orbit-base" : "mt-orbit-xs")}>
           <section>
             <h3 className="v5-orbit-heading-label mb-orbit-xs">Category</h3>
             {categorySelected ? (

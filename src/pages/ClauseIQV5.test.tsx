@@ -216,6 +216,9 @@ describe("ClauseIQ V5 flow", () => {
     expect(screen.getByRole("heading", { name: "Analysing Your Contract" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Next, you can..." })).not.toBeInTheDocument();
     expect(screen.getByText(`Playbook · ${CIQ_DEFAULT_PLAYBOOK}`).closest(".min-h-11")).toHaveClass("bg-muted/50");
+    expect(screen.queryByText("Do you want to use a playbook for this analysis?")).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "Yes" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "No" })).not.toBeInTheDocument();
     expect(screen.queryByText("Category · Services")).not.toBeInTheDocument();
     expect(screen.getAllByText("Analysis In Progress").length).toBeGreaterThan(0);
     expect(
@@ -347,6 +350,17 @@ describe("ClauseIQ V5 flow", () => {
     });
 
     expect(screen.getByText("New Analysis")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Contract Analysis Parameters" })).toBeInTheDocument();
+    expect(
+      screen
+        .getAllByText(`Playbook · ${CIQ_DEFAULT_PLAYBOOK}`)
+        .find((element) => element.closest(".min-h-11"))
+        ?.closest(".min-h-11"),
+    ).toHaveClass("bg-muted/50");
+    expect(screen.queryByText("Do you want to use a playbook for this analysis?")).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "Yes" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "No" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Analysing New Contract" })).toBeInTheDocument();
     expect(screen.getAllByText("MSA_ThomsonReuters_v2.pdf").length).toBeGreaterThan(0);
 

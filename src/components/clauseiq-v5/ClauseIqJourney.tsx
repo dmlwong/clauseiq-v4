@@ -236,6 +236,12 @@ function ResultsStep({
   resultsLayout: ResultsLayout;
   workflow: ClauseIqWorkflow;
 }) {
+  const rerunJourneyVisible = workflow.rerunUploadVisible || workflow.rerunProcessing;
+  const rerunParameter = workflow.rerunProcessing
+    ? workflow.rerunSelectedParameter ?? workflow.selectedParameter
+    : workflow.rerunSelectedParameter;
+  const rerunParametersComplete = hasCompleteAnalysisParameters(rerunParameter);
+
   return (
     <div className="space-y-orbit-base">
       <div ref={workflow.completedRerunAnalysis ? undefined : latestOutputRef}>
@@ -251,11 +257,12 @@ function ResultsStep({
         />
       </div>
       {workflow.newAnalysisSectionVisible && <NewAnalysisDivider />}
-      {workflow.rerunUploadVisible && (
+      {rerunJourneyVisible && (
         <div ref={rerunUploadRef} className="space-y-orbit-base">
           <AnalysisParameterCards
-            selectedParameter={workflow.rerunSelectedParameter}
-            cardState={hasCompleteAnalysisParameters(workflow.rerunSelectedParameter) ? "default" : "active"}
+            selectedParameter={rerunParameter}
+            cardState={workflow.rerunProcessing || rerunParametersComplete ? "default" : "active"}
+            locked={workflow.rerunProcessing}
             onPlaybookChoiceChange={workflow.actions.handleRerunPlaybookChoiceChange}
             onBasisSelect={workflow.actions.handleRerunBasisSelect}
             onCategorySelect={workflow.actions.handleRerunCategorySelect}
@@ -263,10 +270,10 @@ function ResultsStep({
             onCategoryEdit={workflow.actions.handleRerunCategoryEdit}
           />
 
-          {hasCompleteAnalysisParameters(workflow.rerunSelectedParameter) && (
+          {workflow.rerunUploadVisible && rerunParametersComplete && (
             <Card type="Static" state="Feature" padding="Base" indicator={false}>
               <h2 className="v5-orbit-heading-5 mb-orbit-base">Upload Contract</h2>
-              <PlaybookDisclaimer variant="callout" parameter={workflow.rerunSelectedParameter} />
+              <PlaybookDisclaimer variant="callout" parameter={rerunParameter} />
               <ClauseIqDropzone onFile={workflow.actions.validateAndSetFile} />
             </Card>
           )}
@@ -276,7 +283,7 @@ function ResultsStep({
         <ProcessingStep
           copy="Finding clauses in your new contract..."
           heading="Analysing New Contract"
-          parameter={workflow.rerunSelectedParameter ?? workflow.selectedParameter}
+          parameter={rerunParameter}
           workflow={workflow}
         />
       )}

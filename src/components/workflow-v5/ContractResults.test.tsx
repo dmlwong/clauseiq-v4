@@ -17,6 +17,8 @@ const firstAnalysisRoute =
   "/initiatives-v5?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=first-analysis";
 
 function renderContractResults(route = firstAnalysisRoute) {
+  window.history.pushState({}, "", route);
+
   return render(
     <MemoryRouter initialEntries={[route]}>
       <TooltipProvider>
@@ -77,6 +79,13 @@ describe("ContractResults V5 review controls", () => {
     expect(screen.getByRole("menuitemcheckbox", { name: /Low Deviation/i })).toBeInTheDocument();
     expect(screen.getByRole("menuitemcheckbox", { name: /Missing Clauses/i })).toBeInTheDocument();
     expect(screen.getByRole("menuitemcheckbox", { name: /None Deviation/i })).toBeInTheDocument();
+  });
+
+  it("renders first-analysis clause cards through Orbit Card surfaces", () => {
+    const { container } = renderContractResults(`${firstAnalysisRoute}&cat=supplier-obligations`);
+    const orbitClauseCards = container.querySelectorAll('[style*="--orbit-color-card-bg"][style*="min-height: 104px"]');
+
+    expect(orbitClauseCards.length).toBeGreaterThan(0);
   });
 
   it("applies scoped recommendations and undoes only that applied scope", async () => {

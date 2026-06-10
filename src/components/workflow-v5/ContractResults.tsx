@@ -10,6 +10,7 @@ import {
 import {
   Alert,
   Card,
+  type CardState as OrbitCardState,
   Chip,
   Dropzone,
   FileItem,
@@ -205,6 +206,10 @@ interface PanelChangeItem {
   status: PanelChangeStatus;
 }
 
+type OrbitCardStyle = CSSProperties & {
+  "--orbit-color-card-indicator-default"?: string;
+};
+
 const severityTone = (s: ClauseResult["severity"] | undefined) =>
   s === "high" ? "bg-destructive/10 text-destructive border-destructive/20"
     : s === "medium" ? "bg-warning/15 text-warning-foreground border-warning/30"
@@ -233,6 +238,24 @@ const firstAnalysisSeverityStatus: Record<ClauseResult["severity"], FirstAnalysi
   medium: "medium",
   low: "low",
 };
+
+const firstAnalysisSeverityCardState: Record<ClauseResult["severity"], OrbitCardState> = {
+  high: "Error",
+  medium: "Warning",
+  low: "Default",
+};
+
+function firstAnalysisCardStateForClause(clause: Pick<ClauseResult, "severity" | "missingClause" | "sourceDeviationLevel">): OrbitCardState {
+  if (clause.missingClause && clause.sourceDeviationLevel === "None") return "Information";
+  if (clause.sourceDeviationLevel === "None") return "Success";
+  return firstAnalysisSeverityCardState[clause.severity];
+}
+
+function firstAnalysisCardIndicatorColorForClause(clause: Pick<ClauseResult, "severity" | "missingClause" | "sourceDeviationLevel">) {
+  if (clause.missingClause && clause.sourceDeviationLevel === "None") return FIRST_ANALYSIS_STATUS_THEME.missing.indicatorColor;
+  if (clause.sourceDeviationLevel === "None") return FIRST_ANALYSIS_STATUS_THEME.none.indicatorColor;
+  return FIRST_ANALYSIS_STATUS_THEME[firstAnalysisSeverityStatus[clause.severity]].indicatorColor;
+}
 
 const SEVERITY_WEIGHTS: Record<"high" | "medium" | "low", number> = {
   high: 9,
@@ -4607,6 +4630,7 @@ function ClauseDecisionCard({
   const noneDeviationClause = isNoneDeviationClause(clause);
   const showRequestActions = !noneDeviationClause && !settled && !actions && !pendingBasketRequest;
   const useV5StatusTags = isInitiativesV5Route() && hideSubclauseReference;
+  const useV5DeviationCard = isInitiativesV5Route() && neutralActions;
   const useFirstAnalysisDeviationStyle = neutralActions && hideSubclauseReference && clause.severity === "high";
   const severityStatusKey = noneDeviationClause ? "none" : firstAnalysisSeverityStatus[clause.severity];
   const severityBadgeLabel = useV5StatusTags
@@ -4622,6 +4646,16 @@ function ClauseDecisionCard({
     ? firstAnalysisDeviationBadgeClass
     : `${severityTone(clause.severity)} shrink-0 rounded-full px-orbit-xs py-orbit-xxs text-[9px] v5-orbit-weight-medium`;
   const showSeverityBadge = !isPureMissingClause(clause);
+  const reviewCardState: OrbitCardState = useV5DeviationCard
+    ? firstAnalysisCardStateForClause(clause)
+    : pendingBasketRequest || decision === "request-update"
+    ? "Information"
+    : "Default";
+  const reviewCardStyle: OrbitCardStyle = {};
+  if (useV5DeviationCard && reviewCardState === "Default") {
+    reviewCardStyle["--orbit-color-card-indicator-default"] = firstAnalysisCardIndicatorColorForClause(clause);
+  }
+  const showReviewCardIndicator = useV5DeviationCard || pendingBasketRequest || decision === "request-update";
 
   if (displayMode === "row-scale" && !actions) {
     return (
@@ -4657,178 +4691,175 @@ function ClauseDecisionCard({
   return (
     <div
       id={`clause-row-${id}`}
-      className={cn(
-        "relative rounded-lg border border-border bg-card px-orbit-base py-orbit-base transition-colors",
-        decision === "request-update" && "border-l-[3px] border-l-[#185FA5] pl-orbit-s",
-        pendingBasketRequest && "border-l-[3px] border-l-[#185FA5] bg-[#E6F1FB]/20 pl-orbit-s",
-        highlighted && "ring-2 ring-primary/40 bg-primary/5",
-      )}
+      className={cn("rounded-lg transition-colors", highlighted && "ring-2 ring-primary/40")}
     >
-      <div className="flex min-w-0 items-center gap-orbit-s">
-        <span className="w-[22px] shrink-0 tabular-nums text-[9px] v5-orbit-weight-semibold text-muted-foreground">{id.toUpperCase()}</span>
-        {onTogglePin && (
-          <button
-            type="button"
-            aria-label={pinned ? "Unpin clause" : "Pin clause across version switches"}
-            title={pinned ? "Unpin clause" : "Pin clause across version switches"}
-            onClick={(event) => {
-              event.stopPropagation();
-              onTogglePin();
-            }}
-            className={cn("shrink-0 rounded p-orbit-xxs text-muted-foreground/60 hover:bg-muted hover:text-foreground", pinned && "text-primary")}
-          >
-            <Pin className={cn("h-3.5 w-3.5", pinned && "fill-current")} />
-          </button>
-        )}
-        <h3 className="v5-orbit-heading-label min-w-0 flex-1 truncate text-foreground">{clause.title}</h3>
-        <span className="hidden shrink-0 text-[10px] text-muted-foreground md:inline">
-          {metaPrefix}{hideSubclauseReference ? clause.category : `${clause.subclause} · ${clause.category}`}
-        </span>
-        {changePill?.status && <ChangePillBadge result={changePill} />}
-        {showSeverityBadge && (
-          useV5StatusTags ? (
-            <FirstAnalysisStatusTag status={severityStatusKey} label={severityBadgeLabel} />
-          ) : (
-            <Badge variant="outline" className={severityBadgeClass}>
-              {severityBadgeLabel}
-            </Badge>
-          )
-        )}
-        {missingClause && (
-          useV5StatusTags ? (
-            <FirstAnalysisStatusTag status="missing" />
-          ) : (
-            <Badge
-              variant="outline"
-              className={getFirstAnalysisMissingClauseBadgeClass()}
-            >
-              Missing Clause
-            </Badge>
-          )
-        )}
-        {stateBadge}
-        {pendingBasketRequest && <RequestLifecycleBadge request={request} />}
-        {settled && !pendingBasketRequest && (
-          <>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  {decision === "request-update" ? <RequestLifecycleBadge request={request} /> : <DecisionBadge decision={decision} />}
-                </span>
-              </TooltipTrigger>
-              {decision === "request-update" && requestLifecycleLabel(request) && (
-                <TooltipContent className="text-xs">{requestLifecycleLabel(request)}</TooltipContent>
-              )}
-            </Tooltip>
+      <Card type="Static" padding="Base" state={reviewCardState} indicator={showReviewCardIndicator} style={reviewCardStyle}>
+        <div className="flex min-w-0 items-center gap-orbit-s">
+          <span className="w-[22px] shrink-0 tabular-nums text-[9px] v5-orbit-weight-semibold text-muted-foreground">{id.toUpperCase()}</span>
+          {onTogglePin && (
             <button
               type="button"
+              aria-label={pinned ? "Unpin clause" : "Pin clause across version switches"}
+              title={pinned ? "Unpin clause" : "Pin clause across version switches"}
               onClick={(event) => {
                 event.stopPropagation();
-                if (decision === "request-update") onEditRequest?.();
-                else onChangeNoAction?.();
+                onTogglePin();
               }}
-              className="shrink-0 text-[10px] v5-orbit-weight-medium text-primary hover:underline"
+              className={cn("shrink-0 rounded p-orbit-xxs text-muted-foreground/60 hover:bg-muted hover:text-foreground", pinned && "text-primary")}
             >
-              {decision === "request-update" ? "Edit" : "Change"}
+              <Pin className={cn("h-3.5 w-3.5", pinned && "fill-current")} />
             </button>
-          </>
-        )}
-        {isDrafting && (
-          <Badge variant="outline" className="bg-[#E6F1FB] text-[#0C447C] border-[#185FA5]/25 text-[10px]">
-            Drafting request
-          </Badge>
-        )}
-      </div>
-
-      {showQueuedCompact && (
-        <div className="mt-orbit-s space-y-orbit-s pl-orbit-l" onClick={(event) => event.stopPropagation()}>
-          <div className="flex flex-wrap items-center gap-orbit-s rounded-md border border-[#185FA5]/20 bg-[#E6F1FB]/45 px-orbit-base py-orbit-s">
-            <p className="min-w-[180px] flex-1 truncate text-[11px] text-[#0C447C]">
-              <span className="v5-orbit-weight-semibold">Request:</span> {requestPreview}
-            </p>
-            <div className="flex shrink-0 items-center gap-orbit-xs">
-              <Button variant="outline" className="h-7 px-orbit-s text-[10px]" onClick={onEditRequest}>
-                Edit request
-              </Button>
-              {onRemoveRequest && (
-                <Button variant="outline" className="h-7 px-orbit-s text-[10px] text-muted-foreground" onClick={onRemoveRequest}>
-                  Remove
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                className="h-7 gap-orbit-xs px-orbit-s text-[10px] text-primary hover:bg-white/70"
-                onClick={() => setQueuedExpanded((current) => !current)}
+          )}
+          <h3 className="v5-orbit-heading-label min-w-0 flex-1 truncate text-foreground">{clause.title}</h3>
+          <span className="hidden shrink-0 text-[10px] text-muted-foreground md:inline">
+            {metaPrefix}{hideSubclauseReference ? clause.category : `${clause.subclause} · ${clause.category}`}
+          </span>
+          {changePill?.status && <ChangePillBadge result={changePill} />}
+          {showSeverityBadge && (
+            useV5StatusTags ? (
+              <FirstAnalysisStatusTag status={severityStatusKey} label={severityBadgeLabel} />
+            ) : (
+              <Badge variant="outline" className={severityBadgeClass}>
+                {severityBadgeLabel}
+              </Badge>
+            )
+          )}
+          {missingClause && (
+            useV5StatusTags ? (
+              <FirstAnalysisStatusTag status="missing" />
+            ) : (
+              <Badge
+                variant="outline"
+                className={getFirstAnalysisMissingClauseBadgeClass()}
               >
-                {queuedExpanded ? "Hide detail" : "View detail"}
-                <ChevronDown className={cn("h-3 w-3 transition-transform", queuedExpanded && "rotate-180")} />
-              </Button>
+                Missing Clause
+              </Badge>
+            )
+          )}
+          {stateBadge}
+          {pendingBasketRequest && <RequestLifecycleBadge request={request} />}
+          {settled && !pendingBasketRequest && (
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    {decision === "request-update" ? <RequestLifecycleBadge request={request} /> : <DecisionBadge decision={decision} />}
+                  </span>
+                </TooltipTrigger>
+                {decision === "request-update" && requestLifecycleLabel(request) && (
+                  <TooltipContent className="text-xs">{requestLifecycleLabel(request)}</TooltipContent>
+                )}
+              </Tooltip>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (decision === "request-update") onEditRequest?.();
+                  else onChangeNoAction?.();
+                }}
+                className="shrink-0 text-[10px] v5-orbit-weight-medium text-primary hover:underline"
+              >
+                {decision === "request-update" ? "Edit" : "Change"}
+              </button>
+            </>
+          )}
+          {isDrafting && (
+            <Badge variant="outline" className="bg-[#E6F1FB] text-[#0C447C] border-[#185FA5]/25 text-[10px]">
+              Drafting request
+            </Badge>
+          )}
+        </div>
+
+        {showQueuedCompact && (
+          <div className="mt-orbit-s space-y-orbit-s pl-orbit-l" onClick={(event) => event.stopPropagation()}>
+            <div className="flex flex-wrap items-center gap-orbit-s rounded-md border border-[#185FA5]/20 bg-[#E6F1FB]/45 px-orbit-base py-orbit-s">
+              <p className="min-w-[180px] flex-1 truncate text-[11px] text-[#0C447C]">
+                <span className="v5-orbit-weight-semibold">Request:</span> {requestPreview}
+              </p>
+              <div className="flex shrink-0 items-center gap-orbit-xs">
+                <Button variant="outline" className="h-7 px-orbit-s text-[10px]" onClick={onEditRequest}>
+                  Edit request
+                </Button>
+                {onRemoveRequest && (
+                  <Button variant="outline" className="h-7 px-orbit-s text-[10px] text-muted-foreground" onClick={onRemoveRequest}>
+                    Remove
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  className="h-7 gap-orbit-xs px-orbit-s text-[10px] text-primary hover:bg-white/70"
+                  onClick={() => setQueuedExpanded((current) => !current)}
+                >
+                  {queuedExpanded ? "Hide detail" : "View detail"}
+                  <ChevronDown className={cn("h-3 w-3 transition-transform", queuedExpanded && "rotate-180")} />
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {showDecisionBody && description && (
-        <p className="mt-orbit-xs pl-orbit-l text-[11px] leading-5 text-muted-foreground">
-          {description}
-        </p>
-      )}
-      {showDecisionBody && actionability && (
-        <p className="mt-orbit-xs pl-orbit-l text-[11px] leading-5 text-muted-foreground">
-          <Lightbulb className="mr-orbit-xs inline h-3 w-3 text-primary" />
-          <span className="v5-orbit-weight-semibold text-foreground">Actionability:</span> {actionability}
-        </p>
-      )}
-      {showDecisionBody && extraContent && <div className="mt-orbit-s pl-orbit-l">{extraContent}</div>}
+        {showDecisionBody && description && (
+          <p className="mt-orbit-xs pl-orbit-l text-[11px] leading-5 text-muted-foreground">
+            {description}
+          </p>
+        )}
+        {showDecisionBody && actionability && (
+          <p className="mt-orbit-xs pl-orbit-l text-[11px] leading-5 text-muted-foreground">
+            <Lightbulb className="mr-orbit-xs inline h-3 w-3 text-primary" />
+            <span className="v5-orbit-weight-semibold text-foreground">Actionability:</span> {actionability}
+          </p>
+        )}
+        {showDecisionBody && extraContent && <div className="mt-orbit-s pl-orbit-l">{extraContent}</div>}
 
-      {showRequestActions && (
-        <div className="mt-orbit-s flex items-center gap-orbit-xs pl-orbit-l" onClick={(event) => event.stopPropagation()}>
-          <Button
-            variant="secondary"
-            className="h-8 gap-orbit-xs rounded-[5px] px-orbit-base text-[11px] v5-orbit-weight-regular"
-            onClick={onRequest}
-          >
-            <Sparkles className="h-3 w-3" /> {primaryActionLabel}
-          </Button>
-          <Button
-            variant={noActionIsPrimary ? "default" : "outline"}
-            className={cn("h-8 rounded-[5px] px-orbit-base text-[11px] v5-orbit-weight-regular gap-orbit-xs", noActionIsPrimary && "bg-[#1a2744] text-white hover:bg-[#243454]")}
-            onClick={onNoAction}
-          >
-            <CheckCircle2 className="h-3 w-3" /> No Action
-          </Button>
-        </div>
-      )}
-
-      {actions && !pendingBasketRequest && (
-        <div className="mt-orbit-s flex items-center gap-orbit-xs pl-orbit-l" onClick={(event) => event.stopPropagation()}>
-          {actions}
-        </div>
-      )}
-
-      {showQueuedCompact && queuedExpanded && (
-        <div className="mt-orbit-s pl-orbit-l" onClick={(event) => event.stopPropagation()}>
-          <div className="rounded-md border border-[#185FA5]/20 bg-[#E6F1FB]/55 px-orbit-base py-orbit-s text-[11px] text-[#0C447C]">
-            <p className="v5-orbit-weight-medium">Added to Review.</p>
-            <p className="mt-orbit-xxs text-[#0C447C]/80">Review and generate all requests when ready.</p>
+        {showRequestActions && (
+          <div className="mt-orbit-s flex items-center gap-orbit-xs pl-orbit-l" onClick={(event) => event.stopPropagation()}>
+            <Button
+              variant="secondary"
+              className="h-8 gap-orbit-xs rounded-[5px] px-orbit-base text-[11px] v5-orbit-weight-regular"
+              onClick={onRequest}
+            >
+              <Sparkles className="h-3 w-3" /> {primaryActionLabel}
+            </Button>
+            <Button
+              variant={noActionIsPrimary ? "default" : "outline"}
+              className={cn("h-8 rounded-[5px] px-orbit-base text-[11px] v5-orbit-weight-regular gap-orbit-xs", noActionIsPrimary && "bg-[#1a2744] text-white hover:bg-[#243454]")}
+              onClick={onNoAction}
+            >
+              <CheckCircle2 className="h-3 w-3" /> No Action
+            </Button>
           </div>
-        </div>
-      )}
+        )}
 
-      {isDrafting && onUpdateDraft && onCancelDraft && onSubmitDraft && (
-        <div className="pl-orbit-l">
-          <ClauseRequestForm
-            versionLabel={versionLabel}
-            draft={draft}
-            request={request}
-            inherited={inherited}
-            requestPlaceholder={requestPlaceholder}
-            onUpdate={onUpdateDraft}
-            onCancel={onCancelDraft}
-            onSubmit={onSubmitDraft}
-          />
-        </div>
-      )}
+        {actions && !pendingBasketRequest && (
+          <div className="mt-orbit-s flex items-center gap-orbit-xs pl-orbit-l" onClick={(event) => event.stopPropagation()}>
+            {actions}
+          </div>
+        )}
+
+        {showQueuedCompact && queuedExpanded && (
+          <div className="mt-orbit-s pl-orbit-l" onClick={(event) => event.stopPropagation()}>
+            <div className="rounded-md border border-[#185FA5]/20 bg-[#E6F1FB]/55 px-orbit-base py-orbit-s text-[11px] text-[#0C447C]">
+              <p className="v5-orbit-weight-medium">Added to Review.</p>
+              <p className="mt-orbit-xxs text-[#0C447C]/80">Review and generate all requests when ready.</p>
+            </div>
+          </div>
+        )}
+
+        {isDrafting && onUpdateDraft && onCancelDraft && onSubmitDraft && (
+          <div className="pl-orbit-l">
+            <ClauseRequestForm
+              versionLabel={versionLabel}
+              draft={draft}
+              request={request}
+              inherited={inherited}
+              requestPlaceholder={requestPlaceholder}
+              onUpdate={onUpdateDraft}
+              onCancel={onCancelDraft}
+              onSubmit={onSubmitDraft}
+            />
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
@@ -4884,21 +4915,20 @@ function ClauseRowScaleCard({
   const theme = rowScaleSeverityThemes[tier];
   const noneDeviationClause = isNoneDeviationClause(clause);
   const useV5StatusColours = isInitiativesV5Route();
+  const orbitCardState = useV5StatusColours ? firstAnalysisCardStateForClause(clause) : "Default";
   const cardIndicatorToken = useV5StatusColours
-    ? missingClause
-      ? FIRST_ANALYSIS_STATUS_THEME.missing.indicatorColor
-      : noneDeviationClause
-      ? FIRST_ANALYSIS_STATUS_THEME.none.indicatorColor
-      : theme.indicatorToken
+    ? firstAnalysisCardIndicatorColorForClause(clause)
     : missingClause
     ? "var(--orbit-color-card-indicator-error)"
     : noneDeviationClause
     ? "var(--orbit-color-card-indicator-success)"
     : theme.legacyIndicatorToken;
-  const cardStyle = {
+  const cardStyle: OrbitCardStyle = {
     minHeight: 104,
-    "--orbit-color-card-indicator-default": cardIndicatorToken,
-  } as CSSProperties;
+  };
+  if (!useV5StatusColours || orbitCardState === "Default") {
+    cardStyle["--orbit-color-card-indicator-default"] = cardIndicatorToken;
+  }
   const severityLabel = noneDeviationClause
     ? "None Deviation"
     : hideSubclauseReference
@@ -4984,7 +5014,7 @@ function ClauseRowScaleCard({
       id={`clause-row-${id}`}
       className={cn("rounded-lg transition-colors", highlighted && "ring-2 ring-primary/40")}
     >
-      <Card type="Static" padding="Base" state="Default" indicator style={cardStyle}>
+      <Card type="Static" padding="Base" state={orbitCardState} indicator style={cardStyle}>
         <div className="flex flex-col gap-orbit-s">
           <div className="flex flex-wrap items-center justify-between gap-orbit-s">
             <div className="flex flex-wrap items-center gap-orbit-s">
@@ -5306,13 +5336,6 @@ function targetMatchesRecommendationScope(target: RecommendationTargetItem, scop
   return sourceDeviationLevel === scope || (!sourceDeviationLevel && target.severity === scope);
 }
 
-function reviewClauseCardTone(severity?: ClauseResult["severity"]) {
-  if (severity === "high") return "border-l-[#E5484D] bg-[#FFF7F7]";
-  if (severity === "medium") return "border-l-[#F59E0B] bg-[#FFFBEB]";
-  if (severity === "low") return "border-l-[#1BA97F] bg-[#F8FCFA]";
-  return "border-l-border bg-white";
-}
-
 function ClauseReviewModalCard({
   domId,
   itemId,
@@ -5356,6 +5379,29 @@ function ClauseReviewModalCard({
   const [draft, setDraft] = useState<ClauseRequest>(request);
   const pureMissing = Boolean(missingClause && sourceDeviationLevel === "None");
   const useV5StatusTags = isInitiativesV5Route();
+  const clauseCardState = useV5StatusTags
+    ? firstAnalysisCardStateForClause({
+      severity: severity ?? "low",
+      missingClause: Boolean(missingClause),
+      sourceDeviationLevel,
+    })
+    : severity === "high"
+    ? "Error"
+    : severity === "medium"
+    ? "Warning"
+    : severity === "low"
+    ? "Success"
+    : "Default";
+  const clauseCardStyle: OrbitCardStyle = {};
+  if (clauseCardState === "Default") {
+    clauseCardStyle["--orbit-color-card-indicator-default"] = useV5StatusTags
+      ? firstAnalysisCardIndicatorColorForClause({
+        severity: severity ?? "low",
+        missingClause: Boolean(missingClause),
+        sourceDeviationLevel,
+      })
+      : "var(--orbit-color-card-border-default)";
+  }
 
   useEffect(() => {
     if (!editing) setDraft(request);
@@ -5374,125 +5420,123 @@ function ClauseReviewModalCard({
   return (
     <div
       id={domId}
-      className={cn(
-        "rounded-lg border border-l-4 px-orbit-base py-orbit-base shadow-sm",
-        reviewClauseCardTone(pureMissing ? "high" : severity),
-        highlighted && "ring-2 ring-primary/40",
-      )}
+      className={cn("rounded-lg transition-colors", highlighted && "ring-2 ring-primary/40")}
     >
-      <div className="flex flex-wrap items-start justify-between gap-orbit-s">
-        <div className="flex flex-wrap items-center gap-orbit-xs">
-          {severity && !pureMissing && (
-            useV5StatusTags ? (
-              <FirstAnalysisStatusTag status={firstAnalysisSeverityStatus[severity]} label={`${titleCaseSeverity(severity)} Deviation`} />
-            ) : (
-              <Badge
-                variant="outline"
-                className={cn("h-5 rounded-full px-orbit-s text-[9px] v5-orbit-weight-medium", severityTone(severity))}
-              >
-                {titleCaseSeverity(severity)} Deviation
-              </Badge>
-            )
-          )}
-          {(useV5StatusTags ? missingClause : pureMissing) && (
-            useV5StatusTags ? (
-              <FirstAnalysisStatusTag status="missing" />
-            ) : (
-              <Badge variant="outline" className={getFirstAnalysisMissingClauseBadgeClass()}>
-                Missing Clause
-              </Badge>
-            )
-          )}
-          <Badge
-            variant="outline"
-            className={cn(
-              "h-5 rounded-full px-orbit-s text-[9px] v5-orbit-weight-medium",
-              statusTone === "blue" && "border-[#185FA5]/20 bg-[#E6F1FB]/60 text-[#0C447C]",
-              statusTone === "green" && "border-[#BFD6AB] bg-[#EAF3DE] text-[#27500A]",
-              statusTone === "neutral" && "border-border bg-white text-muted-foreground",
+      <Card type="Static" padding="Base" state={clauseCardState} indicator style={clauseCardStyle}>
+        <div className="flex flex-wrap items-start justify-between gap-orbit-s">
+          <div className="flex flex-wrap items-center gap-orbit-xs">
+            {severity && !pureMissing && (
+              useV5StatusTags ? (
+                <FirstAnalysisStatusTag status={firstAnalysisSeverityStatus[severity]} label={`${titleCaseSeverity(severity)} Deviation`} />
+              ) : (
+                <Badge
+                  variant="outline"
+                  className={cn("h-5 rounded-full px-orbit-s text-[9px] v5-orbit-weight-medium", severityTone(severity))}
+                >
+                  {titleCaseSeverity(severity)} Deviation
+                </Badge>
+              )
             )}
-          >
-            {statusLabel}
-          </Badge>
-        </div>
-        <p className="shrink-0 text-[10px] text-muted-foreground">
-          {itemId.toUpperCase()}{category ? ` · ${category}` : ""}
-        </p>
-      </div>
-
-      <div className="mt-orbit-s min-w-0">
-        <p className="truncate text-[13px] v5-orbit-weight-semibold text-foreground">{title}</p>
-        <p className="mt-orbit-xxs line-clamp-2 text-[11px] leading-4 text-muted-foreground">
-          {request.requestedChange || "No requested change entered yet."}
-        </p>
-        {request.rationale && (
-          <p className="mt-orbit-xs line-clamp-2 text-[11px] leading-4 text-muted-foreground">
-            <span className="v5-orbit-weight-medium text-foreground">Rationale:</span> {request.rationale}
-          </p>
-        )}
-      </div>
-
-      <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-s" onClick={(event) => event.stopPropagation()}>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            if (editMode === "external") {
-              onEditRequest?.();
-              return;
-            }
-            setEditing((current) => !current);
-          }}
-        >
-          <Pencil className="h-3.5 w-3.5" />
-          Edit Request
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onRemove}
-        >
-          {secondaryActionIcon === undefined ? <Trash2 className="h-3.5 w-3.5" /> : secondaryActionIcon}
-          {secondaryActionLabel}
-        </Button>
-      </div>
-
-      {editing && editMode === "inline" && (
-        <div className="mt-orbit-base rounded-lg border border-border bg-white/85 p-orbit-base" onClick={(event) => event.stopPropagation()}>
-          <div className="grid gap-orbit-base">
-            <label className="grid gap-orbit-xs text-xs v5-orbit-weight-medium text-foreground">
-              Requested change
-              <Textarea
-                value={draft.requestedChange ?? ""}
-                onChange={(event) => setDraft((current) => ({ ...current, requestedChange: event.target.value }))}
-                className="min-h-[72px] resize-none bg-white text-xs v5-orbit-weight-regular leading-5"
-              />
-            </label>
-            <label className="grid gap-orbit-xs text-xs v5-orbit-weight-medium text-foreground">
-              Rationale
-              <Textarea
-                value={draft.rationale ?? ""}
-                onChange={(event) => setDraft((current) => ({ ...current, rationale: event.target.value }))}
-                placeholder="Add why this change is needed before supplier negotiation."
-                className="min-h-[64px] resize-none bg-white text-xs v5-orbit-weight-regular leading-5"
-              />
-            </label>
-          </div>
-          <div className="mt-orbit-base flex justify-end gap-orbit-s">
-            <Button type="button" variant="outline" className="h-8" onClick={() => setEditing(false)}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              className="h-8 bg-[#1a2744] text-white hover:bg-[#243454]"
-              disabled={!canSave}
-              onClick={saveDraft}
+            {(useV5StatusTags ? missingClause : pureMissing) && (
+              useV5StatusTags ? (
+                <FirstAnalysisStatusTag status="missing" />
+              ) : (
+                <Badge variant="outline" className={getFirstAnalysisMissingClauseBadgeClass()}>
+                  Missing Clause
+                </Badge>
+              )
+            )}
+            <Badge
+              variant="outline"
+              className={cn(
+                "h-5 rounded-full px-orbit-s text-[9px] v5-orbit-weight-medium",
+                statusTone === "blue" && "border-[#185FA5]/20 bg-[#E6F1FB]/60 text-[#0C447C]",
+                statusTone === "green" && "border-[#BFD6AB] bg-[#EAF3DE] text-[#27500A]",
+                statusTone === "neutral" && "border-border bg-white text-muted-foreground",
+              )}
             >
-              Save changes
-            </Button>
+              {statusLabel}
+            </Badge>
           </div>
+          <p className="shrink-0 text-[10px] text-muted-foreground">
+            {itemId.toUpperCase()}{category ? ` · ${category}` : ""}
+          </p>
         </div>
-      )}
+
+        <div className="mt-orbit-s min-w-0">
+          <p className="truncate text-[13px] v5-orbit-weight-semibold text-foreground">{title}</p>
+          <p className="mt-orbit-xxs line-clamp-2 text-[11px] leading-4 text-muted-foreground">
+            {request.requestedChange || "No requested change entered yet."}
+          </p>
+          {request.rationale && (
+            <p className="mt-orbit-xs line-clamp-2 text-[11px] leading-4 text-muted-foreground">
+              <span className="v5-orbit-weight-medium text-foreground">Rationale:</span> {request.rationale}
+            </p>
+          )}
+        </div>
+
+        <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-s" onClick={(event) => event.stopPropagation()}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              if (editMode === "external") {
+                onEditRequest?.();
+                return;
+              }
+              setEditing((current) => !current);
+            }}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Edit Request
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onRemove}
+          >
+            {secondaryActionIcon === undefined ? <Trash2 className="h-3.5 w-3.5" /> : secondaryActionIcon}
+            {secondaryActionLabel}
+          </Button>
+        </div>
+
+        {editing && editMode === "inline" && (
+          <div className="mt-orbit-base rounded-lg border border-border bg-white/85 p-orbit-base" onClick={(event) => event.stopPropagation()}>
+            <div className="grid gap-orbit-base">
+              <label className="grid gap-orbit-xs text-xs v5-orbit-weight-medium text-foreground">
+                Requested change
+                <Textarea
+                  value={draft.requestedChange ?? ""}
+                  onChange={(event) => setDraft((current) => ({ ...current, requestedChange: event.target.value }))}
+                  className="min-h-[72px] resize-none bg-white text-xs v5-orbit-weight-regular leading-5"
+                />
+              </label>
+              <label className="grid gap-orbit-xs text-xs v5-orbit-weight-medium text-foreground">
+                Rationale
+                <Textarea
+                  value={draft.rationale ?? ""}
+                  onChange={(event) => setDraft((current) => ({ ...current, rationale: event.target.value }))}
+                  placeholder="Add why this change is needed before supplier negotiation."
+                  className="min-h-[64px] resize-none bg-white text-xs v5-orbit-weight-regular leading-5"
+                />
+              </label>
+            </div>
+            <div className="mt-orbit-base flex justify-end gap-orbit-s">
+              <Button type="button" variant="outline" className="h-8" onClick={() => setEditing(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="h-8 bg-[#1a2744] text-white hover:bg-[#243454]"
+                disabled={!canSave}
+                onClick={saveDraft}
+              >
+                Save changes
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

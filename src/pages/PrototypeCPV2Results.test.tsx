@@ -117,10 +117,10 @@ describe("Prototype CP v2 result dashboard", () => {
   it("uses CP-specific storage for apply and undo recommendations", async () => {
     renderCpResults();
 
-    applyRecommendationOption(/Apply High only/i);
+    applyRecommendationOption(/High Deviation/i);
 
     expect(
-      await screen.findByRole("button", { name: /undo high recommendations/i }),
+      await screen.findByRole("button", { name: /undo high deviation recommendations/i }),
     ).toBeInTheDocument();
     expect(localStorage.getItem("prototype-cp-v2-clause-decisions")).toContain(
       "request-update",
@@ -129,12 +129,12 @@ describe("Prototype CP v2 result dashboard", () => {
     expect(localStorage.getItem("ciq-v5-clause-decisions")).toBeNull();
 
     fireEvent.click(
-      screen.getByRole("button", { name: /undo high recommendations/i }),
+      screen.getByRole("button", { name: /undo high deviation recommendations/i }),
     );
 
     await waitFor(() => {
       expect(
-        screen.queryByRole("button", { name: /undo high recommendations/i }),
+        screen.queryByRole("button", { name: /undo high deviation recommendations/i }),
       ).not.toBeInTheDocument();
     });
     expect(
@@ -145,7 +145,7 @@ describe("Prototype CP v2 result dashboard", () => {
   it("keeps the CP review and generate flow independent from v5", () => {
     renderCpResults();
 
-    applyRecommendationOption(/Apply High only/i);
+    applyRecommendationOption(/High Deviation/i);
     fireEvent.click(screen.getByRole("button", { name: /review & generate/i }));
     fireEvent.click(screen.getByRole("button", { name: /submit & generate/i }));
 
@@ -174,6 +174,22 @@ describe("Prototype CP v2 result dashboard", () => {
       screen.queryByRole("button", { name: /Switch prototype/i }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Prototype CP - v2")).not.toBeInTheDocument();
+  });
+
+  it("supports the None Deviation first-analysis metric without review actions", () => {
+    renderCpResults();
+
+    openRecommendationMenu();
+    expect(screen.getByRole("option", { name: /None Deviation/i })).toBeInTheDocument();
+    fireEvent.keyDown(document.body, { key: "Escape", code: "Escape" });
+
+    fireEvent.click(screen.getByRole("button", { name: /None Deviation/i }));
+
+    expect(screen.getByText("Milestone Payments")).toBeInTheDocument();
+    expect(screen.queryByText("Term of Contract")).not.toBeInTheDocument();
+    expect(screen.getAllByText("None Deviation").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /Use Recommendation/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /No Action/i })).not.toBeInTheDocument();
   });
 
   it("returns to the isolated Prototype CP v2 route", () => {

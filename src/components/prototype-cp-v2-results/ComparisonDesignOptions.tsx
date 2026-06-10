@@ -18,6 +18,10 @@ import type {
   VersionPanelData,
 } from "@/lib/clauseiq-v4-comparison";
 import { CpButton } from "@/components/prototype-cp-shared/orbit";
+import {
+  CPV2_FIRST_ANALYSIS_STATUS_THEME,
+  type FirstAnalysisStatusKey,
+} from "./firstAnalysisStatusTags";
 export type ComparisonDesignOption = "evolved" | "side-by-side" | "row-scale";
 export type EvidenceMetricKey =
   | "open-items"
@@ -29,7 +33,12 @@ export type EvidenceMetricKey =
   | "medium"
   | "low"
   | "total";
-export type FirstAnalysisMetricKey = "high" | "medium" | "low" | "missing";
+export type FirstAnalysisMetricKey =
+  | "high"
+  | "medium"
+  | "low"
+  | "missing"
+  | "none";
 export interface EvidenceMetricCounts {
   openItems: number;
   met: number;
@@ -48,6 +57,7 @@ export interface FirstAnalysisMetrics {
   medium: number;
   low: number;
   missingClauses: number;
+  noneDeviation: number;
   score: number;
   distribution: DeviationDistribution;
   versionLabel: string;
@@ -71,8 +81,8 @@ const designOptions: Array<{
 const distributionColours: Record<keyof DeviationDistribution, string> = {
   high: "#A32D2D",
   medium: "#BA7517",
-  low: "#B4B2A9",
-  clean: "#3B6D11",
+  low: CPV2_FIRST_ANALYSIS_STATUS_THEME.low.indicatorColor,
+  clean: CPV2_FIRST_ANALYSIS_STATUS_THEME.none.indicatorColor,
 };
 export function DesignOptionSwitcher({
   value,
@@ -1271,20 +1281,22 @@ const firstAnalysisMetricDefinitions: Array<{
   label: string;
   value: keyof Pick<
     FirstAnalysisMetrics,
-    "high" | "medium" | "low" | "missingClauses"
+    "high" | "medium" | "low" | "missingClauses" | "noneDeviation"
   >;
   tone?: "success" | "warning" | "destructive";
   color: string;
   barColor?: string;
   barBorderColor?: string;
   group: "workflow" | "risk";
+  status?: FirstAnalysisStatusKey;
 }> = [
   {
     key: "high",
     label: "High Deviation",
     value: "high",
     tone: "destructive",
-    color: "hsl(var(--destructive))",
+    color: CPV2_FIRST_ANALYSIS_STATUS_THEME.high.indicatorColor,
+    status: "high",
     group: "risk",
   },
   {
@@ -1292,26 +1304,40 @@ const firstAnalysisMetricDefinitions: Array<{
     label: "Medium Deviation",
     value: "medium",
     tone: "warning",
-    color: "#F0AB00",
+    color: CPV2_FIRST_ANALYSIS_STATUS_THEME.medium.indicatorColor,
+    status: "medium",
     group: "risk",
   },
   {
     key: "low",
     label: "Low Deviation",
     value: "low",
-    color: "#5F5E5A",
+    color: CPV2_FIRST_ANALYSIS_STATUS_THEME.low.indicatorColor,
+    status: "low",
     group: "risk",
   },
   {
     key: "missing",
     label: "Missing Clauses",
     value: "missingClauses",
-    color: "hsl(var(--foreground))",
+    color: CPV2_FIRST_ANALYSIS_STATUS_THEME.missing.indicatorColor,
     barColor: "#ffffff",
     barBorderColor: "hsl(var(--border))",
+    status: "missing",
+    group: "risk",
+  },
+  {
+    key: "none",
+    label: "None Deviation",
+    value: "noneDeviation",
+    color: CPV2_FIRST_ANALYSIS_STATUS_THEME.none.indicatorColor,
+    status: "none",
     group: "risk",
   },
 ];
+const firstAnalysisMetricBarDefinitions = firstAnalysisMetricDefinitions.filter(
+  (definition) => definition.key !== "none",
+);
 function FirstAnalysisMetricGrid({
   metrics,
   activeMetrics,
@@ -1480,7 +1506,7 @@ function FirstAnalysisMetricBar({
 }) {
   const total = Math.max(
     1,
-    firstAnalysisMetricDefinitions.reduce(
+    firstAnalysisMetricBarDefinitions.reduce(
       (sum, definition) => sum + metrics[definition.value],
       0,
     ),
@@ -1493,7 +1519,7 @@ function FirstAnalysisMetricBar({
       )}
     >
       {" "}
-      {firstAnalysisMetricDefinitions.map((definition) => {
+      {firstAnalysisMetricBarDefinitions.map((definition) => {
         const value = metrics[definition.value];
         if (value <= 0) return null;
         return (

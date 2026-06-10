@@ -3,6 +3,7 @@ import {
   useMemo,
   useEffect,
   useRef,
+  type CSSProperties,
   type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
@@ -160,6 +161,11 @@ import {
   type FirstAnalysisMetricKey,
   type FirstAnalysisMetrics,
 } from "./ComparisonDesignOptions";
+import {
+  CPV2_FIRST_ANALYSIS_STATUS_THEME,
+  FirstAnalysisStatusTag,
+  type FirstAnalysisStatusKey,
+} from "./firstAnalysisStatusTags";
 interface Props {
   initiativeId: string;
   supplierId: string;
@@ -258,10 +264,22 @@ const severityTone = (s: ClauseResult["severity"] | undefined) =>
     : s === "medium"
       ? "bg-warning/15 text-warning-foreground border-warning/30"
       : s === "low"
-        ? "bg-success/10 text-success border-success/20"
+        ? "bg-muted text-muted-foreground border-border"
         : "bg-muted text-muted-foreground border-border";
 const firstAnalysisDeviationBadgeClass =
   "shrink-0 rounded-full border-[#F3B4B4] bg-[#FFF1F2] px-orbit-xs py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium text-[#A32D2D]";
+const firstAnalysisMissingClauseBadgeClass =
+  "shrink-0 rounded-full border-[#B8D7F1] bg-[#E6F1FB] px-orbit-xs py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium text-[#0C447C]";
+const firstAnalysisNoneDeviationBadgeClass =
+  "shrink-0 rounded-full border-[#BFD6AB] bg-[#EAF3DE] px-orbit-xs py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium text-[#27500A]";
+const firstAnalysisSeverityStatus: Record<
+  ClauseResult["severity"],
+  FirstAnalysisStatusKey
+> = {
+  high: "high",
+  medium: "medium",
+  low: "low",
+};
 const SEVERITY_WEIGHTS: Record<"high" | "medium" | "low", number> = {
   high: 9,
   medium: 3,
@@ -491,6 +509,13 @@ function isMissingClause(clause: ClauseResult) {
 function isPureMissingClause(clause: ClauseResult) {
   return Boolean(
     clause.missingClause && clause.sourceDeviationLevel === "None",
+  );
+}
+function isNoneDeviationClause(clause: ClauseResult) {
+  return Boolean(
+    clause.sourceDeviationLevel === "None" &&
+      !clause.missingClause &&
+      clause.resolved,
   );
 }
 function countsTowardDeviationMetric(clause: ClauseResult) {
@@ -1757,6 +1782,7 @@ export function ContractResults({
   );
   const firstAnalysisMissingSelected =
     firstAnalysisMetricFilters.has("missing");
+  const firstAnalysisNoneSelected = firstAnalysisMetricFilters.has("none");
   const firstAnalysisVisibleClauses = firstAnalysisCategoryClauses.filter(
     (clause) => {
       if (search.trim()) {
@@ -1769,19 +1795,22 @@ export function ContractResults({
           return false;
         }
       }
-      if (
-        firstAnalysisMissingSelected &&
-        !firstAnalysisMissingClauseIds.has(clause.id)
-      )
+      const matchesFirstAnalysisMetricFilter =
+        firstAnalysisSelectedSeverities.size === 0 &&
+        !firstAnalysisMissingSelected &&
+        !firstAnalysisNoneSelected
+          ? true
+          : (firstAnalysisSelectedSeverities.has(clause.severity) &&
+              countsTowardDeviationMetric(clause)) ||
+            (firstAnalysisMissingSelected &&
+              firstAnalysisMissingClauseIds.has(clause.id)) ||
+            (firstAnalysisNoneSelected && isNoneDeviationClause(clause));
+      if (!matchesFirstAnalysisMetricFilter) return false;
+      const showNoneDeviationClause =
+        firstAnalysisNoneSelected && isNoneDeviationClause(clause);
+      if (!showNoneDeviationClause && !isFirstAnalysisReviewClause(clause))
         return false;
-      if (!isFirstAnalysisReviewClause(clause)) return false;
       if (designOption !== "row-scale" && hasFirstAnalysisAction(clause.id))
-        return false;
-      if (
-        firstAnalysisSelectedSeverities.size > 0 &&
-        (!countsTowardDeviationMetric(clause) ||
-          !firstAnalysisSelectedSeverities.has(clause.severity))
-      )
         return false;
       return true;
     },
@@ -1825,6 +1854,8 @@ export function ContractResults({
     missingClauses: firstAnalysisCategoryClauses.filter((clause) =>
       firstAnalysisMissingClauseIds.has(clause.id),
     ).length,
+    noneDeviation: firstAnalysisCategoryClauses.filter(isNoneDeviationClause)
+      .length,
     score: firstAnalysisVersion?.overallScore ?? 0,
     distribution: firstAnalysisDistribution,
     versionLabel: firstAnalysisVersionLabel,
@@ -2106,6 +2137,7 @@ export function ContractResults({
           medium: "Medium Deviation",
           low: "Low Deviation",
           missing: "Missing Clauses",
+          none: "None Deviation",
         } satisfies Record<FirstAnalysisMetricKey, string>
       )[metric],
     }),
@@ -2189,9 +2221,9 @@ export function ContractResults({
   const firstAnalysisRecommendationApplyOptions =
     buildRecommendationApplyOptions(firstAnalysisRecommendationTargets);
   const firstAnalysisAvailableRecommendationApplyOptions =
-    firstAnalysisRecommendationApplyOptions.filter(
-      (option) => option.count > 0,
-    );
+    firstAnalysisRecommendationTargets.length > 0
+      ? firstAnalysisRecommendationApplyOptions
+      : [];
   const applyAllRecommendations = (
     targets: RecommendationTargetItem[],
     scope?: RecommendationApplyOption,
@@ -2252,6 +2284,7 @@ export function ContractResults({
       quickMissingClauseIds={
         firstAnalysisMissingSelected ? firstAnalysisMissingClauseIds : null
       }
+      quickNoneDeviationFilter={firstAnalysisNoneSelected}
       neutralActions
       hideSubclauseReference
       displayMode={designOption === "row-scale" ? "row-scale" : "default"}
@@ -2784,7 +2817,7 @@ export function ContractResults({
                           {" "}
                           <Sparkles className="mr-orbit-xs h-3.5 w-3.5" />{" "}
                           <SelectValue
-                            placeholder={`Apply Recommendations (${firstAnalysisRecommendationTargets.length})`}
+                            placeholder="Apply Recommendations"
                           />{" "}
                         </SelectTrigger>{" "}
                         <SelectContent>
@@ -3880,9 +3913,8 @@ function ModeSwitcher({
       : applyAllRecommendationsQueued
         ? "Recommendations added to review"
         : `Apply Recommendations${recommendationCount > 0 ? ` (${recommendationCount})` : ""}`;
-  const availableRecommendationApplyOptions = recommendationApplyOptions.filter(
-    (option) => option.count > 0,
-  );
+  const availableRecommendationApplyOptions =
+    recommendationCount > 0 ? recommendationApplyOptions : [];
   const canChooseRecommendationScope =
     Boolean(onApplyRecommendationOption) &&
     !canUndoAppliedRecommendations &&
@@ -5093,7 +5125,12 @@ function DeltaIndicator({ delta }: { delta: number }) {
   );
 }
 const deviationDistributionColors: Record<keyof DeviationDistribution, string> =
-  { high: "#A32D2D", medium: "#BA7517", low: "#B4B2A9", clean: "#3B6D11" };
+  {
+    high: CPV2_FIRST_ANALYSIS_STATUS_THEME.high.indicatorColor,
+    medium: CPV2_FIRST_ANALYSIS_STATUS_THEME.medium.indicatorColor,
+    low: CPV2_FIRST_ANALYSIS_STATUS_THEME.low.indicatorColor,
+    clean: CPV2_FIRST_ANALYSIS_STATUS_THEME.none.indicatorColor,
+  };
 function DistributionCounts({
   distribution,
 }: {
@@ -6341,13 +6378,23 @@ function ClauseDecisionCard({
   const requestPreview = request?.requestedChange?.trim() ?? "";
   const settled = decision === "request-update" || decision === "no-action";
   const noActionIsPrimary = !neutralActions && clause.severity === "low";
-  const showRequestActions = !settled && !actions && !pendingBasketRequest;
+  const noneDeviationClause = isNoneDeviationClause(clause);
+  const showRequestActions =
+    !noneDeviationClause && !settled && !actions && !pendingBasketRequest;
   const useFirstAnalysisDeviationStyle =
     neutralActions && hideSubclauseReference && clause.severity === "high";
-  const severityBadgeLabel = useFirstAnalysisDeviationStyle
-    ? "High Deviation"
-    : clause.severity;
-  const severityBadgeClass = useFirstAnalysisDeviationStyle
+  const useFirstAnalysisStatusTags = hideSubclauseReference;
+  const severityStatusKey = noneDeviationClause
+    ? "none"
+    : firstAnalysisSeverityStatus[clause.severity];
+  const severityBadgeLabel = noneDeviationClause
+    ? "None Deviation"
+    : useFirstAnalysisDeviationStyle
+      ? "High Deviation"
+      : clause.severity;
+  const severityBadgeClass = noneDeviationClause
+    ? firstAnalysisNoneDeviationBadgeClass
+    : useFirstAnalysisDeviationStyle
     ? firstAnalysisDeviationBadgeClass
     : `${severityTone(clause.severity)} shrink-0 rounded-full px-orbit-xs py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium`;
   const showSeverityBadge = !isPureMissingClause(clause);
@@ -6436,17 +6483,27 @@ function ClauseDecisionCard({
             : `${clause.subclause} · ${clause.category}`}{" "}
         </span>{" "}
         {changePill?.status && <ChangePillBadge result={changePill} />}{" "}
-        {missingClause && (
-          <Badge variant="outline" className={firstAnalysisDeviationBadgeClass}>
-            {" "}
-            Missing Clause{" "}
-          </Badge>
-        )}{" "}
+        {missingClause &&
+          (useFirstAnalysisStatusTags ? (
+            <FirstAnalysisStatusTag status="missing" />
+          ) : (
+            <Badge variant="outline" className={firstAnalysisMissingClauseBadgeClass}>
+              {" "}
+              Missing Clause{" "}
+            </Badge>
+          ))}{" "}
         {showSeverityBadge && (
-          <Badge variant="outline" className={severityBadgeClass}>
-            {" "}
-            {severityBadgeLabel}{" "}
-          </Badge>
+          useFirstAnalysisStatusTags ? (
+            <FirstAnalysisStatusTag
+              status={severityStatusKey}
+              label={severityBadgeLabel}
+            />
+          ) : (
+            <Badge variant="outline" className={severityBadgeClass}>
+              {" "}
+              {severityBadgeLabel}{" "}
+            </Badge>
+          )
         )}{" "}
         {stateBadge}{" "}
         {pendingBasketRequest && <RequestLifecycleBadge request={request} />}{" "}
@@ -6687,13 +6744,25 @@ function ClauseRowScaleCard({
 }) {
   const tier = clause.severity;
   const theme = rowScaleSeverityThemes[tier];
+  const noneDeviationClause = isNoneDeviationClause(clause);
   const cardBackground = missingClause
     ? rowScaleMissingClauseBackground
+    : noneDeviationClause
+      ? rowScaleNoneDeviationBackground
     : theme.background;
-  const accentColor = missingClause ? "#A32D2D" : theme.accent;
-  const severityLabel = hideSubclauseReference
-    ? `${titleCaseSeverity(tier)} Deviation`
-    : titleCaseSeverity(tier);
+  const accentColor = missingClause
+    ? CPV2_FIRST_ANALYSIS_STATUS_THEME.missing.indicatorColor
+    : noneDeviationClause
+      ? CPV2_FIRST_ANALYSIS_STATUS_THEME.none.indicatorColor
+      : theme.accent;
+  const severityLabel = noneDeviationClause
+    ? "None Deviation"
+    : hideSubclauseReference
+      ? `${titleCaseSeverity(tier)} Deviation`
+      : titleCaseSeverity(tier);
+  const severityStatusKey = noneDeviationClause
+    ? "none"
+    : firstAnalysisSeverityStatus[tier];
   const showSeverityBadge = !isPureMissingClause(clause);
   const metadata = hideSubclauseReference
     ? clause.category
@@ -6792,20 +6861,14 @@ function ClauseRowScaleCard({
           {" "}
           <div className="flex flex-wrap items-center gap-orbit-s">
             {" "}
-            {missingClause && (
-              <Badge
-                variant="outline"
-                className={firstAnalysisDeviationBadgeClass}
-              >
-                {" "}
-                Missing Clause{" "}
-              </Badge>
-            )}{" "}
+            {missingClause ? (
+              <FirstAnalysisStatusTag status="missing" />
+            ) : null}{" "}
             {showSeverityBadge && (
-              <Badge variant="outline" className={theme.badgeClass}>
-                {" "}
-                {severityLabel}{" "}
-              </Badge>
+              <FirstAnalysisStatusTag
+                status={severityStatusKey}
+                label={severityLabel}
+              />
             )}{" "}
             {isDrafting && (
               <Badge
@@ -6833,7 +6896,8 @@ function ClauseRowScaleCard({
           compactTop={Boolean(description)}
         />
       )}{" "}
-      {requestForm ?? (
+      {requestForm ??
+        (!noneDeviationClause ? (
         <div
           className="mt-orbit-base flex flex-wrap items-center gap-orbit-s"
           onClick={(event) => event.stopPropagation()}
@@ -6862,7 +6926,7 @@ function ClauseRowScaleCard({
             <CheckCircle2 className="h-3 w-3" /> No Action{" "}
           </Button>{" "}
         </div>
-      )}{" "}
+        ) : null)}{" "}
     </div>
   );
 }
@@ -6882,13 +6946,14 @@ const rowScaleSeverityThemes: Record<
       "shrink-0 rounded-full border-[#F1D29B] bg-[#FFF8E8] px-orbit-xs py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium text-[#854F0B]",
   },
   low: {
-    accent: "#3B6D11",
-    background: "#F4FAEE",
+    accent: CPV2_FIRST_ANALYSIS_STATUS_THEME.low.indicatorColor,
+    background: "#F5F5F2",
     badgeClass:
-      "shrink-0 rounded-full border-[#BFD6AB] bg-[#EAF3DE] px-orbit-xs py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium text-[#27500A]",
+      "shrink-0 rounded-full border-[#D9D8D2] bg-[#F5F5F2] px-orbit-xs py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium text-[#5F5E5A]",
   },
 };
-const rowScaleMissingClauseBackground = "#FFF6F4";
+const rowScaleMissingClauseBackground = "#F2F8FE";
+const rowScaleNoneDeviationBackground = "#F8FCFA";
 function FindingCallout({ text }: { text: string }) {
   return (
     <div className="mt-orbit-base rounded-md border border-border bg-white px-orbit-base py-orbit-s">
@@ -7037,7 +7102,13 @@ interface RecommendationTargetItem {
   sourceDeviationLevel?: ClauseResult["sourceDeviationLevel"];
   request: ClauseRequest;
 }
-type RecommendationApplyScope = "all" | "high" | "medium" | "low" | "missing";
+type RecommendationApplyScope =
+  | "all"
+  | "high"
+  | "medium"
+  | "low"
+  | "missing"
+  | "none";
 interface RecommendationApplyOption {
   id: RecommendationApplyScope;
   label: string;
@@ -7054,7 +7125,7 @@ function buildRecommendationApplyOptions(
   return [
     {
       id: "all",
-      label: "Apply all recommendations",
+      label: "All recommendations",
       toastLabel: "recommendation",
       undoLabel: "all",
       count: targets.length,
@@ -7062,35 +7133,43 @@ function buildRecommendationApplyOptions(
     },
     {
       id: "high",
-      label: "Apply High only",
-      toastLabel: "High recommendation",
-      undoLabel: "High",
+      label: "High Deviation",
+      toastLabel: "High Deviation recommendation",
+      undoLabel: "High Deviation",
       count: byScope("high").length,
       targets: byScope("high"),
     },
     {
       id: "medium",
-      label: "Apply Medium only",
-      toastLabel: "Medium recommendation",
-      undoLabel: "Medium",
+      label: "Medium Deviation",
+      toastLabel: "Medium Deviation recommendation",
+      undoLabel: "Medium Deviation",
       count: byScope("medium").length,
       targets: byScope("medium"),
     },
     {
       id: "low",
-      label: "Apply Low only",
-      toastLabel: "Low recommendation",
-      undoLabel: "Low",
+      label: "Low Deviation",
+      toastLabel: "Low Deviation recommendation",
+      undoLabel: "Low Deviation",
       count: byScope("low").length,
       targets: byScope("low"),
     },
     {
       id: "missing",
-      label: "Apply Missing clauses only",
+      label: "Missing Clauses",
       toastLabel: "Missing clause recommendation",
       undoLabel: "Missing clause",
       count: byScope("missing").length,
       targets: byScope("missing"),
+    },
+    {
+      id: "none",
+      label: "None Deviation",
+      toastLabel: "None Deviation recommendation",
+      undoLabel: "None Deviation",
+      count: byScope("none").length,
+      targets: byScope("none"),
     },
   ];
 }
@@ -7103,6 +7182,10 @@ function targetMatchesRecommendationScope(
     return Boolean(
       target.missingClause && target.sourceDeviationLevel === "None",
     );
+  if (scope === "none")
+    return Boolean(
+      target.sourceDeviationLevel === "None" && !target.missingClause,
+    );
   const sourceDeviationLevel = target.sourceDeviationLevel?.toLowerCase();
   return (
     sourceDeviationLevel === scope ||
@@ -7112,7 +7195,7 @@ function targetMatchesRecommendationScope(
 function reviewClauseCardTone(severity?: ClauseResult["severity"]) {
   if (severity === "high") return "border-l-[#E5484D] bg-[#FFF7F7]";
   if (severity === "medium") return "border-l-[#F59E0B] bg-[#FFFBEB]";
-  if (severity === "low") return "border-l-[#1BA97F] bg-[#F8FCFA]";
+  if (severity === "low") return "border-l-[#5F5E5A] bg-[#F5F5F2]";
   return "border-l-border bg-white";
 }
 function ClauseReviewModalCard({
@@ -7174,7 +7257,9 @@ function ClauseReviewModalCard({
       id={domId}
       className={cn(
         "rounded-lg border border-l-4 px-orbit-base py-orbit-base shadow-sm",
-        reviewClauseCardTone(pureMissing ? "high" : severity),
+        pureMissing
+          ? "border-l-[#185FA5] bg-[#F2F8FE]"
+          : reviewClauseCardTone(severity),
         highlighted && "ring-2 ring-primary/40",
       )}
     >
@@ -7186,7 +7271,7 @@ function ClauseReviewModalCard({
           {pureMissing && (
             <Badge
               variant="outline"
-              className={firstAnalysisDeviationBadgeClass}
+              className={firstAnalysisMissingClauseBadgeClass}
             >
               {" "}
               Missing Clause{" "}
@@ -7744,6 +7829,7 @@ function ReviewScreen({
   quickReviewFilter,
   missingClauseIds,
   quickMissingClauseIds,
+  quickNoneDeviationFilter = false,
   neutralActions = false,
   hideSubclauseReference = false,
   displayMode = "default",
@@ -7766,6 +7852,7 @@ function ReviewScreen({
   quickReviewFilter?: "need-review" | null;
   missingClauseIds?: Set<string> | null;
   quickMissingClauseIds?: Set<string> | null;
+  quickNoneDeviationFilter?: boolean;
   neutralActions?: boolean;
   hideSubclauseReference?: boolean;
   displayMode?: "default" | "row-scale";
@@ -7794,13 +7881,28 @@ function ReviewScreen({
   const q = search.trim().toLowerCase();
   const versionLabel = version.version;
   const activeCategorySet = new Set(activeCategories);
+  const hasQuickMetricFilter = Boolean(
+    (quickSeverityFilters && quickSeverityFilters.size > 0) ||
+      quickMissingClauseIds ||
+      quickNoneDeviationFilter,
+  );
+  const matchesQuickMetricFilter = (clause: ClauseResult) => {
+    if (!hasQuickMetricFilter) return true;
+    return (
+      Boolean(
+        quickSeverityFilters?.has(clause.severity) &&
+          countsTowardDeviationMetric(clause),
+      ) ||
+      Boolean(quickMissingClauseIds?.has(clause.id)) ||
+      Boolean(quickNoneDeviationFilter && isNoneDeviationClause(clause))
+    );
+  };
   const rows = version.clauses
     .map((clause, index) => ({ clause, index }))
     .filter(({ clause: c }) => {
       if (activeCategorySet.size > 0 && !activeCategorySet.has(c.category))
         return false;
-      if (quickMissingClauseIds && !quickMissingClauseIds.has(c.id))
-        return false;
+      if (!matchesQuickMetricFilter(c)) return false;
       if (
         quickSeverityFilters &&
         quickSeverityFilters.size > 0 &&
@@ -7824,15 +7926,18 @@ function ReviewScreen({
       )
         return false;
       if (quickReviewFilter === "need-review") {
-        if (!quickMissingClauseIds && c.resolved) return false;
+        const showNoneDeviationClause =
+          quickNoneDeviationFilter && isNoneDeviationClause(c);
+        if (!showNoneDeviationClause && c.resolved) return false;
         if (displayMode !== "row-scale") {
           const state = stateOf(c.id);
           const decision = state.roundDecisions[versionLabel];
           const request = state.requests[versionLabel];
           if (
-            decision === "no-action" ||
-            decision === "request-update" ||
-            request?.requestedChange?.trim()
+            !showNoneDeviationClause &&
+            (decision === "no-action" ||
+              decision === "request-update" ||
+              request?.requestedChange?.trim())
           ) {
             return false;
           }

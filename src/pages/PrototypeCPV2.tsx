@@ -13,14 +13,16 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
-  createDefaultParameterSelection,
+  BASIS_PARAMETER_OPTIONS,
+  CATEGORY_PARAMETER_OPTION,
   hasCompleteAnalysisParameters,
   useClauseIqWorkflow,
+  type AnalysisParameterSelection,
   type ClauseIqWorkflow,
+  type PlaybookChoice,
 } from "@/components/clauseiq-v5/ClauseIqWorkflow";
 import { V5OrbitToastHost } from "@/components/clauseiq-v5/V5OrbitToast";
 import {
-  CpAnalysisParameterCards,
   CpClauseIqDropzone,
   CpPlaybookDisclaimer,
   CpStateCard,
@@ -43,7 +45,6 @@ import {
   CpSearchField as CpOrbitSearchField,
   CpSpinner,
   CpStatusPill,
-  CpStepCircle,
   CpTable,
   CpToggle,
   type CpTableColumn,
@@ -60,13 +61,12 @@ import {
   type Person,
   type ProjectStatus,
 } from "@/data/prototype-cp-v2";
-import type { CiqInitiative } from "@/lib/clauseiq-v4-data";
+import type { CiqInitiative, CiqParameterOption } from "@/lib/clauseiq-v4-data";
 import { PROTOTYPE_CP_V2_RESULT_ROUTE } from "@/lib/prototype-cp-v2-routes";
 import { cn } from "@/lib/utils";
 import "./PrototypeCPV2.css";
 
 type CpView = "projects" | "initiatives" | "workspace";
-type CpV2ClauseWizardStep = "prior" | "configure-upload" | "generate";
 type CpV2AnalysisStatus = "idle" | "in-progress" | "completed";
 
 function getCpViewFromSearchParams(searchParams: URLSearchParams): CpView {
@@ -84,17 +84,6 @@ const CP_CLAUSEIQ_INITIATIVE: CiqInitiative = {
   scope: "team",
 };
 
-const CPV2_CLAUSE_STEPPER_STEPS: Array<{
-  key: CpV2ClauseWizardStep;
-  label: string;
-}> = [
-  { key: "prior", label: "Prior to Use" },
-  { key: "configure-upload", label: "Configure & Upload" },
-  { key: "generate", label: "Generate Results" },
-];
-
-const LIVE_ROCKET_ICON = "\uf135";
-const CPV2_ANALYSIS_COMPLETE_DELAY_MS = 4000;
 const CPV2_DASHBOARD_IN_MODAL_STORAGE_KEY =
   "prototype-cp-v2-dashboard-in-modal";
 const CPV2_RESULT_PARAM_DEFAULTS: Record<string, string> = {
@@ -165,10 +154,6 @@ function withoutDashboardModalParams(searchParams: URLSearchParams) {
   next.set("view", "workspace");
   CPV2_RESULT_ONLY_PARAMS.forEach((key) => next.delete(key));
   return next;
-}
-
-function getCpV2ClauseStepperIndex(step: CpV2ClauseWizardStep) {
-  return CPV2_CLAUSE_STEPPER_STEPS.findIndex((item) => item.key === step);
 }
 
 function CpSearchField({
@@ -933,7 +918,6 @@ function ClauseIqLauncherCard({
                 completed && "is-completed",
               )}
               type="button"
-              disabled={generating}
               onClick={onOpen}
             >
               {generating ? (
@@ -1110,37 +1094,13 @@ function CpV2ResultsDashboardModal({ onClose }: { onClose: () => void }) {
 
 function CpClauseIqModal({
   workflow,
-  step,
   onClose,
-  onFinish,
-  onStepChange,
+  onViewResult,
 }: {
   workflow: ClauseIqWorkflow;
-  step: CpV2ClauseWizardStep;
   onClose: () => void;
-  onFinish: () => void;
-  onStepChange: (step: CpV2ClauseWizardStep) => void;
+  onViewResult: () => void;
 }) {
-  const [parametersConfirmed, setParametersConfirmed] = useState(false);
-  const showBackButton = step !== "prior";
-  const configureUploadComplete =
-    parametersConfirmed &&
-    hasCompleteAnalysisParameters(workflow.selectedParameter) &&
-    Boolean(workflow.file);
-  const primaryLabel = step === "generate" ? "Finish" : "Next";
-  const primaryDisabled =
-    step === "configure-upload" && !configureUploadComplete;
-  const goBack = () => {
-    if (step === "configure-upload") onStepChange("prior");
-    if (step === "generate") onStepChange("configure-upload");
-  };
-  const handlePrimaryAction = () => {
-    if (step === "prior") onStepChange("configure-upload");
-    if (step === "configure-upload" && configureUploadComplete)
-      onStepChange("generate");
-    if (step === "generate") onFinish();
-  };
-
   return (
     <CpModal
       ariaLabel="ClauseIQ Contract"
@@ -1162,94 +1122,91 @@ function CpClauseIqModal({
         </CpButton>
       </header>
 
-      <CpClauseIqModalStepper step={step} />
-
       <div className="cpv2-clause-modal-body">
-        <main
-          className={cn(
-            "cpv2-clause-modal-main",
-            step === "generate" && "is-generate",
-          )}
-        >
-          {step === "prior" ? <CpV2PriorToUseStep /> : null}
-          {step === "configure-upload" ? (
-            <CpV2ConfigureUploadStep
-              workflow={workflow}
-              parametersConfirmed={parametersConfirmed}
-              onParametersConfirmed={() => setParametersConfirmed(true)}
-              onParametersReset={() => setParametersConfirmed(false)}
-            />
-          ) : null}
-          {step === "generate" ? <CpV2GenerateResultsStep /> : null}
+        <main className="cpv2-clause-modal-main cpv2-clause-journey">
+          <CpV2ClauseJourneyContent
+            workflow={workflow}
+            onViewResult={onViewResult}
+          />
         </main>
       </div>
-
-      <footer className="cpv2-clause-modal-footer">
-        <div className="cpv2-footer-left">
-          <CpButton className="cpv2-footer-btn" type="button" onClick={onClose}>
-            Cancel
-          </CpButton>
-          {showBackButton ? (
-            <CpButton
-              className="cpv2-footer-btn"
-              type="button"
-              onClick={goBack}
-            >
-              Back
-            </CpButton>
-          ) : null}
-        </div>
-        <div className="cpv2-footer-right">
-          <CpButton
-            className="cpv2-footer-btn primary"
-            type="button"
-            disabled={primaryDisabled}
-            onClick={handlePrimaryAction}
-          >
-            {primaryLabel}
-          </CpButton>
-        </div>
-      </footer>
     </CpModal>
   );
 }
 
-function CpClauseIqModalStepper({ step }: { step: CpV2ClauseWizardStep }) {
-  const activeIndex = getCpV2ClauseStepperIndex(step);
+function CpV2ClauseJourneyContent({
+  workflow,
+  onViewResult,
+}: {
+  workflow: ClauseIqWorkflow;
+  onViewResult: () => void;
+}) {
+  if (workflow.step === "welcome") {
+    return <CpV2PriorToUseStep onStart={workflow.actions.startParameters} />;
+  }
+
+  if (workflow.step === "parameters") {
+    return (
+      <CpV2AnalysisParameterCards
+        selectedParameter={workflow.selectedParameter}
+        cardState="active"
+        locked={workflow.parameterLocked}
+        onPlaybookChoiceChange={workflow.actions.handlePlaybookChoiceChange}
+        onBasisSelect={workflow.actions.handleBasisSelect}
+        onCategorySelect={workflow.actions.handleCategorySelect}
+        onBasisEdit={workflow.actions.handleBasisEdit}
+        onCategoryEdit={workflow.actions.handleCategoryEdit}
+      />
+    );
+  }
+
+  if (workflow.step === "upload") {
+    return (
+      <section className="cpv2-clause-card-stack">
+        <CpV2AnalysisParameterCards
+          selectedParameter={workflow.selectedParameter}
+          cardState="default"
+          locked={workflow.parameterLocked}
+          onPlaybookChoiceChange={workflow.actions.handlePlaybookChoiceChange}
+          onBasisSelect={workflow.actions.handleBasisSelect}
+          onCategorySelect={workflow.actions.handleCategorySelect}
+          onBasisEdit={workflow.actions.handleBasisEdit}
+          onCategoryEdit={workflow.actions.handleCategoryEdit}
+        />
+        <CpV2UploadStep workflow={workflow} />
+      </section>
+    );
+  }
+
+  if (workflow.step === "processing") {
+    return (
+      <section className="cpv2-clause-card-stack">
+        <CpV2AnalysisParameterCards
+          selectedParameter={workflow.selectedParameter}
+          cardState="default"
+          locked
+          onPlaybookChoiceChange={workflow.actions.handlePlaybookChoiceChange}
+          onBasisSelect={workflow.actions.handleBasisSelect}
+          onCategorySelect={workflow.actions.handleCategorySelect}
+          onBasisEdit={workflow.actions.handleBasisEdit}
+          onCategoryEdit={workflow.actions.handleCategoryEdit}
+        />
+        <CpV2ProcessingStep
+          heading="Analysing Your Contract"
+          copy="Finding clauses and checking the contract against your selected parameters."
+          parameter={workflow.selectedParameter}
+          workflow={workflow}
+        />
+      </section>
+    );
+  }
 
   return (
-    <nav
-      className="cpv2-clause-modal-stepper"
-      aria-label="ClauseIQ workflow steps"
-    >
-      {CPV2_CLAUSE_STEPPER_STEPS.map((item, index) => {
-        const complete = index < activeIndex;
-        const active = index === activeIndex;
-        return (
-          <div
-            key={item.key}
-            aria-current={active ? "step" : undefined}
-            className={cn(
-              "cpv2-clause-modal-step",
-              active && "is-active",
-              complete && "is-complete",
-            )}
-          >
-            <CpStepCircle
-              ariaLabel={`${item.label} ${complete ? "complete" : active ? "active" : "pending"}`}
-              label={index + 1}
-              size="Large"
-              status={complete ? "Checked" : "Numbered"}
-            />
-            <span>{item.label}</span>
-          </div>
-        );
-      })}
-    </nav>
+    <CpV2ModalResultsStep workflow={workflow} onViewResult={onViewResult} />
   );
 }
 
-function CpV2PriorToUseStep() {
+function CpV2PriorToUseStep({ onStart }: { onStart: () => void }) {
   return (
     <section className="cpv2-live-step cpv2-live-prior">
       <h2>Tool Overview</h2>
@@ -1263,90 +1220,483 @@ function CpV2PriorToUseStep() {
         spent on manual reviews. Use ClauseIQ to streamline your contract
         analysis and make more informed recommendations.
       </p>
+      <CpButton
+        orbitVariant="Primary"
+        className="cpv2-clause-start-button"
+        type="button"
+        onClick={onStart}
+      >
+        <CpIcon icon={CP_FA.sparkles} size={13} />
+        Get Started
+      </CpButton>
     </section>
   );
 }
 
-function CpV2ConfigureUploadStep({
-  workflow,
-  parametersConfirmed,
-  onParametersConfirmed,
-  onParametersReset,
+function CpV2AnalysisParameterCards({
+  selectedParameter,
+  cardState,
+  locked = false,
+  onPlaybookChoiceChange,
+  onBasisSelect,
+  onCategorySelect,
+  onBasisEdit,
+  onCategoryEdit,
 }: {
-  workflow: ClauseIqWorkflow;
-  parametersConfirmed: boolean;
-  onParametersConfirmed: () => void;
-  onParametersReset: () => void;
+  selectedParameter: AnalysisParameterSelection | null;
+  cardState: "active" | "default" | "disabled";
+  locked?: boolean;
+  onPlaybookChoiceChange: (choice: PlaybookChoice) => void;
+  onBasisSelect: (option: CiqParameterOption, value: string) => void;
+  onCategorySelect: (option: CiqParameterOption, value: string) => void;
+  onBasisEdit: () => void;
+  onCategoryEdit: () => void;
 }) {
-  const parameterComplete = hasCompleteAnalysisParameters(
-    workflow.selectedParameter,
+  const selectedPlaybookChoice =
+    selectedParameter?.playbookChoice ??
+    (selectedParameter?.basis?.kind === "Governing Law" ||
+    selectedParameter?.category
+      ? "no"
+      : "yes");
+  const [localPlaybookChoice, setLocalPlaybookChoice] =
+    useState<PlaybookChoice>(selectedPlaybookChoice);
+  const hasExternalParameter = Boolean(
+    selectedParameter?.playbookChoice ||
+      selectedParameter?.basis ||
+      selectedParameter?.category,
   );
-  const displayedParameter = parametersConfirmed
-    ? workflow.selectedParameter
-    : null;
-  const revealUpload = parametersConfirmed && parameterComplete;
+  const playbookChoice =
+    selectedParameter?.playbookChoice ??
+    (hasExternalParameter ? selectedPlaybookChoice : localPlaybookChoice);
+  const playbookOption = BASIS_PARAMETER_OPTIONS.find(
+    (option) => option.kind === "Playbook",
+  );
+  const governingLawOption = BASIS_PARAMETER_OPTIONS.find(
+    (option) => option.kind === "Governing Law",
+  );
+  const playbookSelected =
+    playbookChoice === "yes" && selectedParameter?.basis?.kind === "Playbook";
+  const governingLawSelected =
+    playbookChoice === "no" &&
+    selectedParameter?.basis?.kind === "Governing Law";
+  const categorySelected = Boolean(selectedParameter?.category);
+  const showPlaybookChoiceSelector = !locked;
+
+  useEffect(() => {
+    setLocalPlaybookChoice(selectedPlaybookChoice);
+  }, [selectedPlaybookChoice]);
+
+  const handlePlaybookChoice = (choice: PlaybookChoice) => {
+    setLocalPlaybookChoice(choice);
+    onPlaybookChoiceChange(choice);
+  };
 
   return (
-    <section className="cpv2-live-step cpv2-configure-upload-step">
-      <CpAnalysisParameterCards
-        selectedParameter={displayedParameter}
-        cardState="default"
-        categoryCardState="default"
-        locked={workflow.parameterLocked}
-        onBasisSelect={(option, value) => {
-          onParametersConfirmed();
-          workflow.actions.handleBasisSelect(option, value);
-        }}
-        onCategorySelect={(option, value) => {
-          onParametersConfirmed();
-          workflow.actions.handleCategorySelect(option, value);
-        }}
-        onBasisEdit={() => {
-          onParametersReset();
-          workflow.actions.handleBasisEdit();
-        }}
-        onCategoryEdit={() => {
-          onParametersReset();
-          workflow.actions.handleCategoryEdit();
-        }}
-      />
-
-      {revealUpload ? (
-        <CpStateCard state="default">
-          <h2>Upload Contract</h2>
-          <CpPlaybookDisclaimer
-            variant="callout"
-            parameter={workflow.selectedParameter}
+    <CpStateCard
+      className="cpv2-analysis-parameter-card"
+      state={cardState}
+    >
+      <h2>Contract Analysis Parameters</h2>
+      {showPlaybookChoiceSelector ? (
+        <>
+          <p>Do you want to use a playbook for this analysis?</p>
+          <CpV2PlaybookChoiceSelector
+            value={playbookChoice}
+            onChange={handlePlaybookChoice}
           />
-          {workflow.file ? (
-            <div className="mt-orbit-base">
-              <CpSelectedFileRow
-                file={workflow.file}
-                onRemove={workflow.actions.clearFile}
-              />
-            </div>
+        </>
+      ) : null}
+
+      {playbookChoice === "yes" ? (
+        <div className={cn("cpv2-parameter-section", showPlaybookChoiceSelector && "with-choice")}>
+          {playbookSelected ? (
+            <CpV2SelectedSummaryRow
+              label={`${selectedParameter!.basis!.kind} · ${selectedParameter!.basis!.label}`}
+              disabled={locked}
+              actionLabel={`Change ${selectedParameter!.basis!.kind}`}
+              onAction={onBasisEdit}
+            />
           ) : (
-            <CpClauseIqDropzone onFile={workflow.actions.validateAndSetFile} />
+            <>
+              <p>Select the playbook ClauseIQ should use for this analysis.</p>
+              {playbookOption ? (
+                <CpV2ParameterOptionsList
+                  option={playbookOption}
+                  onSelect={onBasisSelect}
+                />
+              ) : null}
+            </>
           )}
-        </CpStateCard>
+        </div>
+      ) : null}
+
+      {playbookChoice === "no" ? (
+        <div className={cn("cpv2-parameter-section-grid", showPlaybookChoiceSelector && "with-choice")}>
+          <section>
+            <h3>Category</h3>
+            {categorySelected ? (
+              <CpV2SelectedSummaryRow
+                label={`Category · ${selectedParameter!.category!}`}
+                disabled={locked}
+                actionLabel="Change Category"
+                onAction={onCategoryEdit}
+              />
+            ) : (
+              <>
+                <p>Select the category ClauseIQ should use for this analysis.</p>
+                {CATEGORY_PARAMETER_OPTION ? (
+                  <CpV2ParameterOptionsList
+                    option={CATEGORY_PARAMETER_OPTION}
+                    onSelect={onCategorySelect}
+                  />
+                ) : null}
+              </>
+            )}
+          </section>
+          <section>
+            <h3>Governing Law</h3>
+            {governingLawSelected ? (
+              <CpV2SelectedSummaryRow
+                label={`${selectedParameter!.basis!.kind} · ${selectedParameter!.basis!.label}`}
+                disabled={locked}
+                actionLabel={`Change ${selectedParameter!.basis!.kind}`}
+                onAction={onBasisEdit}
+              />
+            ) : (
+              <>
+                <p>
+                  Select the governing law ClauseIQ should use for this
+                  analysis.
+                </p>
+                {governingLawOption ? (
+                  <CpV2ParameterOptionsList
+                    option={governingLawOption}
+                    onSelect={onBasisSelect}
+                  />
+                ) : null}
+              </>
+            )}
+          </section>
+        </div>
+      ) : null}
+    </CpStateCard>
+  );
+}
+
+function CpV2PlaybookChoiceSelector({
+  value,
+  onChange,
+}: {
+  value: PlaybookChoice;
+  onChange: (choice: PlaybookChoice) => void;
+}) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Use playbook"
+      className="cpv2-playbook-choice-group"
+    >
+      {(["yes", "no"] as PlaybookChoice[]).map((choice) => {
+        const selected = value === choice;
+        return (
+          <CpButton
+            key={choice}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            className={cn(
+              "cpv2-playbook-choice",
+              selected && "is-selected",
+            )}
+            onClick={() => onChange(choice)}
+          >
+            {choice === "yes" ? "Yes" : "No"}
+          </CpButton>
+        );
+      })}
+    </div>
+  );
+}
+
+function CpV2ParameterOptionsList({
+  option,
+  onSelect,
+}: {
+  option: CiqParameterOption;
+  onSelect: (option: CiqParameterOption, value: string) => void;
+}) {
+  return (
+    <div
+      role="listbox"
+      aria-label={`${option.label} options`}
+      className="cpv2-parameter-options"
+    >
+      {option.options.map((value) => (
+        <CpButton
+          key={value}
+          type="button"
+          role="option"
+          aria-selected={false}
+          className="cpv2-parameter-option"
+          onClick={() => onSelect(option, value)}
+        >
+          {value}
+        </CpButton>
+      ))}
+    </div>
+  );
+}
+
+function CpV2SelectedSummaryRow({
+  label,
+  disabled,
+  actionLabel,
+  onAction,
+}: {
+  label: string;
+  disabled: boolean;
+  actionLabel: string;
+  onAction: () => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "cpv2-selected-parameter-row",
+        disabled && "is-disabled",
+      )}
+    >
+      <span className="cpv2-selected-parameter-label">
+        <CpIcon icon={CP_FA.check} size={13} />
+        {label}
+      </span>
+      {!disabled ? (
+        <CpButton
+          type="button"
+          className="cpv2-parameter-change-button"
+          onClick={onAction}
+        >
+          {actionLabel}
+        </CpButton>
+      ) : null}
+    </div>
+  );
+}
+
+function CpV2UploadStep({ workflow }: { workflow: ClauseIqWorkflow }) {
+  return (
+    <CpStateCard className="cpv2-upload-card" state="active">
+      <h2>Upload Contract</h2>
+      <CpPlaybookDisclaimer
+        variant="callout"
+        parameter={workflow.selectedParameter}
+      />
+      {workflow.file ? (
+        <div className="mt-orbit-base">
+          <CpSelectedFileRow
+            file={workflow.file}
+            onRemove={workflow.actions.clearFile}
+          />
+        </div>
+      ) : (
+        <CpClauseIqDropzone onFile={workflow.actions.validateAndSetFile} />
+      )}
+    </CpStateCard>
+  );
+}
+
+function CpV2ProcessingStep({
+  heading,
+  copy,
+  parameter,
+  workflow,
+}: {
+  heading: string;
+  copy: string;
+  parameter: AnalysisParameterSelection | null;
+  workflow: ClauseIqWorkflow;
+}) {
+  return (
+    <CpStateCard className="cpv2-processing-card" state="active">
+      <div className="cpv2-processing-header">
+        <CpSpinner size="Medium" />
+        <div>
+          <h2>{heading}</h2>
+          <p>{copy}</p>
+        </div>
+      </div>
+      <CpPlaybookDisclaimer variant="inline" parameter={parameter} />
+      {workflow.file ? (
+        <div className="mt-orbit-base">
+          <CpSelectedFileRow
+            file={workflow.file}
+            onRemove={workflow.actions.clearFile}
+          />
+        </div>
+      ) : null}
+    </CpStateCard>
+  );
+}
+
+function CpV2ModalResultsStep({
+  workflow,
+  onViewResult,
+}: {
+  workflow: ClauseIqWorkflow;
+  onViewResult: () => void;
+}) {
+  const supplier = workflow.resultsInitiative.suppliers[0];
+  const firstAnalysis = supplier?.analyses[0];
+  const rerunJourneyVisible =
+    workflow.rerunUploadVisible || workflow.rerunProcessing;
+  const rerunParameter = workflow.rerunProcessing
+    ? workflow.rerunSelectedParameter ?? workflow.selectedParameter
+    : workflow.rerunSelectedParameter;
+  const rerunParametersComplete = hasCompleteAnalysisParameters(rerunParameter);
+
+  return (
+    <section className="cpv2-clause-card-stack">
+      {firstAnalysis ? (
+        <CpV2AnalysisOutputCard
+          title="Here is your Analysis Result"
+          fileName={firstAnalysis.fileName}
+          clausesReviewed={firstAnalysis.clausesReviewed}
+          latest={!workflow.newAnalysisSectionVisible}
+          parameters={workflow.selectedAnalysisParameters}
+          onRunAgain={workflow.actions.showRunAgainUpload}
+          onViewResult={onViewResult}
+        />
+      ) : null}
+
+      {workflow.newAnalysisSectionVisible ? (
+        <div className="cpv2-new-analysis-divider">
+          <span>New Analysis</span>
+        </div>
+      ) : null}
+
+      {rerunJourneyVisible ? (
+        <div className="cpv2-clause-card-stack">
+          <CpV2AnalysisParameterCards
+            selectedParameter={rerunParameter}
+            cardState={
+              workflow.rerunProcessing || rerunParametersComplete
+                ? "default"
+                : "active"
+            }
+            locked={workflow.rerunProcessing}
+            onPlaybookChoiceChange={
+              workflow.actions.handleRerunPlaybookChoiceChange
+            }
+            onBasisSelect={workflow.actions.handleRerunBasisSelect}
+            onCategorySelect={workflow.actions.handleRerunCategorySelect}
+            onBasisEdit={workflow.actions.handleRerunBasisEdit}
+            onCategoryEdit={workflow.actions.handleRerunCategoryEdit}
+          />
+
+          {workflow.rerunUploadVisible && rerunParametersComplete ? (
+            <CpStateCard className="cpv2-upload-card" state="active">
+              <h2>Upload Contract</h2>
+              <CpPlaybookDisclaimer
+                variant="callout"
+                parameter={rerunParameter}
+              />
+              <CpClauseIqDropzone
+                onFile={workflow.actions.validateAndSetFile}
+              />
+            </CpStateCard>
+          ) : null}
+        </div>
+      ) : null}
+
+      {workflow.rerunProcessing ? (
+        <CpV2ProcessingStep
+          heading="Analysing New Contract"
+          copy="Finding clauses in your new contract..."
+          parameter={rerunParameter}
+          workflow={workflow}
+        />
+      ) : null}
+
+      {workflow.completedRerunAnalysis ? (
+        <CpV2AnalysisOutputCard
+          title="Latest Analysis Result"
+          fileName={workflow.completedRerunAnalysis.fileName}
+          clausesReviewed={workflow.completedRerunAnalysis.clausesReviewed}
+          latest
+          parameters={workflow.completedRerunAnalysisParameters}
+          onRunAgain={workflow.actions.showRunAgainUpload}
+          onViewResult={onViewResult}
+        />
       ) : null}
     </section>
   );
 }
 
-function CpV2GenerateResultsStep() {
+function CpV2AnalysisOutputCard({
+  title,
+  fileName,
+  clausesReviewed,
+  latest,
+  parameters,
+  onRunAgain,
+  onViewResult,
+}: {
+  title: string;
+  fileName: string;
+  clausesReviewed: number;
+  latest?: boolean;
+  parameters: Array<{ label: string; value: string }>;
+  onRunAgain: () => void;
+  onViewResult: () => void;
+}) {
   return (
-    <section className="cpv2-live-step cpv2-live-generate">
-      <span className="cpv2-live-rocket" aria-hidden="true">
-        <CpIcon icon={LIVE_ROCKET_ICON} size={64} />
-      </span>
-      <h2>Your Contract insights are on the way!</h2>
-      <p>
-        Click <strong>'Finish'</strong> to complete the process. Please allow a
-        few minutes for the analysis to run. When it is ready you will receive a
-        notification and can return to this page to download your report.
-      </p>
-    </section>
+    <CpStateCard className="cpv2-modal-result-card" state="default">
+      <div className="cpv2-modal-result-header">
+        <div>
+          <div className="cpv2-modal-result-chips">
+            <Chip label="Analysis Result" size="Small" variant="Outline" />
+            {latest ? (
+              <Chip label="Latest output" size="Small" variant="Outline" />
+            ) : null}
+          </div>
+          <h2>{title}</h2>
+        </div>
+      </div>
+      <div className="cpv2-modal-result-summary">
+        <div>
+          <span>File</span>
+          <strong>{fileName}</strong>
+        </div>
+        <div>
+          <span>Status</span>
+          <strong>Reviewed {clausesReviewed} clauses</strong>
+        </div>
+      </div>
+      {parameters.length > 0 ? (
+        <div className="cpv2-modal-result-parameters">
+          {parameters.map((parameter) => (
+            <span key={`${parameter.label}-${parameter.value}`}>
+              <strong>{parameter.label}</strong>
+              {parameter.value}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <CpInlineBanner
+        className="cpv2-modal-result-banner"
+        label="Summary shown below. View the result for full details."
+        variant="Information"
+      />
+      <div className="cpv2-modal-result-actions">
+        <CpButton orbitVariant="Primary" type="button" onClick={onViewResult}>
+          <CpIcon icon={CP_FA.chart} size={13} />
+          View Result
+        </CpButton>
+        <CpButton orbitVariant="Secondary" type="button" onClick={onRunAgain}>
+          <CpIcon icon="\uf2f1" size={13} />
+          Run Analysis Again
+        </CpButton>
+      </div>
+    </CpStateCard>
   );
 }
 
@@ -1379,24 +1729,25 @@ function WorkspaceView() {
   const [dashboardInModal, setDashboardInModal] = useState(
     readStoredDashboardInModalPreference,
   );
-  const [clauseWizardStep, setClauseWizardStep] =
-    useState<CpV2ClauseWizardStep>("prior");
   const [analysisStatus, setAnalysisStatus] =
     useState<CpV2AnalysisStatus>("idle");
   const canvasRef = useRef<HTMLElement | null>(null);
   const workflow = useClauseIqWorkflow({
-    autoAdvanceParameters: false,
-    autoStartProcessingOnFile: false,
+    autoAdvanceParameters: true,
+    autoStartProcessingOnFile: true,
+    initialStep: "welcome",
     initialInitiative: CP_CLAUSEIQ_INITIATIVE,
-    initialSelectedParameter: createDefaultParameterSelection(),
+    initialSelectedParameter: null,
+    onProcessingComplete: () => setAnalysisStatus("completed"),
+    onRerunComplete: () => setAnalysisStatus("completed"),
     useFirstRunResults: true,
   });
 
   const clauseIqOpen = expanded === "ClauseIQ - Analyse your contracts";
   const openClauseModal = () => {
     if (analysisStatus === "completed") {
-      setClauseWizardStep("prior");
-      workflow.actions.clearFile();
+      workflow.actions.showResultsFromRoute(CP_CLAUSEIQ_INITIATIVE, false);
+      workflow.actions.showRunAgainUpload();
     }
     setClauseModalOpened(true);
     setClauseModalOpen(true);
@@ -1427,20 +1778,11 @@ function WorkspaceView() {
     setSupplierOutputModalOpen(false);
   };
 
-  const finishClauseIqWizard = () => {
-    setAnalysisStatus("in-progress");
-    setClauseModalOpen(false);
-  };
-
   useEffect(() => {
-    if (analysisStatus !== "in-progress") return undefined;
-
-    const timeout = window.setTimeout(() => {
-      setAnalysisStatus("completed");
-    }, CPV2_ANALYSIS_COMPLETE_DELAY_MS);
-
-    return () => window.clearTimeout(timeout);
-  }, [analysisStatus]);
+    if (workflow.step === "processing" || workflow.rerunProcessing) {
+      setAnalysisStatus("in-progress");
+    }
+  }, [workflow.rerunProcessing, workflow.step]);
 
   useEffect(() => {
     if (clauseIqOpen) {
@@ -1549,10 +1891,11 @@ function WorkspaceView() {
       {clauseModalOpen ? (
         <CpClauseIqModal
           workflow={workflow}
-          step={clauseWizardStep}
           onClose={() => setClauseModalOpen(false)}
-          onFinish={finishClauseIqWizard}
-          onStepChange={setClauseWizardStep}
+          onViewResult={() => {
+            setClauseModalOpen(false);
+            viewResult();
+          }}
         />
       ) : null}
       {supplierOutputModalOpen ? (

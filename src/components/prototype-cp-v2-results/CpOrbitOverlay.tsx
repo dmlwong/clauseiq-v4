@@ -9,6 +9,7 @@ import {
   Overlay,
   Text,
 } from "@orbit";
+import { cn } from "@/lib/utils";
 import "@orbit-tokens";
 import "@orbit-fonts";
 import "@/components/prototype-cp-v2-results/orbit-theme.css";
@@ -21,6 +22,7 @@ interface CpOrbitOverlayProps {
   footer?: ReactNode;
   size?: "Default" | "Large";
   height?: "Viewport" | "Content";
+  titleAlign?: "left" | "center";
 }
 export function CpOrbitOverlay({
   open,
@@ -31,8 +33,10 @@ export function CpOrbitOverlay({
   footer,
   size = "Default",
   height = "Content",
+  titleAlign = "left",
 }: CpOrbitOverlayProps) {
   const fullBleedSeparatorStyle = { left: -2, right: -2 };
+  const centerTitle = titleAlign === "center";
   return (
     <Overlay
       visible={open}
@@ -63,9 +67,29 @@ export function CpOrbitOverlay({
             {" "}
             <div className="relative px-orbit-base py-orbit-base">
               {" "}
-              <div className="flex items-start justify-between gap-orbit-base">
+              <div
+                className={cn(
+                  "gap-orbit-base",
+                  centerTitle
+                    ? "flex min-h-9 items-center justify-center"
+                    : "flex items-start justify-between",
+                )}
+              >
                 {" "}
-                <div className="min-w-0">
+                <div
+                  className={cn(
+                    "min-w-0",
+                    centerTitle && "flex-1 text-center",
+                  )}
+                  style={
+                    centerTitle
+                      ? {
+                          paddingInline:
+                            "calc(var(--orbit-space-8) + var(--orbit-space-4))",
+                        }
+                      : undefined
+                  }
+                >
                   {" "}
                   <Headings size="Heading 4">{title}</Headings>{" "}
                   {description && (
@@ -78,13 +102,22 @@ export function CpOrbitOverlay({
                     </div>
                   )}{" "}
                 </div>{" "}
-                <IconButton
-                  variant="Tertiary"
-                  size="Medium"
-                  ariaLabel="Close modal"
-                  icon={<FaIcon icon={FA.xmark} size={12} />}
-                  onClick={() => onOpenChange(false)}
-                />{" "}
+                <div
+                  className={cn(
+                    centerTitle && "absolute top-1/2 -translate-y-1/2",
+                  )}
+                  style={
+                    centerTitle ? { right: "var(--orbit-space-4)" } : undefined
+                  }
+                >
+                  <IconButton
+                    variant="Tertiary"
+                    size="Medium"
+                    ariaLabel="Close modal"
+                    icon={<FaIcon icon={FA.xmark} size={12} />}
+                    onClick={() => onOpenChange(false)}
+                  />
+                </div>{" "}
               </div>{" "}
               <div
                 aria-hidden="true"

@@ -1288,7 +1288,7 @@ const firstAnalysisMetricDefinitions: Array<{
   barColor?: string;
   barBorderColor?: string;
   group: "workflow" | "risk";
-  status?: FirstAnalysisStatusKey;
+  status: FirstAnalysisStatusKey;
 }> = [
   {
     key: "high",
@@ -1338,6 +1338,19 @@ const firstAnalysisMetricDefinitions: Array<{
 const firstAnalysisMetricBarDefinitions = firstAnalysisMetricDefinitions.filter(
   (definition) => definition.key !== "none",
 );
+const firstAnalysisMetricRowClassName = (
+  active: boolean,
+  disabled = false,
+) =>
+  cn(
+    "flex min-h-8 w-full items-center rounded-md border px-orbit-s py-orbit-xs transition-colors",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]",
+    active
+      ? "border-[var(--orbit-color-card-border-selected)] bg-[var(--orbit-color-card-bg-selected)]"
+      : "border-transparent hover:border-[var(--orbit-color-card-border-hover)] hover:bg-[var(--orbit-color-btn-secondary-bg-hover)]",
+    disabled && "opacity-60",
+  );
+
 function FirstAnalysisMetricGrid({
   metrics,
   activeMetrics,
@@ -1352,6 +1365,57 @@ function FirstAnalysisMetricGrid({
   grouped?: boolean;
 }) {
   const activeMetricSet = new Set(activeMetrics ?? []);
+  const renderMetricRow = (
+    definition: (typeof firstAnalysisMetricDefinitions)[number],
+  ) => {
+    const active = activeMetricSet.has(definition.key);
+    const value = metrics[definition.value];
+    const dotColor =
+      CPV2_FIRST_ANALYSIS_STATUS_THEME[definition.status].indicatorColor;
+
+    return (
+      <CpButton
+        key={definition.key}
+        type="button"
+        aria-pressed={active}
+        aria-label={`${active ? "Remove" : "Add"} ${definition.label} filter, ${value} clauses`}
+        onClick={
+          onMetricSelect ? () => onMetricSelect(definition.key) : undefined
+        }
+        className={cn(
+          firstAnalysisMetricRowClassName(active, value === 0),
+          "gap-orbit-s",
+        )}
+      >
+        <span
+          className="flex min-w-0 flex-1 items-center gap-orbit-s overflow-hidden"
+          style={{ textAlign: "left" }}
+        >
+          <span
+            aria-hidden="true"
+            className="h-1.5 w-1.5 shrink-0 rounded-full"
+            style={{ backgroundColor: dotColor }}
+          />
+          <span className="min-w-0 truncate leading-none">
+            <Text
+              as="span"
+              size="Small"
+              variant={active ? "Bold" : "Secondary"}
+            >
+              {definition.label}
+            </Text>
+          </span>
+        </span>
+        <Chip
+          label={String(value)}
+          size="Mini"
+          variant="No Status"
+          selected={active}
+          contrast="Low"
+        />
+      </CpButton>
+    );
+  };
   const renderMetric = (
     definition: (typeof firstAnalysisMetricDefinitions)[number],
   ) => (
@@ -1421,11 +1485,28 @@ function FirstAnalysisMetricGrid({
       </div>
     );
   }
+  if (density === "rail") {
+    return (
+      <div className="mt-orbit-base">
+        <div
+          tabIndex={0}
+          className="mb-orbit-xs rounded-md px-orbit-s py-orbit-xs outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]"
+        >
+          <Text as="p" size="Small" variant="Secondary">
+            DEVIATION LEVEL
+          </Text>
+        </div>
+        <div className="space-y-orbit-xs">
+          {firstAnalysisMetricDefinitions.map(renderMetricRow)}
+        </div>
+      </div>
+    );
+  }
   return (
     <div
       className={cn(
         "mt-orbit-base grid gap-orbit-s",
-        density === "rail" ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-5",
+        "grid-cols-2 sm:grid-cols-5",
       )}
     >
       {" "}

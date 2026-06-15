@@ -114,6 +114,61 @@ const CPV2_RESULT_ONLY_PARAMS = [
   "cat",
 ];
 
+const CPV2_CLAUSEIQ_STEPS = [
+  { key: "prior", label: "Prior to Use" },
+  { key: "configure", label: "Configure & Upload" },
+  { key: "generate", label: "Generate Results" },
+] as const;
+const CPV2_ROCKET_ICON = "\uf135";
+
+function isCpV2InitialGenerateStep(
+  workflow: ClauseIqWorkflow,
+  showGenerateStep: boolean,
+) {
+  return (
+    showGenerateStep &&
+    workflow.step === "upload" &&
+    Boolean(workflow.file)
+  );
+}
+
+function isCpV2RerunGenerateStep(
+  workflow: ClauseIqWorkflow,
+  showGenerateStep: boolean,
+) {
+  return (
+    showGenerateStep &&
+    workflow.resultsVisible &&
+    workflow.rerunUploadVisible &&
+    Boolean(workflow.file)
+  );
+}
+
+function isCpV2GenerateConfirmationStep(
+  workflow: ClauseIqWorkflow,
+  showGenerateStep: boolean,
+) {
+  return (
+    isCpV2InitialGenerateStep(workflow, showGenerateStep) ||
+    isCpV2RerunGenerateStep(workflow, showGenerateStep)
+  );
+}
+
+function getCpV2ClauseIqStepIndex(
+  workflow: ClauseIqWorkflow,
+  showGenerateStep: boolean,
+) {
+  if (workflow.step === "welcome") return 0;
+  if (
+    isCpV2GenerateConfirmationStep(workflow, showGenerateStep) ||
+    workflow.step === "processing" ||
+    workflow.step === "results"
+  ) {
+    return 2;
+  }
+  return 1;
+}
+
 function readStoredDashboardInModalPreference() {
   if (typeof window === "undefined") return true;
   try {
@@ -1064,7 +1119,6 @@ function CpV2ResultsDashboardModal({ onClose }: { onClose: () => void }) {
         <header className="cpv2-results-dashboard-modal-header">
           <div className="cpv2-results-dashboard-modal-title">
             <h2>ClauseIQ Results</h2>
-            <span>CP001-1014 | sdasd</span>
           </div>
           <CpButton
             className="cpv2-close"
@@ -1087,6 +1141,11 @@ function CpV2ResultsDashboardModal({ onClose }: { onClose: () => void }) {
             compactHeader
           />
         </div>
+        <footer className="cpv2-results-dashboard-modal-footer">
+          <CpButton className="cpv2-footer-btn" type="button" onClick={onClose}>
+            Close
+          </CpButton>
+        </footer>
       </div>
     </CpModal>
   );
@@ -1101,6 +1160,14 @@ function CpClauseIqModal({
   onClose: () => void;
   onViewResult: () => void;
 }) {
+  const [showGenerateStep, setShowGenerateStep] = useState(false);
+
+  useEffect(() => {
+    if (!workflow.file) {
+      setShowGenerateStep(false);
+    }
+  }, [workflow.file]);
+
   return (
     <CpModal
       ariaLabel="ClauseIQ Contract"
@@ -1122,27 +1189,190 @@ function CpClauseIqModal({
         </CpButton>
       </header>
 
+      <CpV2ClauseModalStepper
+        workflow={workflow}
+        showGenerateStep={showGenerateStep}
+      />
+
       <div className="cpv2-clause-modal-body">
-        <main className="cpv2-clause-modal-main cpv2-clause-journey">
+        <main
+          className={cn(
+            "cpv2-clause-modal-main cpv2-clause-journey",
+            showGenerateStep && "is-generate-step",
+          )}
+        >
           <CpV2ClauseJourneyContent
             workflow={workflow}
             onViewResult={onViewResult}
+            showGenerateStep={showGenerateStep}
           />
         </main>
       </div>
+
+      <CpV2ClauseModalFooter
+        workflow={workflow}
+        onClose={onClose}
+        onHideGenerateStep={() => setShowGenerateStep(false)}
+        onShowGenerateStep={() => setShowGenerateStep(true)}
+        showGenerateStep={showGenerateStep}
+      />
     </CpModal>
+  );
+}
+
+function CpV2ClauseModalFooter({
+  workflow,
+  onClose,
+  onHideGenerateStep,
+  onShowGenerateStep,
+  showGenerateStep,
+}: {
+  workflow: ClauseIqWorkflow;
+  onClose: () => void;
+  onHideGenerateStep: () => void;
+  onShowGenerateStep: () => void;
+  showGenerateStep: boolean;
+}) {
+  const showGetStarted = workflow.step === "welcome";
+  const showFinish = isCpV2GenerateConfirmationStep(
+    workflow,
+    showGenerateStep,
+  );
+  const showRerunSubmit =
+    workflow.resultsVisible &&
+    workflow.rerunUploadVisible &&
+    !workflow.rerunProcessing &&
+    !workflow.completedRerunAnalysis;
+  const showConfigureSubmit =
+    (workflow.step === "parameters" ||
+      workflow.step === "upload" ||
+      showRerunSubmit) &&
+    !showGenerateStep;
+  const showBack = showConfigureSubmit || showFinish;
+  const primaryLabel = showGetStarted
+    ? "Get Started"
+    : showFinish
+      ? "Finish"
+      : showConfigureSubmit
+        ? "Next"
+        : null;
+  const primaryAction = showGetStarted
+    ? workflow.actions.startParameters
+    : showFinish
+      ? () => {
+          workflow.actions.startProcessing();
+          onClose();
+        }
+      : showConfigureSubmit
+        ? onShowGenerateStep
+        : null;
+  const primaryDisabled = showConfigureSubmit && !workflow.file;
+  const handleBack = () => {
+    if (showFinish) {
+      onHideGenerateStep();
+      return;
+    }
+
+    if (showRerunSubmit) {
+      workflow.actions.clearFile();
+      return;
+    }
+
+    workflow.actions.setStep("welcome");
+  };
+
+  return (
+    <footer className="cpv2-clause-modal-footer">
+      <div className="cpv2-footer-left">
+        <CpButton
+          className="cpv2-footer-btn"
+          type="button"
+          onClick={onClose}
+        >
+          Close
+        </CpButton>
+        {showBack ? (
+          <CpButton
+            className="cpv2-footer-btn"
+            type="button"
+            onClick={handleBack}
+          >
+            Back
+          </CpButton>
+        ) : null}
+      </div>
+      <div className="cpv2-footer-right">
+        {primaryLabel && primaryAction ? (
+          <CpButton
+            orbitVariant="Primary"
+            orbitSize="Medium"
+            className="cpv2-footer-primary"
+            type="button"
+            disabled={primaryDisabled}
+            onClick={primaryAction}
+          >
+            {primaryLabel}
+          </CpButton>
+        ) : null}
+      </div>
+    </footer>
+  );
+}
+
+function CpV2ClauseModalStepper({
+  workflow,
+  showGenerateStep,
+}: {
+  workflow: ClauseIqWorkflow;
+  showGenerateStep: boolean;
+}) {
+  const activeIndex = getCpV2ClauseIqStepIndex(workflow, showGenerateStep);
+
+  return (
+    <nav
+      className="cpv2-clause-modal-stepper"
+      aria-label="ClauseIQ workflow steps"
+    >
+      {CPV2_CLAUSEIQ_STEPS.map((item, index) => {
+        const complete = index < activeIndex;
+        const active = index === activeIndex;
+
+        return (
+          <div
+            key={item.key}
+            className={cn(
+              "cpv2-clause-modal-step",
+              active && "is-active",
+              complete && "is-complete",
+            )}
+            aria-current={active ? "step" : undefined}
+          >
+            <span className="cpv2-clause-modal-step-dot" aria-hidden="true">
+              {complete ? <CpIcon icon={CP_FA.check} size={12} /> : index + 1}
+            </span>
+            <span className="cpv2-clause-modal-step-label">{item.label}</span>
+          </div>
+        );
+      })}
+    </nav>
   );
 }
 
 function CpV2ClauseJourneyContent({
   workflow,
   onViewResult,
+  showGenerateStep,
 }: {
   workflow: ClauseIqWorkflow;
   onViewResult: () => void;
+  showGenerateStep: boolean;
 }) {
   if (workflow.step === "welcome") {
-    return <CpV2PriorToUseStep onStart={workflow.actions.startParameters} />;
+    return <CpV2PriorToUseStep />;
+  }
+
+  if (isCpV2InitialGenerateStep(workflow, showGenerateStep)) {
+    return <CpV2GenerateResultsStep />;
   }
 
   if (workflow.step === "parameters") {
@@ -1202,11 +1432,15 @@ function CpV2ClauseJourneyContent({
   }
 
   return (
-    <CpV2ModalResultsStep workflow={workflow} onViewResult={onViewResult} />
+    <CpV2ModalResultsStep
+      workflow={workflow}
+      onViewResult={onViewResult}
+      showGenerateStep={showGenerateStep}
+    />
   );
 }
 
-function CpV2PriorToUseStep({ onStart }: { onStart: () => void }) {
+function CpV2PriorToUseStep() {
   return (
     <section className="cpv2-live-step cpv2-live-prior">
       <h2>Tool Overview</h2>
@@ -1220,15 +1454,6 @@ function CpV2PriorToUseStep({ onStart }: { onStart: () => void }) {
         spent on manual reviews. Use ClauseIQ to streamline your contract
         analysis and make more informed recommendations.
       </p>
-      <CpButton
-        orbitVariant="Primary"
-        className="cpv2-clause-start-button"
-        type="button"
-        onClick={onStart}
-      >
-        <CpIcon icon={CP_FA.sparkles} size={13} />
-        Get Started
-      </CpButton>
     </section>
   );
 }
@@ -1537,12 +1762,30 @@ function CpV2ProcessingStep({
   );
 }
 
+function CpV2GenerateResultsStep() {
+  return (
+    <section className="cpv2-live-step cpv2-live-generate">
+      <span className="cpv2-live-rocket" aria-hidden="true">
+        <CpIcon icon={CPV2_ROCKET_ICON} size={64} />
+      </span>
+      <h2>Your Contract insights are on the way!</h2>
+      <p>
+        Click <strong>'Finish'</strong> to complete the process. Please allow a
+        few minutes for the analysis to run. When it is ready you will receive a
+        notification and can return to this page to download your report.
+      </p>
+    </section>
+  );
+}
+
 function CpV2ModalResultsStep({
   workflow,
   onViewResult,
+  showGenerateStep,
 }: {
   workflow: ClauseIqWorkflow;
   onViewResult: () => void;
+  showGenerateStep: boolean;
 }) {
   const supplier = workflow.resultsInitiative.suppliers[0];
   const firstAnalysis = supplier?.analyses[0];
@@ -1599,10 +1842,23 @@ function CpV2ModalResultsStep({
                 variant="callout"
                 parameter={rerunParameter}
               />
-              <CpClauseIqDropzone
-                onFile={workflow.actions.validateAndSetFile}
-              />
+              {workflow.file ? (
+                <div className="mt-orbit-base">
+                  <CpSelectedFileRow
+                    file={workflow.file}
+                    onRemove={workflow.actions.clearFile}
+                  />
+                </div>
+              ) : (
+                <CpClauseIqDropzone
+                  onFile={workflow.actions.validateAndSetFile}
+                />
+              )}
             </CpStateCard>
+          ) : null}
+
+          {isCpV2RerunGenerateStep(workflow, showGenerateStep) ? (
+            <CpV2GenerateResultsStep />
           ) : null}
         </div>
       ) : null}
@@ -1734,7 +1990,7 @@ function WorkspaceView() {
   const canvasRef = useRef<HTMLElement | null>(null);
   const workflow = useClauseIqWorkflow({
     autoAdvanceParameters: true,
-    autoStartProcessingOnFile: true,
+    autoStartProcessingOnFile: false,
     initialStep: "welcome",
     initialInitiative: CP_CLAUSEIQ_INITIATIVE,
     initialSelectedParameter: null,
@@ -1746,8 +2002,7 @@ function WorkspaceView() {
   const clauseIqOpen = expanded === "ClauseIQ - Analyse your contracts";
   const openClauseModal = () => {
     if (analysisStatus === "completed") {
-      workflow.actions.showResultsFromRoute(CP_CLAUSEIQ_INITIATIVE, false);
-      workflow.actions.showRunAgainUpload();
+      workflow.actions.startAnotherInitiative(false);
     }
     setClauseModalOpened(true);
     setClauseModalOpen(true);

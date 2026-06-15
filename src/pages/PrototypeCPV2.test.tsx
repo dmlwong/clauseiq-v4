@@ -42,8 +42,20 @@ function chooseFile(inputLabel: string, file: File) {
 }
 
 function applyHighRecommendations() {
-  fireEvent.click(screen.getByRole("button", { name: /apply recommendations/i }));
-  fireEvent.click(screen.getByRole("option", { name: /High Deviation/i }));
+  fireEvent.click(screen.getByRole("button", { name: /bulk apply recommendation/i }));
+  fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /High Deviation/i }));
+  fireEvent.click(screen.getByRole("button", { name: /apply selected/i }));
+}
+
+function expectActiveClauseIqStep(dialog: HTMLElement, label: string) {
+  const stepper = within(dialog).getByRole("navigation", {
+    name: "ClauseIQ workflow steps",
+  });
+  const step = within(stepper)
+    .getByText(label)
+    .closest(".cpv2-clause-modal-step");
+
+  expect(step).toHaveAttribute("aria-current", "step");
 }
 
 function completeClauseIqAnalysis() {
@@ -51,12 +63,12 @@ function completeClauseIqAnalysis() {
   fireEvent.click(within(dialog).getByRole("button", { name: "Get Started" }));
   fireEvent.click(within(dialog).getByRole("option", { name: "Procurement_Playbook_Yorkshire_Water .pdf" }));
   chooseFile("Upload contract PDF", new File(["pdf"], "Test.pdf", { type: "application/pdf" }));
+  fireEvent.click(within(dialog).getByRole("button", { name: "Next" }));
+  fireEvent.click(within(dialog).getByRole("button", { name: "Finish" }));
 
   act(() => {
     vi.advanceTimersByTime(3000);
   });
-
-  fireEvent.click(within(dialog).getByRole("button", { name: "Close ClauseIQ Contract" }));
 }
 
 beforeAll(() => {
@@ -116,8 +128,15 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
 
     expect(dialog).toBeInTheDocument();
     expect(within(dialog).getByRole("heading", { name: "Tool Overview" })).toBeInTheDocument();
-    expect(within(dialog).queryByText("Prior to Use")).not.toBeInTheDocument();
-    expect(within(dialog).queryByText("Configure & Upload")).not.toBeInTheDocument();
+    const stepper = within(dialog).getByRole("navigation", {
+      name: "ClauseIQ workflow steps",
+    });
+    expect(within(stepper).getByText("Prior to Use")).toBeInTheDocument();
+    expect(within(stepper).getByText("Configure & Upload")).toBeInTheDocument();
+    expect(within(stepper).getByText("Generate Results")).toBeInTheDocument();
+    expectActiveClauseIqStep(dialog, "Prior to Use");
+    expect(within(dialog).getByRole("button", { name: "Close" })).toBeInTheDocument();
+    expect(within(dialog).getAllByRole("button", { name: "Get Started" })).toHaveLength(1);
     expect(within(dialog).queryByText("Upload Files")).not.toBeInTheDocument();
     expect(within(dialog).queryByText("Settings")).not.toBeInTheDocument();
     expect(within(dialog).queryByText("Client Playbook")).not.toBeInTheDocument();
@@ -129,6 +148,7 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
 
     dialog = screen.getByRole("dialog", { name: "ClauseIQ Contract" });
     expect(within(dialog).getByText("Contract Analysis Parameters")).toBeInTheDocument();
+    expectActiveClauseIqStep(dialog, "Configure & Upload");
     expect(within(dialog).getByText("Do you want to use a playbook for this analysis?")).toBeInTheDocument();
     expect(within(dialog).getByRole("radio", { name: "Yes" })).toHaveAttribute("aria-checked", "true");
     expect(within(dialog).getByRole("radio", { name: "No" })).toHaveAttribute("aria-checked", "false");
@@ -138,6 +158,8 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
     expect(within(dialog).queryByRole("button", { name: /Change Playbook/i })).not.toBeInTheDocument();
     expect(within(dialog).queryByText("Upload Contract")).not.toBeInTheDocument();
     expect(within(dialog).queryByRole("group", { name: "Upload contract PDF" })).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Back" })).toBeEnabled();
+    expect(within(dialog).getByRole("button", { name: "Next" })).toBeDisabled();
 
     fireEvent.click(within(dialog).getByRole("radio", { name: "No" }));
 
@@ -161,6 +183,8 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
 
     expect(within(dialog).getByText("Upload Contract")).toBeInTheDocument();
     expect(within(dialog).getByRole("group", { name: "Upload contract PDF" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Back" })).toBeEnabled();
+    expect(within(dialog).getByRole("button", { name: "Next" })).toBeDisabled();
 
     chooseFile(
       "Upload contract PDF",
@@ -175,14 +199,28 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
     chooseFile("Upload contract PDF", new File(["pdf"], "Test.pdf", { type: "application/pdf" }));
 
     dialog = screen.getByRole("dialog", { name: "ClauseIQ Contract" });
-    expect(within(dialog).getByText("Analysing Your Contract")).toBeInTheDocument();
+    expect(within(dialog).getByText("Upload Contract")).toBeInTheDocument();
     expect(within(dialog).getByText("Test.pdf")).toBeInTheDocument();
-    expect(within(dialog).getByText(/Playbook · Procurement_Playbook_Yorkshire_Water .pdf/)).toBeInTheDocument();
+    expectActiveClauseIqStep(dialog, "Configure & Upload");
+    expect(within(dialog).getByRole("button", { name: "Next" })).toBeEnabled();
+    expect(within(dialog).queryByText("Your Contract insights are on the way!")).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Finish" })).not.toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Next" }));
+
+    dialog = screen.getByRole("dialog", { name: "ClauseIQ Contract" });
+    expect(within(dialog).getByText("Your Contract insights are on the way!")).toBeInTheDocument();
+    expect(dialog).toHaveTextContent("Click 'Finish' to complete the process.");
+    expectActiveClauseIqStep(dialog, "Generate Results");
+    expect(within(dialog).getByRole("button", { name: "Back" })).toBeEnabled();
+    expect(within(dialog).getByRole("button", { name: "Finish" })).toBeEnabled();
+    expect(within(dialog).queryByRole("button", { name: "Next" })).not.toBeInTheDocument();
     expect(within(dialog).queryByRole("radio", { name: "Yes" })).not.toBeInTheDocument();
     expect(within(dialog).queryByRole("radio", { name: "No" })).not.toBeInTheDocument();
     expect(within(dialog).queryByText("Upload Contract")).not.toBeInTheDocument();
 
-    fireEvent.click(within(dialog).getByRole("button", { name: "Close ClauseIQ Contract" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Finish" }));
+
     expect(screen.queryByRole("dialog", { name: "ClauseIQ Contract" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Download Generating/i })).toBeEnabled();
     expect(screen.queryByRole("button", { name: /View Result/i })).not.toBeInTheDocument();
@@ -197,6 +235,7 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
     });
 
     expect(within(dialog).getByText("Here is your Analysis Result")).toBeInTheDocument();
+    expectActiveClauseIqStep(dialog, "Generate Results");
     expect(within(dialog).getByRole("button", { name: "View Result" })).toBeEnabled();
     expect(within(dialog).getByRole("button", { name: "Run Analysis Again" })).toBeEnabled();
 
@@ -232,18 +271,32 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Run Analysis Again" }));
     dialog = screen.getByRole("dialog", { name: "ClauseIQ Contract" });
-    expect(within(dialog).getByText("Here is your Analysis Result")).toBeInTheDocument();
-    expect(within(dialog).getByText("New Analysis")).toBeInTheDocument();
+    expect(within(dialog).getByRole("heading", { name: "Tool Overview" })).toBeInTheDocument();
+    expectActiveClauseIqStep(dialog, "Prior to Use");
+    expect(within(dialog).queryByText("Here is your Analysis Result")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("New Analysis")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Contract Analysis Parameters")).not.toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Get Started" }));
+
+    dialog = screen.getByRole("dialog", { name: "ClauseIQ Contract" });
     expect(within(dialog).getByText("Contract Analysis Parameters")).toBeInTheDocument();
     expect(within(dialog).queryByText("Upload Contract")).not.toBeInTheDocument();
+    expectActiveClauseIqStep(dialog, "Configure & Upload");
     fireEvent.click(within(dialog).getByRole("radio", { name: "Yes" }));
     fireEvent.click(within(dialog).getByRole("option", { name: "Procurement_Playbook_Yorkshire_Water .pdf" }));
     expect(within(dialog).getByText("Upload Contract")).toBeInTheDocument();
     chooseFile("Upload contract PDF", new File(["pdf"], "Rerun.pdf", { type: "application/pdf" }));
-    expect(within(dialog).getByText("Analysing New Contract")).toBeInTheDocument();
-    expect(within(dialog).getByText("Here is your Analysis Result")).toBeInTheDocument();
-    expect(within(dialog).queryByRole("group", { name: "Upload contract PDF" })).not.toBeInTheDocument();
-    fireEvent.click(within(dialog).getByRole("button", { name: "Close ClauseIQ Contract" }));
+    expect(within(dialog).getByText("Upload Contract")).toBeInTheDocument();
+    expect(within(dialog).getByText("Rerun.pdf")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Next" })).toBeEnabled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Next" }));
+    expect(within(dialog).getByText("Your Contract insights are on the way!")).toBeInTheDocument();
+    expectActiveClauseIqStep(dialog, "Generate Results");
+    expect(within(dialog).getByRole("button", { name: "Finish" })).toBeEnabled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Finish" }));
+    expect(screen.queryByRole("dialog", { name: "ClauseIQ Contract" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Download Generating/i })).toBeEnabled();
     act(() => {
       vi.advanceTimersByTime(3000);
     });
@@ -302,8 +355,9 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
     expect(mocks.downloadCsv).toHaveBeenCalledTimes(1);
 
     expect(within(resultsDialog).queryByRole("button", { name: "Back to Workspace" })).not.toBeInTheDocument();
+    expect(within(resultsDialog).getByRole("button", { name: "Close" })).toBeInTheDocument();
 
-    fireEvent.click(within(resultsDialog).getByRole("button", { name: "Close ClauseIQ Results dashboard" }));
+    fireEvent.click(within(resultsDialog).getByRole("button", { name: "Close" }));
 
     await waitFor(() => {
       expect(screen.queryByRole("dialog", { name: "ClauseIQ Results dashboard" })).not.toBeInTheDocument();
@@ -346,9 +400,18 @@ describe("Prototype CP v2 ClauseIQ live wizard", () => {
     chooseFile("Upload contract PDF", new File(["pdf"], "Test.pdf", { type: "application/pdf" }));
 
     dialog = screen.getByRole("dialog", { name: "ClauseIQ Contract" });
-    expect(within(dialog).getByText("Analysing Your Contract")).toBeInTheDocument();
-    expect(within(dialog).queryByRole("radio", { name: "Yes" })).not.toBeInTheDocument();
-    expect(within(dialog).queryByRole("radio", { name: "No" })).not.toBeInTheDocument();
+    expect(within(dialog).getByText("Upload Contract")).toBeInTheDocument();
+    expect(within(dialog).getByText("Test.pdf")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Next" })).toBeEnabled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Next" }));
+
+    dialog = screen.getByRole("dialog", { name: "ClauseIQ Contract" });
+    expect(within(dialog).getByText("Your Contract insights are on the way!")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Finish" })).toBeEnabled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Finish" }));
+
+    expect(screen.queryByRole("dialog", { name: "ClauseIQ Contract" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Download Generating/i })).toBeEnabled();
   });
 
   it("does not show the prototype switcher in the v2 header", () => {

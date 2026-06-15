@@ -4534,13 +4534,16 @@ function ClauseRequestForm({
           <Button variant="outline" className={cn("h-8 text-xs", compact && "h-7 text-[11px]")} onClick={onCancel}>
             Cancel
           </Button>
-          <Button
-            className={cn("h-8 gap-orbit-xs bg-[#1a2744] text-xs text-white hover:bg-[#243454]", compact && "h-7 text-[11px]")}
+          <OrbitButton
+            variant="Primary"
+            size="Medium"
+            state={!requestValue.trim() ? "Disabled" : "Default"}
             disabled={!requestValue.trim()}
+            className="gap-orbit-xs"
             onClick={onSubmit}
           >
             <Sparkles className="h-3.5 w-3.5" /> {submitLabel}
-          </Button>
+          </OrbitButton>
         </div>
       </div>
     </div>
@@ -5051,7 +5054,7 @@ function ClauseRowScaleCard({
         {description && <FindingCallout text={description} />}
         {actionability && <RecommendedActionCallout text={actionability} compactTop={Boolean(description)} />}
         {requestForm ?? (!noneDeviationClause ? (
-          <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-s" onClick={(event) => event.stopPropagation()}>
+          <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-xs" onClick={(event) => event.stopPropagation()}>
             <Button
               variant="outline"
               disabled={!actionabilityText || !onUseRecommendation}
@@ -5645,30 +5648,35 @@ function RequestReviewDialog({
     <V5OrbitOverlay
       open={open}
       onOpenChange={onOpenChange}
-      title={bulkSummaryMode ? "Generate CSV from applied recommendations" : "Review and generate selected clauses"}
-      description={
-        bulkSummaryMode
-          ? undefined
-          : `Check the clauses you have chosen, then submit to generate a CSV negotiation log for ${supplierName}.`
-      }
+      title={bulkSummaryMode ? "Generate CSV from applied recommendations" : "Review & Generate Selected Clauses"}
       size="Large"
+      modalKey="review-generate"
       footer={
         <div className="flex flex-col gap-orbit-base sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-muted-foreground">
-            Confirm to generate the CSV. Nothing is sent to the supplier from this prototype.
-          </p>
-          {canGenerate && (
-            <Button
-              className="gap-orbit-xs"
-              onClick={submitRequests}
-            >
-              <Download className="h-3.5 w-3.5" /> Submit & Generate
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            className="h-8 text-xs"
+            onClick={() => onOpenChange(false)}
+          >
+            Close
+          </Button>
+          <div className="flex flex-col gap-orbit-s sm:flex-row sm:items-center">
+            <p className="text-xs text-muted-foreground">
+              Confirm to generate the CSV. Nothing is sent to the supplier from this prototype.
+            </p>
+            {canGenerate && (
+              <Button
+                className="gap-orbit-xs"
+                onClick={submitRequests}
+              >
+                <Download className="h-3.5 w-3.5" /> Submit & Generate
+              </Button>
+            )}
+          </div>
         </div>
       }
     >
-          <div className="px-orbit-base pt-orbit-base">
+          <div>
             <Alert
               type="Information"
               title={bulkSummaryMode ? "Ready to generate supplier change log" : "Ready to generate selected clauses"}
@@ -5677,7 +5685,7 @@ function RequestReviewDialog({
           </div>
 
           {reviewProgress && (
-            <div className="px-orbit-base pb-orbit-base pt-orbit-s">
+            <div className="pt-orbit-s">
               <ReviewGenerateProgressDashboard progress={reviewProgress} />
             </div>
           )}
@@ -5691,7 +5699,7 @@ function ReviewGenerateProgressDashboard({ progress }: { progress: FirstAnalysis
 
   return (
     <section className="rounded-lg border border-border bg-white p-orbit-base">
-      <div className="flex items-start justify-between gap-orbit-base">
+      <div>
         <div>
           <p className="text-[10px] v5-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Summary
@@ -5700,13 +5708,13 @@ function ReviewGenerateProgressDashboard({ progress }: { progress: FirstAnalysis
             Check what has been accepted, marked no action, and what is still left unreviewed before generating the CSV.
           </p>
         </div>
-        <span className="shrink-0 rounded-full border border-border bg-muted/40 px-orbit-s py-orbit-xxs text-[10px] v5-orbit-weight-medium text-foreground">
-          {percentage}%
-        </span>
       </div>
 
       <div className="mt-orbit-base h-2 overflow-hidden rounded-full bg-muted">
-        <span className="block h-full rounded-full bg-[#1a2744]" style={{ width: `${percentage}%` }} />
+        <span
+          className="block h-full rounded-full bg-[hsl(var(--ciq-purple))]"
+          style={{ width: `${percentage}%` }}
+        />
       </div>
 
       <div className="mt-orbit-base grid gap-orbit-s sm:grid-cols-4">
@@ -5729,7 +5737,10 @@ function ReviewGenerateProgressDashboard({ progress }: { progress: FirstAnalysis
                 </span>
               </div>
               <div className="mt-orbit-s h-1.5 overflow-hidden rounded-full bg-muted">
-                <span className="block h-full rounded-full bg-[#1a2744]/80" style={{ width: `${itemPercentage}%` }} />
+                <span
+                  className="block h-full rounded-full bg-[hsl(var(--ciq-purple))]"
+                  style={{ width: `${itemPercentage}%` }}
+                />
               </div>
             </div>
           );

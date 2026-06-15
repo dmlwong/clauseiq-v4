@@ -13,6 +13,7 @@ interface V5OrbitOverlayProps {
   footer?: ReactNode;
   size?: "Default" | "Large";
   height?: "Viewport" | "Content";
+  modalKey?: string;
 }
 
 export function V5OrbitOverlay({
@@ -24,6 +25,7 @@ export function V5OrbitOverlay({
   footer,
   size = "Default",
   height = "Content",
+  modalKey,
 }: V5OrbitOverlayProps) {
   const fullBleedSeparatorStyle = { left: -2, right: -2 };
 
@@ -38,6 +40,7 @@ export function V5OrbitOverlay({
       <div
         data-prototype="clauseiq-v5"
         data-theme="orbit"
+        data-v5-overlay={modalKey}
         style={{
           color: "var(--orbit-color-text-primary)",
           fontFamily: "var(--orbit-font-family-sans)",
@@ -47,7 +50,11 @@ export function V5OrbitOverlay({
         <Card type="Static" padding="Base" state="Default" style={{ padding: 0 }}>
           <div className="flex max-h-[86vh] min-w-0 flex-col overflow-hidden">
             <div className="relative px-orbit-base py-orbit-base">
-              <div className="flex items-start justify-between gap-orbit-base">
+              <div
+                className={`flex justify-between gap-orbit-base ${
+                  description ? "items-start" : "items-center"
+                }`}
+              >
                 <div className="min-w-0">
                   <Headings size="Heading 4">{title}</Headings>
                   {description && (
@@ -68,7 +75,7 @@ export function V5OrbitOverlay({
               </div>
               <div aria-hidden="true" className="pointer-events-none absolute bottom-0 h-px bg-border" style={fullBleedSeparatorStyle} />
             </div>
-            {children && <div className="v5-hover-scrollbar min-h-0 overflow-y-auto px-orbit-base py-orbit-base">{children}</div>}
+            {children && <div className="v5-hover-scrollbar min-h-0 overflow-y-auto px-[24px] py-[16px]">{children}</div>}
             {footer && (
               <div className="relative px-orbit-base py-orbit-base">
                 <div aria-hidden="true" className="pointer-events-none absolute top-0 h-px bg-border" style={fullBleedSeparatorStyle} />

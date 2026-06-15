@@ -42,13 +42,16 @@ function renderCpResults(route = PROTOTYPE_CP_V2_RESULT_ROUTE) {
 
 function openRecommendationMenu() {
   fireEvent.click(
-    screen.getByRole("button", { name: /apply recommendations/i }),
+    screen.getByRole("button", { name: /bulk apply recommendation/i }),
   );
 }
 
-function applyRecommendationOption(name: RegExp) {
+function applyRecommendationOptions(...names: RegExp[]) {
   openRecommendationMenu();
-  fireEvent.click(screen.getByRole("option", { name }));
+  names.forEach((name) => {
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name }));
+  });
+  fireEvent.click(screen.getByRole("button", { name: /apply selected/i }));
 }
 
 beforeAll(() => {
@@ -92,8 +95,11 @@ describe("Prototype CP v2 result dashboard", () => {
     expect(screen.getByRole("tab", { name: "Review" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "History" })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /apply recommendations/i }),
+      screen.getByRole("button", { name: /bulk apply recommendation/i }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Bulk Apply Recommendation \(\d+\)/i),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /review & generate/i }),
     ).toBeInTheDocument();
@@ -102,8 +108,31 @@ describe("Prototype CP v2 result dashboard", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Validate ClauseIQ recommendations before supplier negotiation",
+      "Validate ClauseIQ recommendations before supplier negotiation",
       ),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Finding").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("Recommended action").length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByRole("button", { name: /Use Recommendation/i }).length,
+    ).toBeGreaterThan(0);
+    openRecommendationMenu();
+    expect(
+      screen.getByRole("menuitemcheckbox", { name: /High Deviation/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitemcheckbox", { name: /Medium Deviation/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitemcheckbox", { name: /Low Deviation/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitemcheckbox", { name: /Missing Clauses/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitemcheckbox", { name: /None Deviation/i }),
     ).toBeInTheDocument();
     expect(screen.getByText("Liquidated Damages")).toBeInTheDocument();
     expect(screen.getByTestId("location")).toHaveTextContent(
@@ -117,7 +146,12 @@ describe("Prototype CP v2 result dashboard", () => {
   it("uses CP-specific storage for apply and undo recommendations", async () => {
     renderCpResults();
 
-    applyRecommendationOption(/High Deviation/i);
+    applyRecommendationOptions(/High Deviation/i);
+
+    expect(screen.getAllByText("Added to Review").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByRole("button", { name: /Edit Request/i }).length,
+    ).toBeGreaterThan(0);
 
     expect(
       await screen.findByRole("button", { name: /undo high deviation recommendations/i }),
@@ -138,14 +172,14 @@ describe("Prototype CP v2 result dashboard", () => {
       ).not.toBeInTheDocument();
     });
     expect(
-      screen.getByRole("button", { name: /apply recommendations/i }),
+      screen.getByRole("button", { name: /bulk apply recommendation/i }),
     ).toBeInTheDocument();
   }, 10_000);
 
   it("keeps the CP review and generate flow independent from v5", () => {
     renderCpResults();
 
-    applyRecommendationOption(/High Deviation/i);
+    applyRecommendationOptions(/High Deviation/i);
     fireEvent.click(screen.getByRole("button", { name: /review & generate/i }));
     fireEvent.click(screen.getByRole("button", { name: /submit & generate/i }));
 
@@ -180,8 +214,10 @@ describe("Prototype CP v2 result dashboard", () => {
     renderCpResults();
 
     openRecommendationMenu();
-    expect(screen.getByRole("option", { name: /None Deviation/i })).toBeInTheDocument();
-    fireEvent.keyDown(document.body, { key: "Escape", code: "Escape" });
+    expect(
+      screen.getByRole("menuitemcheckbox", { name: /None Deviation/i }),
+    ).toBeInTheDocument();
+    fireEvent.pointerDown(document.body);
 
     fireEvent.click(screen.getByRole("button", { name: /None Deviation/i }));
 

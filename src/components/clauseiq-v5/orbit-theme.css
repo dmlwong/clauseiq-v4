@@ -68,6 +68,22 @@
   outline-color: var(--orbit-color-focus-ring);
 }
 
+body
+  > [class*="_backdrop_"]
+  > [class*="_modal_"]:has([data-v5-overlay="review-generate"]) {
+  width: min(720px, calc(100vw - 48px));
+  max-width: 720px;
+  min-width: 0;
+}
+
+.v5-orbit-toast-host [role="status"],
+.v5-orbit-toast-host [role="status"] * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 [data-prototype="clauseiq-v5"][data-theme="orbit"] .v5-orbit-heading-1,
 [data-prototype="clauseiq-v5"][data-theme="orbit"] .v5-orbit-heading-2,
 [data-prototype="clauseiq-v5"][data-theme="orbit"] .v5-orbit-heading-3,

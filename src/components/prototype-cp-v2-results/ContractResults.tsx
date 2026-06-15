@@ -3,7 +3,6 @@ import {
   useMemo,
   useEffect,
   useRef,
-  type CSSProperties,
   type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
@@ -52,6 +51,7 @@ import {
 import {
   Alert,
   Card,
+  type CardState as OrbitCardState,
   Chip,
   Dropzone,
   FileItem,
@@ -60,6 +60,7 @@ import {
   Searchbox,
   TabButton,
   Table as OrbitTable,
+  Button as OrbitButton,
   Text,
 } from "@orbit";
 import { showCpOrbitToast as toast } from "@/components/prototype-cp-v2-results/CpOrbitToast";
@@ -71,6 +72,7 @@ import { Input } from "@/components/prototype-cp-v2-results/orbit-ui/input";
 import { Textarea } from "@/components/prototype-cp-v2-results/orbit-ui/textarea";
 import { Badge } from "@/components/prototype-cp-v2-results/orbit-ui/badge";
 import { Button } from "@/components/prototype-cp-v2-results/orbit-ui/button";
+import { Checkbox } from "@/components/prototype-cp-v2-results/orbit-ui/checkbox";
 import {
   Tabs,
   TabsList,
@@ -90,6 +92,14 @@ import {
   TooltipTrigger,
 } from "@/components/prototype-cp-v2-results/orbit-ui/tooltip";
 import { CpButton, CpLinkText } from "@/components/prototype-cp-shared/orbit";
+import {
+  OrbitClauseCardFrame,
+  OrbitClauseCardHeader,
+  OrbitFindingCallout,
+  OrbitHandledClauseCard,
+  OrbitRecommendedActionCallout,
+  type SharedOrbitCardStyle,
+} from "@/components/prototype-cp-shared/OrbitClauseCards";
 import {
   getInitiative,
   getSupplier,
@@ -258,6 +268,7 @@ interface PanelChangeItem {
   title: string;
   status: PanelChangeStatus;
 }
+type OrbitCardStyle = SharedOrbitCardStyle;
 const severityTone = (s: ClauseResult["severity"] | undefined) =>
   s === "high"
     ? "bg-destructive/10 text-destructive border-destructive/20"
@@ -280,6 +291,38 @@ const firstAnalysisSeverityStatus: Record<
   medium: "medium",
   low: "low",
 };
+const firstAnalysisSeverityCardState: Record<
+  ClauseResult["severity"],
+  OrbitCardState
+> = {
+  high: "Error",
+  medium: "Warning",
+  low: "Default",
+};
+
+function firstAnalysisCardStateForClause(
+  clause: Pick<ClauseResult, "severity" | "missingClause" | "sourceDeviationLevel">,
+): OrbitCardState {
+  if (clause.missingClause && clause.sourceDeviationLevel === "None") {
+    return "Information";
+  }
+  if (clause.sourceDeviationLevel === "None") return "Success";
+  return firstAnalysisSeverityCardState[clause.severity];
+}
+
+function firstAnalysisCardIndicatorColorForClause(
+  clause: Pick<ClauseResult, "severity" | "missingClause" | "sourceDeviationLevel">,
+) {
+  if (clause.missingClause && clause.sourceDeviationLevel === "None") {
+    return CPV2_FIRST_ANALYSIS_STATUS_THEME.missing.indicatorColor;
+  }
+  if (clause.sourceDeviationLevel === "None") {
+    return CPV2_FIRST_ANALYSIS_STATUS_THEME.none.indicatorColor;
+  }
+  return CPV2_FIRST_ANALYSIS_STATUS_THEME[
+    firstAnalysisSeverityStatus[clause.severity]
+  ].indicatorColor;
+}
 const SEVERITY_WEIGHTS: Record<"high" | "medium" | "low", number> = {
   high: 9,
   medium: 3,
@@ -2226,7 +2269,7 @@ export function ContractResults({
       : [];
   const applyAllRecommendations = (
     targets: RecommendationTargetItem[],
-    scope?: RecommendationApplyOption,
+    scope?: RecommendationApplyScopeMeta,
   ) => {
     if (!firstAnalysisVersion || targets.length === 0) return;
     const bulkClauseIds = new Set(
@@ -2249,6 +2292,12 @@ export function ContractResults({
       title: "Recommendations added to review",
       description: `${targets.length} ${scope?.toastLabel ?? "recommendation"}${targets.length === 1 ? "" : "s"} added. Review and generate the CSV when ready.`,
     });
+  };
+  const applyRecommendationOptions = (options: RecommendationApplyOption[]) => {
+    applyAllRecommendations(
+      mergeRecommendationApplyTargets(options),
+      buildRecommendationApplyScopeMeta(options),
+    );
   };
   const undoAppliedRecommendations = () => {
     if (
@@ -2703,11 +2752,6 @@ export function ContractResults({
             backLabel={compactBackLabel}
             onBack={onBack}
             referenceLine={dashboardReferenceLine}
-            analysisLabel={
-              firstAnalysisDemo
-                ? `${firstAnalysisVersionLabel.toUpperCase()} Analysis`
-                : undefined
-            }
             firstAnalysisDemo={firstAnalysisDemo}
             demoAvailable={availableVersions.length >= 2}
             onFirstAnalysisDemoChange={toggleFirstAnalysisDemo}
@@ -2720,9 +2764,7 @@ export function ContractResults({
             onApplyAllRecommendations={() =>
               applyAllRecommendations(firstAnalysisRecommendationTargets)
             }
-            onApplyRecommendationOption={(option) =>
-              applyAllRecommendations(option.targets, option)
-            }
+            onApplyRecommendationOptions={applyRecommendationOptions}
             onUndoAllRecommendations={undoAppliedRecommendations}
             applyAllRecommendationsDisabled={
               !firstAnalysisDemo ||
@@ -2794,44 +2836,14 @@ export function ContractResults({
                       </Button>
                     ) : firstAnalysisAvailableRecommendationApplyOptions.length >
                       0 ? (
-                      <Select
-                        value=""
-                        onValueChange={(value) => {
-                          const option =
-                            firstAnalysisAvailableRecommendationApplyOptions.find(
-                              (candidate) => candidate.id === value,
-                            );
-                          if (option)
-                            applyAllRecommendations(option.targets, option);
-                        }}
-                      >
-                        {" "}
-                        <SelectTrigger
-                          className={cn(
-                            "cpv2-clauseiq-select-hug",
-                            isResponsiveTestingRoute &&
-                              "clauseiq-responsive-apply-trigger",
-                          )}
-                          aria-label="Apply Recommendations"
-                        >
-                          {" "}
-                          <Sparkles className="mr-orbit-xs h-3.5 w-3.5" />{" "}
-                          <SelectValue
-                            placeholder="Apply Recommendations"
-                          />{" "}
-                        </SelectTrigger>{" "}
-                        <SelectContent>
-                          {" "}
-                          {firstAnalysisAvailableRecommendationApplyOptions.map(
-                            (option) => (
-                              <SelectItem key={option.id} value={option.id}>
-                                {" "}
-                                {option.label} ({option.count}){" "}
-                              </SelectItem>
-                            ),
-                          )}{" "}
-                        </SelectContent>{" "}
-                      </Select>
+                      <RecommendationBulkApplyMenu
+                        className={cn(
+                          isResponsiveTestingRoute &&
+                            "clauseiq-responsive-apply-trigger",
+                        )}
+                        options={firstAnalysisAvailableRecommendationApplyOptions}
+                        onApply={applyRecommendationOptions}
+                      />
                     ) : (
                       <Button variant="outline" disabled>
                         {" "}
@@ -3755,7 +3767,6 @@ function CompactContractTopbar({
   backLabel,
   onBack,
   referenceLine,
-  analysisLabel,
   firstAnalysisDemo,
   demoAvailable,
   onFirstAnalysisDemoChange,
@@ -3763,7 +3774,6 @@ function CompactContractTopbar({
   backLabel?: string;
   onBack?: () => void;
   referenceLine: string;
-  analysisLabel?: string;
   firstAnalysisDemo: boolean;
   demoAvailable: boolean;
   onFirstAnalysisDemoChange: (enabled: boolean) => void;
@@ -3789,9 +3799,6 @@ function CompactContractTopbar({
         <h1 className="cpv2-orbit-heading-label min-w-0 truncate text-foreground">
           {referenceLine}
         </h1>{" "}
-        {analysisLabel && (
-          <Chip label={analysisLabel} size="Mini" variant="Information" />
-        )}{" "}
       </div>{" "}
       {demoAvailable && (
         <FirstAnalysisDemoToggle
@@ -3870,7 +3877,7 @@ function ModeSwitcher({
   comparisonLabel = "Review",
   historyDisabled = false,
   onApplyAllRecommendations,
-  onApplyRecommendationOption,
+  onApplyRecommendationOptions,
   onUndoAllRecommendations,
   applyAllRecommendationsDisabled = true,
   applyAllRecommendationsQueued = false,
@@ -3889,7 +3896,7 @@ function ModeSwitcher({
   comparisonLabel?: string;
   historyDisabled?: boolean;
   onApplyAllRecommendations?: () => void;
-  onApplyRecommendationOption?: (option: RecommendationApplyOption) => void;
+  onApplyRecommendationOptions?: (options: RecommendationApplyOption[]) => void;
   onUndoAllRecommendations?: () => void;
   applyAllRecommendationsDisabled?: boolean;
   applyAllRecommendationsQueued?: boolean;
@@ -3916,7 +3923,7 @@ function ModeSwitcher({
   const availableRecommendationApplyOptions =
     recommendationCount > 0 ? recommendationApplyOptions : [];
   const canChooseRecommendationScope =
-    Boolean(onApplyRecommendationOption) &&
+    Boolean(onApplyRecommendationOptions) &&
     !canUndoAppliedRecommendations &&
     !applyAllRecommendationsQueued &&
     !applyAllRecommendationsReviewed &&
@@ -3968,38 +3975,14 @@ function ModeSwitcher({
           {" "}
           {onApplyAllRecommendations &&
             (canChooseRecommendationScope ? (
-              <Select
-                value=""
-                onValueChange={(value) => {
-                  const option = availableRecommendationApplyOptions.find(
-                    (candidate) => candidate.id === value,
-                  );
-                  if (option) onApplyRecommendationOption?.(option);
-                }}
-              >
-                {" "}
-                <SelectTrigger
-                  className={cn(
-                    "cpv2-clauseiq-select-hug",
-                    isResponsiveTestingRoute &&
-                      "clauseiq-responsive-apply-trigger",
-                  )}
-                  aria-label="Apply Recommendations"
-                >
-                  {" "}
-                  <Sparkles className="h-3.5 w-3.5" />{" "}
-                  <SelectValue placeholder={applyAllButtonLabel} />{" "}
-                </SelectTrigger>{" "}
-                <SelectContent>
-                  {" "}
-                  {availableRecommendationApplyOptions.map((option) => (
-                    <SelectItem key={option.id} value={option.id}>
-                      {" "}
-                      {option.label} ({option.count}){" "}
-                    </SelectItem>
-                  ))}{" "}
-                </SelectContent>{" "}
-              </Select>
+              <RecommendationBulkApplyMenu
+                className={cn(
+                  isResponsiveTestingRoute &&
+                    "clauseiq-responsive-apply-trigger",
+                )}
+                options={availableRecommendationApplyOptions}
+                onApply={(options) => onApplyRecommendationOptions?.(options)}
+              />
             ) : (
               <Button
                 variant="outline"
@@ -4038,6 +4021,154 @@ function ModeSwitcher({
           </CpButton>{" "}
         </div>
       )}{" "}
+    </div>
+  );
+}
+function RecommendationBulkApplyMenu({
+  options,
+  onApply,
+  className,
+}: {
+  options: RecommendationApplyOption[];
+  onApply: (options: RecommendationApplyOption[]) => void;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<RecommendationApplyScope[]>(
+    [],
+  );
+  const rootRef = useRef<HTMLDivElement>(null);
+  const selectedOptions = useMemo(
+    () => options.filter((option) => selectedIds.includes(option.id)),
+    [options, selectedIds],
+  );
+  const selectedTargetCount = useMemo(
+    () => mergeRecommendationApplyTargets(selectedOptions).length,
+    [selectedOptions],
+  );
+
+  useEffect(() => {
+    setSelectedIds((current) => {
+      const availableIds = new Set(options.map((option) => option.id));
+      const next = current.filter((id) => availableIds.has(id));
+      return next.length === current.length ? current : next;
+    });
+  }, [options]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [open]);
+
+  const toggleOption = (id: RecommendationApplyScope) => {
+    setSelectedIds((current) => {
+      if (current.includes(id)) {
+        return current.filter((candidate) => candidate !== id);
+      }
+
+      if (id === "all") {
+        return ["all"];
+      }
+
+      return [...current.filter((candidate) => candidate !== "all"), id];
+    });
+  };
+
+  const applySelectedOptions = () => {
+    if (selectedOptions.length === 0 || selectedTargetCount === 0) return;
+    onApply(selectedOptions);
+    setSelectedIds([]);
+    setOpen(false);
+  };
+  const applySelectedDisabled =
+    selectedOptions.length === 0 || selectedTargetCount === 0;
+
+  return (
+    <div ref={rootRef} className={cn("cpv2-recommendation-bulk", className)}>
+      <Button
+        variant="outline"
+        className="cpv2-recommendation-bulk-trigger"
+        aria-label="Bulk Apply Recommendation"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <Sparkles className="h-3.5 w-3.5" />
+        <span>Bulk Apply Recommendation</span>
+        <ChevronDown className="h-3.5 w-3.5" />
+      </Button>
+      {open && (
+        <div
+          className="cpv2-recommendation-bulk-menu"
+          role="menu"
+          aria-label="Bulk Apply Recommendation options"
+        >
+          <div className="cpv2-recommendation-bulk-subheader">
+            Select Recommendation Group
+          </div>
+          <div className="cpv2-recommendation-bulk-list">
+            {options.map((option) => {
+              const checked = selectedIds.includes(option.id);
+
+              return (
+                <div
+                  key={option.id}
+                  role="menuitemcheckbox"
+                  tabIndex={0}
+                  aria-checked={checked}
+                  className={cn(
+                    "cpv2-recommendation-bulk-option",
+                    checked && "is-selected",
+                  )}
+                  onClick={() => toggleOption(option.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === " " || event.key === "Enter") {
+                      event.preventDefault();
+                      toggleOption(option.id);
+                    }
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="cpv2-recommendation-bulk-checkbox"
+                  >
+                    <Checkbox
+                      checked={checked}
+                      className="pointer-events-none"
+                      aria-label={option.label}
+                    />
+                  </span>
+                  <span className="cpv2-recommendation-bulk-label">
+                    {option.label}
+                  </span>
+                  <span className="cpv2-recommendation-bulk-count">
+                    {option.count}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="cpv2-recommendation-bulk-footer">
+            <CpButton
+              type="button"
+              orbitVariant="Primary"
+              className="w-full"
+              disabled={applySelectedDisabled}
+              onClick={applySelectedOptions}
+            >
+              Apply Selected
+            </CpButton>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -6189,7 +6320,6 @@ function ClauseRequestForm({
   onSubmit: () => void;
 }) {
   const requestValue = draft?.requestedChange ?? request?.requestedChange ?? "";
-  const rationaleValue = draft?.rationale ?? request?.rationale ?? "";
   return (
     <div
       className={cn(
@@ -6224,7 +6354,7 @@ function ClauseRequestForm({
           </p>{" "}
         </div>
       )}{" "}
-      <div className="grid gap-orbit-base md:grid-cols-2">
+      <div className="grid gap-orbit-base">
         {" "}
         <div className="space-y-orbit-xs">
           {" "}
@@ -6239,21 +6369,6 @@ function ClauseRequestForm({
               onUpdate({ requestedChange: event.target.value })
             }
             placeholder={requestPlaceholder}
-            className={cn(
-              "min-h-[64px] cpv2-type-sm",
-              compact && "min-h-[58px] cpv2-type-xs",
-            )}
-          />{" "}
-        </div>{" "}
-        <div className="space-y-orbit-xs">
-          {" "}
-          <label className="cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-muted-foreground">
-            Rationale (optional)
-          </label>{" "}
-          <Textarea
-            value={rationaleValue}
-            onChange={(event) => onUpdate({ rationale: event.target.value })}
-            placeholder="Why is this change required?"
             className={cn(
               "min-h-[64px] cpv2-type-sm",
               compact && "min-h-[58px] cpv2-type-xs",
@@ -6278,17 +6393,17 @@ function ClauseRequestForm({
             {" "}
             Cancel{" "}
           </Button>{" "}
-          <Button
-            className={cn(
-              "h-8 gap-orbit-xs cpv2-type-xs",
-              compact && "h-7 cpv2-type-xs",
-            )}
+          <OrbitButton
+            variant="Primary"
+            size="Medium"
+            state={!requestValue.trim() ? "Disabled" : "Default"}
             disabled={!requestValue.trim()}
+            className="gap-orbit-xs"
             onClick={onSubmit}
           >
             {" "}
             <Sparkles className="h-3.5 w-3.5" /> {submitLabel}{" "}
-          </Button>{" "}
+          </OrbitButton>{" "}
         </div>{" "}
       </div>{" "}
     </div>
@@ -6398,6 +6513,15 @@ function ClauseDecisionCard({
     ? firstAnalysisDeviationBadgeClass
     : `${severityTone(clause.severity)} shrink-0 rounded-full px-orbit-xs py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium`;
   const showSeverityBadge = !isPureMissingClause(clause);
+  const reviewCardState: OrbitCardState =
+    pendingBasketRequest || decision === "request-update"
+      ? "Information"
+      : firstAnalysisCardStateForClause(clause);
+  const reviewCardStyle: OrbitCardStyle = {};
+  if (reviewCardState === "Default") {
+    reviewCardStyle["--orbit-color-card-indicator-default"] =
+      firstAnalysisCardIndicatorColorForClause(clause);
+  }
   if (displayMode === "row-scale" && !actions) {
     return (
       <ClauseRowScaleCard
@@ -6433,18 +6557,13 @@ function ClauseDecisionCard({
     );
   }
   return (
-    <div
-      id={`clause-row-${id}`}
-      className={cn(
-        "relative rounded-lg border border-border bg-card px-orbit-base py-orbit-base transition-colors",
-        decision === "request-update" &&
-          "border-l-[3px] border-l-[#185FA5] pl-orbit-s",
-        pendingBasketRequest &&
-          "border-l-[3px] border-l-[#185FA5] bg-[#E6F1FB]/20 pl-orbit-s",
-        highlighted && "ring-2 ring-primary/40 bg-primary/5",
-      )}
+    <OrbitClauseCardFrame
+      domId={`clause-row-${id}`}
+      highlighted={highlighted}
+      state={reviewCardState}
+      indicator
+      style={reviewCardStyle}
     >
-      {" "}
       <div className="flex min-w-0 items-center gap-orbit-s">
         {" "}
         <span className="w-[22px] shrink-0 tabular-nums cpv2-type-xs cpv2-orbit-weight-semibold text-muted-foreground">
@@ -6689,7 +6808,7 @@ function ClauseDecisionCard({
           />{" "}
         </div>
       )}{" "}
-    </div>
+    </OrbitClauseCardFrame>
   );
 }
 function ClauseRowScaleCard({
@@ -6743,18 +6862,15 @@ function ClauseRowScaleCard({
   onUndoDecision?: () => void;
 }) {
   const tier = clause.severity;
-  const theme = rowScaleSeverityThemes[tier];
   const noneDeviationClause = isNoneDeviationClause(clause);
-  const cardBackground = missingClause
-    ? rowScaleMissingClauseBackground
-    : noneDeviationClause
-      ? rowScaleNoneDeviationBackground
-    : theme.background;
-  const accentColor = missingClause
-    ? CPV2_FIRST_ANALYSIS_STATUS_THEME.missing.indicatorColor
-    : noneDeviationClause
-      ? CPV2_FIRST_ANALYSIS_STATUS_THEME.none.indicatorColor
-      : theme.accent;
+  const orbitCardState = firstAnalysisCardStateForClause(clause);
+  const cardStyle: OrbitCardStyle = {
+    minHeight: 104,
+  };
+  if (orbitCardState === "Default") {
+    cardStyle["--orbit-color-card-indicator-default"] =
+      firstAnalysisCardIndicatorColorForClause(clause);
+  }
   const severityLabel = noneDeviationClause
     ? "None Deviation"
     : hideSubclauseReference
@@ -6842,53 +6958,36 @@ function ClauseRowScaleCard({
     );
   }
   return (
-    <div
-      id={`clause-row-${id}`}
-      className={cn(
-        "relative min-h-[104px] overflow-hidden rounded-lg border border-border bg-card px-orbit-base py-orbit-base pl-orbit-m transition-colors",
-        highlighted && "ring-2 ring-primary/40",
-      )}
-      style={{ backgroundColor: cardBackground }}
+    <OrbitClauseCardFrame
+      domId={`clause-row-${id}`}
+      highlighted={highlighted}
+      state={orbitCardState}
+      indicator
+      style={cardStyle}
     >
-      {" "}
-      <span
-        className="absolute inset-y-0 left-0 w-1"
-        style={{ backgroundColor: accentColor }}
-      />{" "}
-      <div className="flex flex-col gap-orbit-s">
-        {" "}
-        <div className="flex flex-wrap items-center justify-between gap-orbit-s">
-          {" "}
-          <div className="flex flex-wrap items-center gap-orbit-s">
-            {" "}
-            {missingClause ? (
-              <FirstAnalysisStatusTag status="missing" />
-            ) : null}{" "}
+      <OrbitClauseCardHeader
+        title={clause.title}
+        metadata={`${id.toUpperCase()} · ${metadata}`}
+        badges={
+          <>
+            {missingClause ? <FirstAnalysisStatusTag status="missing" /> : null}
             {showSeverityBadge && (
               <FirstAnalysisStatusTag
                 status={severityStatusKey}
                 label={severityLabel}
               />
-            )}{" "}
+            )}
             {isDrafting && (
               <Badge
                 variant="outline"
                 className="rounded-full border-[#185FA5]/25 bg-[#E6F1FB] px-orbit-xs py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium text-[#0C447C]"
               >
-                {" "}
-                Drafting request{" "}
+                Drafting request
               </Badge>
-            )}{" "}
-          </div>{" "}
-          <p className="cpv2-type-xs text-muted-foreground">
-            {" "}
-            {id.toUpperCase()} · {metadata}{" "}
-          </p>{" "}
-        </div>{" "}
-        <h3 className="cpv2-orbit-heading-label text-foreground">
-          {clause.title}
-        </h3>{" "}
-      </div>{" "}
+            )}
+          </>
+        }
+      />
       {description && <FindingCallout text={description} />}{" "}
       {actionability && (
         <RecommendedActionCallout
@@ -6899,7 +6998,7 @@ function ClauseRowScaleCard({
       {requestForm ??
         (!noneDeviationClause ? (
         <div
-          className="mt-orbit-base flex flex-wrap items-center gap-orbit-s"
+          className="mt-orbit-base flex flex-wrap items-center gap-orbit-xs"
           onClick={(event) => event.stopPropagation()}
         >
           {" "}
@@ -6927,56 +7026,14 @@ function ClauseRowScaleCard({
           </Button>{" "}
         </div>
         ) : null)}{" "}
-    </div>
+    </OrbitClauseCardFrame>
   );
 }
-const rowScaleSeverityThemes: Record<
-  ClauseResult["severity"],
-  { accent: string; background: string; badgeClass: string }
-> = {
-  high: {
-    accent: "#A32D2D",
-    background: "#FFF6F4",
-    badgeClass: firstAnalysisDeviationBadgeClass,
-  },
-  medium: {
-    accent: "#BA7517",
-    background: "#FFF9EC",
-    badgeClass:
-      "shrink-0 rounded-full border-[#F1D29B] bg-[#FFF8E8] px-orbit-xs py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium text-[#854F0B]",
-  },
-  low: {
-    accent: CPV2_FIRST_ANALYSIS_STATUS_THEME.low.indicatorColor,
-    background: "#F5F5F2",
-    badgeClass:
-      "shrink-0 rounded-full border-[#D9D8D2] bg-[#F5F5F2] px-orbit-xs py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium text-[#5F5E5A]",
-  },
-};
-const rowScaleMissingClauseBackground = "#F2F8FE";
-const rowScaleNoneDeviationBackground = "#F8FCFA";
 function FindingCallout({ text }: { text: string }) {
   return (
-    <div className="mt-orbit-base rounded-md border border-border bg-white px-orbit-base py-orbit-s">
-      {" "}
-      <div className="flex items-start gap-orbit-s">
-        {" "}
-        <span className="mt-orbit-xxs grid h-5 w-5 shrink-0 place-items-center rounded-full border border-border bg-background text-muted-foreground">
-          {" "}
-          <Search className="h-3 w-3" />{" "}
-        </span>{" "}
-        <div className="min-w-0">
-          {" "}
-          <p className="cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-muted-foreground">
-            {" "}
-            Finding{" "}
-          </p>{" "}
-          <p className="mt-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium cpv2-leading-normal text-foreground/85">
-            {" "}
-            {renderFindingText(text)}{" "}
-          </p>{" "}
-        </div>{" "}
-      </div>{" "}
-    </div>
+    <OrbitFindingCallout icon={<Search className="h-3 w-3" />}>
+      {renderFindingText(text)}
+    </OrbitFindingCallout>
   );
 }
 function RecommendedActionCallout({
@@ -6987,32 +7044,12 @@ function RecommendedActionCallout({
   compactTop?: boolean;
 }) {
   return (
-    <div
-      className={cn(
-        compactTop ? "mt-orbit-s" : "mt-orbit-base",
-        "rounded-md border border-border bg-white px-orbit-base py-orbit-s",
-      )}
+    <OrbitRecommendedActionCallout
+      icon={<Lightbulb className="h-3 w-3" />}
+      compactTop={compactTop}
     >
-      {" "}
-      <div className="flex items-start gap-orbit-s">
-        {" "}
-        <span className="mt-orbit-xxs grid h-5 w-5 shrink-0 place-items-center rounded-full border border-border bg-background text-muted-foreground">
-          {" "}
-          <Lightbulb className="h-3 w-3" />{" "}
-        </span>{" "}
-        <div className="min-w-0">
-          {" "}
-          <p className="cpv2-type-xs cpv2-orbit-weight-semibold uppercase text-muted-foreground">
-            {" "}
-            Recommended action{" "}
-          </p>{" "}
-          <p className="mt-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium cpv2-leading-normal text-foreground">
-            {" "}
-            {text}{" "}
-          </p>{" "}
-        </div>{" "}
-      </div>{" "}
-    </div>
+      {text}
+    </OrbitRecommendedActionCallout>
   );
 }
 function renderFindingText(text: string) {
@@ -7109,6 +7146,10 @@ type RecommendationApplyScope =
   | "low"
   | "missing"
   | "none";
+interface RecommendationApplyScopeMeta {
+  toastLabel: string;
+  undoLabel: string;
+}
 interface RecommendationApplyOption {
   id: RecommendationApplyScope;
   label: string;
@@ -7173,6 +7214,31 @@ function buildRecommendationApplyOptions(
     },
   ];
 }
+function mergeRecommendationApplyTargets(options: RecommendationApplyOption[]) {
+  const seenTargetIds = new Set<string>();
+  const targets: RecommendationTargetItem[] = [];
+
+  options.forEach((option) => {
+    option.targets.forEach((target) => {
+      if (seenTargetIds.has(target.id)) return;
+      seenTargetIds.add(target.id);
+      targets.push(target);
+    });
+  });
+
+  return targets;
+}
+function buildRecommendationApplyScopeMeta(
+  options: RecommendationApplyOption[],
+): RecommendationApplyScopeMeta | undefined {
+  if (options.length === 0) return undefined;
+  if (options.length === 1) return options[0];
+
+  return {
+    toastLabel: "selected recommendation",
+    undoLabel: "selected",
+  };
+}
 function targetMatchesRecommendationScope(
   target: RecommendationTargetItem,
   scope: RecommendationApplyScope,
@@ -7183,20 +7249,12 @@ function targetMatchesRecommendationScope(
       target.missingClause && target.sourceDeviationLevel === "None",
     );
   if (scope === "none")
-    return Boolean(
-      target.sourceDeviationLevel === "None" && !target.missingClause,
-    );
+    return target.sourceDeviationLevel === "None";
   const sourceDeviationLevel = target.sourceDeviationLevel?.toLowerCase();
   return (
     sourceDeviationLevel === scope ||
     (!sourceDeviationLevel && target.severity === scope)
   );
-}
-function reviewClauseCardTone(severity?: ClauseResult["severity"]) {
-  if (severity === "high") return "border-l-[#E5484D] bg-[#FFF7F7]";
-  if (severity === "medium") return "border-l-[#F59E0B] bg-[#FFFBEB]";
-  if (severity === "low") return "border-l-[#5F5E5A] bg-[#F5F5F2]";
-  return "border-l-border bg-white";
 }
 function ClauseReviewModalCard({
   domId,
@@ -7243,6 +7301,26 @@ function ClauseReviewModalCard({
   useEffect(() => {
     if (!editing) setDraft(request);
   }, [editing, request]);
+  const handledClause =
+    severity !== undefined
+      ? {
+          severity,
+          missingClause: Boolean(missingClause),
+          sourceDeviationLevel,
+        }
+      : null;
+  const reviewCardState: OrbitCardState = handledClause
+    ? firstAnalysisCardStateForClause(handledClause)
+    : statusTone === "green"
+      ? "Success"
+      : statusTone === "blue"
+        ? "Information"
+        : "Default";
+  const reviewCardStyle: OrbitCardStyle = {};
+  if (handledClause && reviewCardState === "Default") {
+    reviewCardStyle["--orbit-color-card-indicator-default"] =
+      firstAnalysisCardIndicatorColorForClause(handledClause);
+  }
   const canSave = Boolean(draft.requestedChange?.trim());
   const saveDraft = () => {
     if (!canSave || !onUpdate) return;
@@ -7252,43 +7330,125 @@ function ClauseReviewModalCard({
     });
     setEditing(false);
   };
-  return (
+
+  const actionRow = (
     <div
-      id={domId}
-      className={cn(
-        "rounded-lg border border-l-4 px-orbit-base py-orbit-base shadow-sm",
-        pureMissing
-          ? "border-l-[#185FA5] bg-[#F2F8FE]"
-          : reviewClauseCardTone(severity),
-        highlighted && "ring-2 ring-primary/40",
-      )}
+      className="mt-orbit-base flex flex-wrap items-center gap-orbit-xs"
+      onClick={(event) => event.stopPropagation()}
     >
-      {" "}
-      <div className="flex flex-wrap items-start justify-between gap-orbit-s">
-        {" "}
-        <div className="flex flex-wrap items-center gap-orbit-xs">
-          {" "}
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => {
+          if (editMode === "external") {
+            onEditRequest?.();
+            return;
+          }
+          setEditing((current) => !current);
+        }}
+      >
+        <Pencil className="h-3.5 w-3.5" /> Edit Request
+      </Button>
+      <Button type="button" variant="outline" onClick={onRemove}>
+        {secondaryActionIcon === undefined ? (
+          <Trash2 className="h-3.5 w-3.5" />
+        ) : (
+          secondaryActionIcon
+        )}{" "}
+        {secondaryActionLabel}
+      </Button>
+    </div>
+  );
+
+  const editor =
+    editing && editMode === "inline" ? (
+      <div
+        className="mt-orbit-base rounded-lg border border-border bg-white/85 p-orbit-base"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="grid gap-orbit-base">
+          <label className="grid gap-orbit-xs cpv2-type-xs cpv2-orbit-weight-medium text-foreground">
+            Requested change
+            <Textarea
+              value={draft.requestedChange ?? ""}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  requestedChange: event.target.value,
+                }))
+              }
+              className="min-h-[72px] resize-none bg-white cpv2-type-xs cpv2-orbit-weight-regular cpv2-leading-normal"
+            />
+          </label>
+          <label className="grid gap-orbit-xs cpv2-type-xs cpv2-orbit-weight-medium text-foreground">
+            Rationale
+            <Textarea
+              value={draft.rationale ?? ""}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  rationale: event.target.value,
+                }))
+              }
+              placeholder="Add why this change is needed before supplier negotiation."
+              className="min-h-[64px] resize-none bg-white cpv2-type-xs cpv2-orbit-weight-regular cpv2-leading-normal"
+            />
+          </label>
+        </div>
+        <div className="mt-orbit-base flex justify-end gap-orbit-s">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-8"
+            onClick={() => setEditing(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            className="h-8"
+            disabled={!canSave}
+            onClick={saveDraft}
+          >
+            Save changes
+          </Button>
+        </div>
+      </div>
+    ) : null;
+
+  return (
+    <OrbitHandledClauseCard
+      domId={domId}
+      highlighted={highlighted}
+      state={reviewCardState}
+      indicator
+      style={reviewCardStyle}
+      itemId={itemId}
+      category={category}
+      title={title}
+      requestedChange={request.requestedChange || "No requested change entered yet."}
+      rationale={request.rationale}
+      headerBadges={
+        <>
           {pureMissing && (
-            <Badge
-              variant="outline"
-              className={firstAnalysisMissingClauseBadgeClass}
-            >
-              {" "}
-              Missing Clause{" "}
+            <Badge variant="outline" className={firstAnalysisMissingClauseBadgeClass}>
+              Missing Clause
             </Badge>
-          )}{" "}
+          )}
           {severity && !pureMissing && (
-            <Badge
-              variant="outline"
-              className={cn(
-                "h-5 rounded-full px-orbit-s cpv2-type-xs cpv2-orbit-weight-medium",
-                severityTone(severity),
-              )}
-            >
-              {" "}
-              {titleCaseSeverity(severity)} Deviation{" "}
-            </Badge>
-          )}{" "}
+            <FirstAnalysisStatusTag
+              status={
+                sourceDeviationLevel === "None"
+                  ? "none"
+                  : firstAnalysisSeverityStatus[severity]
+              }
+              label={
+                sourceDeviationLevel === "None"
+                  ? "None Deviation"
+                  : `${titleCaseSeverity(severity)} Deviation`
+              }
+            />
+          )}
           <Badge
             variant="outline"
             className={cn(
@@ -7301,126 +7461,13 @@ function ClauseReviewModalCard({
                 "border-border bg-white text-muted-foreground",
             )}
           >
-            {" "}
-            {statusLabel}{" "}
-          </Badge>{" "}
-        </div>{" "}
-        <p className="shrink-0 cpv2-type-xs text-muted-foreground">
-          {" "}
-          {itemId.toUpperCase()}
-          {category ? ` · ${category}` : ""}{" "}
-        </p>{" "}
-      </div>{" "}
-      <div className="mt-orbit-s min-w-0">
-        {" "}
-        <p className="truncate cpv2-type-sm cpv2-orbit-weight-semibold text-foreground">
-          {title}
-        </p>{" "}
-        <p className="mt-orbit-xxs line-clamp-2 cpv2-type-xs cpv2-leading-snug text-muted-foreground">
-          {" "}
-          {request.requestedChange || "No requested change entered yet."}{" "}
-        </p>{" "}
-        {request.rationale && (
-          <p className="mt-orbit-xs line-clamp-2 cpv2-type-xs cpv2-leading-snug text-muted-foreground">
-            {" "}
-            <span className="cpv2-orbit-weight-medium text-foreground">
-              Rationale:
-            </span>{" "}
-            {request.rationale}{" "}
-          </p>
-        )}{" "}
-      </div>{" "}
-      <div
-        className="mt-orbit-base flex flex-wrap items-center gap-orbit-s"
-        onClick={(event) => event.stopPropagation()}
-      >
-        {" "}
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            if (editMode === "external") {
-              onEditRequest?.();
-              return;
-            }
-            setEditing((current) => !current);
-          }}
-        >
-          {" "}
-          <Pencil className="h-3.5 w-3.5" /> Edit Request{" "}
-        </Button>{" "}
-        <Button type="button" variant="outline" onClick={onRemove}>
-          {" "}
-          {secondaryActionIcon === undefined ? (
-            <Trash2 className="h-3.5 w-3.5" />
-          ) : (
-            secondaryActionIcon
-          )}{" "}
-          {secondaryActionLabel}{" "}
-        </Button>{" "}
-      </div>{" "}
-      {editing && editMode === "inline" && (
-        <div
-          className="mt-orbit-base rounded-lg border border-border bg-white/85 p-orbit-base"
-          onClick={(event) => event.stopPropagation()}
-        >
-          {" "}
-          <div className="grid gap-orbit-base">
-            {" "}
-            <label className="grid gap-orbit-xs cpv2-type-xs cpv2-orbit-weight-medium text-foreground">
-              {" "}
-              Requested change{" "}
-              <Textarea
-                value={draft.requestedChange ?? ""}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    requestedChange: event.target.value,
-                  }))
-                }
-                className="min-h-[72px] resize-none bg-white cpv2-type-xs cpv2-orbit-weight-regular cpv2-leading-normal"
-              />{" "}
-            </label>{" "}
-            <label className="grid gap-orbit-xs cpv2-type-xs cpv2-orbit-weight-medium text-foreground">
-              {" "}
-              Rationale{" "}
-              <Textarea
-                value={draft.rationale ?? ""}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    rationale: event.target.value,
-                  }))
-                }
-                placeholder="Add why this change is needed before supplier negotiation."
-                className="min-h-[64px] resize-none bg-white cpv2-type-xs cpv2-orbit-weight-regular cpv2-leading-normal"
-              />{" "}
-            </label>{" "}
-          </div>{" "}
-          <div className="mt-orbit-base flex justify-end gap-orbit-s">
-            {" "}
-            <Button
-              type="button"
-              variant="outline"
-              className="h-8"
-              onClick={() => setEditing(false)}
-            >
-              {" "}
-              Cancel{" "}
-            </Button>{" "}
-            <Button
-              type="button"
-              className="h-8"
-              disabled={!canSave}
-              onClick={saveDraft}
-            >
-              {" "}
-              Save changes{" "}
-            </Button>{" "}
-          </div>{" "}
-        </div>
-      )}{" "}
-    </div>
+            {statusLabel}
+          </Badge>
+        </>
+      }
+      actions={actionRow}
+      editor={editor}
+    />
   );
 }
 function requestCsvEscape(value: string | number | undefined | null) {

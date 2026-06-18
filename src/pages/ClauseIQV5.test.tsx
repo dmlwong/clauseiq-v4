@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi, beforeAll } from "vitest";
 import ClauseIQV5 from "./ClauseIQV5";
 import { CIQ_DEFAULT_PLAYBOOK } from "@/lib/clauseiq-v4-data";
 import { TooltipProvider } from "@/components/clauseiq-v5/orbit-ui/tooltip";
+import { SupplierOutputsPanel } from "@/components/clauseiq-v5/supplier-results";
+import { mockInitiative } from "@/data/mock-clauseiq";
 
 function renderClauseIQ(
   route = "/clauseiq-v5",
@@ -235,8 +237,29 @@ describe("ClauseIQ V5 flow", () => {
     expect(screen.getAllByText("Thomson Reuters").length).toBeGreaterThan(0);
     expect(screen.queryByText("Kira Systems")).not.toBeInTheDocument();
     expect(screen.queryByText("API_Kira_v3.pdf")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Score 56").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("View Results").length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText("Download").length).toBeGreaterThan(0);
     expect(screen.queryByText("No outputs yet")).not.toBeInTheDocument();
+
+    expect(screen.getAllByText("vs previous").length).toBeGreaterThan(0);
+  });
+
+  it("renders historical score deltas when multiple supplier outputs are visible", () => {
+    render(
+      <TooltipProvider>
+        <SupplierOutputsPanel initiative={mockInitiative} initialOutputScope="team" outputState="filled" />
+      </TooltipProvider>,
+    );
+
+    screen.queryAllByLabelText("Expand Thomson Reuters outputs").forEach((button) => {
+      fireEvent.click(button);
+    });
+
+    expect(screen.getAllByText("Score 48").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("+12").length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText("View Results").length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText("Download").length).toBeGreaterThan(0);
   });
 
   it("shows next actions below the completed output-panel analysis", () => {

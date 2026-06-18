@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BarChart2, ChevronDown, Download, FileText, Loader2, RotateCw, Search } from "lucide-react";
+import {
+  ArrowDownRight,
+  ArrowRight,
+  ArrowUpRight,
+  BarChart2,
+  ChevronDown,
+  Download,
+  FileText,
+  Loader2,
+  RotateCw,
+  Search,
+} from "lucide-react";
 import { Card, MultiStateButton, MultiStateGroup } from "@orbit";
 import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/clauseiq-v5/orbit-ui/tooltip";
@@ -14,8 +25,26 @@ import { SupplierAvatar } from "./SupplierAvatar";
 import type { ResultsViewProps, SupplierOutputsPanelState } from "./types";
 
 type OutputScope = "team" | "mine";
+type OutputScoreTrend = "up" | "down" | "flat";
 
 const MINE_ANALYSIS_IDS = new Set(["a-001", "a-004", "a-007"]);
+const SUPPLIER_OUTPUT_SCORE_BY_ANALYSIS_ID: Record<string, number> = {
+  "a-001": 56,
+  "a-002": 48,
+  "a-003": 36,
+  "a-004": 62,
+  "a-005": 51,
+  "a-006": 78,
+  "a-007": 58,
+  "a-008": 46,
+  "a-009": 74,
+};
+
+interface OutputScorePresentation {
+  score: number;
+  deltaFromPrevious: number;
+  trend: OutputScoreTrend;
+}
 
 export function OutputPanelResultsContent({
   initiative,
@@ -155,7 +184,7 @@ export function SupplierOutputsPanel({
         <div className="space-y-orbit-base">
           <div className="clauseiq-responsive-output-panel-header flex w-full items-baseline justify-between gap-orbit-s">
             <h2 className="v5-orbit-heading-strong">Supplier Outputs</h2>
-            <p className="shrink-0 text-right text-xs text-muted-foreground">
+            <p className="shrink-0 text-right v5-orbit-text-small text-muted-foreground">
               {supplierCount} {supplierCount === 1 ? "supplier" : "suppliers"} &middot; {outputCount}{" "}
               {outputCount === 1 ? "output" : "outputs"}
             </p>
@@ -190,7 +219,7 @@ export function SupplierOutputsPanel({
           <>
             {hasOutputs ? (
               <Card type="Static" state="Default" padding="Base">
-                <div className="text-sm text-muted-foreground">No outputs match this view.</div>
+                <div className="v5-orbit-text-body text-muted-foreground">No outputs match this view.</div>
               </Card>
             ) : (
               <SupplierPanelEmptyState
@@ -248,7 +277,7 @@ function SupplierPanelEmptyState({
           </div>
         </div>
         <h3 className="v5-orbit-heading-5 mt-orbit-m">{title}</h3>
-        <p className="mt-orbit-s text-sm leading-relaxed text-muted-foreground">{copy}</p>
+        <p className="mt-orbit-s v5-orbit-text-body text-muted-foreground">{copy}</p>
       </div>
     </div>
   );
@@ -262,7 +291,7 @@ function NoPreviousAnalysisState({ onRunAgain }: { onRunAgain?: () => void }) {
           <FileText className="h-5 w-5" />
         </div>
         <h3 className="v5-orbit-heading-5 mt-orbit-base">No analysis outputs yet</h3>
-        <p className="mx-auto mt-orbit-s max-w-sm text-sm text-muted-foreground">
+        <p className="mx-auto mt-orbit-s max-w-sm v5-orbit-text-body text-muted-foreground">
           Once the first supplier contract is analysed, the result card will appear here with the supplier output summary.
         </p>
         {onRunAgain && (
@@ -292,68 +321,73 @@ function SupplierOutputGroup({
   onViewResult?: () => void;
 }) {
   const analyses = newestFirst(supplier.analyses);
+  const scoresByAnalysisId = getSupplierScorePresentationByAnalysisId(analyses);
   const contentId = `supplier-output-${supplier.id}`;
   const containsLatestOutput = supplier.analyses.some((analysis) => analysis.id === latestAnalysisId);
 
   return (
     <section className="overflow-hidden">
       <Card type="Static" state="Default" padding="Small">
-      <div className="flex w-full items-center gap-orbit-s py-orbit-s text-left">
-        <SupplierAvatar
-          name={supplier.name}
-          shortCode={supplier.shortCode}
-          severity={supplierSeverity(supplier.analyses)}
-          size="sm"
-        />
-        <div className="min-w-0 flex-1">
-          <h3 className="v5-orbit-heading-label truncate">{supplier.name}</h3>
-          <p className="text-xs text-muted-foreground">
+        <div className="flex w-full items-center gap-orbit-s py-orbit-s text-left">
+          <SupplierAvatar
+            name={supplier.name}
+            shortCode={supplier.shortCode}
+            severity={supplierSeverity(supplier.analyses)}
+            size="sm"
+          />
+          <div className="min-w-0 flex-1">
+            <h3 className="v5-orbit-heading-label truncate">{supplier.name}</h3>
+          </div>
+          <p className="shrink-0 whitespace-nowrap text-right v5-orbit-text-small text-muted-foreground">
             {supplier.analyses.length} {supplier.analyses.length === 1 ? "output" : "outputs"}
             {containsLatestOutput && <span className="v5-orbit-weight-medium"> - Latest output</span>}
           </p>
+          <button
+            type="button"
+            className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-expanded={open}
+            aria-controls={contentId}
+            aria-label={`${open ? "Collapse" : "Expand"} ${supplier.name} outputs`}
+            onClick={onToggle}
+          >
+            <motion.span
+              animate={{ rotate: open ? 180 : 0 }}
+              transition={{ duration: 0.16 }}
+              aria-hidden="true"
+            >
+              <ChevronDown className="h-4 w-4" />
+            </motion.span>
+          </button>
         </div>
-        <button
-          type="button"
-          className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-expanded={open}
-          aria-controls={contentId}
-          aria-label={`${open ? "Collapse" : "Expand"} ${supplier.name} outputs`}
-          onClick={onToggle}
-        >
-          <motion.span
-            animate={{ rotate: open ? 180 : 0 }}
-            transition={{ duration: 0.16 }}
-            aria-hidden="true"
-          >
-            <ChevronDown className="h-4 w-4" />
-          </motion.span>
-        </button>
-      </div>
 
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            id={contentId}
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
-            className="overflow-hidden"
-          >
-            <div className="divide-y divide-border/70 border-t border-border/70">
-              {analyses.map((analysis) => (
-                <CompactOutputRow
-                  key={analysis.id}
-                  analysis={analysis}
-                  isLatestOutput={analysis.id === latestAnalysisId}
-                  onDownload={onDownload}
-                  onViewResult={onViewResult}
-                />
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        <AnimatePresence initial={false}>
+          {open && (
+            <motion.div
+              id={contentId}
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="overflow-hidden"
+            >
+              <div className="border-t border-border/70 pt-orbit-base">
+                {analyses.map((analysis, index) => (
+                  <div key={analysis.id}>
+                    {index > 0 && <div className="my-orbit-m h-px bg-border/70" aria-hidden="true" />}
+                    <CompactOutputRow
+                      analysis={analysis}
+                      displayFileName={displayFileNameForSupplierAnalysis(supplier, analysis)}
+                      score={scoresByAnalysisId[analysis.id]}
+                      isLatestOutput={analysis.id === latestAnalysisId}
+                      onDownload={onDownload}
+                      onViewResult={onViewResult}
+                    />
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </Card>
     </section>
   );
@@ -361,43 +395,93 @@ function SupplierOutputGroup({
 
 function CompactOutputRow({
   analysis,
+  displayFileName,
+  score,
   isLatestOutput,
   onDownload,
   onViewResult,
 }: {
   analysis: ClauseAnalysis;
+  displayFileName: string;
+  score?: OutputScorePresentation;
   isLatestOutput: boolean;
   onDownload?: () => void;
   onViewResult?: () => void;
 }) {
   return (
-    <article className="pt-orbit-s">
-      <div className="flex items-start justify-between gap-orbit-s">
-        <div className="min-w-0">
-          <p className="truncate text-xs v5-orbit-weight-medium text-foreground">{analysis.fileName}</p>
-          {isLatestOutput && <p className="mt-orbit-xxs text-[11px] v5-orbit-weight-medium text-muted-foreground">Latest output</p>}
+    <article className="px-orbit-xs">
+      {isLatestOutput && (
+        <div className="mb-orbit-xxs">
+          <span className="v5-orbit-text-small text-muted-foreground">Latest output</span>
         </div>
-        <time
-          dateTime={analysis.analysedAt}
-          className="shrink-0 text-right text-[11px] leading-snug text-muted-foreground"
-        >
-          {formatCompactTimestamp(analysis.analysedAt)}
-        </time>
+      )}
+      <div className="flex items-center justify-between gap-orbit-s">
+        <p className="min-w-0 flex-1 truncate whitespace-nowrap v5-orbit-text-small v5-orbit-weight-medium text-foreground">
+          {displayFileName}
+        </p>
+        <CompactOutputMeta
+          analysedAt={analysis.analysedAt}
+          onDownload={onDownload}
+          onViewResult={onViewResult}
+        />
       </div>
+
+      {score && (
+        <div className="mt-orbit-xs">
+          <OutputScoreLine score={score} />
+        </div>
+      )}
 
       <div className="mt-orbit-base">
-        <DeviationPills deviations={analysis.deviations} compact />
-      </div>
-
-      <div className="clauseiq-responsive-compact-output-actions mt-orbit-base grid grid-cols-2 gap-orbit-xs">
-        <CompactActionButton label="View Results" onClick={onViewResult}>
-          <BarChart2 className="h-3.5 w-3.5" />
-        </CompactActionButton>
-        <CompactActionButton label="Download" onClick={onDownload}>
-          <Download className="h-3.5 w-3.5" />
-        </CompactActionButton>
+        <DeviationPills deviations={analysis.deviations} compact singleLine />
       </div>
     </article>
+  );
+}
+
+function OutputScoreLine({ score }: { score: OutputScorePresentation }) {
+  return (
+    <div className="flex min-w-0 items-center gap-orbit-s whitespace-nowrap">
+      <span className="v5-orbit-text-body v5-orbit-weight-medium text-foreground">Score {score.score}</span>
+      <span
+        className={cn(
+          "inline-flex items-center gap-[4px] v5-orbit-text-small v5-orbit-weight-medium",
+          scoreTrendTextClass(score.trend),
+        )}
+      >
+        {scoreTrendIcon(score.trend)}
+        {formatDelta(score.deltaFromPrevious)}
+      </span>
+      <span className="v5-orbit-text-small text-muted-foreground">vs previous</span>
+    </div>
+  );
+}
+
+function CompactOutputMeta({
+  analysedAt,
+  onDownload,
+  onViewResult,
+}: {
+  analysedAt: string;
+  onDownload?: () => void;
+  onViewResult?: () => void;
+}) {
+  return (
+    <div className="shrink-0 text-right v5-orbit-text-small text-muted-foreground">
+      <div className="inline-flex items-center gap-orbit-s whitespace-nowrap">
+        <div className="inline-flex items-center gap-orbit-xs whitespace-nowrap">
+          <time dateTime={analysedAt}>{formatCompactTimestamp(analysedAt)}</time>
+        </div>
+        <div className="inline-flex items-center gap-orbit-xs">
+          <CompactActionButton label="View Results" onClick={onViewResult}>
+            <BarChart2 className="h-3.5 w-3.5" />
+          </CompactActionButton>
+          <CompactActionButton label="Download" onClick={onDownload}>
+            <Download className="h-3.5 w-3.5" />
+          </CompactActionButton>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -415,7 +499,7 @@ function CompactActionButton({
       <TooltipTrigger asChild>
         <Button
           variant="outline"
-          className="h-7 w-full px-orbit-none"
+          className="h-7 w-7 px-orbit-none"
           aria-label={label}
           title={label}
           onClick={onClick}
@@ -423,11 +507,61 @@ function CompactActionButton({
           {children}
         </Button>
       </TooltipTrigger>
-      <TooltipContent side="bottom" className="text-xs">
+      <TooltipContent side="bottom" className="v5-orbit-text-small">
         {label}
       </TooltipContent>
     </Tooltip>
   );
+}
+
+function getSupplierScorePresentationByAnalysisId(analyses: ClauseAnalysis[]): Record<string, OutputScorePresentation> {
+  const chronological = [...analyses].sort(
+    (a, b) => Date.parse(a.analysedAt) - Date.parse(b.analysedAt),
+  );
+
+  return chronological.reduce<Record<string, OutputScorePresentation>>((scores, analysis, index) => {
+    const score = SUPPLIER_OUTPUT_SCORE_BY_ANALYSIS_ID[analysis.id];
+    if (typeof score !== "number") return scores;
+
+    const previousAnalysis = chronological[index - 1];
+    const previousScore = previousAnalysis
+      ? SUPPLIER_OUTPUT_SCORE_BY_ANALYSIS_ID[previousAnalysis.id]
+      : undefined;
+    const deltaFromPrevious = typeof previousScore === "number" ? score - previousScore : 0;
+
+    scores[analysis.id] = {
+      score,
+      deltaFromPrevious,
+      trend: scoreTrendFromDelta(deltaFromPrevious),
+    };
+    return scores;
+  }, {});
+}
+
+function displayFileNameForSupplierAnalysis(supplier: Supplier, analysis: ClauseAnalysis): string {
+  return newestFirst(supplier.analyses)[0]?.fileName ?? analysis.fileName;
+}
+
+function scoreTrendFromDelta(delta: number): OutputScoreTrend {
+  if (delta > 0) return "up";
+  if (delta < 0) return "down";
+  return "flat";
+}
+
+function scoreTrendTextClass(trend: OutputScoreTrend) {
+  if (trend === "up") return "text-emerald-700";
+  if (trend === "down") return "text-rose-700";
+  return "text-muted-foreground";
+}
+
+function scoreTrendIcon(trend: OutputScoreTrend) {
+  if (trend === "up") return <ArrowUpRight className="h-3 w-3" />;
+  if (trend === "down") return <ArrowDownRight className="h-3 w-3" />;
+  return <ArrowRight className="h-3 w-3" />;
+}
+
+function formatDelta(delta: number) {
+  return delta > 0 ? `+${delta}` : `${delta}`;
 }
 
 function sortSuppliersByLatestChange(suppliers: Supplier[]): Supplier[] {
@@ -476,12 +610,9 @@ function latestChangeTime(supplier: Supplier): number {
 }
 
 function formatCompactTimestamp(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
+  return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
   });
 }

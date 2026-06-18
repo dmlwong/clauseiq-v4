@@ -1,0 +1,40 @@
+.toggleCard {
+  display: block;
+  width: 100%;
+  padding: 0;
+  background-color: var(--orbit-color-togglecard-bg);
+  border: 1px solid var(--orbit-color-togglecard-border);
+  border-radius: var(--orbit-radius-md);
+  box-shadow: var(--orbit-shadow-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.toggleCard:focus-visible {
+  outline: 2px solid var(--orbit-color-border-focused);
+  outline-offset: 2px;
+}
+
+.toggleCard:hover:not(.disabled) {
+  background-color: var(--orbit-color-togglecard-bg-hover);
+  box-shadow: var(--orbit-shadow-md);
+}
+
+.hover {
+  background-color: var(--orbit-color-togglecard-bg-hover);
+  box-shadow: var(--orbit-shadow-md);
+}
+
+.selected {
+  background-color: var(--orbit-color-togglecard-bg-selected);
+  border-color: var(--orbit-color-togglecard-border-selected);
+}
+
+.disabled {
+  background-color: var(--orbit-color-togglecard-bg-disabled);
+  border-color: var(--orbit-color-togglecard-border-disabled);
+  box-shadow: var(--orbit-shadow-none);
+  cursor: default;
+  pointer-events: none;
+}

@@ -18,6 +18,7 @@ import ClauseIQV5Test from "./pages/ClauseIQV5Test.tsx";
 import ClauseIQV4DeviationProminence from "./pages/ClauseIQV4DeviationProminence.tsx";
 import ClauseIQV4OrbitPreview from "./pages/ClauseIQV4OrbitPreview.tsx";
 import ClauseIQV5DeviationProminence from "./pages/ClauseIQV5DeviationProminence.tsx";
+import ClauseIQV5OutputScoreExploration from "./pages/ClauseIQV5OutputScoreExploration.tsx";
 import UsabilityStudyV2 from "./pages/UsabilityStudyV2.tsx";
 import UsabilityStudyV3 from "./pages/UsabilityStudyV3.tsx";
 import UsabilityStudyV4 from "./pages/UsabilityStudyV4.tsx";
@@ -66,6 +67,7 @@ const App = () => (
           <Route path="/clauseiq-v5" element={<ClauseIQV5 />} />
           <Route path="/clauseiq-v5/test" element={<ClauseIQV5Test />} />
           <Route path="/clauseiq-v5/output-panel" element={<ClauseIQV5 forceResults resultsLayout="output-panel" />} />
+          <Route path="/clauseiq-v5/output-score-exploration" element={<ClauseIQV5OutputScoreExploration />} />
           <Route path="/clauseiq-v5/deviation-prominence" element={<ClauseIQV5DeviationProminence />} />
           <Route path="/clauseiq-responsive-testing" element={<ClauseIQResponsiveTesting />} />
           <Route

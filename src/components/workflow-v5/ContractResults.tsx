@@ -21,6 +21,7 @@ import {
   Table as OrbitTable,
   Button as OrbitButton,
   Text,
+  ToggleCard,
 } from "@orbit";
 import { showV5OrbitToast as toast } from "@/components/clauseiq-v5/V5OrbitToast";
 import { V5OrbitConfirmOverlay, V5OrbitOverlay } from "@/components/clauseiq-v5/V5OrbitOverlay";
@@ -4263,15 +4264,6 @@ function PairSelector({
   );
 }
 
-const categorySidebarRowClassName = (active: boolean, disabled = false) => cn(
-  "flex w-full items-center rounded-md border px-orbit-s py-orbit-xs transition-colors",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]",
-  active
-    ? "border-[var(--orbit-color-card-border-highlight)] bg-[var(--orbit-color-card-bg-highlight)]"
-    : "border-transparent hover:border-[var(--orbit-color-card-border-hover)] hover:bg-[var(--orbit-color-btn-secondary-bg-hover)]",
-  disabled && "opacity-60",
-);
-
 function CategorySidebar({
   categories,
   total,
@@ -4293,6 +4285,7 @@ function CategorySidebar({
   const rowRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const sortedCategories = useMemo(() => sortCategorySidebarItems(categories, sort), [categories, sort]);
   const activeCategorySet = useMemo(() => new Set(activeCategories), [activeCategories]);
+  const categoryToggleCardStyle: CSSProperties = { boxShadow: "var(--orbit-shadow-none)" };
 
   const handleRowKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
@@ -4321,48 +4314,52 @@ function CategorySidebar({
       )}
 
       <div className="space-y-orbit-xs">
-        <button
+        <ToggleCard
           ref={(node) => {
             rowRefs.current[0] = node;
           }}
-          type="button"
-          role="button"
+          status={activeCategories.length === 0 ? "Selected" : "Default"}
           aria-pressed={activeCategories.length === 0}
           aria-label={`Clear category filters, ${total} clauses`}
           onClick={() => onSelectCategory(null)}
           onKeyDown={(event) => handleRowKeyDown(event, 0)}
-          className={cn(categorySidebarRowClassName(activeCategories.length === 0), "justify-between")}
+          className="overflow-hidden"
+          style={categoryToggleCardStyle}
         >
-          <Text as="span" size="Small" variant={activeCategories.length === 0 ? "Bold" : "Secondary"}>
-            All
-          </Text>
-          <Chip label={String(total)} size="Mini" variant={activeCategories.length === 0 ? "Additional" : "No Status"} contrast="Low" />
-        </button>
+          <span className="flex w-full items-center justify-between gap-orbit-s px-orbit-s py-orbit-xs">
+            <Text as="span" size="Small" variant="Secondary">
+              All
+            </Text>
+            <Chip label={String(total)} size="Mini" variant="No Status" contrast="Low" />
+          </span>
+        </ToggleCard>
 
         {sortedCategories.map((category, index) => {
           const active = activeCategorySet.has(category.name);
           const rowIndex = index + 1;
           return (
-            <button
+            <ToggleCard
               key={category.name}
               ref={(node) => {
                 rowRefs.current[rowIndex] = node;
               }}
-              type="button"
-              role="button"
+              status={category.count === 0 ? "Disabled" : active ? "Selected" : "Default"}
               aria-pressed={active}
               aria-label={`${active ? "Remove" : "Add"} ${category.name} category filter, ${category.count} clauses`}
               onClick={() => onSelectCategory(category.name)}
               onKeyDown={(event) => handleRowKeyDown(event, rowIndex)}
-              className={cn(categorySidebarRowClassName(active, category.count === 0), "gap-orbit-s")}
+              className="overflow-hidden"
+              style={categoryToggleCardStyle}
             >
-              <span className="min-w-0 flex-1 truncate" style={{ textAlign: "left" }}>
-                <Text as="span" size="Small" variant={active ? "Bold" : "Secondary"}>
-                  {category.name}
-                </Text>
+              <span className="flex w-full items-center gap-orbit-s px-orbit-s py-orbit-xs">
+                <span className="min-w-0 flex-1 truncate" style={{ textAlign: "left" }}>
+                  <Text as="span" size="Small" variant="Secondary">
+                    {category.name}
+                  </Text>
+                </span>
+                <Chip label={String(category.count)} size="Mini" variant="No Status" contrast="Low" />
               </span>
-              <Chip label={String(category.count)} size="Mini" variant={active ? "Additional" : "No Status"} contrast="Low" />
-            </button>
+            </ToggleCard>
           );
         })}
       </div>

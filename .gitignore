@@ -9,6 +9,9 @@ lerna-debug.log*
 
 node_modules
 dist
+!src/vendor/orbit/dist/
+!src/vendor/orbit/dist/layout/
+!src/vendor/orbit/dist/layout/ToggleCard.*
 dist-ssr
 *.local
 *.tsbuildinfo

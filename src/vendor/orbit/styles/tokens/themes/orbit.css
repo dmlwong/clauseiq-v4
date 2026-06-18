@@ -38,6 +38,13 @@
   --orbit-color-card-indicator-success: #4ade80;
   --orbit-color-card-indicator-warning: #ffae2f;
 
+  /* --- ToggleCard --- */
+  --orbit-color-togglecard-border: #e2e8f0;
+  --orbit-color-togglecard-bg-hover: #f1f5f9;
+  --orbit-color-togglecard-border-selected: #615fff;
+  --orbit-color-togglecard-bg-disabled: #e2e8f0;
+  --orbit-color-togglecard-border-disabled: #8594a9;
+
   /* --- Sidenav --- */
   --orbit-color-sidenav-bg: #041628;
   --orbit-color-sidenav-active-bg: #1e293b;

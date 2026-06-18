@@ -15,6 +15,7 @@ interface Props {
   subheaderClassName?: string;
   sidePanel?: ReactNode;
   rightPanel?: ReactNode;
+  rightPanelClassName?: string;
   mainClassName?: string;
   children: ReactNode;
 }
@@ -30,6 +31,7 @@ export function V5Shell({
   subheaderClassName,
   sidePanel,
   rightPanel,
+  rightPanelClassName,
   mainClassName,
   children,
 }: Props) {
@@ -87,7 +89,12 @@ export function V5Shell({
               {children}
             </main>
             {rightPanel && (
-              <aside className="v5-hover-scrollbar hidden w-[400px] shrink-0 overflow-y-auto border-l border-border bg-white lg:block">
+              <aside
+                className={cn(
+                  "v5-hover-scrollbar hidden w-[400px] shrink-0 overflow-y-auto border-l border-border bg-white lg:block",
+                  rightPanelClassName,
+                )}
+              >
                 {rightPanel}
               </aside>
             )}

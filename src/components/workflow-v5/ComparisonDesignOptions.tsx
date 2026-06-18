@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { ArrowRight, Columns3, List } from "lucide-react";
 import {
   Badge,
@@ -8,6 +8,7 @@ import {
   RadialIndicator,
   TabButton,
   Text,
+  ToggleCard,
 } from "@orbit";
 
 import { cn } from "@/lib/utils";
@@ -857,14 +858,7 @@ const firstAnalysisMetricBarDefinitions = firstAnalysisMetricDefinitions.filter(
   (definition) => definition.key !== "none",
 );
 
-const firstAnalysisMetricRowClassName = (active: boolean, disabled = false) => cn(
-  "flex min-h-8 w-full items-center rounded-md border px-orbit-s py-orbit-xs transition-colors",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]",
-  active
-    ? "border-[var(--orbit-color-card-border-highlight)] bg-[var(--orbit-color-card-bg-highlight)]"
-    : "border-transparent hover:border-[var(--orbit-color-card-border-hover)] hover:bg-[var(--orbit-color-btn-secondary-bg-hover)]",
-  disabled && "opacity-60",
-);
+const filterToggleCardStyle: CSSProperties = { boxShadow: "var(--orbit-shadow-none)" };
 
 function FirstAnalysisMetricGrid({
   metrics,
@@ -886,29 +880,31 @@ function FirstAnalysisMetricGrid({
     const dotColor = FIRST_ANALYSIS_STATUS_THEME[definition.v5Status].indicatorColor;
 
     return (
-      <button
+      <ToggleCard
         key={definition.key}
-        type="button"
-        role="button"
+        status={value === 0 ? "Disabled" : active ? "Selected" : "Default"}
         aria-pressed={active}
         aria-label={`${active ? "Remove" : "Add"} ${definition.label} filter, ${value} clauses`}
         onClick={onMetricSelect ? () => onMetricSelect(definition.key) : undefined}
-        className={cn(firstAnalysisMetricRowClassName(active, value === 0), "gap-orbit-s")}
+        className="overflow-hidden"
+        style={filterToggleCardStyle}
       >
-        <span className="flex min-w-0 flex-1 items-center gap-orbit-s overflow-hidden" style={{ textAlign: "left" }}>
-          <span
-            aria-hidden="true"
-            className="h-1.5 w-1.5 shrink-0 rounded-full"
-            style={{ backgroundColor: dotColor }}
-          />
-          <span className="min-w-0 truncate leading-none">
-            <Text as="span" size="Small" variant={active ? "Bold" : "Secondary"}>
-              {definition.label}
-            </Text>
+        <span className="flex min-h-8 w-full items-center gap-orbit-s px-orbit-s py-orbit-xs">
+          <span className="flex min-w-0 flex-1 items-center gap-orbit-s overflow-hidden" style={{ textAlign: "left" }}>
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 shrink-0 rounded-full"
+              style={{ backgroundColor: dotColor }}
+            />
+            <span className="min-w-0 truncate leading-none">
+              <Text as="span" size="Small" variant="Secondary">
+                {definition.label}
+              </Text>
+            </span>
           </span>
+          <Chip label={String(value)} size="Mini" variant="No Status" contrast="Low" />
         </span>
-        <Chip label={String(value)} size="Mini" variant={active ? "Additional" : "No Status"} contrast="Low" />
-      </button>
+      </ToggleCard>
     );
   };
   const renderMetric = (definition: (typeof firstAnalysisMetricDefinitions)[number]) => (

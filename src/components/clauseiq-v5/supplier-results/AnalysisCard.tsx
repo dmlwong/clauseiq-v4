@@ -228,12 +228,9 @@ function documentIconFromFileName(fileName: string) {
 }
 
 function formatAnalysisTimestamp(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
+  return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
   });
 }

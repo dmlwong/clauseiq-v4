@@ -54,6 +54,10 @@
   --ciq-purple-soft: 240 100% 98%;
   --ciq-purple-border: 241 100% 69%;
 
+  /* Match the Figma Static Card success variant for ClauseIQ v5 result cards. */
+  --orbit-color-card-border-success: var(--orbit-color-text-success);
+  --orbit-color-card-indicator-success: var(--orbit-color-text-success);
+
   accent-color: var(--orbit-color-btn-primary-bg);
   background: var(--orbit-color-bg-canvas);
   color: var(--orbit-color-text-primary);
@@ -136,6 +140,20 @@ body
   font-size: var(--orbit-text-sm);
   font-weight: var(--orbit-font-weight-medium);
   line-height: var(--orbit-leading-snug);
+}
+
+[data-prototype="clauseiq-v5"][data-theme="orbit"] .v5-orbit-text-body {
+  font-family: var(--orbit-font-family-sans);
+  font-size: var(--orbit-text-body-size);
+  font-weight: var(--orbit-text-body-weight);
+  line-height: var(--orbit-text-body-leading);
+}
+
+[data-prototype="clauseiq-v5"][data-theme="orbit"] .v5-orbit-text-small {
+  font-family: var(--orbit-font-family-sans);
+  font-size: var(--orbit-text-small-size);
+  font-weight: var(--orbit-text-small-weight);
+  line-height: var(--orbit-text-small-leading);
 }
 
 [data-prototype="clauseiq-v5"][data-theme="orbit"] .v5-orbit-weight-regular {

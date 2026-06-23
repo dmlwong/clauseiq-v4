@@ -12,6 +12,7 @@ import {
   PlaybookDisclaimer,
   PostAnalysisNextActions,
   SelectedSummaryRow,
+  benchmarkReadout,
   hasCompleteAnalysisParameters,
   type ClauseIqWorkflow,
   type ClauseIqWorkflowStep,
@@ -264,6 +265,9 @@ function ResultsStep({
             cardState={workflow.rerunProcessing || rerunParametersComplete ? "default" : "active"}
             locked={workflow.rerunProcessing}
             onPlaybookChoiceChange={workflow.actions.handleRerunPlaybookChoiceChange}
+            onBenchmarkConfirm={workflow.actions.handleRerunBenchmarkConfirm}
+            onBenchmarkEdit={workflow.actions.handleRerunBenchmarkEdit}
+            onBenchmarkSkip={workflow.actions.handleRerunBenchmarkSkip}
             onBasisSelect={workflow.actions.handleRerunBasisSelect}
             onCategorySelect={workflow.actions.handleRerunCategorySelect}
             onBasisEdit={workflow.actions.handleRerunBasisEdit}
@@ -361,9 +365,12 @@ function SingleStepJourneyContent({
     return (
       <AnalysisParameterCards
         selectedParameter={workflow.selectedParameter}
-        cardState={workflow.selectedParameter?.basis ? "default" : "active"}
+        cardState={hasCompleteAnalysisParameters(workflow.selectedParameter) ? "default" : "active"}
         locked={workflow.parameterLocked}
         onPlaybookChoiceChange={workflow.actions.handlePlaybookChoiceChange}
+        onBenchmarkConfirm={workflow.actions.handleBenchmarkConfirm}
+        onBenchmarkEdit={workflow.actions.handleBenchmarkEdit}
+        onBenchmarkSkip={workflow.actions.handleBenchmarkSkip}
         onBasisSelect={workflow.actions.handleBasisSelect}
         onCategorySelect={workflow.actions.handleCategorySelect}
         onBasisEdit={workflow.actions.handleBasisEdit}
@@ -447,6 +454,9 @@ function StackedJourneyContent({
             cardState={parametersState}
             locked={workflow.parameterLocked}
             onPlaybookChoiceChange={workflow.actions.handlePlaybookChoiceChange}
+            onBenchmarkConfirm={workflow.actions.handleBenchmarkConfirm}
+            onBenchmarkEdit={workflow.actions.handleBenchmarkEdit}
+            onBenchmarkSkip={workflow.actions.handleBenchmarkSkip}
             onBasisSelect={workflow.actions.handleBasisSelect}
             onCategorySelect={workflow.actions.handleCategorySelect}
             onBasisEdit={workflow.actions.handleBasisEdit}
@@ -555,11 +565,11 @@ export function ClauseIqContextPanel({
     );
   }
 
-  const parameterCopy = workflow.selectedParameter?.basis
-    ? workflow.selectedParameter.category
-      ? `${workflow.selectedParameter.basis.kind}: ${workflow.selectedParameter.basis.label}; Category: ${workflow.selectedParameter.category}`
-      : `${workflow.selectedParameter.basis.kind}: ${workflow.selectedParameter.basis.label}`
-    : "Choose how ClauseIQ should benchmark this contract.";
+  const parameterCopy = workflow.selectedParameter?.playbookChoice === "no"
+    ? benchmarkReadout(workflow.selectedParameter)
+    : workflow.selectedParameter?.basis
+      ? `${workflow.selectedParameter.basis.kind}: ${workflow.selectedParameter.basis.label}`
+      : "Choose how ClauseIQ should benchmark this contract.";
 
   return (
     <aside className={assistClassName ?? className}>

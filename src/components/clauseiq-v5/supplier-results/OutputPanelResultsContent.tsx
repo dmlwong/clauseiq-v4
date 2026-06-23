@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowDownRight,
-  ArrowRight,
-  ArrowUpRight,
   BarChart2,
   ChevronDown,
   Download,
@@ -20,31 +17,17 @@ import type { ClauseAnalysis, Supplier } from "@/data/mock-clauseiq";
 import { flattenSupplierAnalyses, newestFirst, supplierSeverity } from "@/lib/clauseiq-utils";
 import { cn } from "@/lib/utils";
 import { AnalysisCard } from "./AnalysisCard";
-import { DeviationPills } from "./DeviationPills";
+import {
+  getSupplierScorePresentationByAnalysisId,
+  OutputFindingsSummary,
+  OutputScoreLine,
+  type OutputScorePresentation,
+} from "./OutputSummaryMetrics";
 import { SupplierAvatar } from "./SupplierAvatar";
 import type { ResultsViewProps, SupplierOutputsPanelState } from "./types";
 
 type OutputScope = "team" | "mine";
-type OutputScoreTrend = "up" | "down" | "flat";
-
 const MINE_ANALYSIS_IDS = new Set(["a-001", "a-004", "a-007"]);
-const SUPPLIER_OUTPUT_SCORE_BY_ANALYSIS_ID: Record<string, number> = {
-  "a-001": 56,
-  "a-002": 48,
-  "a-003": 36,
-  "a-004": 62,
-  "a-005": 51,
-  "a-006": 78,
-  "a-007": 58,
-  "a-008": 46,
-  "a-009": 74,
-};
-
-interface OutputScorePresentation {
-  score: number;
-  deltaFromPrevious: number;
-  trend: OutputScoreTrend;
-}
 
 export function OutputPanelResultsContent({
   initiative,
@@ -53,6 +36,7 @@ export function OutputPanelResultsContent({
   onViewResult,
   viewResultPrimary = true,
   highlightLatestOutput = true,
+  higherIsBetter = true,
   analysisParameters,
 }: ResultsViewProps) {
   const rows = useMemo(() => {
@@ -62,6 +46,14 @@ export function OutputPanelResultsContent({
   }, [initiative.suppliers]);
 
   const latestAnalysisId = rows.at(-1)?.analysis.id;
+  const outputScoresBySupplierId = useMemo<Record<string, Record<string, OutputScorePresentation>>>(() => {
+    return Object.fromEntries(
+      initiative.suppliers.map((supplier) => [
+        supplier.id,
+        getSupplierScorePresentationByAnalysisId(supplier.analyses),
+      ]),
+    );
+  }, [initiative.suppliers]);
 
   return (
     <motion.div
@@ -89,6 +81,8 @@ export function OutputPanelResultsContent({
               isLatestOutput={analysis.id === latestAnalysisId}
               highlighted={highlightLatestOutput && analysis.id === latestAnalysisId}
               analysisParameters={analysisParameters}
+              outputScore={outputScoresBySupplierId[supplier.id]?.[analysis.id]}
+              higherIsBetter={higherIsBetter}
             />
           ))
         )}
@@ -100,6 +94,7 @@ export function OutputPanelResultsContent({
         onDownload={onDownload}
         onViewResult={onViewResult}
         outputState="filled"
+        higherIsBetter={higherIsBetter}
         className="lg:hidden"
       />
     </motion.div>
@@ -118,6 +113,8 @@ export function SupplierOutputsPanel({
   onDownload,
   onViewResult,
   outputState = "filled",
+  // TODO: confirm score polarity with scoring model owner.
+  higherIsBetter = true,
   className,
 }: SupplierOutputsPanelProps) {
   const [outputScope, setOutputScope] = useState<OutputScope>(initialOutputScope);
@@ -239,6 +236,7 @@ export function SupplierOutputsPanel({
               onToggle={() => toggleSupplier(supplier.id)}
               onDownload={onDownload}
               onViewResult={onViewResult}
+              higherIsBetter={higherIsBetter}
             />
           ))
         )}
@@ -312,6 +310,7 @@ function SupplierOutputGroup({
   onToggle,
   onDownload,
   onViewResult,
+  higherIsBetter,
 }: {
   supplier: Supplier;
   latestAnalysisId?: string;
@@ -319,6 +318,7 @@ function SupplierOutputGroup({
   onToggle: () => void;
   onDownload?: () => void;
   onViewResult?: () => void;
+  higherIsBetter: boolean;
 }) {
   const analyses = newestFirst(supplier.analyses);
   const scoresByAnalysisId = getSupplierScorePresentationByAnalysisId(analyses);
@@ -378,9 +378,9 @@ function SupplierOutputGroup({
                       analysis={analysis}
                       displayFileName={displayFileNameForSupplierAnalysis(supplier, analysis)}
                       score={scoresByAnalysisId[analysis.id]}
-                      isLatestOutput={analysis.id === latestAnalysisId}
                       onDownload={onDownload}
                       onViewResult={onViewResult}
+                      higherIsBetter={higherIsBetter}
                     />
                   </div>
                 ))}
@@ -397,26 +397,21 @@ function CompactOutputRow({
   analysis,
   displayFileName,
   score,
-  isLatestOutput,
   onDownload,
   onViewResult,
+  higherIsBetter,
 }: {
   analysis: ClauseAnalysis;
   displayFileName: string;
   score?: OutputScorePresentation;
-  isLatestOutput: boolean;
   onDownload?: () => void;
   onViewResult?: () => void;
+  higherIsBetter: boolean;
 }) {
   return (
     <article className="px-orbit-xs">
-      {isLatestOutput && (
-        <div className="mb-orbit-xxs">
-          <span className="v5-orbit-text-small text-muted-foreground">Latest output</span>
-        </div>
-      )}
       <div className="flex items-center justify-between gap-orbit-s">
-        <p className="min-w-0 flex-1 truncate whitespace-nowrap v5-orbit-text-small v5-orbit-weight-medium text-foreground">
+        <p className="min-w-0 flex-1 truncate whitespace-nowrap v5-orbit-heading-strong text-foreground">
           {displayFileName}
         </p>
         <CompactOutputMeta
@@ -428,32 +423,14 @@ function CompactOutputRow({
 
       {score && (
         <div className="mt-orbit-xs">
-          <OutputScoreLine score={score} />
+          <OutputScoreLine score={score} higherIsBetter={higherIsBetter} />
         </div>
       )}
 
-      <div className="mt-orbit-base">
-        <DeviationPills deviations={analysis.deviations} compact singleLine />
+      <div className="mt-orbit-s">
+        <OutputFindingsSummary deviations={analysis.deviations} />
       </div>
     </article>
-  );
-}
-
-function OutputScoreLine({ score }: { score: OutputScorePresentation }) {
-  return (
-    <div className="flex min-w-0 items-center gap-orbit-s whitespace-nowrap">
-      <span className="v5-orbit-text-body v5-orbit-weight-medium text-foreground">Score {score.score}</span>
-      <span
-        className={cn(
-          "inline-flex items-center gap-[4px] v5-orbit-text-small v5-orbit-weight-medium",
-          scoreTrendTextClass(score.trend),
-        )}
-      >
-        {scoreTrendIcon(score.trend)}
-        {formatDelta(score.deltaFromPrevious)}
-      </span>
-      <span className="v5-orbit-text-small text-muted-foreground">vs previous</span>
-    </div>
   );
 }
 
@@ -514,54 +491,8 @@ function CompactActionButton({
   );
 }
 
-function getSupplierScorePresentationByAnalysisId(analyses: ClauseAnalysis[]): Record<string, OutputScorePresentation> {
-  const chronological = [...analyses].sort(
-    (a, b) => Date.parse(a.analysedAt) - Date.parse(b.analysedAt),
-  );
-
-  return chronological.reduce<Record<string, OutputScorePresentation>>((scores, analysis, index) => {
-    const score = SUPPLIER_OUTPUT_SCORE_BY_ANALYSIS_ID[analysis.id];
-    if (typeof score !== "number") return scores;
-
-    const previousAnalysis = chronological[index - 1];
-    const previousScore = previousAnalysis
-      ? SUPPLIER_OUTPUT_SCORE_BY_ANALYSIS_ID[previousAnalysis.id]
-      : undefined;
-    const deltaFromPrevious = typeof previousScore === "number" ? score - previousScore : 0;
-
-    scores[analysis.id] = {
-      score,
-      deltaFromPrevious,
-      trend: scoreTrendFromDelta(deltaFromPrevious),
-    };
-    return scores;
-  }, {});
-}
-
 function displayFileNameForSupplierAnalysis(supplier: Supplier, analysis: ClauseAnalysis): string {
   return newestFirst(supplier.analyses)[0]?.fileName ?? analysis.fileName;
-}
-
-function scoreTrendFromDelta(delta: number): OutputScoreTrend {
-  if (delta > 0) return "up";
-  if (delta < 0) return "down";
-  return "flat";
-}
-
-function scoreTrendTextClass(trend: OutputScoreTrend) {
-  if (trend === "up") return "text-emerald-700";
-  if (trend === "down") return "text-rose-700";
-  return "text-muted-foreground";
-}
-
-function scoreTrendIcon(trend: OutputScoreTrend) {
-  if (trend === "up") return <ArrowUpRight className="h-3 w-3" />;
-  if (trend === "down") return <ArrowDownRight className="h-3 w-3" />;
-  return <ArrowRight className="h-3 w-3" />;
-}
-
-function formatDelta(delta: number) {
-  return delta > 0 ? `+${delta}` : `${delta}`;
 }
 
 function sortSuppliersByLatestChange(suppliers: Supplier[]): Supplier[] {

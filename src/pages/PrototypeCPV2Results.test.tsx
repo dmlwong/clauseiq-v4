@@ -106,6 +106,8 @@ describe("Prototype CP v2 result dashboard", () => {
     expect(
       screen.getByRole("button", { name: /High Deviation/i }),
     ).toBeInTheDocument();
+    expect(screen.getByText("CLAUSES")).toBeInTheDocument();
+    expect(screen.queryByText("CATEGORIES")).not.toBeInTheDocument();
     expect(
       screen.getByText(
       "Validate ClauseIQ recommendations before supplier negotiation",
@@ -181,6 +183,12 @@ describe("Prototype CP v2 result dashboard", () => {
 
     applyRecommendationOptions(/High Deviation/i);
     fireEvent.click(screen.getByRole("button", { name: /review & generate/i }));
+    expect(
+      screen.getByRole("dialog", { name: /Review & Generate/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Review & Generate" }),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /submit & generate/i }));
 
     expect(mocks.downloadCsv).toHaveBeenCalledTimes(1);

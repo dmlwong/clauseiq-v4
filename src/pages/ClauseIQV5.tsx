@@ -183,7 +183,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
           />
         </div>
       }
-      rightPanelClassName={outputPanelResultsVisible ? "w-[440px]" : undefined}
+      rightPanelClassName={outputPanelResultsVisible ? "w-[448px]" : undefined}
     >
       <div
         className={cn(

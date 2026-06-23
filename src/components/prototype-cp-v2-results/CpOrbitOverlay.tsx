@@ -23,6 +23,9 @@ interface CpOrbitOverlayProps {
   size?: "Default" | "Large";
   height?: "Viewport" | "Content";
   titleAlign?: "left" | "center";
+  headerPaddingClassName?: string;
+  headerContentClassName?: string;
+  contentPaddingClassName?: string;
 }
 export function CpOrbitOverlay({
   open,
@@ -34,6 +37,9 @@ export function CpOrbitOverlay({
   size = "Default",
   height = "Content",
   titleAlign = "left",
+  headerPaddingClassName = "py-orbit-base",
+  headerContentClassName,
+  contentPaddingClassName = "px-orbit-base py-orbit-base",
 }: CpOrbitOverlayProps) {
   const fullBleedSeparatorStyle = { left: -2, right: -2 };
   const centerTitle = titleAlign === "center";
@@ -65,14 +71,21 @@ export function CpOrbitOverlay({
           {" "}
           <div className="flex max-h-[86vh] min-w-0 flex-col overflow-hidden">
             {" "}
-            <div className="relative px-orbit-base py-orbit-base">
+            <div
+              className={cn(
+                "relative px-orbit-base",
+                headerPaddingClassName,
+              )}
+            >
               {" "}
               <div
                 className={cn(
                   "gap-orbit-base",
                   centerTitle
                     ? "flex min-h-9 items-center justify-center"
-                    : "flex items-start justify-between",
+                    : "flex justify-between",
+                  centerTitle ? "text-center" : "items-start",
+                  headerContentClassName,
                 )}
               >
                 {" "}
@@ -126,7 +139,12 @@ export function CpOrbitOverlay({
               />{" "}
             </div>{" "}
             {children && (
-              <div className="cpv2-hover-scrollbar min-h-0 overflow-y-auto px-orbit-base py-orbit-base">
+              <div
+                className={cn(
+                  "cpv2-hover-scrollbar min-h-0 overflow-y-auto",
+                  contentPaddingClassName,
+                )}
+              >
                 {children}
               </div>
             )}{" "}

@@ -28,20 +28,23 @@ function startAndSelectInitiative() {
 }
 
 function selectDefaultPlaybook() {
+  fireEvent.focus(screen.getByRole("combobox", { name: "Playbook" }));
   fireEvent.click(screen.getByRole("option", { name: CIQ_DEFAULT_PLAYBOOK }));
-}
-
-function selectServicesCategory() {
-  fireEvent.click(screen.getByRole("option", { name: "Services" }));
 }
 
 function selectNoPlaybook() {
   fireEvent.click(screen.getByRole("radio", { name: "No" }));
 }
 
-function selectUnitedKingdomLaw() {
-  selectNoPlaybook();
-  fireEvent.click(screen.getByRole("option", { name: "United Kingdom" }));
+function selectBenchmarkOption(fieldName: "Category" | "Governing law", value: string) {
+  const input = screen.getByRole("combobox", { name: fieldName });
+  fireEvent.focus(input);
+  fireEvent.change(input, { target: { value } });
+  fireEvent.click(screen.getByRole("option", { name: value }));
+}
+
+function confirmBenchmark() {
+  fireEvent.click(screen.getByRole("button", { name: /confirm & continue/i }));
 }
 
 beforeAll(() => {
@@ -87,7 +90,11 @@ describe("ClauseIQ V5 flow", () => {
     expect(screen.getByRole("radio", { name: "No" })).not.toBeChecked();
     expect(screen.queryByRole("heading", { name: "Category" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Governing Law" })).not.toBeInTheDocument();
-    expect(screen.getByRole("option", { name: CIQ_DEFAULT_PLAYBOOK })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Playbook" })).toHaveAttribute(
+      "placeholder",
+      "Please select a playbook...",
+    );
+    expect(screen.queryByRole("option", { name: CIQ_DEFAULT_PLAYBOOK })).not.toBeInTheDocument();
     expect(screen.queryByText("Logistics · Sarah Chen")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
   });
@@ -106,7 +113,7 @@ describe("ClauseIQ V5 flow", () => {
     expect(screen.getByRole("heading", { name: "Upload Contract" })).toBeInTheDocument();
   });
 
-  it("shows category and governing law when the user selects no playbook", async () => {
+  it("shows a prefilled optional benchmark when the user selects no playbook", async () => {
     renderClauseIQ();
 
     startAndSelectInitiative();
@@ -114,28 +121,104 @@ describe("ClauseIQ V5 flow", () => {
 
     expect(screen.getByRole("radio", { name: "No" })).toBeChecked();
     expect(screen.queryByRole("option", { name: CIQ_DEFAULT_PLAYBOOK })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Category" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Governing Law" })).toBeInTheDocument();
-    expect(screen.getByRole("listbox", { name: "Category options" })).toBeInTheDocument();
-    expect(screen.getByRole("listbox", { name: "Governing Law options" })).toBeInTheDocument();
+    expect(
+      screen.queryByText("ClauseIQ pre-filled a benchmark from this initiative. Confirm, search to change, or skip."),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Select a category and governing law")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Set a category and a governing law to analyse against more relevant standards or skip to use ClauseIQ's general benchmark.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Category" })).toHaveValue("");
+    expect(screen.getByRole("combobox", { name: "Category" })).toHaveAttribute(
+      "placeholder",
+      "Please select a category...",
+    );
+    expect(screen.getByRole("combobox", { name: "Governing law" })).toHaveValue("");
+    expect(screen.getByRole("combobox", { name: "Governing law" })).toHaveAttribute(
+      "placeholder",
+      "Please select a governing law...",
+    );
+    fireEvent.focus(screen.getByRole("combobox", { name: "Category" }));
+    const categoryListbox = screen.getByRole("listbox", { name: "Category" });
+    expect(within(categoryListbox).getByRole("option", { name: "Goods" })).toBeInTheDocument();
+    expect(within(categoryListbox).getByRole("option", { name: "Services" })).toBeInTheDocument();
+    expect(within(categoryListbox).getByRole("option", { name: "Professional Services" })).toBeInTheDocument();
+    expect(within(categoryListbox).queryByText("GOODS & MATERIALS")).not.toBeInTheDocument();
+    expect(within(categoryListbox).queryByText("TECHNOLOGY")).not.toBeInTheDocument();
+    fireEvent.blur(screen.getByRole("combobox", { name: "Category" }));
+    expect(screen.queryByText("Suggested")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Benchmarked against ClauseIQ's general standard. Add a category or governing law for sharper, more relevant findings.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("1-of-3 precision")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /confirm & continue/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /skip — use the general benchmark instead/i })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
   });
 
-  it("allows governing law as the analysis parameter before the required category", async () => {
+  it("lets users search, override, and clear optional benchmark fields before confirming", async () => {
     renderClauseIQ();
 
     startAndSelectInitiative();
-    selectUnitedKingdomLaw();
+    selectNoPlaybook();
 
-    expect(screen.getByText("Governing Law · United Kingdom")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /change governing law/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Category" })).toBeInTheDocument();
+    selectBenchmarkOption("Category", "Services");
+
+    expect(screen.getByRole("combobox", { name: "Category" })).toHaveValue("Services");
+    expect(screen.getByRole("combobox", { name: "Governing law" })).toHaveValue("");
+    expect(screen.getByRole("combobox", { name: "Governing law" })).toHaveAttribute(
+      "placeholder",
+      "Please select a governing law...",
+    );
+    expect(screen.queryByText("Suggested")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Benchmarked against Services standards with a general governing law baseline. Add a governing law for sharper findings.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("2-of-3 precision")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
 
-    selectServicesCategory();
+    confirmBenchmark();
 
-    expect(screen.getByText("Category · Services")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Upload Contract" })).toBeInTheDocument();
+  });
+
+  it("skips the suggested benchmark and proceeds with the general standard", async () => {
+    renderClauseIQ();
+
+    startAndSelectInitiative();
+    selectNoPlaybook();
+    fireEvent.click(screen.getByRole("button", { name: /skip — use the general benchmark instead/i }));
+
+    expect(screen.queryByRole("combobox", { name: "Category" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Governing law" })).not.toBeInTheDocument();
+    expect(screen.getByText("Using the general benchmark")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /add a category or governing law/i })).toBeInTheDocument();
+    expect(screen.queryByText("Suggested")).not.toBeInTheDocument();
+    expect(
+      screen.getAllByText(
+        "Benchmarked against ClauseIQ's general standard. Add a category or governing law for sharper, more relevant findings.",
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText("1-of-3 precision")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Upload Contract" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /add a category or governing law/i }));
+
+    expect(screen.getByRole("combobox", { name: "Category" })).toHaveAttribute(
+      "placeholder",
+      "Please select a category...",
+    );
+    expect(screen.getByRole("combobox", { name: "Governing law" })).toHaveAttribute(
+      "placeholder",
+      "Please select a governing law...",
+    );
+    expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
   });
 
   it("returns to parameter selection from Change Playbook", async () => {
@@ -146,38 +229,48 @@ describe("ClauseIQ V5 flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /change playbook/i }));
 
     expect(screen.getByRole("radio", { name: "Yes" })).toBeChecked();
-    expect(screen.getByRole("option", { name: CIQ_DEFAULT_PLAYBOOK })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Playbook" })).toHaveAttribute(
+      "placeholder",
+      "Please select a playbook...",
+    );
+    expect(screen.queryByRole("option", { name: CIQ_DEFAULT_PLAYBOOK })).not.toBeInTheDocument();
     expect(screen.queryByText(`Playbook · ${CIQ_DEFAULT_PLAYBOOK}`)).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
   });
 
-  it("returns to parameter selection from Change Category", async () => {
+  it("does not advance the no-playbook branch until users confirm or skip", async () => {
     renderClauseIQ();
 
     startAndSelectInitiative();
-    selectUnitedKingdomLaw();
-    selectServicesCategory();
-    fireEvent.click(screen.getByRole("button", { name: /change category/i }));
+    selectNoPlaybook();
+    selectBenchmarkOption("Category", "Professional Services");
+    selectBenchmarkOption("Governing law", "Germany");
 
-    expect(screen.getByText("Governing Law · United Kingdom")).toBeInTheDocument();
-    expect(screen.getByRole("listbox", { name: "Category options" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Services" })).toBeInTheDocument();
-    expect(screen.queryByText("Category · Services")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
+
+    confirmBenchmark();
+
+    expect(screen.getByRole("heading", { name: "Upload Contract" })).toBeInTheDocument();
   });
 
   it("clears incompatible selections when switching between playbook choices", async () => {
     renderClauseIQ();
 
     startAndSelectInitiative();
-    selectUnitedKingdomLaw();
-    selectServicesCategory();
+    selectNoPlaybook();
+    selectBenchmarkOption("Category", "Services");
+    selectBenchmarkOption("Governing law", "Germany");
     fireEvent.click(screen.getByRole("radio", { name: "Yes" }));
 
     expect(screen.getByRole("radio", { name: "Yes" })).toBeChecked();
-    expect(screen.getByRole("option", { name: CIQ_DEFAULT_PLAYBOOK })).toBeInTheDocument();
-    expect(screen.queryByText("Governing Law · United Kingdom")).not.toBeInTheDocument();
-    expect(screen.queryByText("Category · Services")).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Playbook" })).toHaveAttribute(
+      "placeholder",
+      "Please select a playbook...",
+    );
+    expect(screen.queryByRole("option", { name: CIQ_DEFAULT_PLAYBOOK })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Category" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Governing law" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Benchmarked against/)).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
   });
 
@@ -242,7 +335,13 @@ describe("ClauseIQ V5 flow", () => {
     expect(screen.getAllByLabelText("Download").length).toBeGreaterThan(0);
     expect(screen.queryByText("No outputs yet")).not.toBeInTheDocument();
 
-    expect(screen.getAllByText("vs previous").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("first output").length).toBeGreaterThan(0);
+    expect(screen.queryByText("0 vs previous")).not.toBeInTheDocument();
+    expect(screen.queryByText("Summary shown below. View the result for full details.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Missing Clauses and deviation levels")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Missing Clauses").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Deviations Level").length).toBeGreaterThan(0);
+    expect(screen.queryByLabelText("Deviation level definitions")).not.toBeInTheDocument();
   });
 
   it("renders historical score deltas when multiple supplier outputs are visible", () => {
@@ -257,7 +356,7 @@ describe("ClauseIQ V5 flow", () => {
     });
 
     expect(screen.getAllByText("Score 48").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("+12").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("+12 vs previous").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("View Results").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("Download").length).toBeGreaterThan(0);
   });
@@ -322,7 +421,11 @@ describe("ClauseIQ V5 flow", () => {
     expect(screen.getByRole("radio", { name: "No" })).not.toBeChecked();
     expect(screen.queryByRole("heading", { name: "Category" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Governing Law" })).not.toBeInTheDocument();
-    expect(screen.getByRole("option", { name: CIQ_DEFAULT_PLAYBOOK })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Playbook" })).toHaveAttribute(
+      "placeholder",
+      "Please select a playbook...",
+    );
+    expect(screen.queryByRole("option", { name: CIQ_DEFAULT_PLAYBOOK })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
 
     selectDefaultPlaybook();
@@ -335,21 +438,38 @@ describe("ClauseIQ V5 flow", () => {
     expect(rerunParameterHeading!.compareDocumentPosition(uploadHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("requires category before upload in the rerun parameter flow", () => {
+  it("lets rerun analyses skip optional benchmark fields before upload", () => {
     renderClauseIQ("/clauseiq-v5/output-panel?rerun=upload", {
       forceResults: true,
       resultsLayout: "output-panel",
     });
 
-    selectUnitedKingdomLaw();
+    selectNoPlaybook();
 
-    expect(screen.getByText("Governing Law · United Kingdom")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Category" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Category" })).toHaveValue("");
+    expect(screen.getByRole("combobox", { name: "Category" })).toHaveAttribute(
+      "placeholder",
+      "Please select a category...",
+    );
+    expect(screen.getByRole("combobox", { name: "Governing law" })).toHaveValue("");
+    expect(screen.getByRole("combobox", { name: "Governing law" })).toHaveAttribute(
+      "placeholder",
+      "Please select a governing law...",
+    );
+    expect(screen.queryByText("Suggested")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
 
-    selectServicesCategory();
+    fireEvent.click(screen.getByRole("button", { name: /skip — use the general benchmark instead/i }));
 
-    expect(screen.getByText("Category · Services")).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Category" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Governing law" })).not.toBeInTheDocument();
+    expect(screen.getByText("Using the general benchmark")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /add a category or governing law/i })).toBeInTheDocument();
+    expect(
+      screen.getAllByText(
+        "Benchmarked against ClauseIQ's general standard. Add a category or governing law for sharper, more relevant findings.",
+      ).length,
+    ).toBeGreaterThan(0);
     expect(screen.getByRole("heading", { name: "Upload Contract" })).toBeInTheDocument();
   });
 

@@ -62,6 +62,7 @@ import {
   Table as OrbitTable,
   Button as OrbitButton,
   Text,
+  ToggleCard,
 } from "@orbit";
 import { showCpOrbitToast as toast } from "@/components/prototype-cp-v2-results/CpOrbitToast";
 import {
@@ -6015,15 +6016,10 @@ function PairSelector({
     </div>
   );
 }
-const categorySidebarRowClassName = (active: boolean, disabled = false) =>
-  cn(
-    "flex w-full items-center rounded-md border px-orbit-s py-orbit-xs transition-colors",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]",
-    active
-      ? "border-[var(--orbit-color-card-border-selected)] bg-[var(--orbit-color-card-bg-selected)]"
-      : "border-transparent hover:border-[var(--orbit-color-card-border-hover)] hover:bg-[var(--orbit-color-btn-secondary-bg-hover)]",
-    disabled && "opacity-60",
-  );
+const categorySidebarToggleCardStyle = {
+  boxShadow: "var(--orbit-shadow-none)",
+};
+
 function CategorySidebar({
   categories,
   total,
@@ -6081,83 +6077,87 @@ function CategorySidebar({
         >
           {" "}
           <Text as="p" size="Small" variant="Secondary">
-            CATEGORIES
+            CLAUSES
           </Text>{" "}
         </div>
       )}{" "}
       <div className="space-y-orbit-xs">
         {" "}
-        <CpButton
+        <ToggleCard
           ref={(node) => {
             rowRefs.current[0] = node;
           }}
-          type="button"
+          status={activeCategories.length === 0 ? "Selected" : "Default"}
           aria-pressed={activeCategories.length === 0}
           aria-label={`Clear category filters, ${total} clauses`}
           onClick={() => onSelectCategory(null)}
           onKeyDown={(event) => handleRowKeyDown(event, 0)}
-          className={cn(
-            categorySidebarRowClassName(activeCategories.length === 0),
-            "justify-between",
-          )}
+          className="overflow-hidden"
+          style={categorySidebarToggleCardStyle}
         >
-          {" "}
-          <Text
-            as="span"
-            size="Small"
-            variant={activeCategories.length === 0 ? "Bold" : "Secondary"}
-          >
-            {" "}
-            All{" "}
-          </Text>{" "}
-          <Chip
-            label={String(total)}
-            size="Mini"
-            variant="No Status"
-            selected={activeCategories.length === 0}
-          />{" "}
-        </CpButton>{" "}
+          <span className="flex min-h-8 w-full items-center justify-between gap-orbit-s px-orbit-s py-orbit-xs">
+            <Text
+              as="span"
+              size="Small"
+              variant={activeCategories.length === 0 ? "Bold" : "Secondary"}
+            >
+              {" "}
+              All{" "}
+            </Text>{" "}
+            <Chip
+              label={String(total)}
+              size="Mini"
+              variant="No Status"
+              selected={activeCategories.length === 0}
+            />{" "}
+          </span>
+        </ToggleCard>{" "}
         {sortedCategories.map((category, index) => {
           const active = activeCategorySet.has(category.name);
           const rowIndex = index + 1;
           return (
-            <CpButton
+            <ToggleCard
               key={category.name}
               ref={(node) => {
                 rowRefs.current[rowIndex] = node;
               }}
-              type="button"
+              status={
+                category.count === 0
+                  ? "Disabled"
+                  : active
+                    ? "Selected"
+                    : "Default"
+              }
               aria-pressed={active}
               aria-label={`${active ? "Remove" : "Add"} ${category.name} category filter, ${category.count} clauses`}
               onClick={() => onSelectCategory(category.name)}
               onKeyDown={(event) => handleRowKeyDown(event, rowIndex)}
-              className={cn(
-                categorySidebarRowClassName(active, category.count === 0),
-                "gap-orbit-s",
-              )}
+              className="overflow-hidden"
+              style={categorySidebarToggleCardStyle}
             >
-              {" "}
-              <span
-                className="min-w-0 flex-1 truncate"
-                style={{ textAlign: "left" }}
-              >
-                {" "}
-                <Text
-                  as="span"
-                  size="Small"
-                  variant={active ? "Bold" : "Secondary"}
+              <span className="flex min-h-8 w-full items-center gap-orbit-s px-orbit-s py-orbit-xs">
+                <span
+                  className="min-w-0 flex-1 truncate"
+                  style={{ textAlign: "left" }}
                 >
                   {" "}
-                  {category.name}{" "}
-                </Text>{" "}
-              </span>{" "}
-              <Chip
-                label={String(category.count)}
-                size="Mini"
-                variant="No Status"
-                selected={active}
-              />{" "}
-            </CpButton>
+                  <Text
+                    as="span"
+                    size="Small"
+                    variant={active ? "Bold" : "Secondary"}
+                  >
+                    {" "}
+                    {category.name}{" "}
+                  </Text>{" "}
+                </span>{" "}
+                <Chip
+                  label={String(category.count)}
+                  size="Mini"
+                  variant="No Status"
+                  selected={active}
+                />{" "}
+              </span>
+            </ToggleCard>
           );
         })}{" "}
       </div>{" "}
@@ -6192,11 +6192,11 @@ function CategoryStrip({
       <div className="flex min-w-0 items-start gap-orbit-s">
         {" "}
         <Text as="span" size="Small" variant="Secondary">
-          Categories
+          Clauses
         </Text>{" "}
         <div className="min-w-0 flex-1">
           {" "}
-          <QuickFilterGroup ariaLabel="Category filters">
+          <QuickFilterGroup ariaLabel="Clause filters">
             {" "}
             <CategoryStripChip
               active={activeCategories.length === 0}
@@ -6221,7 +6221,7 @@ function CategoryStrip({
           onClick={() => setPanelOpen((current) => !current)}
         >
           {" "}
-          <IconList size={12} stroke={1.8} /> Categories{" "}
+          <IconList size={12} stroke={1.8} /> Clauses{" "}
         </Button>{" "}
       </div>{" "}
       {panelOpen && (
@@ -7563,27 +7563,27 @@ function RequestReviewDialog({
       onOpenChange={onOpenChange}
       title={reviewGenerateTitle(bulkSummaryMode)}
       size="Large"
+      headerPaddingClassName="py-orbit-s"
+      headerContentClassName="items-center"
+      contentPaddingClassName="p-orbit-m"
       footer={
         <div className="flex w-full flex-col gap-orbit-base sm:flex-row sm:items-center sm:justify-between">
           {" "}
           <CpButton
             type="button"
             orbitVariant="Secondary"
+            orbitSize="Medium"
             onClick={() => onOpenChange(false)}
           >
             Close
           </CpButton>{" "}
           <div className="flex flex-col gap-orbit-base sm:flex-row sm:items-center">
             {" "}
-            <p className="cpv2-type-xs text-muted-foreground">
-              {" "}
-              Confirm to generate the CSV. Nothing is sent to the supplier from
-              this prototype.{" "}
-            </p>{" "}
             {canGenerate && (
               <CpButton
                 type="button"
-                className="cpv2-results-primary-button cpv2-results-primary-button--compact"
+                orbitVariant="Primary"
+                orbitSize="Medium"
                 onClick={submitRequests}
               >
                 {" "}
@@ -7680,7 +7680,7 @@ function RequestReviewTray({
 }
 function reviewGenerateTitle(bulkSummaryMode: boolean) {
   return bulkSummaryMode
-    ? "Generate CSV from applied recommendations"
+    ? "Review & Generate"
     : "Review and generate selected clauses";
 }
 function reviewGenerateAlertDescription(csvNeedsUpdate: boolean) {
@@ -7700,7 +7700,11 @@ function ReviewGenerateContent({
   return (
     <>
       {" "}
-      <div className={compact ? "p-orbit-base" : "px-orbit-base pt-orbit-base"}>
+      <div
+        className={
+          compact ? "p-orbit-base" : "cpv2-review-generate-alert-wrap"
+        }
+      >
         {" "}
         <Alert
           type="Information"
@@ -7717,7 +7721,7 @@ function ReviewGenerateContent({
           className={
             compact
               ? "px-orbit-base pb-orbit-base"
-              : "px-orbit-base pb-orbit-base pt-orbit-s"
+              : "cpv2-review-generate-summary-wrap pt-orbit-s"
           }
         >
           {" "}
@@ -7757,15 +7761,11 @@ function ReviewGenerateProgressDashboard({
             left unreviewed before generating the CSV.{" "}
           </p>{" "}
         </div>{" "}
-        <span className="shrink-0 rounded-full border border-border bg-muted/40 px-orbit-s py-orbit-xxs cpv2-type-xs cpv2-orbit-weight-medium text-foreground">
-          {" "}
-          {percentage}%{" "}
-        </span>{" "}
       </div>{" "}
       <div className="mt-orbit-base h-2 overflow-hidden rounded-full bg-muted">
         {" "}
         <span
-          className="block h-full rounded-full bg-[#1a2744]"
+          className="block h-full rounded-full bg-[#185FA5]"
           style={{ width: `${percentage}%` }}
         />{" "}
       </div>{" "}
@@ -7780,14 +7780,14 @@ function ReviewGenerateProgressDashboard({
           label="Used recommendations"
           value={progress.usedRecommendations}
         />{" "}
-        <ReviewGenerateMetric label="No action" value={progress.noAction} />{" "}
+        <ReviewGenerateMetric label="No Action" value={progress.noAction} />{" "}
         <ReviewGenerateMetric
-          label="Left unreviewed"
+          label="Left Unreviewed"
           value={progress.unreviewed}
           muted
         />{" "}
         <ReviewGenerateMetric
-          label="Ready for CSV"
+          label="Ready For CSV"
           value={progress.readyForCsv}
         />{" "}
       </div>{" "}
@@ -7821,7 +7821,7 @@ function ReviewGenerateProgressDashboard({
               <div className="mt-orbit-s h-1.5 overflow-hidden rounded-full bg-muted">
                 {" "}
                 <span
-                  className="block h-full rounded-full bg-[#1a2744]/80"
+                  className="block h-full rounded-full bg-[#185FA5]"
                   style={{ width: `${itemPercentage}%` }}
                 />{" "}
               </div>{" "}
@@ -7859,7 +7859,7 @@ function ReviewGenerateMetric({
       <p className="cpv2-type-lg cpv2-orbit-weight-semibold cpv2-leading-tight text-foreground">
         {value}
       </p>{" "}
-      <p className="mt-orbit-xs cpv2-type-xs cpv2-orbit-weight-medium uppercase text-muted-foreground">
+      <p className="mt-orbit-xs cpv2-type-xs cpv2-orbit-weight-medium text-muted-foreground">
         {" "}
         {label}{" "}
       </p>{" "}

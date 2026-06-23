@@ -282,8 +282,8 @@ const historyFilterLabels: Record<HistoryFilter, string> = {
   new_clauses: "New clauses",
 };
 
-function normalizeMode(value: string | null): ClauseIqMode {
-  return value === "history" ? "history" : "comparison";
+function normalizeMode(_value: string | null): ClauseIqMode {
+  return "comparison";
 }
 
 function normalizeComparisonDesignOption(value: string | null | undefined): ComparisonDesignOption {
@@ -2009,7 +2009,6 @@ export function ContractResults({
             mode={mode}
             onChange={switchMode}
             comparisonLabel="Review"
-            historyDisabled={!firstAnalysisDemo && versions.length < 2}
             onApplyAllRecommendations={() => applyAllRecommendations(firstAnalysisRecommendationTargets)}
             onApplyRecommendationOptions={applyRecommendationOptions}
             onUndoAllRecommendations={undoAppliedRecommendations}
@@ -2665,7 +2664,6 @@ function ModeSwitcher({
   mode,
   onChange,
   comparisonLabel = "Review",
-  historyDisabled = false,
   onApplyAllRecommendations,
   onApplyRecommendationOptions,
   onUndoAllRecommendations,
@@ -2683,7 +2681,6 @@ function ModeSwitcher({
   mode: ClauseIqMode;
   onChange: (mode: ClauseIqMode) => void;
   comparisonLabel?: string;
-  historyDisabled?: boolean;
   onApplyAllRecommendations?: () => void;
   onApplyRecommendationOptions?: (options: RecommendationApplyOption[]) => void;
   onUndoAllRecommendations?: () => void;
@@ -2734,15 +2731,6 @@ function ModeSwitcher({
           ariaControls="clauseiq-v5-comparison-panel"
         >
           {comparisonLabel}
-        </TabButton>
-        <TabButton
-          active={mode === "history"}
-          disabled={historyDisabled}
-          status={historyDisabled ? "Disabled" : "Rest"}
-          onClick={() => onChange("history")}
-          ariaControls="clauseiq-v5-history-panel"
-        >
-          History
         </TabButton>
       </div>
       {mode === "comparison" && (
@@ -4309,7 +4297,7 @@ function CategorySidebar({
           tabIndex={0}
           className="mb-orbit-xs rounded-md px-orbit-s py-orbit-xs outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]"
         >
-          <Text as="p" size="Small" variant="Secondary">CATEGORIES</Text>
+          <Text as="p" size="Small" variant="Secondary">CLAUSES</Text>
         </div>
       )}
 
@@ -4386,9 +4374,9 @@ function CategoryStrip({
   return (
     <Card type="Static" padding="Small">
       <div className="flex min-w-0 items-start gap-orbit-s">
-        <Text as="span" size="Small" variant="Secondary">Categories</Text>
+        <Text as="span" size="Small" variant="Secondary">Clauses</Text>
         <div className="min-w-0 flex-1">
-          <QuickFilterGroup ariaLabel="Category filters">
+          <QuickFilterGroup ariaLabel="Clause filters">
             <CategoryStripChip
               active={activeCategories.length === 0}
               label={`All ${total}`}
@@ -4412,7 +4400,7 @@ function CategoryStrip({
           onClick={() => setPanelOpen((current) => !current)}
         >
           <IconList size={12} stroke={1.8} />
-          Categories
+          Clauses
         </Button>
       </div>
       {panelOpen && (

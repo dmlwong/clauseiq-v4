@@ -10,6 +10,7 @@ interface Props {
   onViewResult?: () => void;
   viewResultPrimary?: boolean;
   highlightLatestOutput?: boolean;
+  higherIsBetter?: boolean;
   analysisParameters?: AnalysisParameterItem[];
   layout?: ResultsLayout;
 }
@@ -21,6 +22,7 @@ export function ResultsContent({
   onViewResult,
   viewResultPrimary = true,
   highlightLatestOutput = true,
+  higherIsBetter,
   analysisParameters,
   layout = "accordion",
 }: Props) {
@@ -33,6 +35,7 @@ export function ResultsContent({
         onViewResult={onViewResult}
         viewResultPrimary={viewResultPrimary}
         highlightLatestOutput={highlightLatestOutput}
+        higherIsBetter={higherIsBetter}
         analysisParameters={analysisParameters}
       />
     );

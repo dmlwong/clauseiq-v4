@@ -1,0 +1,169 @@
+import type { CSSProperties } from "react";
+import { Chip, Text } from "@orbit";
+
+import { Separator } from "@/components/clauseiq-v5/orbit-ui/separator";
+import type { ClauseAnalysis, DeviationCounts } from "@/data/mock-clauseiq";
+import { cn } from "@/lib/utils";
+
+export type OutputScoreTrend = "up" | "down" | "flat";
+type OutputScoreValence = "success" | "danger" | "neutral";
+
+export interface OutputScorePresentation {
+  score: number;
+  deltaFromPrevious?: number;
+  trend: OutputScoreTrend;
+  hasPreviousOutput: boolean;
+}
+
+const SUPPLIER_OUTPUT_SCORE_BY_ANALYSIS_ID: Record<string, number> = {
+  "a-001": 56,
+  "a-002": 48,
+  "a-003": 36,
+  "a-004": 62,
+  "a-005": 51,
+  "a-006": 78,
+  "a-007": 58,
+  "a-008": 46,
+  "a-009": 74,
+};
+
+export function OutputScoreLine({
+  score,
+  higherIsBetter,
+}: {
+  score: OutputScorePresentation;
+  higherIsBetter: boolean;
+}) {
+  const delta = score.deltaFromPrevious;
+
+  return (
+    <div className="flex min-w-0 items-center gap-orbit-s whitespace-nowrap">
+      <span className="v5-orbit-text-body v5-orbit-weight-medium text-foreground">Score {score.score}</span>
+      {!score.hasPreviousOutput || typeof delta !== "number" ? (
+        <span className="v5-orbit-text-small text-[var(--orbit-color-text-secondary)]">first output</span>
+      ) : delta === 0 ? (
+        <span className="v5-orbit-text-small text-[var(--orbit-color-text-secondary)]">no change</span>
+      ) : (
+        <span
+          className={cn(
+            "inline-flex items-center gap-orbit-xxs v5-orbit-text-small v5-orbit-weight-medium",
+            scoreDeltaValenceTextClass(scoreDeltaValence(delta, higherIsBetter)),
+          )}
+          aria-label={`${score.trend === "up" ? "Increased" : "Decreased"} by ${Math.abs(delta)} versus previous`}
+        >
+          <span aria-hidden="true">{score.trend === "up" ? "↗" : "↘"}</span>
+          <span>{formatDelta(delta)} vs previous</span>
+        </span>
+      )}
+    </div>
+  );
+}
+
+export function OutputFindingsSummary({ deviations }: { deviations: DeviationCounts }) {
+  return (
+    <div className="grid grid-cols-[max-content_var(--orbit-space-micro)_minmax(0,1fr)] items-start gap-x-orbit-base gap-y-orbit-s">
+      <Text as="span" size="Small" variant="Secondary">
+        Missing Clauses
+      </Text>
+
+      <Separator
+        orientation="vertical"
+        decorative
+        className="row-span-2 self-stretch"
+        style={outputFindingsDividerStyle}
+      />
+
+      <Text as="span" size="Small" variant="Secondary">
+        Deviations Level
+      </Text>
+
+      <div>
+        <OutputSummaryPill label={String(deviations.missing)} variant="No Status" />
+      </div>
+
+      <div className="min-w-0 flex flex-wrap gap-orbit-xs">
+        <OutputSummaryPill label={`High ${deviations.high}`} variant="Error" />
+        <OutputSummaryPill label={`Medium ${deviations.medium}`} variant="Warning" />
+        <OutputSummaryPill label={`Low ${deviations.low}`} variant="Outline" strengthenOutline />
+        <OutputSummaryPill label={`None ${deviations.none}`} variant="Success" />
+      </div>
+    </div>
+  );
+}
+
+export function getSupplierScorePresentationByAnalysisId(
+  analyses: ClauseAnalysis[],
+): Record<string, OutputScorePresentation> {
+  const chronological = [...analyses].sort(
+    (a, b) => Date.parse(a.analysedAt) - Date.parse(b.analysedAt),
+  );
+
+  return chronological.reduce<Record<string, OutputScorePresentation>>((scores, analysis, index) => {
+    const score = SUPPLIER_OUTPUT_SCORE_BY_ANALYSIS_ID[analysis.id];
+    if (typeof score !== "number") return scores;
+
+    const previousAnalysis = chronological[index - 1];
+    const previousScore = previousAnalysis
+      ? SUPPLIER_OUTPUT_SCORE_BY_ANALYSIS_ID[previousAnalysis.id]
+      : undefined;
+    const hasPreviousOutput = typeof previousScore === "number";
+    const deltaFromPrevious = hasPreviousOutput ? score - previousScore : undefined;
+
+    scores[analysis.id] = {
+      score,
+      deltaFromPrevious,
+      trend: scoreTrendFromDelta(deltaFromPrevious ?? 0),
+      hasPreviousOutput,
+    };
+    return scores;
+  }, {});
+}
+
+function OutputSummaryPill({
+  label,
+  variant,
+  strengthenOutline = false,
+}: {
+  label: string;
+  variant: "Error" | "Warning" | "No Status" | "Outline" | "Success";
+  strengthenOutline?: boolean;
+}) {
+  return (
+    <span
+      className="inline-flex shrink-0"
+      style={strengthenOutline ? strongerNeutralOutlineStyle : undefined}
+    >
+      <Chip label={label} size="Mini" variant={variant} contrast="Low" />
+    </span>
+  );
+}
+
+function scoreTrendFromDelta(delta: number): OutputScoreTrend {
+  if (delta > 0) return "up";
+  if (delta < 0) return "down";
+  return "flat";
+}
+
+function scoreDeltaValence(delta: number, higherIsBetter: boolean): OutputScoreValence {
+  if (delta === 0) return "neutral";
+  return (delta > 0) === higherIsBetter ? "success" : "danger";
+}
+
+function scoreDeltaValenceTextClass(valence: OutputScoreValence) {
+  if (valence === "success") return "text-[var(--orbit-color-text-success)]";
+  if (valence === "danger") return "text-[var(--orbit-color-text-error)]";
+  return "text-[var(--orbit-color-text-secondary)]";
+}
+
+function formatDelta(delta: number) {
+  return delta > 0 ? `+${delta}` : `${delta}`;
+}
+
+const strongerNeutralOutlineStyle = {
+  "--orbit-color-chip-default-border": "var(--orbit-color-status-low-border-no-status)",
+} as CSSProperties;
+
+const outputFindingsDividerStyle = {
+  width: "var(--orbit-space-micro)",
+  minHeight: "var(--orbit-space-xl)",
+} as CSSProperties;

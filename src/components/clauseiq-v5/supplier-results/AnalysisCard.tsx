@@ -1,7 +1,7 @@
 import { useId, useState } from "react";
 import { motion } from "framer-motion";
 import { BarChart2, Download, RotateCw } from "lucide-react";
-import { Card, InlineBanner } from "@orbit";
+import { Card, FaIcon, InlineBanner } from "@orbit";
 import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
 import { Chip } from "@/components/clauseiq-v5/orbit-ui/indicators";
 import { Switch } from "@/components/clauseiq-v5/orbit-ui/switch";
@@ -9,6 +9,11 @@ import type { ClauseAnalysis, Supplier } from "@/data/mock-clauseiq";
 import { cn } from "@/lib/utils";
 import { supplierSeverity } from "@/lib/clauseiq-utils";
 import { DeviationPills } from "./DeviationPills";
+import {
+  OutputFindingsSummary,
+  OutputScoreLine,
+  type OutputScorePresentation,
+} from "./OutputSummaryMetrics";
 import { SupplierAvatar } from "./SupplierAvatar";
 import type { AnalysisParameterItem } from "./types";
 
@@ -23,6 +28,8 @@ interface Props {
   isLatestOutput?: boolean;
   highlighted?: boolean;
   analysisParameters?: AnalysisParameterItem[];
+  outputScore?: OutputScorePresentation;
+  higherIsBetter?: boolean;
 }
 
 const ICON_FILE = "\uf15b";
@@ -46,6 +53,8 @@ export function AnalysisCard({
   isLatestOutput = false,
   highlighted = isLatestOutput,
   analysisParameters = [],
+  outputScore,
+  higherIsBetter = true,
 }: Props) {
   const [saveToDocuments, setSaveToDocuments] = useState(false);
   const deviationSummaryId = useId();
@@ -107,17 +116,26 @@ export function AnalysisCard({
           </div>
 
           <div className="space-y-orbit-base">
-            <p className="text-base text-foreground">
-              {onDownload
-                ? "Summary shown below. Download the report for full details."
-                : "Summary shown below. View the result for full details."}
-            </p>
-            <div className="space-y-orbit-s" role="group" aria-labelledby={deviationSummaryId}>
-              <p id={deviationSummaryId} className="text-base text-muted-foreground">
-                Missing Clauses and deviation levels
-              </p>
-              <DeviationPills deviations={analysis.deviations} />
-            </div>
+            {outputScore ? (
+              <div className="space-y-orbit-s" role="group" aria-label="Output score and findings summary">
+                <OutputScoreLine score={outputScore} higherIsBetter={higherIsBetter} />
+                <OutputFindingsSummary deviations={analysis.deviations} />
+              </div>
+            ) : (
+              <div className="space-y-orbit-base">
+                <p className="text-base text-foreground">
+                  {onDownload
+                    ? "Summary shown below. Download the report for full details."
+                    : "Summary shown below. View the result for full details."}
+                </p>
+                <div className="space-y-orbit-s" role="group" aria-labelledby={deviationSummaryId}>
+                  <p id={deviationSummaryId} className="text-base text-muted-foreground">
+                    Missing Clauses and deviation levels
+                  </p>
+                  <DeviationPills deviations={analysis.deviations} />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="clauseiq-responsive-analysis-card-actions space-y-orbit-s">
@@ -160,14 +178,47 @@ function AnalysisParametersSummary({ parameters }: { parameters: AnalysisParamet
   return (
     <div className="space-y-orbit-s">
       {parameters.map((parameter) => (
-        <StatusLine
+        <ParameterStatusLine
           key={`${parameter.label}:${parameter.value}`}
           icon={ICON_SLIDERS}
-          label={`${parameter.label} · ${parameter.value}`}
+          label={parameter.label}
+          value={parameter.value}
           status="Selected"
-          tone="neutral"
         />
       ))}
+    </div>
+  );
+}
+
+function ParameterStatusLine({
+  icon,
+  label,
+  value,
+  status,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  status: string;
+}) {
+  return (
+    <div className="clauseiq-responsive-status-line">
+      <div className="flex min-h-[var(--orbit-inline-banner-height)] w-full items-center justify-between gap-orbit-s rounded-[var(--orbit-space-s)] bg-[var(--orbit-color-status-high-bg-no-status)] px-orbit-s py-orbit-xs text-[var(--orbit-color-text-primary)]">
+        <div className="flex min-w-0 flex-1 items-start gap-orbit-xs">
+          <span
+            className="inline-flex h-[var(--orbit-inline-banner-icon-box-size)] w-[var(--orbit-inline-banner-icon-box-size)] shrink-0 items-center justify-center"
+            aria-hidden="true"
+          >
+            <FaIcon icon={icon} size={12} color="var(--orbit-color-dove-gray)" />
+          </span>
+          <span className="min-w-0 flex-1 break-words text-sm leading-snug">
+            <span className="v5-orbit-weight-medium">{label}</span>
+            <span aria-hidden="true"> · </span>
+            <span>{value}</span>
+          </span>
+        </div>
+        <span className="shrink-0 text-sm leading-none">{status}</span>
+      </div>
     </div>
   );
 }

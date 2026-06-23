@@ -52,3 +52,69 @@
   color: var(--_fg);
   white-space: nowrap;
 }
+
+.richBanner {
+  align-items: flex-start;
+  gap: var(--orbit-space-s);
+  height: auto;
+  min-height: var(--orbit-space-xl);
+  padding: var(--orbit-space-base);
+}
+
+.richWrapper {
+  display: flex;
+  flex: 1 1 0;
+  gap: var(--orbit-space-xs);
+  min-width: 0;
+}
+
+.richIconBox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--orbit-inline-banner-icon-box-size);
+  height: var(--orbit-inline-banner-icon-box-size);
+  flex: 0 0 var(--orbit-inline-banner-icon-box-size);
+}
+
+.copy {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--orbit-space-xs);
+  min-width: 0;
+  color: var(--_fg);
+}
+
+.title,
+.description {
+  font-family: var(--orbit-font-family-sans);
+  font-size: var(--orbit-text-sm);
+  color: var(--_fg);
+  word-break: break-word;
+}
+
+.title {
+  font-weight: var(--orbit-font-weight-bold);
+  line-height: normal;
+}
+
+.description {
+  font-weight: var(--orbit-font-weight-regular);
+  line-height: var(--orbit-leading-normal);
+}
+
+.dismissButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--orbit-inline-banner-icon-box-size);
+  height: var(--orbit-inline-banner-icon-box-size);
+  padding: var(--orbit-space-s);
+  border: 0;
+  background: transparent;
+  color: var(--orbit-color-dove-gray);
+  cursor: pointer;
+  flex: 0 0 var(--orbit-inline-banner-icon-box-size);
+}

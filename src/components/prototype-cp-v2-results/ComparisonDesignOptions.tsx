@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { ArrowRight, Columns3, List } from "./CpResultIcons";
 import {
   Badge,
@@ -10,6 +10,7 @@ import {
   RadialIndicator,
   TabButton,
   Text,
+  ToggleCard,
 } from "@orbit";
 import { cn } from "@/lib/utils";
 import type {
@@ -489,7 +490,7 @@ function CategoryFiltersSection({
       <div className="mb-orbit-s">
         {" "}
         <Text as="p" size="Small" variant="Secondary">
-          CATEGORIES
+          CLAUSES
         </Text>{" "}
       </div>{" "}
       <SidebarFiltersPanel activeFilterChips={activeFilterChips}>
@@ -1338,18 +1339,10 @@ const firstAnalysisMetricDefinitions: Array<{
 const firstAnalysisMetricBarDefinitions = firstAnalysisMetricDefinitions.filter(
   (definition) => definition.key !== "none",
 );
-const firstAnalysisMetricRowClassName = (
-  active: boolean,
-  disabled = false,
-) =>
-  cn(
-    "flex min-h-8 w-full items-center rounded-md border px-orbit-s py-orbit-xs transition-colors",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]",
-    active
-      ? "border-[var(--orbit-color-card-border-selected)] bg-[var(--orbit-color-card-bg-selected)]"
-      : "border-transparent hover:border-[var(--orbit-color-card-border-hover)] hover:bg-[var(--orbit-color-btn-secondary-bg-hover)]",
-    disabled && "opacity-60",
-  );
+
+const filterToggleCardStyle: CSSProperties = {
+  boxShadow: "var(--orbit-shadow-none)",
+};
 
 function FirstAnalysisMetricGrid({
   metrics,
@@ -1374,46 +1367,41 @@ function FirstAnalysisMetricGrid({
       CPV2_FIRST_ANALYSIS_STATUS_THEME[definition.status].indicatorColor;
 
     return (
-      <CpButton
+      <ToggleCard
         key={definition.key}
-        type="button"
+        status={value === 0 ? "Disabled" : active ? "Selected" : "Default"}
         aria-pressed={active}
         aria-label={`${active ? "Remove" : "Add"} ${definition.label} filter, ${value} clauses`}
         onClick={
           onMetricSelect ? () => onMetricSelect(definition.key) : undefined
         }
-        className={cn(
-          firstAnalysisMetricRowClassName(active, value === 0),
-          "gap-orbit-s",
-        )}
+        className="overflow-hidden"
+        style={filterToggleCardStyle}
       >
-        <span
-          className="flex min-w-0 flex-1 items-center gap-orbit-s overflow-hidden"
-          style={{ textAlign: "left" }}
-        >
+        <span className="flex min-h-8 w-full items-center gap-orbit-s px-orbit-s py-orbit-xs">
           <span
-            aria-hidden="true"
-            className="h-1.5 w-1.5 shrink-0 rounded-full"
-            style={{ backgroundColor: dotColor }}
-          />
-          <span className="min-w-0 truncate leading-none">
-            <Text
-              as="span"
-              size="Small"
-              variant={active ? "Bold" : "Secondary"}
-            >
-              {definition.label}
-            </Text>
+            className="flex min-w-0 flex-1 items-center gap-orbit-s overflow-hidden"
+            style={{ textAlign: "left" }}
+          >
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 shrink-0 rounded-full"
+              style={{ backgroundColor: dotColor }}
+            />
+            <span className="min-w-0 truncate leading-none">
+              <Text as="span" size="Small" variant="Secondary">
+                {definition.label}
+              </Text>
+            </span>
           </span>
+          <Chip
+            label={String(value)}
+            size="Mini"
+            variant="No Status"
+            contrast="Low"
+          />
         </span>
-        <Chip
-          label={String(value)}
-          size="Mini"
-          variant="No Status"
-          selected={active}
-          contrast="Low"
-        />
-      </CpButton>
+      </ToggleCard>
     );
   };
   const renderMetric = (

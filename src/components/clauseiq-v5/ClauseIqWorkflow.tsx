@@ -1,9 +1,14 @@
 import {
   useCallback,
   useEffect,
+  useId,
+  useMemo,
+  useRef,
   useState,
+  type KeyboardEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   BadgeCheck,
   BookOpen,
@@ -12,13 +17,13 @@ import {
   ChevronUp,
   ClipboardList,
   FilePlus2,
-  Info,
   ListChecks,
   Pencil,
   Scale,
+  Search,
   Sparkles,
 } from "lucide-react";
-import { Card, Dropzone, Text } from "@orbit";
+import { Card, Dropzone, FA, FaIcon, InlineBanner, Text } from "@orbit";
 
 import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
 import { StateCard, type CardState } from "@/components/clauseiq-v5/StateCard";
@@ -51,6 +56,11 @@ export interface AnalysisParameterSelection {
   playbookChoice: PlaybookChoice;
   basis: AnalysisBasisSelection | null;
   category: string | null;
+  benchmarkConfirmed?: boolean;
+  categorySuggested?: boolean;
+  governingLawSuggested?: boolean;
+  suggestedCategory?: string | null;
+  suggestedGoverningLaw?: string | null;
 }
 
 export const PROCESSING_MS = 3_000;
@@ -59,6 +69,86 @@ export const BASIS_PARAMETER_OPTIONS = CIQ_PARAMETER_OPTIONS.filter(
   (option): option is CiqParameterOption & { kind: AnalysisBasisKind } => option.kind !== "Category",
 );
 export const CATEGORY_PARAMETER_OPTION = CIQ_PARAMETER_OPTIONS.find((option) => option.kind === "Category");
+const GENERAL_CATEGORY_BASELINE = "general category";
+const GENERAL_GOVERNING_LAW_BASELINE = "general governing law";
+
+export interface BenchmarkOptionGroup {
+  label: string;
+  options: string[];
+}
+
+interface BenchmarkSuggestion {
+  category: string | null;
+  governingLaw: string | null;
+}
+
+// TODO: replace these grouped placeholders with taxonomy parent metadata when the category API exposes it.
+const CATEGORY_BENCHMARK_GROUPS: BenchmarkOptionGroup[] = [
+  { label: "Goods & materials", options: ["Goods"] },
+  { label: "Services", options: ["Services", "Professional Services"] },
+  { label: "Works", options: ["Construction"] },
+  { label: "Technology", options: ["IT & Technology"] },
+];
+
+const GOVERNING_LAW_BENCHMARK_GROUPS: BenchmarkOptionGroup[] = [
+  { label: "United Kingdom", options: ["United Kingdom"] },
+  { label: "North America", options: ["United States"] },
+  { label: "Europe", options: ["Germany", "France"] },
+  { label: "Asia Pacific", options: ["Singapore"] },
+];
+
+function deriveBenchmarkSuggestion(initiative: CiqInitiative | null): BenchmarkSuggestion {
+  void initiative;
+
+  return {
+    category: null,
+    governingLaw: null,
+  };
+}
+
+function createSuggestedBenchmarkSelection(initiative: CiqInitiative | null): AnalysisParameterSelection {
+  const suggestion = deriveBenchmarkSuggestion(initiative);
+
+  return {
+    playbookChoice: "no",
+    basis: suggestion.governingLaw ? { kind: "Governing Law", label: suggestion.governingLaw } : null,
+    category: suggestion.category,
+    benchmarkConfirmed: false,
+    categorySuggested: Boolean(suggestion.category),
+    governingLawSuggested: Boolean(suggestion.governingLaw),
+    suggestedCategory: suggestion.category,
+    suggestedGoverningLaw: suggestion.governingLaw,
+  };
+}
+
+function benchmarkPrecision(parameter: AnalysisParameterSelection | null) {
+  const category = parameter?.category ?? null;
+  const governingLaw = parameter?.basis?.kind === "Governing Law" ? parameter.basis.label : null;
+  const score = category && governingLaw ? 3 : category || governingLaw ? 2 : 1;
+
+  return { category, governingLaw, score };
+}
+
+export function benchmarkReadout(parameter: AnalysisParameterSelection | null) {
+  const { category, governingLaw, score } = benchmarkPrecision(parameter);
+
+  if (category && governingLaw) {
+    return `Benchmarked against ${governingLaw} · ${category} standards. The more you specify, the sharper the findings.`;
+  }
+
+  if (category || governingLaw) {
+    const value = category ?? governingLaw;
+    const missingAxis = category ? "governing law" : "category";
+    return `Benchmarked against ${value} standards with a general ${missingAxis} baseline. Add a ${missingAxis} for sharper findings.`;
+  }
+
+  if (score === 1) {
+    return "Benchmarked against ClauseIQ's general standard. Add a category or governing law for sharper, more relevant findings.";
+  }
+
+  return "";
+}
+
 export const NEXT_ACTION_MILESTONES = Array.from({ length: 5 }, (_, index) => ({
   id: `gate-${index + 1}`,
   label: `Gate ${index + 1}`,
@@ -102,6 +192,16 @@ export const buildAnalysisParameters = (
 ): AnalysisParameterItem[] => {
   const parameter = selected ?? createDefaultParameterSelection();
   const rows: AnalysisParameterItem[] = [];
+  const playbookChoice =
+    parameter.playbookChoice ??
+    (parameter.basis?.kind === "Governing Law" || parameter.category ? "no" : "yes");
+
+  if (playbookChoice === "no") {
+    const { score } = benchmarkPrecision(parameter);
+    rows.push({ label: "Benchmark", value: benchmarkReadout(parameter) });
+    rows.push({ label: "Precision", value: `${score}-of-3` });
+    return rows;
+  }
 
   if (parameter.basis) {
     rows.push({ label: parameter.basis.kind, value: parameter.basis.label });
@@ -116,13 +216,13 @@ export const buildAnalysisParameters = (
 
 export const hasCompleteAnalysisParameters = (
   selected: AnalysisParameterSelection | null,
-): selected is AnalysisParameterSelection & { basis: AnalysisBasisSelection } => {
+): selected is AnalysisParameterSelection => {
   if (!selected) return false;
   const playbookChoice =
     selected.playbookChoice ??
     (selected.basis?.kind === "Governing Law" || selected.category ? "no" : "yes");
   if (playbookChoice === "yes") return selected.basis?.kind === "Playbook";
-  return selected.basis?.kind === "Governing Law" && Boolean(selected.category);
+  return selected.benchmarkConfirmed === true;
 };
 
 interface UseClauseIqWorkflowOptions {
@@ -255,12 +355,17 @@ export function useClauseIqWorkflow({
     const playbookChoice: PlaybookChoice = option.kind === "Playbook" ? "yes" : "no";
     setSelectedParameter((current) => ({
       playbookChoice,
-      basis: { kind: option.kind, label: value },
+      basis: value ? { kind: option.kind, label: value } : null,
       category: playbookChoice === "no" ? current?.category ?? null : null,
+      benchmarkConfirmed: playbookChoice === "no" ? false : undefined,
+      categorySuggested: playbookChoice === "no" ? current?.categorySuggested ?? false : undefined,
+      governingLawSuggested: false,
+      suggestedCategory: playbookChoice === "no" ? current?.suggestedCategory ?? null : undefined,
+      suggestedGoverningLaw: playbookChoice === "no" ? current?.suggestedGoverningLaw ?? null : undefined,
     }));
     setFile(null);
     if (autoAdvanceParameters) {
-      setStep(option.kind === "Playbook" || selectedParameter?.category ? "upload" : "parameters");
+      setStep(option.kind === "Playbook" ? "upload" : "parameters");
     } else {
       setStep("parameters");
     }
@@ -270,14 +375,15 @@ export function useClauseIqWorkflow({
     setSelectedParameter((current) => ({
       playbookChoice: "no",
       basis: current?.basis?.kind === "Governing Law" ? current.basis : null,
-      category: value,
+      category: value || null,
+      benchmarkConfirmed: false,
+      categorySuggested: false,
+      governingLawSuggested: current?.governingLawSuggested ?? false,
+      suggestedCategory: current?.suggestedCategory ?? null,
+      suggestedGoverningLaw: current?.suggestedGoverningLaw ?? null,
     }));
     setFile(null);
-    if (autoAdvanceParameters && selectedParameter?.basis?.kind === "Governing Law") {
-      setStep("upload");
-    } else {
-      setStep("parameters");
-    }
+    setStep("parameters");
   };
 
   const handleRerunBasisSelect = (option: CiqParameterOption, value: string) => {
@@ -285,8 +391,13 @@ export function useClauseIqWorkflow({
     const playbookChoice: PlaybookChoice = option.kind === "Playbook" ? "yes" : "no";
     setRerunSelectedParameter((current) => ({
       playbookChoice,
-      basis: { kind: option.kind, label: value },
+      basis: value ? { kind: option.kind, label: value } : null,
       category: playbookChoice === "no" ? current?.category ?? null : null,
+      benchmarkConfirmed: playbookChoice === "no" ? false : undefined,
+      categorySuggested: playbookChoice === "no" ? current?.categorySuggested ?? false : undefined,
+      governingLawSuggested: false,
+      suggestedCategory: playbookChoice === "no" ? current?.suggestedCategory ?? null : undefined,
+      suggestedGoverningLaw: playbookChoice === "no" ? current?.suggestedGoverningLaw ?? null : undefined,
     }));
     setFile(null);
   };
@@ -295,19 +406,102 @@ export function useClauseIqWorkflow({
     setRerunSelectedParameter((current) => ({
       playbookChoice: "no",
       basis: current?.basis?.kind === "Governing Law" ? current.basis : null,
-      category: value,
+      category: value || null,
+      benchmarkConfirmed: false,
+      categorySuggested: false,
+      governingLawSuggested: current?.governingLawSuggested ?? false,
+      suggestedCategory: current?.suggestedCategory ?? null,
+      suggestedGoverningLaw: current?.suggestedGoverningLaw ?? null,
     }));
     setFile(null);
   };
 
   const handlePlaybookChoiceChange = (playbookChoice: PlaybookChoice) => {
-    setSelectedParameter({ playbookChoice, basis: null, category: null });
+    setSelectedParameter(
+      playbookChoice === "no"
+        ? createSuggestedBenchmarkSelection(initiative)
+        : { playbookChoice, basis: null, category: null },
+    );
     setFile(null);
     setStep("parameters");
   };
 
   const handleRerunPlaybookChoiceChange = (playbookChoice: PlaybookChoice) => {
-    setRerunSelectedParameter({ playbookChoice, basis: null, category: null });
+    setRerunSelectedParameter(
+      playbookChoice === "no"
+        ? createSuggestedBenchmarkSelection(initiative)
+        : { playbookChoice, basis: null, category: null },
+    );
+    setFile(null);
+  };
+
+  const handleBenchmarkConfirm = () => {
+    setSelectedParameter((current) => ({
+      ...(current?.playbookChoice === "no" ? current : createSuggestedBenchmarkSelection(initiative)),
+      benchmarkConfirmed: true,
+    }));
+    setFile(null);
+    if (autoAdvanceParameters) {
+      setStep("upload");
+    }
+  };
+
+  const handleBenchmarkSkip = () => {
+    const suggestion = deriveBenchmarkSuggestion(initiative);
+    setSelectedParameter({
+      playbookChoice: "no",
+      basis: null,
+      category: null,
+      benchmarkConfirmed: true,
+      categorySuggested: false,
+      governingLawSuggested: false,
+      suggestedCategory: suggestion.category,
+      suggestedGoverningLaw: suggestion.governingLaw,
+    });
+    setFile(null);
+    if (autoAdvanceParameters) {
+      setStep("upload");
+    }
+  };
+
+  const handleBenchmarkEdit = () => {
+    if (parameterLocked) return;
+    setSelectedParameter((current) => ({
+      ...(current?.playbookChoice === "no" ? current : createSuggestedBenchmarkSelection(initiative)),
+      benchmarkConfirmed: false,
+    }));
+    setFile(null);
+    setStep("parameters");
+  };
+
+  const handleRerunBenchmarkConfirm = () => {
+    setRerunSelectedParameter((current) => ({
+      ...(current?.playbookChoice === "no" ? current : createSuggestedBenchmarkSelection(initiative)),
+      benchmarkConfirmed: true,
+    }));
+    setFile(null);
+  };
+
+  const handleRerunBenchmarkSkip = () => {
+    const suggestion = deriveBenchmarkSuggestion(initiative);
+    setRerunSelectedParameter({
+      playbookChoice: "no",
+      basis: null,
+      category: null,
+      benchmarkConfirmed: true,
+      categorySuggested: false,
+      governingLawSuggested: false,
+      suggestedCategory: suggestion.category,
+      suggestedGoverningLaw: suggestion.governingLaw,
+    });
+    setFile(null);
+  };
+
+  const handleRerunBenchmarkEdit = () => {
+    setRerunSelectedParameter((current) => ({
+      ...(current?.playbookChoice === "no" ? current : createSuggestedBenchmarkSelection(initiative)),
+      benchmarkConfirmed: false,
+    }));
     setFile(null);
   };
 
@@ -425,12 +619,18 @@ export function useClauseIqWorkflow({
     supplierOutputPanelState,
     actions: {
       completeInitiative: () => setInitiativeCompleted(true),
+      handleBenchmarkConfirm,
+      handleBenchmarkEdit,
+      handleBenchmarkSkip,
       handleBasisEdit,
       handleBasisSelect,
       handleCategoryEdit,
       handleCategorySelect,
       handleDownload: () => toast.success("Report download queued."),
       handlePlaybookChoiceChange,
+      handleRerunBenchmarkConfirm,
+      handleRerunBenchmarkEdit,
+      handleRerunBenchmarkSkip,
       handleRerunBasisEdit,
       handleRerunBasisSelect,
       handleRerunCategoryEdit,
@@ -640,6 +840,9 @@ export function AnalysisParameterCards({
   categoryCardState = "active",
   locked = false,
   onPlaybookChoiceChange = () => undefined,
+  onBenchmarkConfirm,
+  onBenchmarkEdit,
+  onBenchmarkSkip,
   onBasisSelect,
   onCategorySelect,
   onBasisEdit,
@@ -650,6 +853,9 @@ export function AnalysisParameterCards({
   categoryCardState?: CardState;
   locked?: boolean;
   onPlaybookChoiceChange?: (choice: PlaybookChoice) => void;
+  onBenchmarkConfirm: () => void;
+  onBenchmarkEdit: () => void;
+  onBenchmarkSkip: () => void;
   onBasisSelect: (option: CiqParameterOption, value: string) => void;
   onCategorySelect: (option: CiqParameterOption, value: string) => void;
   onBasisEdit: () => void;
@@ -662,10 +868,10 @@ export function AnalysisParameterCards({
   const hasExternalParameter = Boolean(selectedParameter?.playbookChoice || selectedParameter?.basis || selectedParameter?.category);
   const playbookChoice = selectedParameter?.playbookChoice ?? (hasExternalParameter ? selectedPlaybookChoice : localPlaybookChoice);
   const playbookOption = BASIS_PARAMETER_OPTIONS.find((option) => option.kind === "Playbook");
-  const governingLawOption = BASIS_PARAMETER_OPTIONS.find((option) => option.kind === "Governing Law");
+  const playbookGroups = playbookOption
+    ? [{ label: "Playbooks", options: playbookOption.options }]
+    : [];
   const playbookSelected = playbookChoice === "yes" && selectedParameter?.basis?.kind === "Playbook";
-  const governingLawSelected = playbookChoice === "no" && selectedParameter?.basis?.kind === "Governing Law";
-  const categorySelected = Boolean(selectedParameter?.category);
   const showPlaybookChoiceSelector = !locked;
 
   useEffect(() => {
@@ -714,7 +920,14 @@ export function AnalysisParameterCards({
                 Select the playbook ClauseIQ should use for this analysis.
               </p>
               {playbookOption && (
-                <ParameterOptionsList option={playbookOption} onSelect={onBasisSelect} />
+                <BenchmarkCombobox
+                  label="Playbook"
+                  value=""
+                  groups={playbookGroups}
+                  placeholder="Please select a playbook..."
+                  onSelect={(value) => onBasisSelect(playbookOption, value)}
+                  onClear={() => onBasisSelect(playbookOption, "")}
+                />
               )}
             </>
           )}
@@ -722,51 +935,382 @@ export function AnalysisParameterCards({
       )}
 
       {playbookChoice === "no" && (
-        <div className={cn("grid gap-orbit-base", showPlaybookChoiceSelector ? "mt-orbit-base" : "mt-orbit-xs")}>
-          <section>
-            <h3 className="v5-orbit-heading-label mb-orbit-xs">Category</h3>
-            {categorySelected ? (
-              <SelectedSummaryRow
-                label={`Category \u00b7 ${selectedParameter!.category!}`}
-                disabled={locked}
-                actionLabel="Change Category"
-                onAction={onCategoryEdit}
-              />
-            ) : (
-              <>
-                <p className="text-sm text-muted-foreground mb-orbit-base">
-                  Select the category ClauseIQ should use for this analysis.
-                </p>
-                {CATEGORY_PARAMETER_OPTION && (
-                  <ParameterOptionsList option={CATEGORY_PARAMETER_OPTION} onSelect={onCategorySelect} />
-                )}
-              </>
-            )}
-          </section>
-
-          <section>
-            <h3 className="v5-orbit-heading-label mb-orbit-xs">Governing Law</h3>
-            {governingLawSelected ? (
-              <SelectedSummaryRow
-                label={`${selectedParameter!.basis!.kind} \u00b7 ${selectedParameter!.basis!.label}`}
-                disabled={locked}
-                actionLabel={`Change ${selectedParameter!.basis!.kind}`}
-                onAction={onBasisEdit}
-              />
-            ) : (
-              <>
-                <p className="text-sm text-muted-foreground mb-orbit-base">
-                  Select the governing law ClauseIQ should use for this analysis.
-                </p>
-                {governingLawOption && (
-                  <ParameterOptionsList option={governingLawOption} onSelect={onBasisSelect} />
-                )}
-              </>
-            )}
-          </section>
-        </div>
+        <NoPlaybookBenchmarkPanel
+          parameter={selectedParameter}
+          locked={locked}
+          className={showPlaybookChoiceSelector ? "mt-orbit-base" : "mt-orbit-xs"}
+          onCategorySelect={(value) => {
+            if (CATEGORY_PARAMETER_OPTION) onCategorySelect(CATEGORY_PARAMETER_OPTION, value);
+          }}
+          onCategoryClear={() => {
+            if (CATEGORY_PARAMETER_OPTION) onCategorySelect(CATEGORY_PARAMETER_OPTION, "");
+          }}
+          onGoverningLawSelect={(value) => {
+            const governingLawOption = BASIS_PARAMETER_OPTIONS.find((option) => option.kind === "Governing Law");
+            if (governingLawOption) onBasisSelect(governingLawOption, value);
+          }}
+          onGoverningLawClear={() => {
+            const governingLawOption = BASIS_PARAMETER_OPTIONS.find((option) => option.kind === "Governing Law");
+            if (governingLawOption) onBasisSelect(governingLawOption, "");
+          }}
+          onConfirm={onBenchmarkConfirm}
+          onEditBenchmark={onBenchmarkEdit}
+          onSkip={onBenchmarkSkip}
+        />
       )}
     </Card>
+  );
+}
+
+export function NoPlaybookBenchmarkPanel({
+  parameter,
+  locked,
+  className,
+  onCategorySelect,
+  onCategoryClear,
+  onGoverningLawSelect,
+  onGoverningLawClear,
+  onConfirm,
+  onEditBenchmark,
+  onSkip,
+}: {
+  parameter: AnalysisParameterSelection | null;
+  locked: boolean;
+  className?: string;
+  onCategorySelect: (value: string) => void;
+  onCategoryClear: () => void;
+  onGoverningLawSelect: (value: string) => void;
+  onGoverningLawClear: () => void;
+  onConfirm: () => void;
+  onEditBenchmark: () => void;
+  onSkip: () => void;
+}) {
+  const category = parameter?.category ?? "";
+  const governingLaw = parameter?.basis?.kind === "Governing Law" ? parameter.basis.label : "";
+  const benchmarkConfirmed = parameter?.benchmarkConfirmed === true;
+  const generalBenchmarkConfirmed = benchmarkConfirmed && !category && !governingLaw;
+
+  if (generalBenchmarkConfirmed) {
+    return (
+      <GeneralBenchmarkSummary
+        className={className}
+        locked={locked}
+        onEditBenchmark={onEditBenchmark}
+      />
+    );
+  }
+
+  if (locked) {
+    return (
+      <div className={cn("space-y-orbit-base", className)}>
+        <SelectedSummaryRow
+          label={`Category \u00b7 ${category || GENERAL_CATEGORY_BASELINE}`}
+          disabled
+          actionLabel="Change Category"
+          onAction={() => undefined}
+        />
+        <SelectedSummaryRow
+          label={`Governing Law \u00b7 ${governingLaw || GENERAL_GOVERNING_LAW_BASELINE}`}
+          disabled
+          actionLabel="Change Governing Law"
+          onAction={() => undefined}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn("space-y-orbit-base", className)}>
+      <InlineBanner
+        variant="Information"
+        contrast="Low"
+        label="Select a category and governing law"
+        description="Set a category and a governing law to analyse against more relevant standards or skip to use ClauseIQ's general benchmark."
+      />
+
+      <div className="grid gap-orbit-base">
+        <BenchmarkCombobox
+          label="Category"
+          value={category}
+          groups={CATEGORY_BENCHMARK_GROUPS}
+          placeholder="Please select a category..."
+          onSelect={onCategorySelect}
+          onClear={onCategoryClear}
+        />
+        <BenchmarkCombobox
+          label="Governing law"
+          value={governingLaw}
+          groups={GOVERNING_LAW_BENCHMARK_GROUPS}
+          placeholder="Please select a governing law..."
+          onSelect={onGoverningLawSelect}
+          onClear={onGoverningLawClear}
+        />
+      </div>
+
+      {!benchmarkConfirmed && (
+        <div className="space-y-orbit-s">
+          <Button className="w-full" onClick={onConfirm}>
+            Confirm &amp; continue
+          </Button>
+          <Button variant="secondary" className="w-full" onClick={onSkip}>
+            Skip — use the general benchmark instead
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GeneralBenchmarkSummary({
+  className,
+  locked,
+  onEditBenchmark,
+}: {
+  className?: string;
+  locked: boolean;
+  onEditBenchmark: () => void;
+}) {
+  return (
+    <div className={cn("space-y-orbit-base", className)}>
+      <div className="rounded-[var(--orbit-space-s)] bg-[var(--orbit-color-status-high-bg-no-status)] p-orbit-base text-[var(--orbit-color-text-primary)]">
+        <div className="flex items-start gap-orbit-xs">
+          <span
+            className="inline-flex h-[var(--orbit-inline-banner-icon-box-size)] w-[var(--orbit-inline-banner-icon-box-size)] shrink-0 items-center justify-center"
+            aria-hidden="true"
+          >
+            <FaIcon icon={FA.circleInfo} size={16} color="var(--orbit-color-dove-gray)" />
+          </span>
+          <div className="min-w-0 flex-1 space-y-orbit-s">
+            <div className="v5-orbit-text-body v5-orbit-weight-bold">Using the general benchmark</div>
+            <p className="v5-orbit-text-body">
+              No category or governing law set. ClauseIQ reviews against its general parameters.
+            </p>
+            {!locked && (
+              <button
+                type="button"
+                className="inline-flex items-center gap-orbit-xs rounded-[var(--orbit-radius-sm)] text-left v5-orbit-text-body v5-orbit-weight-medium text-primary transition-colors hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={onEditBenchmark}
+              >
+                <Pencil className="h-[var(--orbit-space-base)] w-[var(--orbit-space-base)]" aria-hidden="true" />
+                Add a category or governing law
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function BenchmarkCombobox({
+  label,
+  value,
+  groups,
+  placeholder,
+  onSelect,
+  onClear,
+}: {
+  label: string;
+  value: string;
+  groups: BenchmarkOptionGroup[];
+  placeholder: string;
+  onSelect: (value: string) => void;
+  onClear: () => void;
+}) {
+  const fieldId = useId();
+  const listboxId = `${fieldId}-listbox`;
+  const controlRef = useRef<HTMLDivElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [listboxPosition, setListboxPosition] = useState({ left: 0, top: 0, width: 0 });
+  const hasSelection = Boolean(value);
+  const changeActionLabel =
+    label === "Governing law"
+      ? "Change Governing Law"
+      : label === "Playbook"
+        ? "Change Playbook"
+        : `Change ${label.toLowerCase()}`;
+  const filteredOptions = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const options = groups.flatMap((group) => group.options);
+
+    if (!normalizedQuery) return options;
+    return options.filter((option) => option.toLowerCase().includes(normalizedQuery));
+  }, [groups, query]);
+  const activeOptionId = open && filteredOptions[activeIndex] ? `${fieldId}-option-${activeIndex}` : undefined;
+
+  useEffect(() => {
+    if (!open) setQuery("");
+  }, [open, value]);
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [query]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const updateListboxPosition = () => {
+      const control = controlRef.current;
+      if (!control) return;
+      const rect = control.getBoundingClientRect();
+      setListboxPosition({
+        left: rect.left,
+        top: rect.bottom + 4,
+        width: rect.width,
+      });
+    };
+
+    updateListboxPosition();
+    window.addEventListener("resize", updateListboxPosition);
+    window.addEventListener("scroll", updateListboxPosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updateListboxPosition);
+      window.removeEventListener("scroll", updateListboxPosition, true);
+    };
+  }, [open]);
+
+  const choose = (nextValue: string) => {
+    onSelect(nextValue);
+    setOpen(false);
+    setQuery("");
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setOpen(true);
+      setActiveIndex((current) => Math.min(current + 1, Math.max(0, filteredOptions.length - 1)));
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setOpen(true);
+      setActiveIndex((current) => Math.max(0, current - 1));
+      return;
+    }
+
+    if (event.key === "Enter" && open) {
+      event.preventDefault();
+      const activeOption = filteredOptions[activeIndex];
+      if (activeOption) choose(activeOption);
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setOpen(false);
+      setQuery("");
+    }
+  };
+
+  return (
+    <div className="space-y-orbit-xs">
+      <div className="flex items-center gap-orbit-s">
+        <label id={`${fieldId}-label`} htmlFor={fieldId} className="v5-orbit-heading-label">
+          {label}
+        </label>
+      </div>
+
+      <div className="relative">
+        <div
+          ref={controlRef}
+          className="flex min-h-11 items-center gap-orbit-s rounded-lg border border-border bg-card px-orbit-base py-orbit-xs focus-within:ring-2 focus-within:ring-ring"
+        >
+          {hasSelection ? (
+            <Check className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+          ) : (
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          )}
+          <input
+            id={fieldId}
+            role="combobox"
+            aria-labelledby={`${fieldId}-label`}
+            aria-autocomplete="list"
+            aria-expanded={open}
+            aria-controls={listboxId}
+            aria-activedescendant={activeOptionId}
+            className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            value={open ? query : value}
+            placeholder={value ? undefined : placeholder}
+            onFocus={() => {
+              setQuery(value);
+              setOpen(true);
+            }}
+            onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setOpen(true);
+            }}
+            onKeyDown={handleKeyDown}
+          />
+          {hasSelection && (
+            <button
+              type="button"
+              aria-label={changeActionLabel}
+              className="inline-flex shrink-0 items-center gap-orbit-xs rounded-md px-orbit-xs py-orbit-xxs text-sm v5-orbit-weight-medium text-primary hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                onClear();
+                setQuery("");
+                setActiveIndex(0);
+                setOpen(true);
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+              {changeActionLabel}
+            </button>
+          )}
+        </div>
+
+        {open && createPortal(
+          <div
+            id={listboxId}
+            role="listbox"
+            aria-labelledby={`${fieldId}-label`}
+            className="fixed z-[9999] max-h-[min(360px,calc(100vh-32px))] overflow-y-auto rounded-lg border border-border bg-card p-orbit-xs shadow-lg"
+            style={{
+              left: listboxPosition.left,
+              top: listboxPosition.top,
+              width: listboxPosition.width,
+            }}
+          >
+            {filteredOptions.length > 0 ? (
+              <div className="space-y-orbit-xxs">
+                {filteredOptions.map((option, index) => {
+                  const active = index === activeIndex;
+
+                  return (
+                    <button
+                      key={option}
+                      id={`${fieldId}-option-${index}`}
+                      type="button"
+                      role="option"
+                      aria-selected={value === option}
+                      className={cn(
+                        "w-full rounded-md px-orbit-base py-orbit-s text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        active ? "bg-muted text-foreground" : "text-foreground hover:bg-muted",
+                      )}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onMouseEnter={() => setActiveIndex(index)}
+                      onClick={() => choose(option)}
+                    >
+                      {option}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="px-orbit-base py-orbit-s text-sm text-muted-foreground">No matches found.</p>
+            )}
+          </div>,
+          document.body,
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -958,7 +1502,7 @@ function ParameterIcon({ kind }: { kind: CiqParameterKind }) {
 
 export function parameterDisclaimer(parameter: AnalysisParameterSelection | null) {
   if (!hasCompleteAnalysisParameters(parameter)) {
-    return "Analysis is based on the selected playbook or the selected category and governing law.";
+    return "Choose the benchmark ClauseIQ should use for this analysis.";
   }
 
   const playbookChoice =
@@ -969,7 +1513,7 @@ export function parameterDisclaimer(parameter: AnalysisParameterSelection | null
     return PLAYBOOK_SCOPE_DISCLAIMER;
   }
 
-  return `Analysis is based on the selected governing law and ${parameter.category} category. Clauses outside that combined scope won't appear in results.`;
+  return benchmarkReadout(parameter);
 }
 
 export function PlaybookDisclaimer({ variant, parameter }: { variant: "callout" | "inline"; parameter: AnalysisParameterSelection | null }) {
@@ -984,9 +1528,13 @@ export function PlaybookDisclaimer({ variant, parameter }: { variant: "callout" 
   }
 
   return (
-    <div className="mb-orbit-base flex items-start gap-orbit-s rounded-md border border-primary/20 bg-primary/5 px-orbit-base py-orbit-s text-[11px] leading-snug text-muted-foreground">
-      <Info className="mt-orbit-xxs h-3 w-3 shrink-0 text-primary" />
-      <span>{copy}</span>
+    <div className="mb-orbit-base">
+      <InlineBanner
+        variant="Information"
+        contrast="Low"
+        label={parameter?.playbookChoice === "no" ? "Benchmark precision" : "Analysis scope"}
+        description={copy}
+      />
     </div>
   );
 }

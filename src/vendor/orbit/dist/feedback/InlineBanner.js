@@ -34,9 +34,13 @@ var iconMap = {
     Disabled: FA.file,
 };
 export var InlineBanner = function (_a) {
-    var variant = _a.variant, _b = _a.contrast, contrast = _b === void 0 ? 'High' : _b, label = _a.label, status = _a.status, icon = _a.icon;
+    var variant = _a.variant, _b = _a.contrast, contrast = _b === void 0 ? 'High' : _b, label = _a.label, description = _a.description, status = _a.status, icon = _a.icon, dismissLabel = _a.dismissLabel, onDismiss = _a.onDismiss;
     var colors = (contrast === 'High' ? highContrastMap : lowContrastMap)[variant];
     // Figma renders a border only for the high-contrast None banner.
     var isNoneOutline = variant === 'None' && contrast === 'High';
+    var hasDescription = Boolean(description);
+    if (hasDescription) {
+        return (_jsxs("div", { className: clsx(styles.banner, styles.richBanner, isNoneOutline && styles.outlined), style: { '--_bg': colors.bg, '--_fg': colors.fg }, children: [_jsxs("div", { className: styles.richWrapper, children: [_jsx("span", { className: styles.richIconBox, children: _jsx(FaIcon, { icon: icon || iconMap[variant], size: 16, color: colors.iconColor }) }), _jsxs("span", { className: styles.copy, children: [label && _jsx("span", { className: styles.title, children: label }), description && _jsx("span", { className: styles.description, children: description })] })] }), onDismiss && _jsx("button", { type: "button", className: styles.dismissButton, "aria-label": dismissLabel || 'Dismiss banner', onClick: onDismiss, children: _jsx(FaIcon, { icon: FA.xmarkLarge, size: 12, color: 'var(--orbit-color-dove-gray)' }) })] }));
+    }
     return (_jsxs("div", { className: clsx(styles.banner, isNoneOutline && styles.outlined), style: { '--_bg': colors.bg, '--_fg': colors.fg }, children: [_jsxs("div", { className: styles.wrapper, children: [_jsx("span", { className: styles.iconBox, children: _jsx(FaIcon, { icon: icon || iconMap[variant], size: 12, color: colors.iconColor }) }), _jsx("span", { className: styles.label, children: label })] }), status && _jsx("span", { className: styles.status, children: status })] }));
 };

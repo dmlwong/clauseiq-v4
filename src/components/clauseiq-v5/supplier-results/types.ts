@@ -29,6 +29,7 @@ export interface ResultsViewProps {
   onViewResult?: () => void;
   viewResultPrimary?: boolean;
   highlightLatestOutput?: boolean;
+  higherIsBetter?: boolean;
   analysisParameters?: AnalysisParameterItem[];
   layout?: ResultsLayout;
   outputState?: SupplierOutputsPanelState;

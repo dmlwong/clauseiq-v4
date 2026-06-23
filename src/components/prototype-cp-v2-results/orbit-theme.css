@@ -61,8 +61,30 @@
 }
 
 body
-  [role="dialog"][aria-label="Generate CSV from applied recommendations"] {
-  max-width: 720px;
+  [role="dialog"][aria-label="Review & Generate"] {
+  max-width: 760px;
+}
+
+body
+  [role="dialog"][aria-label="Review & Generate"]
+  .cpv2-review-generate-alert-wrap,
+body
+  [role="dialog"][aria-label="Review & Generate"]
+  .cpv2-review-generate-summary-wrap {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+body
+  [role="dialog"][aria-label="Review & Generate"]
+  .cpv2-review-generate-alert-wrap {
+  padding-top: 0;
+}
+
+body
+  [role="dialog"][aria-label="Review & Generate"]
+  .cpv2-review-generate-summary-wrap {
+  padding-bottom: 0;
 }
 
 [data-prototype="prototype-cp-v2-results"][data-theme="efficio-cp"]

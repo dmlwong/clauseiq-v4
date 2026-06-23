@@ -14,7 +14,10 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
   BASIS_PARAMETER_OPTIONS,
+  BenchmarkCombobox,
   CATEGORY_PARAMETER_OPTION,
+  NoPlaybookBenchmarkPanel,
+  SelectedSummaryRow,
   hasCompleteAnalysisParameters,
   useClauseIqWorkflow,
   type AnalysisParameterSelection,
@@ -1080,11 +1083,18 @@ function CpV2SupplierOutputsModal({
             outputState="filled"
             onDownload={workflow.actions.handleDownload}
             onViewResult={onViewResult}
+            showClientShareToggle
             showAnalysisMetadata
+            useV5OutputSummary
             className="cpv2-supplier-output-panel-modal"
           />
         </div>
         <footer className="cpv2-supplier-output-modal-footer">
+          <div className="cpv2-supplier-output-modal-actions">
+            <CpButton className="cpv2-footer-btn" type="button" onClick={onClose}>
+              Close
+            </CpButton>
+          </div>
           <div className="cpv2-supplier-output-demo-toggle cpv2-supplier-output-demo-toggle-footer">
             <span>
               <strong>Show Past Analyses</strong>
@@ -1094,11 +1104,6 @@ function CpV2SupplierOutputsModal({
               label="Show past analyses"
               onChange={(checked) => setShowPastAnalyses(checked)}
             />
-          </div>
-          <div className="cpv2-supplier-output-modal-actions">
-            <CpButton className="cpv2-footer-btn" type="button" onClick={onClose}>
-              Close
-            </CpButton>
           </div>
         </footer>
       </div>
@@ -1384,8 +1389,10 @@ function CpV2ClauseJourneyContent({
         onPlaybookChoiceChange={workflow.actions.handlePlaybookChoiceChange}
         onBasisSelect={workflow.actions.handleBasisSelect}
         onCategorySelect={workflow.actions.handleCategorySelect}
+        onBenchmarkConfirm={workflow.actions.handleBenchmarkConfirm}
+        onBenchmarkEdit={workflow.actions.handleBenchmarkEdit}
+        onBenchmarkSkip={workflow.actions.handleBenchmarkSkip}
         onBasisEdit={workflow.actions.handleBasisEdit}
-        onCategoryEdit={workflow.actions.handleCategoryEdit}
       />
     );
   }
@@ -1400,8 +1407,10 @@ function CpV2ClauseJourneyContent({
           onPlaybookChoiceChange={workflow.actions.handlePlaybookChoiceChange}
           onBasisSelect={workflow.actions.handleBasisSelect}
           onCategorySelect={workflow.actions.handleCategorySelect}
+          onBenchmarkConfirm={workflow.actions.handleBenchmarkConfirm}
+          onBenchmarkEdit={workflow.actions.handleBenchmarkEdit}
+          onBenchmarkSkip={workflow.actions.handleBenchmarkSkip}
           onBasisEdit={workflow.actions.handleBasisEdit}
-          onCategoryEdit={workflow.actions.handleCategoryEdit}
         />
         <CpV2UploadStep workflow={workflow} />
       </section>
@@ -1418,8 +1427,10 @@ function CpV2ClauseJourneyContent({
           onPlaybookChoiceChange={workflow.actions.handlePlaybookChoiceChange}
           onBasisSelect={workflow.actions.handleBasisSelect}
           onCategorySelect={workflow.actions.handleCategorySelect}
+          onBenchmarkConfirm={workflow.actions.handleBenchmarkConfirm}
+          onBenchmarkEdit={workflow.actions.handleBenchmarkEdit}
+          onBenchmarkSkip={workflow.actions.handleBenchmarkSkip}
           onBasisEdit={workflow.actions.handleBasisEdit}
-          onCategoryEdit={workflow.actions.handleCategoryEdit}
         />
         <CpV2ProcessingStep
           heading="Analysing Your Contract"
@@ -1465,8 +1476,10 @@ function CpV2AnalysisParameterCards({
   onPlaybookChoiceChange,
   onBasisSelect,
   onCategorySelect,
+  onBenchmarkConfirm,
+  onBenchmarkEdit,
+  onBenchmarkSkip,
   onBasisEdit,
-  onCategoryEdit,
 }: {
   selectedParameter: AnalysisParameterSelection | null;
   cardState: "active" | "default" | "disabled";
@@ -1474,8 +1487,10 @@ function CpV2AnalysisParameterCards({
   onPlaybookChoiceChange: (choice: PlaybookChoice) => void;
   onBasisSelect: (option: CiqParameterOption, value: string) => void;
   onCategorySelect: (option: CiqParameterOption, value: string) => void;
+  onBenchmarkConfirm: () => void;
+  onBenchmarkEdit: () => void;
+  onBenchmarkSkip: () => void;
   onBasisEdit: () => void;
-  onCategoryEdit: () => void;
 }) {
   const selectedPlaybookChoice =
     selectedParameter?.playbookChoice ??
@@ -1496,15 +1511,11 @@ function CpV2AnalysisParameterCards({
   const playbookOption = BASIS_PARAMETER_OPTIONS.find(
     (option) => option.kind === "Playbook",
   );
-  const governingLawOption = BASIS_PARAMETER_OPTIONS.find(
-    (option) => option.kind === "Governing Law",
-  );
+  const playbookGroups = playbookOption
+    ? [{ label: "Playbooks", options: playbookOption.options }]
+    : [];
   const playbookSelected =
     playbookChoice === "yes" && selectedParameter?.basis?.kind === "Playbook";
-  const governingLawSelected =
-    playbookChoice === "no" &&
-    selectedParameter?.basis?.kind === "Governing Law";
-  const categorySelected = Boolean(selectedParameter?.category);
   const showPlaybookChoiceSelector = !locked;
 
   useEffect(() => {
@@ -1535,7 +1546,7 @@ function CpV2AnalysisParameterCards({
       {playbookChoice === "yes" ? (
         <div className={cn("cpv2-parameter-section", showPlaybookChoiceSelector && "with-choice")}>
           {playbookSelected ? (
-            <CpV2SelectedSummaryRow
+            <SelectedSummaryRow
               label={`${selectedParameter!.basis!.kind} · ${selectedParameter!.basis!.label}`}
               disabled={locked}
               actionLabel={`Change ${selectedParameter!.basis!.kind}`}
@@ -1543,66 +1554,50 @@ function CpV2AnalysisParameterCards({
             />
           ) : (
             <>
-              <p>Select the playbook ClauseIQ should use for this analysis.</p>
-              {playbookOption ? (
-                <CpV2ParameterOptionsList
-                  option={playbookOption}
-                  onSelect={onBasisSelect}
-                />
-              ) : null}
+              <BenchmarkCombobox
+                label="Playbook"
+                value=""
+                groups={playbookGroups}
+                placeholder="Please select a playbook..."
+                onSelect={(value) => {
+                  if (playbookOption) onBasisSelect(playbookOption, value);
+                }}
+                onClear={() => {
+                  if (playbookOption) onBasisSelect(playbookOption, "");
+                }}
+              />
             </>
           )}
         </div>
       ) : null}
 
       {playbookChoice === "no" ? (
-        <div className={cn("cpv2-parameter-section-grid", showPlaybookChoiceSelector && "with-choice")}>
-          <section>
-            <h3>Category</h3>
-            {categorySelected ? (
-              <CpV2SelectedSummaryRow
-                label={`Category · ${selectedParameter!.category!}`}
-                disabled={locked}
-                actionLabel="Change Category"
-                onAction={onCategoryEdit}
-              />
-            ) : (
-              <>
-                <p>Select the category ClauseIQ should use for this analysis.</p>
-                {CATEGORY_PARAMETER_OPTION ? (
-                  <CpV2ParameterOptionsList
-                    option={CATEGORY_PARAMETER_OPTION}
-                    onSelect={onCategorySelect}
-                  />
-                ) : null}
-              </>
-            )}
-          </section>
-          <section>
-            <h3>Governing Law</h3>
-            {governingLawSelected ? (
-              <CpV2SelectedSummaryRow
-                label={`${selectedParameter!.basis!.kind} · ${selectedParameter!.basis!.label}`}
-                disabled={locked}
-                actionLabel={`Change ${selectedParameter!.basis!.kind}`}
-                onAction={onBasisEdit}
-              />
-            ) : (
-              <>
-                <p>
-                  Select the governing law ClauseIQ should use for this
-                  analysis.
-                </p>
-                {governingLawOption ? (
-                  <CpV2ParameterOptionsList
-                    option={governingLawOption}
-                    onSelect={onBasisSelect}
-                  />
-                ) : null}
-              </>
-            )}
-          </section>
-        </div>
+        <NoPlaybookBenchmarkPanel
+          parameter={selectedParameter}
+          locked={locked}
+          className={cn("cpv2-parameter-section", showPlaybookChoiceSelector && "with-choice")}
+          onCategorySelect={(value) => {
+            if (CATEGORY_PARAMETER_OPTION) onCategorySelect(CATEGORY_PARAMETER_OPTION, value);
+          }}
+          onCategoryClear={() => {
+            if (CATEGORY_PARAMETER_OPTION) onCategorySelect(CATEGORY_PARAMETER_OPTION, "");
+          }}
+          onGoverningLawSelect={(value) => {
+            const governingLawOption = BASIS_PARAMETER_OPTIONS.find(
+              (option) => option.kind === "Governing Law",
+            );
+            if (governingLawOption) onBasisSelect(governingLawOption, value);
+          }}
+          onGoverningLawClear={() => {
+            const governingLawOption = BASIS_PARAMETER_OPTIONS.find(
+              (option) => option.kind === "Governing Law",
+            );
+            if (governingLawOption) onBasisSelect(governingLawOption, "");
+          }}
+          onConfirm={onBenchmarkConfirm}
+          onEditBenchmark={onBenchmarkEdit}
+          onSkip={onBenchmarkSkip}
+        />
       ) : null}
     </CpStateCard>
   );
@@ -1639,70 +1634,6 @@ function CpV2PlaybookChoiceSelector({
           </CpButton>
         );
       })}
-    </div>
-  );
-}
-
-function CpV2ParameterOptionsList({
-  option,
-  onSelect,
-}: {
-  option: CiqParameterOption;
-  onSelect: (option: CiqParameterOption, value: string) => void;
-}) {
-  return (
-    <div
-      role="listbox"
-      aria-label={`${option.label} options`}
-      className="cpv2-parameter-options"
-    >
-      {option.options.map((value) => (
-        <CpButton
-          key={value}
-          type="button"
-          role="option"
-          aria-selected={false}
-          className="cpv2-parameter-option"
-          onClick={() => onSelect(option, value)}
-        >
-          {value}
-        </CpButton>
-      ))}
-    </div>
-  );
-}
-
-function CpV2SelectedSummaryRow({
-  label,
-  disabled,
-  actionLabel,
-  onAction,
-}: {
-  label: string;
-  disabled: boolean;
-  actionLabel: string;
-  onAction: () => void;
-}) {
-  return (
-    <div
-      className={cn(
-        "cpv2-selected-parameter-row",
-        disabled && "is-disabled",
-      )}
-    >
-      <span className="cpv2-selected-parameter-label">
-        <CpIcon icon={CP_FA.check} size={13} />
-        {label}
-      </span>
-      {!disabled ? (
-        <CpButton
-          type="button"
-          className="cpv2-parameter-change-button"
-          onClick={onAction}
-        >
-          {actionLabel}
-        </CpButton>
-      ) : null}
     </div>
   );
 }
@@ -1831,8 +1762,10 @@ function CpV2ModalResultsStep({
             }
             onBasisSelect={workflow.actions.handleRerunBasisSelect}
             onCategorySelect={workflow.actions.handleRerunCategorySelect}
+            onBenchmarkConfirm={workflow.actions.handleRerunBenchmarkConfirm}
+            onBenchmarkEdit={workflow.actions.handleRerunBenchmarkEdit}
+            onBenchmarkSkip={workflow.actions.handleRerunBenchmarkSkip}
             onBasisEdit={workflow.actions.handleRerunBasisEdit}
-            onCategoryEdit={workflow.actions.handleRerunCategoryEdit}
           />
 
           {workflow.rerunUploadVisible && rerunParametersComplete ? (
@@ -1999,7 +1932,7 @@ function WorkspaceView() {
     useFirstRunResults: true,
   });
 
-  const clauseIqOpen = expanded === "ClauseIQ - Analyse your contracts";
+  const clauseIqOpen = expanded?.startsWith("ClauseIQ") ?? false;
   const openClauseModal = () => {
     if (analysisStatus === "completed") {
       workflow.actions.startAnotherInitiative(false);

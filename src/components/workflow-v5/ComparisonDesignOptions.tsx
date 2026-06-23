@@ -319,7 +319,7 @@ function CategoryFiltersSection({ children }: { children: ReactNode }) {
   return (
     <div className="mt-orbit-base border-t border-border pt-orbit-base">
       <div className="mb-orbit-s">
-        <Text as="p" size="Small" variant="Secondary">CATEGORIES</Text>
+        <Text as="p" size="Small" variant="Secondary">CLAUSES</Text>
       </div>
       <SidebarFiltersPanel>{children}</SidebarFiltersPanel>
     </div>

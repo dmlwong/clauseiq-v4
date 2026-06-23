@@ -5,6 +5,7 @@ import {
   BASIS_PARAMETER_OPTIONS,
   CATEGORY_PARAMETER_OPTION,
   NEXT_ACTION_MILESTONES,
+  benchmarkReadout,
   hasCompleteAnalysisParameters,
   type AnalysisBasisKind,
   type AnalysisParameterSelection,
@@ -12,6 +13,12 @@ import {
   type ClauseIqWorkflowStep,
 } from "@/components/clauseiq-v5/ClauseIqWorkflow";
 import { DeviationPills } from "@/components/clauseiq-v5/supplier-results/DeviationPills";
+import {
+  OutputFindingsSummary,
+  OutputScoreLine,
+  getSupplierScorePresentationByAnalysisId,
+  type OutputScorePresentation,
+} from "@/components/clauseiq-v5/supplier-results/OutputSummaryMetrics";
 import { SupplierAvatar } from "@/components/clauseiq-v5/supplier-results/SupplierAvatar";
 import type { AnalysisParameterItem, ResultsLayout } from "@/components/clauseiq-v5/supplier-results/types";
 import type { ClauseAnalysis, Initiative, Supplier } from "@/data/mock-clauseiq";
@@ -79,6 +86,9 @@ const ICON_CIRCLE_EXCLAMATION = "\uf06a";
 const ICON_TRIANGLE_EXCLAMATION = "\uf071";
 const ICON_SLIDERS = "\uf1de";
 const CP_SHARED_FA = {
+  arrowDown: "\uf063",
+  arrowRight: "\uf061",
+  arrowUp: "\uf062",
   badgeCheck: "\uf058",
   bookOpen: "\uf02d",
   building: "\uf1ad",
@@ -92,6 +102,26 @@ const CP_SHARED_FA = {
   scale: "\uf24e",
   search: "\uf002",
   sparkles: "\ue5d6",
+};
+
+type CpLegacyOutputScoreTrend = "up" | "down" | "flat";
+
+interface CpLegacyOutputScorePresentation {
+  score: number;
+  deltaFromPrevious: number;
+  trend: CpLegacyOutputScoreTrend;
+}
+
+const CP_SUPPLIER_OUTPUT_SCORE_BY_ANALYSIS_ID: Record<string, number> = {
+  "a-001": 56,
+  "a-002": 48,
+  "a-003": 36,
+  "a-004": 62,
+  "a-005": 51,
+  "a-006": 78,
+  "a-007": 58,
+  "a-008": 46,
+  "a-009": 74,
 };
 
 function CpSharedIcon({
@@ -198,7 +228,12 @@ export function CpPlaybookDisclaimer({
 
   return (
     <div className="mb-orbit-base">
-      <InlineBanner variant="Information" contrast="Low" label={copy} />
+      <InlineBanner
+        variant="Information"
+        contrast="Low"
+        label={parameter?.playbookChoice === "no" ? "Benchmark precision" : "Analysis scope"}
+        description={copy}
+      />
     </div>
   );
 }
@@ -425,22 +460,28 @@ export function CpAnalysisCard({
 export function CpSupplierOutputsPanel({
   initiative,
   expandAllSuppliers = false,
+  higherIsBetter = true,
   initialOutputScope = "mine",
   onRunAgain,
   onDownload,
   onViewResult,
   outputState = "filled",
   showAnalysisMetadata = false,
+  showClientShareToggle = false,
+  useV5OutputSummary = false,
   className,
 }: {
   initiative: Initiative;
   expandAllSuppliers?: boolean;
+  higherIsBetter?: boolean;
   initialOutputScope?: "team" | "mine";
   onRunAgain?: () => void;
   onDownload?: () => void;
   onViewResult?: () => void;
   outputState?: CpSupplierOutputsPanelState;
   showAnalysisMetadata?: boolean;
+  showClientShareToggle?: boolean;
+  useV5OutputSummary?: boolean;
   className?: string;
 }) {
   const [outputScope, setOutputScope] = useState<"team" | "mine">(initialOutputScope);
@@ -513,7 +554,7 @@ export function CpSupplierOutputsPanel({
         <div className="space-y-orbit-base">
           <div className="clauseiq-responsive-output-panel-header flex w-full items-baseline justify-between gap-orbit-s">
             <h2 className="v5-orbit-heading-strong">Supplier Outputs</h2>
-            <p className="shrink-0 text-right text-xs text-muted-foreground">
+            <p className="shrink-0 text-right v5-orbit-text-small text-muted-foreground">
               {supplierCount} {supplierCount === 1 ? "supplier" : "suppliers"} {"\u00b7"} {outputCount}{" "}
               {outputCount === 1 ? "output" : "outputs"}
             </p>
@@ -547,7 +588,7 @@ export function CpSupplierOutputsPanel({
         {suppliers.length === 0 ? (
           hasOutputs ? (
             <Card type="Static" state="Default" padding="Base">
-              <div className="text-sm text-muted-foreground">No outputs match this view.</div>
+              <div className="v5-orbit-text-body text-muted-foreground">No outputs match this view.</div>
             </Card>
           ) : (
             <CpSupplierPanelEmptyState title={emptyState.title} copy={emptyState.copy} loading={emptyState.loading} />
@@ -559,11 +600,14 @@ export function CpSupplierOutputsPanel({
               supplier={supplier}
               latestAnalysisId={latestAnalysisId}
               open={openSupplierIds.includes(supplier.id)}
+              higherIsBetter={higherIsBetter}
               onToggle={() => toggleSupplier(supplier.id)}
               onRunAgain={onRunAgain}
               onDownload={onDownload}
               onViewResult={onViewResult}
+              showClientShareToggle={showClientShareToggle}
               showAnalysisMetadata={showAnalysisMetadata}
+              useV5OutputSummary={useV5OutputSummary}
             />
           ))
         )}
@@ -1397,7 +1441,7 @@ function CpSupplierPanelEmptyState({
           {loading ? <Spinner size="Inline" label="Loading supplier outputs" /> : <CpSharedIcon icon={CP_SHARED_FA.search} size={18} />}
         </div>
         <h3 className="v5-orbit-heading-5 mt-orbit-m">{title}</h3>
-        <p className="mt-orbit-s text-sm leading-relaxed text-muted-foreground">{copy}</p>
+        <p className="mt-orbit-s v5-orbit-text-body text-muted-foreground">{copy}</p>
       </div>
     </div>
   );
@@ -1411,7 +1455,7 @@ function CpNoPreviousAnalysisState({ onRunAgain }: { onRunAgain?: () => void }) 
           <CpSharedIcon icon={FA.file} size={18} />
         </div>
         <h3 className="v5-orbit-heading-5 mt-orbit-base">No analysis outputs yet</h3>
-        <p className="mx-auto mt-orbit-s max-w-sm text-sm text-muted-foreground">
+        <p className="mx-auto mt-orbit-s max-w-sm v5-orbit-text-body text-muted-foreground">
           Once the first supplier contract is analysed, the result card will appear here with the supplier output summary.
         </p>
         {onRunAgain && (
@@ -1429,22 +1473,31 @@ function CpSupplierOutputGroup({
   supplier,
   latestAnalysisId,
   open,
+  higherIsBetter,
   onToggle,
   onRunAgain,
   onDownload,
   onViewResult,
+  showClientShareToggle = false,
   showAnalysisMetadata,
+  useV5OutputSummary = false,
 }: {
   supplier: Supplier;
   latestAnalysisId?: string;
   open: boolean;
+  higherIsBetter: boolean;
   onToggle: () => void;
   onRunAgain?: () => void;
   onDownload?: () => void;
   onViewResult?: () => void;
+  showClientShareToggle?: boolean;
   showAnalysisMetadata?: boolean;
+  useV5OutputSummary?: boolean;
 }) {
   const analyses = newestFirst(supplier.analyses);
+  const scoresByAnalysisId = useV5OutputSummary
+    ? getSupplierScorePresentationByAnalysisId(analyses)
+    : getCpSupplierScorePresentationByAnalysisId(analyses);
   const contentId = `supplier-output-${supplier.id}`;
   const containsLatestOutput = supplier.analyses.some((analysis) => analysis.id === latestAnalysisId);
 
@@ -1460,11 +1513,11 @@ function CpSupplierOutputGroup({
           />
           <div className="min-w-0 flex-1">
             <h3 className="v5-orbit-heading-label truncate">{supplier.name}</h3>
-            <p className="text-xs text-muted-foreground">
-              {supplier.analyses.length} {supplier.analyses.length === 1 ? "output" : "outputs"}
-              {containsLatestOutput && <span className="v5-orbit-weight-medium"> - Latest output</span>}
-            </p>
           </div>
+          <p className="shrink-0 whitespace-nowrap text-right v5-orbit-text-small text-muted-foreground">
+            {supplier.analyses.length} {supplier.analyses.length === 1 ? "output" : "outputs"}
+            {containsLatestOutput && <span className="v5-orbit-weight-medium"> - Latest output</span>}
+          </p>
           <CpIconButton
             type="button"
             ariaLabel={`${open ? "Collapse" : "Expand"} ${supplier.name} outputs`}
@@ -1478,17 +1531,23 @@ function CpSupplierOutputGroup({
 
         {open && (
           <div id={contentId} className="overflow-hidden">
-            <div className="divide-y divide-border/70 border-t border-border/70">
-              {analyses.map((analysis) => (
-                <CpCompactOutputRow
-                  key={analysis.id}
-                  analysis={analysis}
-                  isLatestOutput={analysis.id === latestAnalysisId}
-                  onRunAgain={onRunAgain}
-                  onDownload={onDownload}
-                  onViewResult={onViewResult}
-                  showAnalysisMetadata={showAnalysisMetadata}
-                />
+            <div className="border-t border-border/70 pt-orbit-base">
+              {analyses.map((analysis, index) => (
+                <div key={analysis.id}>
+                  {index > 0 && <div className="my-orbit-m h-px bg-border/70" aria-hidden="true" />}
+                  <CpCompactOutputRow
+                    analysis={analysis}
+                    displayFileName={displayFileNameForCpSupplierAnalysis(supplier, analysis)}
+                    score={scoresByAnalysisId[analysis.id]}
+                    higherIsBetter={higherIsBetter}
+                    isLatestOutput={analysis.id === latestAnalysisId}
+                    onRunAgain={onRunAgain}
+                    onDownload={onDownload}
+                    onViewResult={onViewResult}
+                    showClientShareToggle={showClientShareToggle}
+                    useV5OutputSummary={useV5OutputSummary}
+                  />
+                </div>
               ))}
             </div>
           </div>
@@ -1500,55 +1559,133 @@ function CpSupplierOutputGroup({
 
 function CpCompactOutputRow({
   analysis,
+  displayFileName,
+  score,
+  higherIsBetter,
   isLatestOutput,
   onRunAgain,
   onDownload,
   onViewResult,
-  showAnalysisMetadata = false,
+  showClientShareToggle = false,
+  useV5OutputSummary = false,
 }: {
   analysis: ClauseAnalysis;
+  displayFileName: string;
+  score?: OutputScorePresentation | CpLegacyOutputScorePresentation;
+  higherIsBetter: boolean;
   isLatestOutput: boolean;
   onRunAgain?: () => void;
   onDownload?: () => void;
   onViewResult?: () => void;
-  showAnalysisMetadata?: boolean;
+  showClientShareToggle?: boolean;
+  useV5OutputSummary?: boolean;
 }) {
-  const status = statusCopy[analysis.status];
-  const actionCount = [onViewResult, onRunAgain, onDownload].filter(Boolean).length;
-  const actionGridClass =
-    actionCount >= 3 ? "grid-cols-3" : actionCount === 2 ? "grid-cols-2" : "grid-cols-1";
+  const [sharedWithClient, setSharedWithClient] = useState(false);
 
   return (
-    <article className="pt-orbit-s">
-      <div className="flex items-start justify-between gap-orbit-s">
-        <div className="min-w-0">
-          <p className="truncate text-xs v5-orbit-weight-medium text-foreground">{analysis.fileName}</p>
-          {showAnalysisMetadata && (
-            <p className="mt-orbit-xxs text-[11px] leading-snug text-muted-foreground">
-              {analysis.contractName} {"\u00b7"} {analysis.clausesReviewed} clauses reviewed {"\u00b7"}{" "}
-              {status.label}
-            </p>
-          )}
-          {isLatestOutput && (
-            <p className="mt-orbit-xxs text-[11px] v5-orbit-weight-medium text-muted-foreground">
-              Latest output
-            </p>
+    <article className="px-orbit-xs">
+      {isLatestOutput && (
+        <div className="mb-orbit-xxs">
+          <span className="v5-orbit-text-small text-muted-foreground">Latest output</span>
+        </div>
+      )}
+      <div className="flex items-center justify-between gap-orbit-s">
+        <div className="min-w-0 flex-1">
+          <p className="truncate whitespace-nowrap v5-orbit-heading-strong text-foreground">{displayFileName}</p>
+        </div>
+        <CpCompactOutputMeta
+          analysedAt={analysis.analysedAt}
+          clientShareToggle={
+            showClientShareToggle
+              ? {
+                  checked: sharedWithClient,
+                  label: `Share ${displayFileName} with client`,
+                  onChange: setSharedWithClient,
+                }
+              : undefined
+          }
+          onDownload={onDownload}
+          onRunAgain={onRunAgain}
+          onViewResult={onViewResult}
+        />
+      </div>
+
+      {score && (
+        <div className="mt-orbit-xs">
+          {useV5OutputSummary ? (
+            <OutputScoreLine
+              score={score as OutputScorePresentation}
+              higherIsBetter={higherIsBetter}
+            />
+          ) : (
+            <CpLegacyOutputScoreLine score={score as CpLegacyOutputScorePresentation} />
           )}
         </div>
-        <time
-          dateTime={analysis.analysedAt}
-          className="shrink-0 text-right text-[11px] leading-snug text-muted-foreground"
-        >
-          {formatCompactTimestamp(analysis.analysedAt)}
-        </time>
-      </div>
+      )}
 
       <div className="mt-orbit-base">
-        <DeviationPills deviations={analysis.deviations} compact />
+        {useV5OutputSummary ? (
+          <OutputFindingsSummary deviations={analysis.deviations} />
+        ) : (
+          <DeviationPills deviations={analysis.deviations} compact singleLine />
+        )}
       </div>
+    </article>
+  );
+}
 
-      {actionCount > 0 && (
-        <div className={cn("clauseiq-responsive-compact-output-actions mt-orbit-base grid gap-orbit-xs", actionGridClass)}>
+function CpLegacyOutputScoreLine({ score }: { score: CpLegacyOutputScorePresentation }) {
+  return (
+    <div className="flex min-w-0 items-center gap-orbit-s whitespace-nowrap">
+      <span className="v5-orbit-text-body v5-orbit-weight-medium text-foreground">Score {score.score}</span>
+      <span
+        className={cn(
+          "inline-flex items-center gap-[4px] v5-orbit-text-small v5-orbit-weight-medium",
+          cpScoreTrendTextClass(score.trend),
+        )}
+      >
+        <CpSharedIcon icon={cpScoreTrendIcon(score.trend)} size={11} />
+        {formatCpDelta(score.deltaFromPrevious)}
+      </span>
+      <span className="v5-orbit-text-small text-muted-foreground">vs previous</span>
+    </div>
+  );
+}
+
+function CpCompactOutputMeta({
+  analysedAt,
+  clientShareToggle,
+  onDownload,
+  onRunAgain,
+  onViewResult,
+}: {
+  analysedAt: string;
+  clientShareToggle?: {
+    checked: boolean;
+    label: string;
+    onChange: (checked: boolean) => void;
+  };
+  onDownload?: () => void;
+  onRunAgain?: () => void;
+  onViewResult?: () => void;
+}) {
+  return (
+    <div className="shrink-0 text-right v5-orbit-text-small text-muted-foreground">
+      <div className="inline-flex items-center gap-orbit-s whitespace-nowrap">
+        <time dateTime={analysedAt}>{formatCompactTimestamp(analysedAt)}</time>
+        {clientShareToggle && (
+          <span className="inline-flex items-center gap-orbit-xs text-foreground">
+            <span className="v5-orbit-text-small v5-orbit-weight-medium">
+              Share with client
+            </span>
+            <Toggle
+              ariaLabel={clientShareToggle.label}
+              checked={clientShareToggle.checked}
+              onChange={clientShareToggle.onChange}
+            />
+          </span>
+        )}
+        <div className="inline-flex items-center gap-orbit-xs">
           {onViewResult && (
             <CpCompactActionButton label="View Results" onClick={onViewResult}>
               <CpSharedIcon icon={CP_SHARED_FA.chart} size={13} />
@@ -1565,8 +1702,8 @@ function CpCompactOutputRow({
             </CpCompactActionButton>
           )}
         </div>
-      )}
-    </article>
+      </div>
+    </div>
   );
 }
 
@@ -1582,7 +1719,7 @@ function CpCompactActionButton({
   return (
     <CpButton
       orbitVariant="Secondary"
-      className="h-7 w-full px-orbit-none"
+      className="h-7 w-7 px-orbit-none"
       aria-label={label}
       title={label}
       onClick={onClick}
@@ -1594,14 +1731,18 @@ function CpCompactActionButton({
 
 function parameterDisclaimer(parameter: AnalysisParameterSelection | null) {
   if (!hasCompleteAnalysisParameters(parameter)) {
-    return "Analysis is based on the selected playbook or governing law, plus the required category.";
+    return "Choose the benchmark ClauseIQ should use for this analysis.";
   }
 
-  if (parameter.basis.kind === "Playbook") {
+  const playbookChoice =
+    parameter.playbookChoice ??
+    (parameter.basis?.kind === "Governing Law" || parameter.category ? "no" : "yes");
+
+  if (playbookChoice === "yes") {
     return PLAYBOOK_SCOPE_DISCLAIMER;
   }
 
-  return `Analysis is based on the selected governing law and ${parameter.category} category. Clauses outside that combined scope won't appear in results.`;
+  return benchmarkReadout(parameter);
 }
 
 function inlineBannerVariantFromTone(
@@ -1627,6 +1768,58 @@ function statusIconFromTone(tone: "success" | "warning" | "destructive") {
 
 function documentIconFromFileName(_fileName: string) {
   return ICON_FILE;
+}
+
+function getCpSupplierScorePresentationByAnalysisId(
+  analyses: ClauseAnalysis[],
+): Record<string, CpLegacyOutputScorePresentation> {
+  const chronological = [...analyses].sort(
+    (a, b) => Date.parse(a.analysedAt) - Date.parse(b.analysedAt),
+  );
+
+  return chronological.reduce<Record<string, CpLegacyOutputScorePresentation>>((scores, analysis, index) => {
+    const score = CP_SUPPLIER_OUTPUT_SCORE_BY_ANALYSIS_ID[analysis.id];
+    if (typeof score !== "number") return scores;
+
+    const previousAnalysis = chronological[index - 1];
+    const previousScore = previousAnalysis
+      ? CP_SUPPLIER_OUTPUT_SCORE_BY_ANALYSIS_ID[previousAnalysis.id]
+      : undefined;
+    const deltaFromPrevious = typeof previousScore === "number" ? score - previousScore : 0;
+
+    scores[analysis.id] = {
+      score,
+      deltaFromPrevious,
+      trend: cpScoreTrendFromDelta(deltaFromPrevious),
+    };
+    return scores;
+  }, {});
+}
+
+function displayFileNameForCpSupplierAnalysis(supplier: Supplier, analysis: ClauseAnalysis): string {
+  return newestFirst(supplier.analyses)[0]?.fileName ?? analysis.fileName;
+}
+
+function cpScoreTrendFromDelta(delta: number): CpLegacyOutputScoreTrend {
+  if (delta > 0) return "up";
+  if (delta < 0) return "down";
+  return "flat";
+}
+
+function cpScoreTrendTextClass(trend: CpLegacyOutputScoreTrend) {
+  if (trend === "up") return "text-emerald-700";
+  if (trend === "down") return "text-rose-700";
+  return "text-muted-foreground";
+}
+
+function cpScoreTrendIcon(trend: CpLegacyOutputScoreTrend) {
+  if (trend === "up") return CP_SHARED_FA.arrowUp;
+  if (trend === "down") return CP_SHARED_FA.arrowDown;
+  return CP_SHARED_FA.arrowRight;
+}
+
+function formatCpDelta(delta: number) {
+  return delta > 0 ? `+${delta}` : `${delta}`;
 }
 
 function sortSuppliersByLatestChange(suppliers: Supplier[]): Supplier[] {
@@ -1686,12 +1879,9 @@ function formatAnalysisTimestamp(iso: string): string {
 }
 
 function formatCompactTimestamp(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
+  return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
   });
 }

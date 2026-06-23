@@ -136,7 +136,7 @@ export const workspaceSections = [
   "CategoryIQ",
   "RFP Builder",
   "RFP Analytics",
-  "ClauseIQ - Analyse your contracts",
+  "ClauseIQ",
   "Milestone Deliverables",
   "Guidance & Resources",
   "Task Manager",

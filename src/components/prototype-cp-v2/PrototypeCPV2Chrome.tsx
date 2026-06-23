@@ -46,8 +46,18 @@ export const CP_FA = {
   xmark: "\uf00d",
 };
 
-export function CpIcon({ icon, size = 14, color }: { icon: string; size?: number; color?: string }) {
-  return <FaIcon icon={icon} size={size} color={color ?? "currentColor"} />;
+export function CpIcon({
+  className,
+  icon,
+  size = 14,
+  color,
+}: {
+  className?: string;
+  icon: string;
+  size?: number;
+  color?: string;
+}) {
+  return <FaIcon className={className} icon={icon} size={size} color={color ?? "currentColor"} />;
 }
 
 function RailButton({

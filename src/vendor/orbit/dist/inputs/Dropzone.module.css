@@ -64,14 +64,24 @@
 }
 
 .chooseButton {
+  display: inline-flex;
+  align-items: center;
+  height: var(--orbit-space-m);
   padding: 0;
   border: none;
   background: transparent;
   color: var(--orbit-color-btn-tertiary-fg);
-  font: inherit;
-  font-weight: var(--orbit-font-weight-medium);
-  text-decoration: underline;
+  font-family: var(--orbit-font-family-sans);
+  font-size: var(--orbit-text-link-size);
+  font-weight: var(--orbit-text-link-weight);
+  line-height: var(--orbit-text-link-leading);
+  text-decoration: none;
   cursor: pointer;
+  white-space: nowrap;
+}
+
+.chooseButton:hover:not(:disabled) {
+  text-decoration: underline;
 }
 
 .chooseButton:disabled {

@@ -305,7 +305,7 @@ function firstAnalysisCardStateForClause(
   clause: Pick<ClauseResult, "severity" | "missingClause" | "sourceDeviationLevel">,
 ): OrbitCardState {
   if (clause.missingClause && clause.sourceDeviationLevel === "None") {
-    return "Information";
+    return "Default";
   }
   if (clause.sourceDeviationLevel === "None") return "Success";
   return firstAnalysisSeverityCardState[clause.severity];
@@ -345,7 +345,8 @@ const historyFilterLabels: Record<HistoryFilter, string> = {
   new_clauses: "New clauses",
 };
 function normalizeMode(value: string | null): ClauseIqMode {
-  return value === "history" ? "history" : "comparison";
+  void value;
+  return "comparison";
 }
 function normalizeComparisonDesignOption(
   value: string | null | undefined,
@@ -3954,16 +3955,6 @@ function ModeSwitcher({
         >
           {" "}
           {comparisonLabel}{" "}
-        </TabButton>{" "}
-        <TabButton
-          active={mode === "history"}
-          disabled={historyDisabled}
-          status={historyDisabled ? "Disabled" : "Rest"}
-          onClick={() => onChange("history")}
-          ariaControls="cpv2-clauseiq-history-panel"
-        >
-          {" "}
-          History{" "}
         </TabButton>{" "}
       </div>{" "}
       {mode === "comparison" && (

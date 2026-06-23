@@ -78,13 +78,21 @@ export function OutputFindingsSummary({ deviations }: { deviations: DeviationCou
       </Text>
 
       <div>
-        <OutputSummaryPill label={String(deviations.missing)} variant="No Status" />
+        <OutputSummaryPill
+          label={String(deviations.missing)}
+          variant="Outline"
+          style={missingClausesPillStyle}
+        />
       </div>
 
       <div className="min-w-0 flex flex-wrap gap-orbit-xs">
         <OutputSummaryPill label={`High ${deviations.high}`} variant="Error" />
         <OutputSummaryPill label={`Medium ${deviations.medium}`} variant="Warning" />
-        <OutputSummaryPill label={`Low ${deviations.low}`} variant="Outline" strengthenOutline />
+        <OutputSummaryPill
+          label={`Low ${deviations.low}`}
+          variant="Style 2"
+          style={lowDeviationPillStyle}
+        />
         <OutputSummaryPill label={`None ${deviations.none}`} variant="Success" />
       </div>
     </div>
@@ -122,17 +130,14 @@ export function getSupplierScorePresentationByAnalysisId(
 function OutputSummaryPill({
   label,
   variant,
-  strengthenOutline = false,
+  style,
 }: {
   label: string;
-  variant: "Error" | "Warning" | "No Status" | "Outline" | "Success";
-  strengthenOutline?: boolean;
+  variant: "Error" | "Warning" | "No Status" | "Outline" | "Success" | "Style 2";
+  style?: CSSProperties;
 }) {
   return (
-    <span
-      className="inline-flex shrink-0"
-      style={strengthenOutline ? strongerNeutralOutlineStyle : undefined}
-    >
+    <span className="inline-flex shrink-0" style={style}>
       <Chip label={label} size="Mini" variant={variant} contrast="Low" />
     </span>
   );
@@ -159,8 +164,14 @@ function formatDelta(delta: number) {
   return delta > 0 ? `+${delta}` : `${delta}`;
 }
 
-const strongerNeutralOutlineStyle = {
-  "--orbit-color-chip-default-border": "var(--orbit-color-status-low-border-no-status)",
+const lowDeviationPillStyle = {
+  "--orbit-color-chip-style-2-bg": "#E5EDEE",
+  "--orbit-color-chip-style-2-border": "#34585C",
+} as CSSProperties;
+
+const missingClausesPillStyle = {
+  "--orbit-color-chip-default-border": "#D9D8D2",
+  color: "#5F5E5A",
 } as CSSProperties;
 
 const outputFindingsDividerStyle = {

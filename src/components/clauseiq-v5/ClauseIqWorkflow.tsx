@@ -129,6 +129,14 @@ function benchmarkPrecision(parameter: AnalysisParameterSelection | null) {
   return { category, governingLaw, score };
 }
 
+function hasExplicitBenchmarkSelection(parameter: AnalysisParameterSelection | null) {
+  const category = parameter?.category?.trim();
+  const governingLaw =
+    parameter?.basis?.kind === "Governing Law" ? parameter.basis.label.trim() : "";
+
+  return Boolean(category && governingLaw);
+}
+
 export function benchmarkReadout(parameter: AnalysisParameterSelection | null) {
   const { category, governingLaw, score } = benchmarkPrecision(parameter);
 
@@ -454,6 +462,13 @@ export function useClauseIqWorkflow({
   };
 
   const handleBenchmarkConfirm = () => {
+    if (!hasExplicitBenchmarkSelection(selectedParameter)) {
+      toast.error(
+        "Select both Category and Governing Law.",
+        "Choose both fields before confirming, or use the general benchmark instead.",
+      );
+      return;
+    }
     setSelectedParameter((current) => ({
       ...(current?.playbookChoice === "no" ? current : createSuggestedBenchmarkSelection(initiative)),
       benchmarkConfirmed: true,
@@ -493,6 +508,13 @@ export function useClauseIqWorkflow({
   };
 
   const handleRerunBenchmarkConfirm = () => {
+    if (!hasExplicitBenchmarkSelection(rerunSelectedParameter)) {
+      toast.error(
+        "Select both Category and Governing Law.",
+        "Choose both fields before confirming, or use the general benchmark instead.",
+      );
+      return;
+    }
     updateRerunSelectedParameter((current) => ({
       ...(current?.playbookChoice === "no" ? current : createSuggestedBenchmarkSelection(initiative)),
       benchmarkConfirmed: true,
@@ -1075,7 +1097,7 @@ export function NoPlaybookBenchmarkPanel({
             Confirm
           </Button>
           <Button variant="secondary" className="w-full" onClick={onSkip}>
-            Use the general benchmark instead
+            Use General Benchmark instead
           </Button>
         </div>
       )}

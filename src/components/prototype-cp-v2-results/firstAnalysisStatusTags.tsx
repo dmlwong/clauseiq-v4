@@ -15,7 +15,8 @@ type FirstAnalysisChipVariant =
   | "No Status"
   | "Outline"
   | "Success"
-  | "Information";
+  | "Information"
+  | "Style 2";
 
 export const CPV2_FIRST_ANALYSIS_STATUS_THEME: Record<
   FirstAnalysisStatusKey,
@@ -40,15 +41,15 @@ export const CPV2_FIRST_ANALYSIS_STATUS_THEME: Record<
   },
   low: {
     label: "Low Deviation",
-    indicatorColor: "#5F5E5A",
-    chipVariant: "Outline",
-    className: "border-[#D9D8D2] bg-[#F5F5F2] text-[#5F5E5A]",
+    indicatorColor: "#34585C",
+    chipVariant: "Style 2",
+    className: "border-[#34585C] bg-[#E5EDEE] text-[#34585C]",
   },
   missing: {
     label: "Missing Clause",
-    indicatorColor: "#185FA5",
-    chipVariant: "Information",
-    className: "border-[#B8D7F1] bg-[#E6F1FB] text-[#0C447C]",
+    indicatorColor: "#5F5E5A",
+    chipVariant: "Outline",
+    className: "border-[#D9D8D2] bg-[#FFFFFF] text-[#5F5E5A]",
   },
   none: {
     label: "None Deviation",

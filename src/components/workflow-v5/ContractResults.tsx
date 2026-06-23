@@ -247,7 +247,7 @@ const firstAnalysisSeverityCardState: Record<ClauseResult["severity"], OrbitCard
 };
 
 function firstAnalysisCardStateForClause(clause: Pick<ClauseResult, "severity" | "missingClause" | "sourceDeviationLevel">): OrbitCardState {
-  if (clause.missingClause && clause.sourceDeviationLevel === "None") return "Information";
+  if (clause.missingClause && clause.sourceDeviationLevel === "None") return "Default";
   if (clause.sourceDeviationLevel === "None") return "Success";
   return firstAnalysisSeverityCardState[clause.severity];
 }

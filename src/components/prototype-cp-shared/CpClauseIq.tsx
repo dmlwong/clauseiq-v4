@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode, type RefObject } from "react";
-import { Card, Chip, Dropzone, FA, FaIcon, InlineBanner, MultiStateButton, MultiStateGroup, Spinner, Toggle } from "@orbit";
+import { Card, Chip, Dropzone, FA, FaIcon, MultiStateButton, MultiStateGroup, Spinner, Toggle } from "@orbit";
 
 import {
   BASIS_PARAMETER_OPTIONS,
@@ -27,6 +27,7 @@ import { flattenSupplierAnalyses, newestFirst, supplierSeverity } from "@/lib/cl
 import { cn } from "@/lib/utils";
 import {
   CpButton,
+  CpInlineBanner,
   CpIconButton,
   CpSearchField,
   CpTable,
@@ -95,7 +96,7 @@ const CP_SHARED_FA = {
   chart: "\uf080",
   chevronDown: FA.angleDown,
   clipboardList: "\uf46d",
-  download: "\uf019",
+  download: "\ue094",
   filePlus: "\uf319",
   listChecks: "\uf0ae",
   rotate: "\uf2f1",
@@ -228,7 +229,7 @@ export function CpPlaybookDisclaimer({
 
   return (
     <div className="mb-orbit-base">
-      <InlineBanner
+      <CpInlineBanner
         variant="Information"
         contrast="Low"
         label={parameter?.playbookChoice === "no" ? "Benchmark precision" : "Analysis scope"}

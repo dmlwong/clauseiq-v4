@@ -6,7 +6,6 @@ import {
   type RefObject,
 } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Sparkles } from "lucide-react";
 import { V5Shell } from "@/components/clauseiq-v5/V5Shell";
 import { V5InitiativeLinkButton } from "@/components/clauseiq-v5/V5InitiativeLinkButton";
 import { InitiativeModal } from "@/components/clauseiq-v5/InitiativeModal";
@@ -166,11 +165,7 @@ export default function ClauseIQV5({ forceResults = false, resultsLayout = "acco
               navigate(`/delivery-engine-v5/${V4_DELIVERY_INITIATIVE_ID}?return=${encodeURIComponent(currentRoute)}`);
             }}
           />
-        ) : (
-          <div className="h-9 w-9 rounded-lg bg-primary text-primary-foreground grid place-items-center">
-            <Sparkles className="h-4 w-4" />
-          </div>
-        )
+        ) : null
       }
       rightPanel={
         <div className="h-full p-orbit-base">

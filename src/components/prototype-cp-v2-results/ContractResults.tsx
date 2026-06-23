@@ -6090,7 +6090,7 @@ function CategorySidebar({
             <Text
               as="span"
               size="Small"
-              variant={activeCategories.length === 0 ? "Bold" : "Secondary"}
+              variant="Secondary"
             >
               {" "}
               All{" "}
@@ -6099,7 +6099,6 @@ function CategorySidebar({
               label={String(total)}
               size="Mini"
               variant="No Status"
-              selected={activeCategories.length === 0}
             />{" "}
           </span>
         </ToggleCard>{" "}
@@ -6135,7 +6134,7 @@ function CategorySidebar({
                   <Text
                     as="span"
                     size="Small"
-                    variant={active ? "Bold" : "Secondary"}
+                    variant="Secondary"
                   >
                     {" "}
                     {category.name}{" "}
@@ -6145,7 +6144,6 @@ function CategorySidebar({
                   label={String(category.count)}
                   size="Mini"
                   variant="No Status"
-                  selected={active}
                 />{" "}
               </span>
             </ToggleCard>

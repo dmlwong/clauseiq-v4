@@ -419,12 +419,11 @@ function FirstAnalysisSummaryPanel({
   );
 }
 
-function FirstAnalysisReviewCountPanel({ visibleCount }: { visibleCount: number }) {
+function FirstAnalysisReviewCountPanel({ visibleCount: _visibleCount }: { visibleCount: number }) {
   return (
     <div className="mb-orbit-base px-orbit-xs">
-      <div className="flex items-center justify-between gap-orbit-s">
+      <div className="flex items-center gap-orbit-s">
         <Headings size="Heading 4">Clauses to Review</Headings>
-        <Chip label={String(visibleCount)} size="Mini" variant="Outline" contrast="Low" />
       </div>
     </div>
   );

@@ -19,7 +19,7 @@ export const CP_FA = {
   clipboard: "\uf328",
   cloud: "\uf0c2",
   comment: "\uf075",
-  download: "\uf019",
+  download: "\ue094",
   ellipsis: "\uf141",
   file: FA.file,
   filePlus: "\uf319",

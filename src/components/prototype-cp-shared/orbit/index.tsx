@@ -301,6 +301,7 @@ export function CpCard({
 export function CpInlineBanner({
   className,
   contrast = "Low",
+  description,
   icon,
   label,
   status,
@@ -308,6 +309,7 @@ export function CpInlineBanner({
 }: {
   className?: string;
   contrast?: React.ComponentProps<typeof InlineBanner>["contrast"];
+  description?: React.ComponentProps<typeof InlineBanner>["description"];
   icon?: string;
   label: string;
   status?: string;
@@ -315,7 +317,14 @@ export function CpInlineBanner({
 }) {
   return (
     <div className={className} data-cp-orbit-adapter="inline-banner">
-      <InlineBanner contrast={contrast} icon={icon} label={label} status={status} variant={variant} />
+      <InlineBanner
+        contrast={contrast}
+        description={description}
+        icon={icon}
+        label={label}
+        status={status}
+        variant={variant}
+      />
     </div>
   );
 }

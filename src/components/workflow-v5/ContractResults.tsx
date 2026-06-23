@@ -5646,9 +5646,6 @@ function RequestReviewDialog({
             Close
           </Button>
           <div className="flex flex-col gap-orbit-s sm:flex-row sm:items-center">
-            <p className="text-xs text-muted-foreground">
-              Confirm to generate the CSV. Nothing is sent to the supplier from this prototype.
-            </p>
             {canGenerate && (
               <Button
                 className="gap-orbit-xs"

@@ -26,6 +26,7 @@ import {
 import { Card, Dropzone, FA, FaIcon, InlineBanner, Text } from "@orbit";
 
 import { Button } from "@/components/clauseiq-v5/orbit-ui/button";
+import { CpInlineBanner } from "@/components/prototype-cp-shared/orbit";
 import { StateCard, type CardState } from "@/components/clauseiq-v5/StateCard";
 import { showV5OrbitToast as toast } from "@/components/clauseiq-v5/V5OrbitToast";
 import { mockInitiative, type ClauseAnalysis, type Initiative } from "@/data/mock-clauseiq";
@@ -127,14 +128,6 @@ function benchmarkPrecision(parameter: AnalysisParameterSelection | null) {
   const score = category && governingLaw ? 3 : category || governingLaw ? 2 : 1;
 
   return { category, governingLaw, score };
-}
-
-function hasExplicitBenchmarkSelection(parameter: AnalysisParameterSelection | null) {
-  const category = parameter?.category?.trim();
-  const governingLaw =
-    parameter?.basis?.kind === "Governing Law" ? parameter.basis.label.trim() : "";
-
-  return Boolean(category && governingLaw);
 }
 
 export function benchmarkReadout(parameter: AnalysisParameterSelection | null) {
@@ -462,13 +455,6 @@ export function useClauseIqWorkflow({
   };
 
   const handleBenchmarkConfirm = () => {
-    if (!hasExplicitBenchmarkSelection(selectedParameter)) {
-      toast.error(
-        "Select both Category and Governing Law.",
-        "Choose both fields before confirming, or use the general benchmark instead.",
-      );
-      return;
-    }
     setSelectedParameter((current) => ({
       ...(current?.playbookChoice === "no" ? current : createSuggestedBenchmarkSelection(initiative)),
       benchmarkConfirmed: true,
@@ -508,13 +494,6 @@ export function useClauseIqWorkflow({
   };
 
   const handleRerunBenchmarkConfirm = () => {
-    if (!hasExplicitBenchmarkSelection(rerunSelectedParameter)) {
-      toast.error(
-        "Select both Category and Governing Law.",
-        "Choose both fields before confirming, or use the general benchmark instead.",
-      );
-      return;
-    }
     updateRerunSelectedParameter((current) => ({
       ...(current?.playbookChoice === "no" ? current : createSuggestedBenchmarkSelection(initiative)),
       benchmarkConfirmed: true,
@@ -1010,6 +989,8 @@ export function NoPlaybookBenchmarkPanel({
   parameter,
   locked,
   className,
+  bannerVariant = "orbit",
+  showConfirmAction = true,
   onCategorySelect,
   onCategoryClear,
   onGoverningLawSelect,
@@ -1021,6 +1002,8 @@ export function NoPlaybookBenchmarkPanel({
   parameter: AnalysisParameterSelection | null;
   locked: boolean;
   className?: string;
+  bannerVariant?: "orbit" | "cpv2" | "cp-orbit";
+  showConfirmAction?: boolean;
   onCategorySelect: (value: string) => void;
   onCategoryClear: () => void;
   onGoverningLawSelect: (value: string) => void;
@@ -1033,6 +1016,9 @@ export function NoPlaybookBenchmarkPanel({
   const governingLaw = parameter?.basis?.kind === "Governing Law" ? parameter.basis.label : "";
   const benchmarkConfirmed = parameter?.benchmarkConfirmed === true;
   const generalBenchmarkConfirmed = benchmarkConfirmed && !category && !governingLaw;
+  const benchmarkBannerTitle = "Select a category and governing law";
+  const benchmarkBannerDescription =
+    "The fields below are optional, if no selections are made the contract will be analysed against a standard benchmark";
 
   if (generalBenchmarkConfirmed) {
     return (
@@ -1065,16 +1051,35 @@ export function NoPlaybookBenchmarkPanel({
 
   return (
     <div className={cn("space-y-orbit-base", className)}>
-      <InlineBanner
-        variant="Information"
-        contrast="Low"
-        label="Select a category and governing law"
-        description="Set a category and a governing law to analyse against more relevant standards or skip to use ClauseIQ's general benchmark."
-      />
+      {bannerVariant === "cpv2" ? (
+        <div className="cpv2-benchmark-callout" role="note" aria-label={benchmarkBannerTitle}>
+          <span className="cpv2-benchmark-callout-icon" aria-hidden="true">
+            <FaIcon icon={FA.circleInfo} size={16} color="var(--orbit-color-text-info)" />
+          </span>
+          <div className="cpv2-benchmark-callout-copy">
+            <p className="cpv2-benchmark-callout-title">{benchmarkBannerTitle}</p>
+            <p className="cpv2-benchmark-callout-description">{benchmarkBannerDescription}</p>
+          </div>
+        </div>
+      ) : bannerVariant === "cp-orbit" ? (
+        <CpInlineBanner
+          className="cpv2-live-info-callout cpv2-configure-banner"
+          description={benchmarkBannerDescription}
+          label={benchmarkBannerTitle}
+          variant="Information"
+        />
+      ) : (
+        <InlineBanner
+          variant="Information"
+          contrast="Low"
+          label={benchmarkBannerTitle}
+          description={benchmarkBannerDescription}
+        />
+      )}
 
       <div className="grid gap-orbit-base">
         <BenchmarkCombobox
-          label="Category"
+          label="Category (Optional)"
           value={category}
           groups={CATEGORY_BENCHMARK_GROUPS}
           placeholder="Please select a category..."
@@ -1082,7 +1087,7 @@ export function NoPlaybookBenchmarkPanel({
           onClear={onCategoryClear}
         />
         <BenchmarkCombobox
-          label="Governing law"
+          label="Governing Law (Optional)"
           value={governingLaw}
           groups={GOVERNING_LAW_BENCHMARK_GROUPS}
           placeholder="Please select a governing law..."
@@ -1091,16 +1096,12 @@ export function NoPlaybookBenchmarkPanel({
         />
       </div>
 
-      {!benchmarkConfirmed && (
-        <div className="space-y-orbit-s">
-          <Button className="w-full" onClick={onConfirm}>
-            Confirm
-          </Button>
-          <Button variant="secondary" className="w-full" onClick={onSkip}>
-            Use General Benchmark instead
-          </Button>
-        </div>
+      {!benchmarkConfirmed && showConfirmAction && (
+        <Button className="w-full" onClick={onConfirm}>
+          Continue
+        </Button>
       )}
+
     </div>
   );
 }
@@ -1129,19 +1130,20 @@ function GeneralBenchmarkSummary({
             <p className="v5-orbit-text-body">
               No category or governing law set. ClauseIQ reviews against its general parameters.
             </p>
-            {!locked && (
-              <button
-                type="button"
-                className="inline-flex items-center gap-orbit-xs rounded-[var(--orbit-radius-sm)] text-left v5-orbit-text-body v5-orbit-weight-medium text-primary transition-colors hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                onClick={onEditBenchmark}
-              >
-                <Pencil className="h-[var(--orbit-space-base)] w-[var(--orbit-space-base)]" aria-hidden="true" />
-                Add a category or governing law
-              </button>
-            )}
           </div>
         </div>
       </div>
+      {!locked && (
+        <Button
+          type="button"
+          variant="secondary"
+          className="w-full justify-center text-center"
+          onClick={onEditBenchmark}
+        >
+          <Pencil className="h-[var(--orbit-space-base)] w-[var(--orbit-space-base)]" aria-hidden="true" />
+          Add a Category Or Governing law
+        </Button>
+      )}
     </div>
   );
 }
@@ -1169,12 +1171,16 @@ export function BenchmarkCombobox({
   const [activeIndex, setActiveIndex] = useState(0);
   const [listboxPosition, setListboxPosition] = useState({ left: 0, top: 0, width: 0 });
   const hasSelection = Boolean(value);
+  const normalizedLabel = label.replace(/\s*\(optional\)\s*/i, "").trim();
+  const normalizedLabelKey = normalizedLabel.toLowerCase();
   const changeActionLabel =
-    label === "Governing law"
+    normalizedLabelKey === "governing law"
       ? "Change Governing Law"
-      : label === "Playbook"
+      : normalizedLabelKey === "playbook"
         ? "Change Playbook"
-        : `Change ${label.toLowerCase()}`;
+        : normalizedLabelKey === "category"
+          ? "Change Category"
+          : `Change ${normalizedLabel.toLowerCase()}`;
   const filteredOptions = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     const options = groups.flatMap((group) => group.options);

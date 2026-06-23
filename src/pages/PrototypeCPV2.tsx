@@ -16,6 +16,7 @@ import {
   BASIS_PARAMETER_OPTIONS,
   BenchmarkCombobox,
   CATEGORY_PARAMETER_OPTION,
+  DEFAULT_BASIS_SELECTION,
   NoPlaybookBenchmarkPanel,
   SelectedSummaryRow,
   hasCompleteAnalysisParameters,
@@ -774,15 +775,7 @@ function BlueWorkspaceHeader({
   ];
   return (
     <>
-      <ProjectHeader
-        initiativeCrumb="CP001-1014 | sdasd"
-        breadcrumbActions={
-          <DashboardModeToggle
-            dashboardInModal={dashboardInModal}
-            onDashboardInModalChange={onDashboardInModalChange}
-          />
-        }
-      />
+      <ProjectHeader initiativeCrumb="CP001-1014 | sdasd" breadcrumbActions={null} />
       <div className="cpv2-bluebar">
         <div className="cpv2-blue-title">CP001-1014 | sdasd</div>
         <nav className="cpv2-subtabs" aria-label="Initiative tabs">
@@ -1019,14 +1012,15 @@ function ClauseIqLauncherCard({
           {completed ? (
             <CpInlineBanner
               className="cpv2-live-ready-callout"
-              icon={CP_FA.arrowLeft}
-              label="Click View Result to open your contract analysis"
+              description="Click View Result to open your contract analysis"
+              label="Results ready"
               variant="Success"
             />
           ) : null}
           <CpInlineBanner
             className="cpv2-live-info-callout"
-            label="Use this tool to help you analyse your Supplier contracts during your negotiations. This can help you find opportunities to improve the overall contract for your client i.e. better payment terms, missing clauses."
+            description="Use this tool to help you analyse your Supplier contracts during your negotiations. This can help you find opportunities to improve the overall contract for your client i.e. better payment terms, missing clauses."
+            label="Analysis scope"
             variant="Information"
           />
         </div>
@@ -1096,16 +1090,6 @@ function CpV2SupplierOutputsModal({
             <CpButton className="cpv2-footer-btn" type="button" onClick={onClose}>
               Close
             </CpButton>
-          </div>
-          <div className="cpv2-supplier-output-demo-toggle cpv2-supplier-output-demo-toggle-footer">
-            <span>
-              <strong>Show Past Analyses</strong>
-            </span>
-            <CpToggle
-              checked={showPastAnalyses}
-              label="Show past analyses"
-              onChange={(checked) => setShowPastAnalyses(checked)}
-            />
           </div>
         </footer>
       </div>
@@ -1240,6 +1224,19 @@ function CpV2ClauseModalFooter({
   onShowGenerateStep: () => void;
   showGenerateStep: boolean;
 }) {
+  const playbookOption = BASIS_PARAMETER_OPTIONS.find(
+    (option) => option.kind === "Playbook",
+  );
+  const currentParameter =
+    workflow.resultsVisible && workflow.rerunUploadVisible
+      ? workflow.rerunSelectedParameter
+      : workflow.selectedParameter;
+  const currentPlaybookChoice =
+    currentParameter?.playbookChoice ??
+    (currentParameter?.basis?.kind === "Governing Law" ||
+    currentParameter?.category
+      ? "no"
+      : "yes");
   const showGetStarted = workflow.step === "welcome";
   const showFinish = isCpV2GenerateConfirmationStep(
     workflow,
@@ -1271,13 +1268,55 @@ function CpV2ClauseModalFooter({
           onClose();
         }
       : showParametersSubmit
-        ? () => workflow.actions.setStep("upload")
+        ? () => {
+            if (currentPlaybookChoice === "yes") {
+              const selectedPlaybook =
+                currentParameter?.basis?.kind === "Playbook"
+                  ? currentParameter.basis.label
+                  : DEFAULT_BASIS_SELECTION.label;
+              if (playbookOption) {
+                const selectPlaybook = showRerunSubmit
+                  ? workflow.actions.handleRerunBasisSelect
+                  : workflow.actions.handleBasisSelect;
+                selectPlaybook(playbookOption, selectedPlaybook);
+              }
+              workflow.actions.setStep("upload");
+              return;
+            }
+
+            const hasCategory = Boolean(currentParameter?.category?.trim());
+            const hasGoverningLaw = Boolean(
+              currentParameter?.basis?.kind === "Governing Law" &&
+                currentParameter.basis.label.trim(),
+            );
+
+            if (hasCategory && hasGoverningLaw) {
+              const confirmBenchmark = showRerunSubmit
+                ? workflow.actions.handleRerunBenchmarkConfirm
+                : workflow.actions.handleBenchmarkConfirm;
+              confirmBenchmark();
+              workflow.actions.setStep("upload");
+              return;
+            }
+
+            if (!hasCategory && !hasGoverningLaw) {
+              const skipBenchmark = showRerunSubmit
+                ? workflow.actions.handleRerunBenchmarkSkip
+                : workflow.actions.handleBenchmarkSkip;
+              skipBenchmark();
+              workflow.actions.setStep("upload");
+              return;
+            }
+
+            const confirmBenchmark = showRerunSubmit
+              ? workflow.actions.handleRerunBenchmarkConfirm
+              : workflow.actions.handleBenchmarkConfirm;
+            confirmBenchmark();
+          }
         : showUploadSubmit
           ? onShowGenerateStep
         : null;
-  const primaryDisabled = showParametersSubmit
-    ? !hasCompleteAnalysisParameters(workflow.selectedParameter)
-    : showUploadSubmit
+  const primaryDisabled = showUploadSubmit
       ? !workflow.file
       : false;
   const handleBack = () => {
@@ -1570,9 +1609,11 @@ function CpV2AnalysisParameterCards({
 
       {playbookChoice === "no" ? (
         <NoPlaybookBenchmarkPanel
+          bannerVariant="cp-orbit"
           parameter={selectedParameter}
           locked={locked}
           className={cn("cpv2-parameter-section", showPlaybookChoiceSelector && "with-choice")}
+          showConfirmAction={false}
           onCategorySelect={(value) => {
             if (CATEGORY_PARAMETER_OPTION) onCategorySelect(CATEGORY_PARAMETER_OPTION, value);
           }}

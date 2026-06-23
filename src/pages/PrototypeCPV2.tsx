@@ -119,7 +119,8 @@ const CPV2_RESULT_ONLY_PARAMS = [
 
 const CPV2_CLAUSEIQ_STEPS = [
   { key: "prior", label: "Prior to Use" },
-  { key: "configure", label: "Configure & Upload" },
+  { key: "configure", label: "Configure" },
+  { key: "upload", label: "Upload Contract" },
   { key: "generate", label: "Generate Results" },
 ] as const;
 const CPV2_ROCKET_ICON = "\uf135";
@@ -167,8 +168,9 @@ function getCpV2ClauseIqStepIndex(
     workflow.step === "processing" ||
     workflow.step === "results"
   ) {
-    return 2;
+    return 3;
   }
+  if (workflow.step === "upload" || workflow.rerunUploadVisible) return 2;
   return 1;
 }
 
@@ -1248,18 +1250,18 @@ function CpV2ClauseModalFooter({
     workflow.rerunUploadVisible &&
     !workflow.rerunProcessing &&
     !workflow.completedRerunAnalysis;
-  const showConfigureSubmit =
-    (workflow.step === "parameters" ||
-      workflow.step === "upload" ||
-      showRerunSubmit) &&
-    !showGenerateStep;
-  const showBack = showConfigureSubmit || showFinish;
+  const showParametersSubmit = workflow.step === "parameters" && !showGenerateStep;
+  const showUploadSubmit =
+    (workflow.step === "upload" || showRerunSubmit) && !showGenerateStep;
+  const showBack = showParametersSubmit || showUploadSubmit || showFinish;
   const primaryLabel = showGetStarted
     ? "Get Started"
     : showFinish
       ? "Finish"
-      : showConfigureSubmit
+      : showParametersSubmit
         ? "Next"
+        : showUploadSubmit
+          ? "Confirm"
         : null;
   const primaryAction = showGetStarted
     ? workflow.actions.startParameters
@@ -1268,10 +1270,16 @@ function CpV2ClauseModalFooter({
           workflow.actions.startProcessing();
           onClose();
         }
-      : showConfigureSubmit
-        ? onShowGenerateStep
+      : showParametersSubmit
+        ? () => workflow.actions.setStep("upload")
+        : showUploadSubmit
+          ? onShowGenerateStep
         : null;
-  const primaryDisabled = showConfigureSubmit && !workflow.file;
+  const primaryDisabled = showParametersSubmit
+    ? !hasCompleteAnalysisParameters(workflow.selectedParameter)
+    : showUploadSubmit
+      ? !workflow.file
+      : false;
   const handleBack = () => {
     if (showFinish) {
       onHideGenerateStep();
@@ -1280,6 +1288,11 @@ function CpV2ClauseModalFooter({
 
     if (showRerunSubmit) {
       workflow.actions.clearFile();
+      return;
+    }
+
+    if (workflow.step === "upload") {
+      workflow.actions.setStep("parameters");
       return;
     }
 
@@ -1398,23 +1411,7 @@ function CpV2ClauseJourneyContent({
   }
 
   if (workflow.step === "upload") {
-    return (
-      <section className="cpv2-clause-card-stack">
-        <CpV2AnalysisParameterCards
-          selectedParameter={workflow.selectedParameter}
-          cardState="default"
-          locked={workflow.parameterLocked}
-          onPlaybookChoiceChange={workflow.actions.handlePlaybookChoiceChange}
-          onBasisSelect={workflow.actions.handleBasisSelect}
-          onCategorySelect={workflow.actions.handleCategorySelect}
-          onBenchmarkConfirm={workflow.actions.handleBenchmarkConfirm}
-          onBenchmarkEdit={workflow.actions.handleBenchmarkEdit}
-          onBenchmarkSkip={workflow.actions.handleBenchmarkSkip}
-          onBasisEdit={workflow.actions.handleBasisEdit}
-        />
-        <CpV2UploadStep workflow={workflow} />
-      </section>
-    );
+    return <CpV2UploadStep workflow={workflow} />;
   }
 
   if (workflow.step === "processing") {
@@ -1922,7 +1919,7 @@ function WorkspaceView() {
     useState<CpV2AnalysisStatus>("idle");
   const canvasRef = useRef<HTMLElement | null>(null);
   const workflow = useClauseIqWorkflow({
-    autoAdvanceParameters: true,
+    autoAdvanceParameters: false,
     autoStartProcessingOnFile: false,
     initialStep: "welcome",
     initialInitiative: CP_CLAUSEIQ_INITIATIVE,

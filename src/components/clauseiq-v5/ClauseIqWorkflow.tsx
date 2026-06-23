@@ -256,6 +256,7 @@ export function useClauseIqWorkflow({
   const [file, setFile] = useState<File | null>(null);
   const [rerunUploadVisible, setRerunUploadVisible] = useState(initialRerunUploadVisible);
   const [rerunSelectedParameter, setRerunSelectedParameter] = useState<AnalysisParameterSelection | null>(null);
+  const rerunSelectedParameterRef = useRef<AnalysisParameterSelection | null>(null);
   const [rerunProcessing, setRerunProcessing] = useState(false);
   const [pendingRerunAnalysis, setPendingRerunAnalysis] = useState<ClauseAnalysis | null>(null);
   const [pendingRerunParameter, setPendingRerunParameter] = useState<AnalysisParameterSelection | null>(null);
@@ -282,6 +283,18 @@ export function useClauseIqWorkflow({
   const processingVisible = step === "processing" || step === "results";
   const showPostAnalysisActions = resultsVisible && !rerunUploadVisible && !rerunProcessing;
 
+  const updateRerunSelectedParameter = useCallback((
+    next:
+      | AnalysisParameterSelection
+      | null
+      | ((current: AnalysisParameterSelection | null) => AnalysisParameterSelection | null),
+  ) => {
+    const resolved = typeof next === "function" ? next(rerunSelectedParameterRef.current) : next;
+    rerunSelectedParameterRef.current = resolved;
+    setRerunSelectedParameter(resolved);
+    return resolved;
+  }, []);
+
   useEffect(() => {
     if (step !== "processing") return undefined;
     const timeout = window.setTimeout(() => {
@@ -296,23 +309,28 @@ export function useClauseIqWorkflow({
     const timeout = window.setTimeout(() => {
       setRerunProcessing(false);
       setCompletedRerunAnalysis(pendingRerunAnalysis ?? createRerunAnalysis("New_Contract.pdf"));
-      setCompletedRerunParameter(pendingRerunParameter ?? selectedParameter ?? createDefaultParameterSelection());
+      setCompletedRerunParameter(
+        pendingRerunParameter ??
+          rerunSelectedParameterRef.current ??
+          selectedParameter ??
+          createDefaultParameterSelection(),
+      );
       setPendingRerunAnalysis(null);
       setPendingRerunParameter(null);
-      setRerunSelectedParameter(null);
+      updateRerunSelectedParameter(null);
       setFile(null);
       toast.success("New analysis added as latest output.");
       onRerunComplete?.();
     }, PROCESSING_MS);
     return () => window.clearTimeout(timeout);
-  }, [onRerunComplete, pendingRerunAnalysis, pendingRerunParameter, rerunProcessing, selectedParameter]);
+  }, [onRerunComplete, pendingRerunAnalysis, pendingRerunParameter, rerunProcessing, selectedParameter, updateRerunSelectedParameter]);
 
   const resetRunState = useCallback((clearInitiative = false) => {
     if (clearInitiative) setInitiative(null);
     setSelectedParameter(null);
     setFile(null);
     setRerunUploadVisible(false);
-    setRerunSelectedParameter(null);
+    updateRerunSelectedParameter(null);
     setRerunProcessing(false);
     setPendingRerunAnalysis(null);
     setPendingRerunParameter(null);
@@ -320,7 +338,7 @@ export function useClauseIqWorkflow({
     setCompletedRerunParameter(null);
     setCompletedMilestoneIds([]);
     setInitiativeCompleted(false);
-  }, []);
+  }, [updateRerunSelectedParameter]);
 
   const selectInitiative = (nextInitiative: CiqInitiative) => {
     setInitiative(nextInitiative);
@@ -389,7 +407,7 @@ export function useClauseIqWorkflow({
   const handleRerunBasisSelect = (option: CiqParameterOption, value: string) => {
     if (option.kind === "Category") return;
     const playbookChoice: PlaybookChoice = option.kind === "Playbook" ? "yes" : "no";
-    setRerunSelectedParameter((current) => ({
+    updateRerunSelectedParameter((current) => ({
       playbookChoice,
       basis: value ? { kind: option.kind, label: value } : null,
       category: playbookChoice === "no" ? current?.category ?? null : null,
@@ -403,7 +421,7 @@ export function useClauseIqWorkflow({
   };
 
   const handleRerunCategorySelect = (_option: CiqParameterOption, value: string) => {
-    setRerunSelectedParameter((current) => ({
+    updateRerunSelectedParameter((current) => ({
       playbookChoice: "no",
       basis: current?.basis?.kind === "Governing Law" ? current.basis : null,
       category: value || null,
@@ -427,7 +445,7 @@ export function useClauseIqWorkflow({
   };
 
   const handleRerunPlaybookChoiceChange = (playbookChoice: PlaybookChoice) => {
-    setRerunSelectedParameter(
+    updateRerunSelectedParameter(
       playbookChoice === "no"
         ? createSuggestedBenchmarkSelection(initiative)
         : { playbookChoice, basis: null, category: null },
@@ -475,7 +493,7 @@ export function useClauseIqWorkflow({
   };
 
   const handleRerunBenchmarkConfirm = () => {
-    setRerunSelectedParameter((current) => ({
+    updateRerunSelectedParameter((current) => ({
       ...(current?.playbookChoice === "no" ? current : createSuggestedBenchmarkSelection(initiative)),
       benchmarkConfirmed: true,
     }));
@@ -484,7 +502,7 @@ export function useClauseIqWorkflow({
 
   const handleRerunBenchmarkSkip = () => {
     const suggestion = deriveBenchmarkSuggestion(initiative);
-    setRerunSelectedParameter({
+    updateRerunSelectedParameter({
       playbookChoice: "no",
       basis: null,
       category: null,
@@ -498,7 +516,7 @@ export function useClauseIqWorkflow({
   };
 
   const handleRerunBenchmarkEdit = () => {
-    setRerunSelectedParameter((current) => ({
+    updateRerunSelectedParameter((current) => ({
       ...(current?.playbookChoice === "no" ? current : createSuggestedBenchmarkSelection(initiative)),
       benchmarkConfirmed: false,
     }));
@@ -528,7 +546,7 @@ export function useClauseIqWorkflow({
   };
 
   const handleRerunBasisEdit = () => {
-    setRerunSelectedParameter((current) =>
+    updateRerunSelectedParameter((current) =>
       current
         ? {
             ...current,
@@ -541,7 +559,7 @@ export function useClauseIqWorkflow({
   };
 
   const handleRerunCategoryEdit = () => {
-    setRerunSelectedParameter((current) => current ? { ...current, category: null } : null);
+    updateRerunSelectedParameter((current) => current ? { ...current, category: null } : null);
     setFile(null);
   };
 
@@ -552,7 +570,11 @@ export function useClauseIqWorkflow({
     }
 
     if (resultsVisible && rerunUploadVisible) {
-      const parameterForRun = rerunSelectedParameter ?? selectedParameter ?? createDefaultParameterSelection();
+      const parameterForRun =
+        rerunSelectedParameterRef.current ??
+        rerunSelectedParameter ??
+        selectedParameter ??
+        createDefaultParameterSelection();
       setPendingRerunAnalysis(createRerunAnalysis(nextFile.name));
       setPendingRerunParameter(parameterForRun);
       setCompletedRerunAnalysis(null);
@@ -589,7 +611,7 @@ export function useClauseIqWorkflow({
     setPendingRerunParameter(null);
     setCompletedRerunAnalysis(null);
     setCompletedRerunParameter(null);
-    setRerunSelectedParameter(null);
+    updateRerunSelectedParameter(null);
     setRerunUploadVisible(true);
     onRunAgain?.();
   };
@@ -1050,10 +1072,10 @@ export function NoPlaybookBenchmarkPanel({
       {!benchmarkConfirmed && (
         <div className="space-y-orbit-s">
           <Button className="w-full" onClick={onConfirm}>
-            Confirm &amp; continue
+            Confirm
           </Button>
           <Button variant="secondary" className="w-full" onClick={onSkip}>
-            Skip — use the general benchmark instead
+            Use the general benchmark instead
           </Button>
         </div>
       )}

@@ -44,7 +44,7 @@ function selectBenchmarkOption(fieldName: "Category" | "Governing law", value: s
 }
 
 function confirmBenchmark() {
-  fireEvent.click(screen.getByRole("button", { name: /confirm & continue/i }));
+  fireEvent.click(screen.getByRole("button", { name: /^confirm$/i }));
 }
 
 beforeAll(() => {
@@ -155,8 +155,8 @@ describe("ClauseIQ V5 flow", () => {
       ),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("1-of-3 precision")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /confirm & continue/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /skip — use the general benchmark instead/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^confirm$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /use the general benchmark instead/i })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
   });
 
@@ -193,7 +193,7 @@ describe("ClauseIQ V5 flow", () => {
 
     startAndSelectInitiative();
     selectNoPlaybook();
-    fireEvent.click(screen.getByRole("button", { name: /skip — use the general benchmark instead/i }));
+    fireEvent.click(screen.getByRole("button", { name: /use the general benchmark instead/i }));
 
     expect(screen.queryByRole("combobox", { name: "Category" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Governing law" })).not.toBeInTheDocument();
@@ -459,7 +459,7 @@ describe("ClauseIQ V5 flow", () => {
     expect(screen.queryByText("Suggested")).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /skip — use the general benchmark instead/i }));
+    fireEvent.click(screen.getByRole("button", { name: /use the general benchmark instead/i }));
 
     expect(screen.queryByRole("combobox", { name: "Category" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: "Governing law" })).not.toBeInTheDocument();
@@ -516,6 +516,43 @@ describe("ClauseIQ V5 flow", () => {
     expect(screen.getAllByText("MSA_ThomsonReuters_v2.pdf").length).toBeGreaterThan(0);
     expect(screen.getByText("New_ThomsonReuters_contract.pdf")).toBeInTheDocument();
     expect(screen.getAllByText("Here is your Analysis Result").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("uses the confirmed rerun benchmark on the completed output card", async () => {
+    vi.useFakeTimers();
+    const { container } = renderClauseIQ("/clauseiq-v5/output-panel", {
+      forceResults: true,
+      resultsLayout: "output-panel",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Run Analysis Again" }));
+    selectNoPlaybook();
+    selectBenchmarkOption("Category", "Services");
+    selectBenchmarkOption("Governing law", "Germany");
+    confirmBenchmark();
+
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+    expect(input).toBeTruthy();
+
+    fireEvent.change(input!, {
+      target: {
+        files: [new File(["pdf"], "Services_Germany_contract.pdf", { type: "application/pdf" })],
+      },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    const analysisCards = container.querySelectorAll("article.clauseiq-responsive-analysis-card");
+    const latestCardText = analysisCards[analysisCards.length - 1]?.textContent ?? "";
+
+    expect(latestCardText).toContain("Services_Germany_contract.pdf");
+    expect(latestCardText).toContain(
+      "Benchmark · Benchmarked against Germany · Services standards. The more you specify, the sharper the findings.",
+    );
+    expect(latestCardText).toContain("Precision · 3-of-3");
+    expect(latestCardText).not.toContain("United States · Professional Services");
   });
 
   it("renders direct results routes with the default playbook selected", () => {

@@ -204,7 +204,7 @@ function ParameterStatusLine({
   return (
     <div className="clauseiq-responsive-status-line">
       <div className="flex min-h-[var(--orbit-inline-banner-height)] w-full items-center justify-between gap-orbit-s rounded-[var(--orbit-space-s)] bg-[var(--orbit-color-status-high-bg-no-status)] px-orbit-s py-orbit-xs text-[var(--orbit-color-text-primary)]">
-        <div className="flex min-w-0 flex-1 items-start gap-orbit-xs">
+        <div className="flex min-w-0 flex-1 items-center gap-orbit-xs">
           <span
             className="inline-flex h-[var(--orbit-inline-banner-icon-box-size)] w-[var(--orbit-inline-banner-icon-box-size)] shrink-0 items-center justify-center"
             aria-hidden="true"

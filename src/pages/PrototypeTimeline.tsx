@@ -29,6 +29,7 @@ import {
   usePrototypeStore,
   prototypePreviewUrl,
   isPrototypeCP,
+  isPrototypeV6,
   isPrototypeV5,
   isResponsiveTestingPrototype,
   summarize,
@@ -47,6 +48,8 @@ const V5_DASHBOARD_ROUTE =
   "/initiatives-v5?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=first-analysis";
 const RESPONSIVE_TESTING_DASHBOARD_ROUTE =
   "/initiatives-responsive-testing?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=first-analysis";
+const V6_DASHBOARD_ROUTE =
+  "/initiatives-v6?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=first-analysis";
 
 const v5EntryPoints = [
   {
@@ -64,6 +67,25 @@ const v5EntryPoints = [
     label: "Open intake flow",
     description: "Start at the local ClauseIQ upload journey.",
     url: "/clauseiq-v5",
+  },
+];
+
+const v6EntryPoints = [
+  {
+    label: "Open output panel",
+    description: "Isolated ClauseIQ v6 supplier output forked from v5.",
+    url: "/clauseiq-v6/output-panel",
+    primary: true,
+  },
+  {
+    label: "Open dashboard",
+    description: "Isolated v6 contract results dashboard for the first-analysis scenario.",
+    url: V6_DASHBOARD_ROUTE,
+  },
+  {
+    label: "Open intake flow",
+    description: "Start at the separate ClauseIQ v6 upload journey.",
+    url: "/clauseiq-v6",
   },
 ];
 
@@ -116,7 +138,7 @@ function openPrototype(url?: string) {
 }
 
 function isHomepageCurrentVersion(version: PrototypeVersion) {
-  return isPrototypeCP(version) || isPrototypeV5(version);
+  return isPrototypeCP(version) || isPrototypeV5(version) || isPrototypeV6(version);
 }
 
 export default function PrototypeTimeline() {
@@ -137,6 +159,7 @@ export default function PrototypeTimeline() {
   const currentVersions = sorted.filter(isHomepageCurrentVersion);
   const history = sorted.filter((version) => !isHomepageCurrentVersion(version));
   const hasCurrentVersions = currentVersions.length > 0;
+  const hasCurrentV6 = currentVersions.some(isPrototypeV6);
   const hasCurrentV5 = currentVersions.some(isPrototypeV5);
   const hasResponsiveTestingCurrent = currentVersions.some(isResponsiveTestingPrototype);
 
@@ -245,15 +268,52 @@ export default function PrototypeTimeline() {
           </div>
         )}
 
-        {activeTab === "current" &&
-          hasCurrentVersions &&
-          (hasResponsiveTestingCurrent ? (
-            <ResponsiveTestingQuickLinksSection />
-          ) : (
-            hasCurrentV5 && <V5QuickLinksSection />
-          ))}
+        {activeTab === "current" && hasCurrentVersions && (
+          <div className="space-y-4">
+            {hasCurrentV6 && <V6QuickLinksSection />}
+            {hasCurrentV5 && <V5QuickLinksSection />}
+            {hasResponsiveTestingCurrent && <ResponsiveTestingQuickLinksSection />}
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+function V6QuickLinksSection() {
+  return (
+    <section className="rounded-xl border border-primary/20 bg-primary/5 p-5 shadow-sm">
+      <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+        <div className="max-w-2xl space-y-2">
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-background/80 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
+            <Sparkles className="h-3.5 w-3.5" />
+            v6
+          </div>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">V6 quick links</h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Direct access to the isolated v6 fork so design changes no longer affect v5.
+          </p>
+        </div>
+        <div className="grid w-full gap-2 md:w-[340px]">
+          {v6EntryPoints.map((entry) => (
+            <Button
+              key={entry.url}
+              variant={entry.primary ? "default" : "outline"}
+              className="h-auto justify-between gap-3 px-4 py-3 text-left"
+              onClick={() => openPrototype(entry.url)}
+            >
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">{entry.label}</span>
+                <span className="mt-0.5 block whitespace-normal text-xs font-normal opacity-80">
+                  {entry.description}
+                </span>
+              </span>
+              <ExternalLink className="h-4 w-4 shrink-0" />
+            </Button>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 

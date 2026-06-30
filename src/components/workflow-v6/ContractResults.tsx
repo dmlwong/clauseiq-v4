@@ -1,36 +1,38 @@
-import { useState, useMemo, useEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { useState, useMemo, useEffect, useRef, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Chip } from "@orbit";
 import {
-  ChevronLeft, AlertTriangle, Check, CheckCircle2, Search, MapPin, Lightbulb,
-  GitCompare, History, X, ArrowRight, Upload, Trash2, FileText, Loader2,
-  Info, ShieldCheck, ExternalLink, Sigma, Pin, RotateCcw,
-  Clock, ShieldX, Pencil, CircleMinus, ClipboardList, FileCheck2, FileDown,
-  FileSearch, ListPlus, MessageSquarePlus,
+  ChevronLeft, AlertTriangle, CheckCircle2, Search, MapPin, Lightbulb,
+  GitCompare, History, X, ArrowRight, Sparkles, Upload, Trash2, FileText, Loader2,
+  Download, Info, ShieldCheck, ExternalLink, Sigma, Pin, RotateCcw,
+  Clock, ShieldX, Pencil,
 } from "lucide-react";
 
-import { toast } from "@/components/ui/use-toast";
-import { toast as sonnerToast } from "sonner";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
-} from "@/components/ui/dialog";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Alert,
+  Card,
+  type CardState as OrbitCardState,
+  Chip,
+  Dropzone,
+  FileItem,
+  Headings,
+  QuickFilterGroup,
+  QuickFilterItem,
+  Searchbox,
+  TabButton,
+  Table as OrbitTable,
+  Button as OrbitButton,
+  Text,
+  ToggleCard,
+} from "@orbit";
+import { showV6OrbitToast as toast } from "@/components/clauseiq-v6/V6OrbitToast";
+import { V6OrbitConfirmOverlay, V6OrbitOverlay } from "@/components/clauseiq-v6/V6OrbitOverlay";
+import { Input } from "@/components/clauseiq-v6/orbit-ui/input";
+import { Textarea } from "@/components/clauseiq-v6/orbit-ui/textarea";
+import { Badge } from "@/components/clauseiq-v6/orbit-ui/badge";
+import { Button } from "@/components/clauseiq-v6/orbit-ui/button";
+import { Checkbox } from "@/components/clauseiq-v6/orbit-ui/checkbox";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/clauseiq-v6/orbit-ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/clauseiq-v6/orbit-ui/select";
 import { ChevronDown } from "lucide-react";
 import {
   IconCircleCheck,
@@ -47,15 +49,15 @@ import {
   IconTrendingDown,
   IconTrendingUp,
 } from "@tabler/icons-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
-  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/clauseiq-v6/orbit-ui/tooltip";
 import {
   getInitiative, getSupplier, getContract,
   type ClauseResult, type ContractVersion,
-} from "@/lib/workflow-data";
+} from "@/lib/workflow-v6-data";
+import {
+  getSupplierOutputComparisonContext,
+  mockInitiative as clauseIqV6MockInitiative,
+} from "@/data/mock-clauseiq-v6";
 import { ACME_DEFAULT_FOCUS_IDS, ACME_DEFAULT_REQUEST_TEXTS, makeSyntheticVersion } from "@/lib/clauses-data";
 import { SWITCHED_ON_FIRST_ANALYSIS_VERSION } from "@/lib/switched-on-analysis-data";
 import {
@@ -68,7 +70,7 @@ import {
 } from "@/hooks/use-clause-decisions";
 import { cn } from "@/lib/utils";
 import { CLAUSE_FRAMEWORK } from "@/lib/clauses-framework";
-import { classifyChange, materialChangeLabel, type MaterialChangeKind } from "@/lib/material-change";
+import { classifyChange, materialChangeLabel, materialChangeTone } from "@/lib/material-change";
 import {
   CHANGE_DIRECTION_CONFIDENCE_THRESHOLD,
   NEW_CHANGE_LABEL,
@@ -82,6 +84,7 @@ import { VersionVerdictBanner } from "./VersionVerdictBanner";
 import { TextDiff } from "./TextDiff";
 import { NegotiationTrendStrip } from "./NegotiationTrendStrip";
 import { getClauseAudit, confidenceLabel } from "@/lib/audit-trail";
+import { getSupplierGrouping } from "@/lib/supplier-grouping";
 import { downloadCsv } from "@/lib/csv-export";
 import {
   deriveComparisonModel,
@@ -111,6 +114,11 @@ import {
   type FirstAnalysisMetricKey,
   type FirstAnalysisMetrics,
 } from "./ComparisonDesignOptions";
+import {
+  FIRST_ANALYSIS_STATUS_THEME,
+  FirstAnalysisStatusTag,
+  type FirstAnalysisStatusKey,
+} from "./firstAnalysisStatusTags";
 
 interface Props {
   initiativeId: string;
@@ -125,7 +133,7 @@ interface Props {
 
 type TabKey = "review" | ComparisonTab;
 type FilterKey = "all" | "open" | "new-issues" | "closed" | "unmarked";
-type QuickFilterKey = "high" | "medium" | "low" | "missing" | "need-action" | "changes" | "open-items" | "met" | "closed";
+type QuickFilterKey = "not-met" | "met" | "partially-met" | "worsened" | "unexpected" | "manual-review" | "high" | "medium" | "low" | "missing" | "none";
 interface FirstAnalysisReviewProgress {
   total: number;
   usedRecommendations: number;
@@ -204,84 +212,55 @@ interface PanelChangeItem {
   status: PanelChangeStatus;
 }
 
+type OrbitCardStyle = CSSProperties & {
+  "--orbit-color-card-indicator-default"?: string;
+};
+
 const severityTone = (s: ClauseResult["severity"] | undefined) =>
   s === "high" ? "bg-destructive/10 text-destructive border-destructive/20"
     : s === "medium" ? "bg-warning/15 text-warning-foreground border-warning/30"
-    : s === "low" ? "bg-success/10 text-success border-success/20"
+    : s === "low" ? "bg-muted text-muted-foreground border-border"
     : "bg-muted text-muted-foreground border-border";
 
-type DashboardChipVariant = "Information" | "Success" | "Warning" | "Error" | "No Status" | "Outline";
-
-function DashboardChip({
-  label,
-  variant,
-  borderedNoStatus = false,
-}: {
-  label: string;
-  variant: DashboardChipVariant;
-  borderedNoStatus?: boolean;
-}) {
-  const chip = <Chip label={label} size="Mini" variant={variant} />;
-
-  if (borderedNoStatus) {
-    return (
-      <span className="inline-flex shrink-0 [&>span]:!border [&>span]:!border-solid [&>span]:!border-[var(--orbit-color-status-low-border-no-status)]">
-        {chip}
-      </span>
-    );
-  }
-
-  return <span className="inline-flex shrink-0">{chip}</span>;
+function isInitiativesV6Route() {
+  return typeof window !== "undefined" && window.location.pathname.startsWith("/initiatives-v6");
 }
 
-function dashboardSeverityChipVariant(severity?: ClauseResult["severity"]): DashboardChipVariant {
-  if (severity === "high") return "Error";
-  if (severity === "medium") return "Warning";
-  if (severity === "low") return "No Status";
-  return "Outline";
+const firstAnalysisDeviationBadgeClass =
+  "shrink-0 rounded-full border-[#F3B4B4] bg-[#FFF1F2] px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium text-[#A32D2D]";
+const firstAnalysisMissingClauseBadgeClass =
+  "shrink-0 rounded-full border-[#185FA5]/25 bg-[#E6F1FB] px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium text-[#0C447C]";
+const firstAnalysisMissingClauseLegacyBadgeClass =
+  "shrink-0 rounded-full px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium";
+const firstAnalysisNoneDeviationBadgeClass =
+  "shrink-0 rounded-full border-[#BFD6AB] bg-[#EAF3DE] px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium text-[#27500A]";
+
+function getFirstAnalysisMissingClauseBadgeClass() {
+  return isInitiativesV6Route() ? firstAnalysisMissingClauseBadgeClass : firstAnalysisMissingClauseLegacyBadgeClass;
 }
 
-function DashboardSeverityChip({
-  severity,
-  label,
-}: {
-  severity?: ClauseResult["severity"];
-  label?: string;
-}) {
-  return (
-    <DashboardChip
-      label={label ?? `${titleCaseSeverity(severity)} Deviation`}
-      variant={dashboardSeverityChipVariant(severity)}
-      borderedNoStatus={severity === "low"}
-    />
-  );
+const firstAnalysisSeverityStatus: Record<ClauseResult["severity"], FirstAnalysisStatusKey> = {
+  high: "high",
+  medium: "medium",
+  low: "low",
+};
+
+const firstAnalysisSeverityCardState: Record<ClauseResult["severity"], OrbitCardState> = {
+  high: "Error",
+  medium: "Warning",
+  low: "Default",
+};
+
+function firstAnalysisCardStateForClause(clause: Pick<ClauseResult, "severity" | "missingClause" | "sourceDeviationLevel">): OrbitCardState {
+  if (clause.missingClause && clause.sourceDeviationLevel === "None") return "Default";
+  if (clause.sourceDeviationLevel === "None") return "Success";
+  return firstAnalysisSeverityCardState[clause.severity];
 }
 
-function dashboardStatusToneVariant(tone: "blue" | "green" | "neutral"): DashboardChipVariant {
-  if (tone === "green") return "Success";
-  if (tone === "blue") return "Information";
-  return "Outline";
-}
-
-function dashboardRoundOutcomeVariant(label: RoundOutcome["label"]): DashboardChipVariant {
-  if (label === "Closed") return "Success";
-  if (label === "Still Open") return "Warning";
-  if (label === "New Change") return "Error";
-  if (label === "Requested Change" || label === "Updated") return "Information";
-  return "Outline";
-}
-
-function dashboardRoundStatusVariant(status: RoundStatus): DashboardChipVariant {
-  if (status === "met") return "Success";
-  if (status === "not_met") return "Error";
-  if (status === "open" || status === "regressed") return "Warning";
-  if (status === "requested" || status === "new") return "Information";
-  return "Outline";
-}
-
-function dashboardMaterialChangeVariant(change: MaterialChangeKind): DashboardChipVariant {
-  if (change === "material") return "No Status";
-  return "Outline";
+function firstAnalysisCardIndicatorColorForClause(clause: Pick<ClauseResult, "severity" | "missingClause" | "sourceDeviationLevel">) {
+  if (clause.missingClause && clause.sourceDeviationLevel === "None") return FIRST_ANALYSIS_STATUS_THEME.missing.indicatorColor;
+  if (clause.sourceDeviationLevel === "None") return FIRST_ANALYSIS_STATUS_THEME.none.indicatorColor;
+  return FIRST_ANALYSIS_STATUS_THEME[firstAnalysisSeverityStatus[clause.severity]].indicatorColor;
 }
 
 const SEVERITY_WEIGHTS: Record<"high" | "medium" | "low", number> = {
@@ -308,8 +287,8 @@ const historyFilterLabels: Record<HistoryFilter, string> = {
   new_clauses: "New clauses",
 };
 
-function normalizeMode(value: string | null): ClauseIqMode {
-  return value === "history" ? "history" : "comparison";
+function normalizeMode(_value: string | null): ClauseIqMode {
+  return "comparison";
 }
 
 function normalizeComparisonDesignOption(value: string | null | undefined): ComparisonDesignOption {
@@ -500,6 +479,10 @@ function isMissingClause(clause: ClauseResult) {
 
 function isPureMissingClause(clause: ClauseResult) {
   return Boolean(clause.missingClause && clause.sourceDeviationLevel === "None");
+}
+
+function isNoneDeviationClause(clause: ClauseResult) {
+  return clause.sourceDeviationLevel === "None" && !clause.missingClause;
 }
 
 function countsTowardDeviationMetric(clause: ClauseResult) {
@@ -706,12 +689,28 @@ export function ContractResults({
   const initiative = getInitiative(initiativeId);
   const supplier = getSupplier(initiativeId, supplierId);
   const contract = getContract(initiativeId, supplierId, contractId);
-  const decisions = useClauseDecisions({}, { storageKey: "ciq-v4-clause-decisions" });
+  const decisions = useClauseDecisions({}, { storageKey: "ciq-v6-clause-decisions" });
   const firstAnalysisDemo = searchParams.get("scenario") === "first-analysis";
-  const mode = firstAnalysisDemo ? "comparison" : normalizeMode(searchParams.get("mode"));
+  const outcomeReviewMode =
+    searchParams.get("resultMode") === "outcome" &&
+    searchParams.get("scenario") === "negotiated-reanalysis";
+  const outcomeContext = useMemo(
+    () =>
+      outcomeReviewMode
+        ? getSupplierOutputComparisonContext(
+            clauseIqV6MockInitiative,
+            searchParams.get("analysisId"),
+            searchParams.get("previousAnalysisId"),
+          )
+        : null,
+    [outcomeReviewMode, searchParams],
+  );
+  const isResponsiveTestingRoute =
+    typeof window !== "undefined" && window.location.pathname.startsWith("/initiatives-responsive-testing");
+  const mode = normalizeMode(searchParams.get("mode"));
   const designOption = normalizeComparisonDesignOption(searchParams.get("design"));
   const decisionContractId = firstAnalysisDemo ? `${contractId}:first-analysis-demo` : contractId;
-  const generatedCsvStoragePrefix = `ciq-v4-generated-csv:${supplierId}:${decisionContractId}:`;
+  const generatedCsvStoragePrefix = `ciq-v6-generated-csv:${supplierId}:${decisionContractId}:`;
   const firstAnalysisResetKeyRef = useRef<string | null>(null);
 
   // Local mutable copy of versions so the user can simulate uploading a new
@@ -819,7 +818,7 @@ export function ContractResults({
   const [reviewVersionLabel, setReviewVersionLabel] = useState<string>(() => versions[0]?.version ?? "v1");
   const reviewVersion = versions.find((v) => v.version === reviewVersionLabel) ?? v1;
 
-  const tabStorageKey = `ciq-v4-tab:${supplierId}:${contractId}`;
+  const tabStorageKey = `ciq-v6-tab:${supplierId}:${contractId}`;
   const storedComparisonTab = (() => {
     try {
       return sessionStorage.getItem(tabStorageKey);
@@ -851,7 +850,7 @@ export function ContractResults({
     setSearchParams(params, { replace: true });
   }, [mode, searchParams, setSearchParams, storedComparisonTab, versions.length]);
 
-  const historyStorageKey = `ciq-v4-history:${supplierId}:${contractId}`;
+  const historyStorageKey = `ciq-v6-history:${supplierId}:${contractId}`;
   const storedHistoryState = (() => {
     try {
       return JSON.parse(localStorage.getItem(historyStorageKey) ?? "{}") as { filter?: string; sort?: string };
@@ -893,9 +892,9 @@ export function ContractResults({
     setActiveCategories(activeCategories.filter((active) => active !== category));
   };
   const clearActiveCategories = () => setActiveCategories([]);
-  const setCategorySort = (sort: CategorySortKey) => {
+  const setCategorySort = (nextSort: CategorySortKey) => {
     const params = new URLSearchParams(searchParams);
-    params.set("catSort", sort);
+    params.set("catSort", nextSort);
     setSearchParams(params, { replace: false });
   };
   useEffect(() => {
@@ -953,6 +952,7 @@ export function ContractResults({
   const [bulkReviewSelection, setBulkReviewSelection] = useState<{ version: string; clauseIds: string[] } | null>(null);
   const [bulkAppliedRecommendationIds, setBulkAppliedRecommendationIds] = useState<string[]>([]);
   const [bulkAppliedRecommendationScopeLabel, setBulkAppliedRecommendationScopeLabel] = useState<string | null>(null);
+  const [generatedCsvSignatures, setGeneratedCsvSignatures] = useState<Record<string, string | null>>({});
   const [quickFilter, setQuickFilter] = useState<QuickFilterKey | null>(() =>
     mode === "comparison" && versions.length >= 2 ? "open-items" : null,
   );
@@ -994,7 +994,6 @@ export function ContractResults({
   const generatedCsvStorageKey = activeRequestVersion
     ? `${generatedCsvStoragePrefix}${activeRequestVersion.version}`
     : null;
-  const [generatedCsvSignatures, setGeneratedCsvSignatures] = useState<Record<string, string | null>>({});
   useEffect(() => {
     if (!generatedCsvStorageKey || generatedCsvSignatures[generatedCsvStorageKey] !== undefined) return;
     let stored: string | null = null;
@@ -1131,13 +1130,14 @@ export function ContractResults({
 
   const scoringModel = useMemo(() => computeContractScoring(versions), [versions]);
 
-  // R3 DI-18: undo helpers — 8s sonner toast + per-row 30s undo affordance.
+  // R3 DI-18: undo helpers use the V6 Orbit toast plus per-row 30s undo affordance.
   const [recentlyClosed, setRecentlyClosed] = useState<Record<string, number>>({});
   const closeWithUndo = (id: string, label: string, prev: ClosureDecision | undefined) => {
     if (!rightVersion) return;
     decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "closed");
     setRecentlyClosed((m) => ({ ...m, [id]: Date.now() + 30_000 }));
-    sonnerToast(`Closed "${label}" for ${rightVersion.version}`, {
+    toast({
+      title: `Closed "${label}" for ${rightVersion.version}`,
       description: "You can undo for 30 seconds.",
       duration: 8000,
       action: {
@@ -1203,6 +1203,8 @@ export function ContractResults({
   const clausesRequiringAction = comparisonModel.actionFacts.pendingReview;
   const severityQuickFilter =
     quickFilter === "high" || quickFilter === "medium" || quickFilter === "low" ? quickFilter : null;
+  const quickMissingClauseFilter = quickFilter === "missing";
+  const quickNoneDeviationFilter = quickFilter === "none";
   const currentDecision = rightVersion ? decisions_[rightVersion.version] ?? null : null;
   const changePillFor = (id: string, prev?: ClauseResult, curr?: ClauseResult): ChangePillResult => {
     const state = allDecisions[id];
@@ -1245,35 +1247,25 @@ export function ContractResults({
     if ((next === "high" || next === "medium" || next === "low") && !isClearing) {
       setFilter("all");
     }
-    if (next === "need-action") {
+    if ((next === "missing" || next === "none") && !isClearing) {
+      setFilter("all");
+    }
+    if (next === "manual-review") {
       setTab("changes");
       setFilter("all");
     }
-    if (next === "changes") {
+    if (
+      next === "met" ||
+      next === "not-met" ||
+      next === "partially-met" ||
+      next === "worsened" ||
+      next === "unexpected"
+    ) {
       setTab("changes");
-      setFilter(isClearing ? "all" : "new-issues");
-    }
-    if (next === "open-items") {
-      setTab("changes");
-      setFilter(isClearing ? "all" : "open");
-    }
-    if (next === "met") {
-      setTab("changes");
-      setFilter(isClearing ? "all" : "open");
-    }
-    if (next === "closed") {
-      setTab("changes");
-      setFilter(isClearing ? "all" : "closed");
+      setFilter("all");
     }
   };
   const selectEvidenceMetric = (metric: EvidenceMetricKey) => {
-    if (metric === "total") {
-      setQuickFilter(null);
-      setFilter("all");
-      setTab("changes");
-      clearActiveCategories();
-      return;
-    }
     toggleQuickFilter(metric);
   };
   const showMoreChanges = () => {
@@ -1287,10 +1279,18 @@ export function ContractResults({
 
   const matchesQuickSeverity = (clause?: ClauseResult) =>
     !severityQuickFilter || clause?.severity === severityQuickFilter;
-  const filterRowsByQuickState = <T extends { id: string; prev?: ClauseResult; curr?: ClauseResult; pill?: ChangePillResult }>(rows: T[]) =>
+  const filterRowsByQuickState = <T extends { id: string; prev?: ClauseResult; curr?: ClauseResult; pill?: ChangePillResult; actionState?: string }>(rows: T[]) =>
     rows.filter((row) => {
-      if (severityQuickFilter && !matchesQuickSeverity(row.curr ?? row.prev)) return false;
+      const clause = row.curr ?? row.prev;
+      if (severityQuickFilter && !matchesQuickSeverity(clause)) return false;
+      if (quickMissingClauseFilter && !(clause && isMissingClause(clause))) return false;
+      if (quickNoneDeviationFilter && !(clause && isNoneDeviationClause(clause))) return false;
       if (quickFilter === "met" && row.pill?.status !== "met") return false;
+      if (quickFilter === "partially-met" && row.pill?.status !== "improved") return false;
+      if (quickFilter === "not-met" && row.pill?.status !== "not_met") return false;
+      if (quickFilter === "worsened" && row.pill?.status !== "regressed") return false;
+      if (quickFilter === "unexpected" && row.pill?.status !== "new") return false;
+      if (quickFilter === "manual-review" && row.actionState !== "unreviewed") return false;
       return true;
     });
 
@@ -1438,6 +1438,16 @@ export function ContractResults({
     ),
   );
   const firstAnalysisMissingSelected = firstAnalysisMetricFilters.has("missing");
+  const firstAnalysisNoneSelected = firstAnalysisMetricFilters.has("none");
+  const firstAnalysisHasMetricFilters = firstAnalysisMetricFilters.size > 0;
+  const matchesFirstAnalysisMetricFilter = (clause: ClauseResult) => {
+    if (!firstAnalysisHasMetricFilters) return true;
+    return (
+      (firstAnalysisSelectedSeverities.has(clause.severity) && countsTowardDeviationMetric(clause)) ||
+      (firstAnalysisMissingSelected && firstAnalysisMissingClauseIds.has(clause.id)) ||
+      (firstAnalysisNoneSelected && isNoneDeviationClause(clause))
+    );
+  };
   const firstAnalysisVisibleClauses = firstAnalysisCategoryClauses.filter((clause) => {
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -1449,13 +1459,10 @@ export function ContractResults({
         return false;
       }
     }
-    if (firstAnalysisMissingSelected && !firstAnalysisMissingClauseIds.has(clause.id)) return false;
-    if (!isFirstAnalysisReviewClause(clause)) return false;
-    if (designOption !== "row-scale" && hasFirstAnalysisAction(clause.id)) return false;
-    if (
-      firstAnalysisSelectedSeverities.size > 0 &&
-      (!countsTowardDeviationMetric(clause) || !firstAnalysisSelectedSeverities.has(clause.severity))
-    ) return false;
+    if (!matchesFirstAnalysisMetricFilter(clause)) return false;
+    const showNoneDeviationClause = firstAnalysisNoneSelected && isNoneDeviationClause(clause);
+    if (!showNoneDeviationClause && !isFirstAnalysisReviewClause(clause)) return false;
+    if (designOption !== "row-scale" && !showNoneDeviationClause && hasFirstAnalysisAction(clause.id)) return false;
     return true;
   });
   const firstAnalysisDistribution: DeviationDistribution = {
@@ -1473,6 +1480,7 @@ export function ContractResults({
     medium: firstAnalysisDistribution.medium,
     low: firstAnalysisDistribution.low,
     missingClauses: firstAnalysisCategoryClauses.filter((clause) => firstAnalysisMissingClauseIds.has(clause.id)).length,
+    noneDeviation: firstAnalysisCategoryClauses.filter(isNoneDeviationClause).length,
     score: firstAnalysisVersion?.overallScore ?? 0,
     distribution: firstAnalysisDistribution,
     versionLabel: firstAnalysisVersionLabel,
@@ -1604,11 +1612,12 @@ export function ContractResults({
   const categoryOpenStats = summariseComparisonRows(categoryOpenRows);
   const categoryNewIssueStats = summariseComparisonRows(categoryNewIssueRows);
   const evidenceMetrics: EvidenceMetricCounts = {
-    openItems: categoryOpenRows.length,
-    met: categoryOpenRows.filter((row) => row.pill.status === "met").length,
-    closed: categoryClosedRows.length,
-    supplierChanges: categoryNewIssueRows.length,
-    needReview: categoryOpenStats.pendingReview + categoryNewIssueStats.pendingReview,
+    notMet: categoryAllRows.filter((row) => row.pill.status === "not_met").length,
+    met: categoryAllRows.filter((row) => row.pill.status === "met").length,
+    partiallyMet: categoryAllRows.filter((row) => row.pill.status === "improved").length,
+    worsened: categoryAllRows.filter((row) => row.pill.status === "regressed").length,
+    unexpected: categoryAllRows.filter((row) => row.pill.status === "new").length,
+    manualReview: categoryAllRows.filter((row) => row.actionState === "unreviewed").length,
     high: categoryAllRows.filter((row) => {
       const clause = row.curr ?? row.prev;
       return clause?.severity === "high" && !clause.resolved;
@@ -1621,7 +1630,14 @@ export function ContractResults({
       const clause = row.curr ?? row.prev;
       return clause?.severity === "low" && !clause.resolved;
     }).length,
-    totalClauses: stripStats.contract.total,
+    missingClauses: categoryAllRows.filter((row) => {
+      const clause = row.curr ?? row.prev;
+      return clause ? isMissingClause(clause) : false;
+    }).length,
+    noneDeviation: categoryAllRows.filter((row) => {
+      const clause = row.curr ?? row.prev;
+      return clause ? isNoneDeviationClause(clause) : false;
+    }).length,
   };
   const designOpenRows = filterRowsByQuickState(
     categoryOpenRows,
@@ -1636,51 +1652,63 @@ export function ContractResults({
     categoryUnmarkedRows,
   );
   const activeEvidenceMetric: EvidenceMetricKey | null =
-    quickFilter === "open-items" ||
+    quickFilter === "not-met" ||
     quickFilter === "met" ||
-    quickFilter === "closed" ||
-    quickFilter === "changes" ||
-    quickFilter === "need-action" ||
+    quickFilter === "partially-met" ||
+    quickFilter === "worsened" ||
+    quickFilter === "unexpected" ||
+    quickFilter === "manual-review" ||
     quickFilter === "high" ||
     quickFilter === "medium" ||
-    quickFilter === "low"
+    quickFilter === "low" ||
+    quickFilter === "missing" ||
+    quickFilter === "none"
       ? quickFilter
-      : quickFilter === null
-        ? "total"
-        : null;
+      : null;
   const activeMetricLabel =
-    activeEvidenceMetric && activeEvidenceMetric !== "total"
+    activeEvidenceMetric
       ? ({
-          "open-items": "Open items",
+          "not-met": "Not met",
           met: "Met",
-          closed: "Closed",
-          changes: "Supplier changes",
-          "need-action": "Need review",
+          "partially-met": "Partially Met",
+          worsened: "Worsened",
+          unexpected: "Unexpected",
+          "manual-review": "Manual Review",
           high: "High",
           medium: "Medium",
           low: "Low",
-        } satisfies Record<Exclude<EvidenceMetricKey, "total">, string>)[activeEvidenceMetric]
+          missing: "Missing Clauses",
+          none: "None Deviation",
+        } satisfies Record<EvidenceMetricKey, string>)[activeEvidenceMetric]
       : null;
   const clearEvidenceMetric = () => {
     setQuickFilter(null);
     setFilter("all");
     setTab("changes");
   };
-  const showDesignOpenSection =
-    quickFilter === null ||
-    quickFilter === "open-items" ||
-    quickFilter === "met" ||
-    quickFilter === "need-action" ||
-    Boolean(severityQuickFilter);
-  const showDesignNewIssueSection =
-    quickFilter === null || quickFilter === "changes" || quickFilter === "need-action" || Boolean(severityQuickFilter);
-  const showDesignClosedSection =
-    quickFilter === null ||
-    quickFilter === "closed" ||
-    quickFilter === "open-items" ||
-    quickFilter === "met" ||
-    Boolean(severityQuickFilter);
-  const showDesignUnmarkedSection = quickFilter === null || Boolean(severityQuickFilter);
+  const showDesignOpenSection = quickFilter === null || designOpenRows.length > 0;
+  const showDesignNewIssueSection = quickFilter === null || designNewIssueRows.length > 0;
+  const showDesignClosedSection = quickFilter === null || designClosedRows.length > 0;
+  const showDesignUnmarkedSection = quickFilter === null || designUnmarkedRows.length > 0;
+  const outcomeSectionCopy = outcomeReviewMode
+    ? {
+        openTitle: "Not Met",
+        openDescription: "Previously requested changes that still need supplier follow-up or user review.",
+        newTitle: "New Issues",
+        newDescription: "Material changes introduced in the latest output that were not part of the previous request.",
+        closedTitle: "Met",
+        closedDescription: "Requested changes that now appear resolved in the latest output.",
+        unmarkedTitle: "Partially Met / Needs Review",
+      }
+    : {
+        openTitle: "Open Items",
+        openDescription: "Clauses you previously asked the supplier to change.",
+        newTitle: "New Changes",
+        newDescription: "Material changes the supplier made without being asked, plus clauses that didn't exist before.",
+        closedTitle: "Closed",
+        closedDescription: "Clauses you marked as resolved for this round.",
+        unmarkedTitle: "Unmarked Clauses",
+      };
   const firstAnalysisActiveMetrics = Array.from(firstAnalysisMetricFilters);
   const selectFirstAnalysisMetric = (metric: FirstAnalysisMetricKey) => {
     setFirstAnalysisMetricFilters((current) => {
@@ -1693,10 +1721,11 @@ export function ContractResults({
   const firstAnalysisMetricLabels = firstAnalysisActiveMetrics.map((metric) => ({
     key: metric,
     label: ({
-      high: "High",
-      medium: "Medium",
-      low: "Low",
+      high: "High Deviation",
+      medium: "Medium Deviation",
+      low: "Low Deviation",
       missing: "Missing Clauses",
+      none: "None Deviation",
     } satisfies Record<FirstAnalysisMetricKey, string>)[metric],
   }));
   const clearFirstAnalysisMetric = (metric: FirstAnalysisMetricKey) => {
@@ -1766,7 +1795,8 @@ export function ContractResults({
       ? "Recommendations added to review"
       : "All recommendations reviewed";
   const firstAnalysisRecommendationApplyOptions = buildRecommendationApplyOptions(firstAnalysisRecommendationTargets);
-  const applyAllRecommendations = (targets: RecommendationTargetItem[], scope?: RecommendationApplyOption) => {
+  const firstAnalysisAvailableRecommendationApplyOptions = firstAnalysisRecommendationApplyOptions.filter((option) => option.count > 0);
+  const applyAllRecommendations = (targets: RecommendationTargetItem[], scope?: RecommendationApplyScopeMeta) => {
     if (!firstAnalysisVersion || targets.length === 0) return;
     const bulkClauseIds = new Set(pendingRequestItems.map((item) => item.clauseId));
     targets.forEach((item) => bulkClauseIds.add(item.id));
@@ -1783,6 +1813,12 @@ export function ContractResults({
       title: "Recommendations added to review",
       description: `${targets.length} ${scope?.toastLabel ?? "recommendation"}${targets.length === 1 ? "" : "s"} added. Review and generate the CSV when ready.`,
     });
+  };
+  const applyRecommendationOptions = (options: RecommendationApplyOption[]) => {
+    applyAllRecommendations(
+      mergeRecommendationApplyTargets(options),
+      buildRecommendationApplyScopeMeta(options),
+    );
   };
   const undoAppliedRecommendations = () => {
     if (!firstAnalysisVersion || firstAnalysisUndoableRecommendationIds.length === 0) return;
@@ -1807,6 +1843,7 @@ export function ContractResults({
       quickReviewFilter="need-review"
       missingClauseIds={firstAnalysisMissingClauseIds}
       quickMissingClauseIds={firstAnalysisMissingSelected ? firstAnalysisMissingClauseIds : null}
+      quickNoneDeviationFilter={firstAnalysisNoneSelected}
       neutralActions
       hideSubclauseReference
       displayMode={designOption === "row-scale" ? "row-scale" : "default"}
@@ -1877,8 +1914,8 @@ export function ContractResults({
       evidenceMetrics={evidenceMetrics}
       openItems={
         <ComparisonSection
-          title="Open Items"
-          description="Clauses you previously asked the supplier to change."
+          title={outcomeSectionCopy.openTitle}
+          description={outcomeSectionCopy.openDescription}
           accent="primary"
           rows={designOpenRows}
           leftLabel={leftVersion.version}
@@ -1922,8 +1959,8 @@ export function ContractResults({
       }
       newChanges={
         <ComparisonSection
-          title="New Changes"
-          description="Material changes the supplier made without being asked, plus clauses that didn't exist before."
+          title={outcomeSectionCopy.newTitle}
+          description={outcomeSectionCopy.newDescription}
           accent="destructive"
           rows={designNewIssueRows}
           leftLabel={leftVersion.version}
@@ -1949,8 +1986,8 @@ export function ContractResults({
       }
       closedItems={
         <ComparisonSection
-          title="Closed"
-          description="Clauses you marked as resolved for this round."
+          title={outcomeSectionCopy.closedTitle}
+          description={outcomeSectionCopy.closedDescription}
           accent="success"
           rows={designClosedRows}
           leftLabel={leftVersion.version}
@@ -1994,9 +2031,10 @@ export function ContractResults({
       }
     />
   ) : null;
+  const outcomeReviewContent = null;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       {compactHeader ? (
         <div className="sticky top-0 z-30 border-b border-[rgba(0,0,0,0.08)] bg-white">
           <CompactContractTopbar
@@ -2007,81 +2045,84 @@ export function ContractResults({
             demoAvailable={availableVersions.length >= 2}
             onFirstAnalysisDemoChange={toggleFirstAnalysisDemo}
           />
-	          <ModeSwitcher
-	            mode={mode}
-	            onChange={switchMode}
-	            comparisonLabel={firstAnalysisDemo ? "V1 Analysis" : "Review"}
-	            historyDisabled={false}
-	            onApplyAllRecommendations={() => applyAllRecommendations(firstAnalysisRecommendationTargets)}
-	            onApplyRecommendationOption={(option) => applyAllRecommendations(option.targets, option)}
-	            onUndoAllRecommendations={undoAppliedRecommendations}
-	            applyAllRecommendationsDisabled={
-	              !firstAnalysisDemo ||
-	              (!canUndoFirstAnalysisRecommendations && firstAnalysisRecommendationTargets.length === 0)
-	            }
-	            applyAllRecommendationsQueued={firstAnalysisDemo && firstAnalysisRecommendationsQueued}
-	            applyAllRecommendationsReviewed={firstAnalysisDemo && firstAnalysisRecommendationsReviewed}
-	            applyAllRecommendationsUndoable={canUndoFirstAnalysisRecommendations}
-	            recommendationApplyOptions={firstAnalysisRecommendationApplyOptions}
-	            recommendationCount={firstAnalysisRecommendationTargets.length}
-	            undoRecommendationCount={firstAnalysisUndoRecommendationCount}
-	            undoRecommendationScopeLabel={bulkAppliedRecommendationScopeLabel}
-	            onReviewGenerate={() => setRequestReviewOpen(true)}
-	            reviewGenerateDisabled={reviewGenerateDisabled}
-	            requestCount={reviewGenerateRequestItems.length}
-	          />
+          <ModeSwitcher
+            mode={mode}
+            onChange={switchMode}
+            comparisonLabel="Review"
+            onApplyAllRecommendations={() => applyAllRecommendations(firstAnalysisRecommendationTargets)}
+            onApplyRecommendationOptions={applyRecommendationOptions}
+            onUndoAllRecommendations={undoAppliedRecommendations}
+            applyAllRecommendationsDisabled={!firstAnalysisDemo || firstAnalysisRecommendationTargets.length === 0}
+            applyAllRecommendationsQueued={firstAnalysisDemo && firstAnalysisRecommendationsQueued}
+            applyAllRecommendationsReviewed={firstAnalysisDemo && firstAnalysisRecommendationsReviewed}
+            applyAllRecommendationsUndoable={firstAnalysisDemo && canUndoFirstAnalysisRecommendations}
+            recommendationApplyOptions={firstAnalysisRecommendationApplyOptions}
+            undoRecommendationCount={firstAnalysisUndoRecommendationCount}
+            undoRecommendationScopeLabel={bulkAppliedRecommendationScopeLabel}
+            onReviewGenerate={() => setRequestReviewOpen(true)}
+            reviewGenerateDisabled={reviewGenerateDisabled}
+            requestCount={reviewGenerateRequestItems.length}
+          />
         </div>
       ) : (
         <>
           {/* Top header */}
           <div className="border-b border-border bg-card sticky top-0 z-30">
-            <div className="max-w-[1400px] mx-auto px-6 py-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <button onClick={onBack} className="inline-flex h-8 items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+            <div className="max-w-[1400px] mx-auto px-orbit-m py-orbit-base">
+              <div className="flex flex-wrap items-center justify-between gap-orbit-s">
+                <button onClick={onBack} className="inline-flex h-8 items-center gap-orbit-xs text-sm text-muted-foreground hover:text-foreground">
                   <ChevronLeft className="w-4 h-4" /> {backLabel ?? `Back to ${supplier.name}`}
                 </button>
-                <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
+                <div
+                  className={cn(
+                    "flex flex-wrap items-center justify-start gap-orbit-s sm:justify-end",
+                    isResponsiveTestingRoute && "clauseiq-responsive-dashboard-actions",
+                  )}
+                >
+                  <SupplierGroupingPopover supplierId={supplierId} supplierName={supplier.name} />
                   {firstAnalysisDemo && mode === "comparison" && (
-		                    <Button
-	                      size="sm"
-	                      variant="outline"
-	                      className="h-9 gap-1.5 bg-white"
-                      disabled={!canUndoFirstAnalysisRecommendations && firstAnalysisRecommendationTargets.length === 0}
-                      onClick={() => {
-                        if (canUndoFirstAnalysisRecommendations) {
-                          undoAppliedRecommendations();
-                          return;
-                        }
-                        applyAllRecommendations(firstAnalysisRecommendationTargets);
-                      }}
-                    >
-                      {canUndoFirstAnalysisRecommendations ? (
+                    canUndoFirstAnalysisRecommendations ? (
+                      <Button
+                        variant="outline"
+                        className="h-9 gap-orbit-xs bg-white"
+                        onClick={undoAppliedRecommendations}
+                      >
                         <RotateCcw className="w-3.5 h-3.5" />
-                      ) : firstAnalysisRecommendationTargets.length > 0 ? (
-                        <ListPlus className="w-3.5 h-3.5" />
-                      ) : (
+                        {bulkAppliedRecommendationScopeLabel
+                          ? `Undo ${bulkAppliedRecommendationScopeLabel} recommendations (${firstAnalysisUndoRecommendationCount})`
+                          : firstAnalysisApplyAllLabel}
+                      </Button>
+                    ) : firstAnalysisAvailableRecommendationApplyOptions.length > 0 ? (
+                      <RecommendationBulkApplyMenu
+                        className={cn(isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger")}
+                        options={firstAnalysisAvailableRecommendationApplyOptions}
+                        onApply={applyRecommendationOptions}
+                      />
+                    ) : (
+                      <Button
+                        variant="outline"
+                        disabled
+                      >
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                      )}
-                      {firstAnalysisApplyAllLabel}
-                    </Button>
+                        {firstAnalysisApplyAllLabel}
+                      </Button>
+                    )
                   )}
                   <Button
-                    size="sm"
                     variant={reviewGenerateDisabled ? "outline" : "default"}
-                    className="h-9 gap-1.5"
+                    className="h-9 gap-orbit-xs"
                     disabled={reviewGenerateDisabled}
                     onClick={() => setRequestReviewOpen(true)}
                   >
-                    <FileCheck2 className="w-3.5 h-3.5" />
+                    <Download className="w-3.5 h-3.5" />
                     Review &amp; Generate{reviewGenerateRequestItems.length > 0 ? ` (${reviewGenerateRequestItems.length})` : ""}
                   </Button>
-                  <Button size="sm" variant="default" className="h-9 gap-1.5" onClick={() => setUploadOpen(true)}>
+                  <Button variant="default" className="h-9 gap-orbit-xs" onClick={() => setUploadOpen(true)}>
                     <Upload className="w-3.5 h-3.5" /> Upload New Version
                   </Button>
                   <Button
-                    size="sm"
                     variant="outline"
-                    className="h-9 gap-1.5"
+                    className="h-9 gap-orbit-xs"
                     disabled={versions.length === 0}
                     onClick={() => latest && setDeleteTarget(latest.version)}
                   >
@@ -2089,38 +2130,39 @@ export function ContractResults({
                   </Button>
                 </div>
               </div>
-              <div className="mt-2 grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px] lg:items-end">
+              <div className="mt-orbit-s grid gap-orbit-base lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px] lg:items-end">
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <p className="text-xs v6-orbit-weight-semibold text-muted-foreground uppercase tracking-wider">
                     {initiative.name} · {initiative.reference} · {supplier.name}
                   </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {dashboardReferenceLine}
-                  </p>
-                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                  <div className="mt-orbit-xs flex flex-wrap items-center gap-x-orbit-base gap-y-orbit-s">
+                    <h1 className="v6-orbit-heading-3">{contract.name}</h1>
+                    <Badge variant="outline">{contract.type}</Badge>
+                  </div>
+                  <div className="mt-orbit-s flex items-center gap-orbit-s flex-wrap">
                     <span className="text-sm text-muted-foreground">
                       {versions.length} round{versions.length !== 1 ? "s" : ""}
                       {latest && <> · Latest updated {latest.uploadedAt}</>}
                     </span>
                   </div>
                   {versions.length > 0 && (
-                    <p className="mt-2 max-w-3xl text-xs text-muted-foreground">
-                      Use the <span className="font-semibold text-foreground">Review</span> tab to mark which clauses need to change, then switch to <span className="font-semibold text-foreground">Changes</span> to see how the supplier responded.
+                    <p className="mt-orbit-s max-w-3xl text-xs text-muted-foreground">
+                      Use the <span className="v6-orbit-weight-semibold text-foreground">Review</span> tab to mark which clauses need to change, then switch to <span className="v6-orbit-weight-semibold text-foreground">Changes</span> to see how the supplier responded.
                     </p>
                   )}
                 </div>
 
-                <div className="w-full rounded-lg border border-border bg-muted/30 px-4 py-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Review summary</p>
+                <div className="w-full rounded-lg border border-border bg-muted/30 px-orbit-base py-orbit-base">
+                  <div className="flex flex-wrap items-center justify-between gap-orbit-s">
+                    <p className="text-[11px] v6-orbit-weight-semibold uppercase tracking-wider text-muted-foreground">Review summary</p>
                     {versions.length >= 2 && (
                       <p className="text-xs text-muted-foreground">
-                        <span className="font-semibold text-foreground">{clausesRequiringAction}</span>{" "}
+                        <span className="v6-orbit-weight-semibold text-foreground">{clausesRequiringAction}</span>{" "}
                         clause{clausesRequiringAction === 1 ? "" : "s"} require action
                       </p>
                     )}
                   </div>
-                  <div className="mt-3 grid grid-cols-5 gap-2">
+                  <div className="mt-orbit-base grid grid-cols-5 gap-orbit-s">
                     <SummaryStat label="High" value={v1Counts.high} tone="text-destructive" />
                     <SummaryStat label="Medium" value={v1Counts.medium} tone="text-warning" />
                     <SummaryStat label="Low" value={v1Counts.low} tone="text-success" />
@@ -2135,10 +2177,11 @@ export function ContractResults({
       )}
 
       {compactHeader && firstAnalysisDemo && <FirstAnalysisContextBanner />}
+      {outcomeReviewContent}
 
       {/* Verdict banner — only when at least 2 versions exist */}
       {!compactHeader && versions.length >= 2 && leftVersion && rightVersion && leftVersion.version !== rightVersion.version && (
-        <div className="max-w-[1600px] mx-auto px-6 pt-6">
+        <div className="max-w-[1600px] mx-auto px-orbit-base pt-orbit-m">
           <VersionVerdictBanner
             leftVersion={leftVersion}
             rightVersion={rightVersion}
@@ -2164,7 +2207,7 @@ export function ContractResults({
 
       {/* Negotiation trend strip — V1 → Vn (TASK-07) */}
       {!compactHeader && versions.length >= 2 && (
-        <div className="max-w-[1600px] mx-auto px-6 pt-4">
+        <div className="max-w-[1600px] mx-auto px-orbit-base pt-orbit-base">
           <NegotiationTrendStrip
             versions={versions}
             allDecisions={allDecisions}
@@ -2179,14 +2222,16 @@ export function ContractResults({
         </div>
       )}
 
-      {mode === "history" && !firstAnalysisDemo ? (
+      {mode === "history" && firstAnalysisDemo ? (
+        <HistoryComingSoon />
+      ) : mode === "history" ? (
         historyDesignContent
       ) : firstAnalysisDesignContent ? (
         firstAnalysisDesignContent
       ) : comparisonDesignContent ? (
         comparisonDesignContent
       ) : (
-        <div className="mx-auto grid max-w-[1600px] grid-cols-[240px_minmax(0,1fr)] gap-6 px-6 py-6">
+        <div className="mx-auto grid max-w-[1600px] grid-cols-[240px_minmax(0,1fr)] gap-orbit-m px-orbit-base py-orbit-m">
           <CategorySidebar
             categories={comparisonCategoryItems}
             total={categoryTotal}
@@ -2196,10 +2241,10 @@ export function ContractResults({
             onSelectCategory={toggleActiveCategory}
           />
 
-          <div id="comparison-work-column" className="min-w-0 space-y-4">
+          <div id="comparison-work-column" className="min-w-0 space-y-orbit-base">
             {versions.length >= 2 && (
-              <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2 border-b border-border px-1 pb-2">
-                <div className="flex shrink-0 items-center gap-5">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-orbit-m gap-y-orbit-s border-b border-border px-orbit-xs pb-orbit-s">
+                <div className="flex shrink-0 items-center gap-orbit-m">
                   <ComparisonTabButton
                     active={tab === "changes"}
                     icon={<IconArrowsDiff size={14} stroke={1.8} />}
@@ -2229,7 +2274,7 @@ export function ContractResults({
             )}
 
             {versions.length < 2 && (
-              <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-[#f8f7f5] px-3 py-2">
+              <div className="flex min-w-0 flex-wrap items-center justify-between gap-orbit-s rounded-md border border-border bg-[#f8f7f5] px-orbit-base py-orbit-s">
                 <ReviewGuidance versionLabel={reviewVersion?.version ?? reviewVersionLabel} compact />
                 <ComparisonToolbarControls
                   search={search}
@@ -2269,10 +2314,10 @@ export function ContractResults({
                 highlightedId={highlightClauseId}
               />
             ) : leftVersion && rightVersion && leftVersion.version !== rightVersion.version ? (
-              <div className="space-y-3" id="comparison-buckets">
+              <div className="space-y-orbit-base" id="comparison-buckets">
                 <ComparisonSection
-                  title="Open Items"
-                  description="Clauses you previously asked the supplier to change."
+                  title={outcomeSectionCopy.openTitle}
+                  description={outcomeSectionCopy.openDescription}
                   accent="primary"
                   rows={openRows}
                   leftLabel={leftVersion.version}
@@ -2313,8 +2358,8 @@ export function ContractResults({
                   onUndoClose={undoClose}
                 />
                 <ComparisonSection
-                  title="New Changes"
-                  description="Material changes the supplier made without being asked, plus clauses that didn't exist before."
+                  title={outcomeSectionCopy.newTitle}
+                  description={outcomeSectionCopy.newDescription}
                   accent="destructive"
                   rows={newIssueRows}
                   leftLabel={leftVersion.version}
@@ -2337,8 +2382,8 @@ export function ContractResults({
                   onTogglePin={togglePin}
                 />
                 <ComparisonSection
-                  title="Closed"
-                  description="Clauses you marked as resolved for this round."
+                  title={outcomeSectionCopy.closedTitle}
+                  description={outcomeSectionCopy.closedDescription}
                   accent="success"
                   rows={closedRows}
                   leftLabel={leftVersion.version}
@@ -2378,7 +2423,7 @@ export function ContractResults({
                 />
               </div>
             ) : (
-              <div className="rounded-lg border border-border bg-card p-12 text-center text-sm text-muted-foreground">
+              <div className="rounded-lg border border-border bg-card p-orbit-xxl text-center text-sm text-muted-foreground">
                 Select two different versions to compare.
               </div>
             )}
@@ -2429,9 +2474,9 @@ export function ContractResults({
         onOpenChange={setRequestReviewOpen}
         requests={reviewGenerateRequestItems}
         supplierName={supplier.name}
+        csvNeedsUpdate={csvNeedsUpdate}
         bulkSummaryMode={firstAnalysisDemo && bulkReviewSummaryMode}
         reviewProgress={firstAnalysisDemo ? firstAnalysisReviewProgress : undefined}
-        csvNeedsUpdate={csvNeedsUpdate}
         onSubmit={() => {
           generateRequestedChangesCsv();
         }}
@@ -2449,51 +2494,29 @@ export function ContractResults({
         onConfirm={onUploadVersion}
       />
 
-      {/* Accept version confirmation */}
-      <AlertDialog open={acceptConfirmOpen} onOpenChange={setAcceptConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Accept {rightVersion?.version.toUpperCase() ?? "this version"}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This marks the current supplier version as accepted for this prototype review. You can undo the status from the review modal.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-              onClick={() => {
-                if (!rightVersion) return;
-                setDecisions_((prev) => ({ ...prev, [rightVersion.version]: "accepted" }));
-                setAcceptConfirmOpen(false);
-              }}
-            >
-              Accept Version
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <V6OrbitConfirmOverlay
+        open={acceptConfirmOpen}
+        onOpenChange={setAcceptConfirmOpen}
+        title={`Accept ${rightVersion?.version.toUpperCase() ?? "this version"}?`}
+        description="This marks the current supplier version as accepted for this prototype review. You can undo the status from the review modal."
+        confirmLabel="Accept Version"
+        onConfirm={() => {
+          if (!rightVersion) return;
+          setDecisions_((prev) => ({ ...prev, [rightVersion.version]: "accepted" }));
+        }}
+      />
 
-      {/* Delete version confirmation */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Version {deleteTarget ? parseInt(deleteTarget.replace("v", ""), 10) : ""}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will remove Version {deleteTarget ? parseInt(deleteTarget.replace("v", ""), 10) : ""} and update all comparisons and tracking.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteTarget && onDeleteVersion(deleteTarget)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete Version
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <V6OrbitConfirmOverlay
+        open={!!deleteTarget}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setDeleteTarget(null);
+        }}
+        title={`Delete Version ${deleteTarget ? parseInt(deleteTarget.replace("v", ""), 10) : ""}?`}
+        description={`This will remove Version ${deleteTarget ? parseInt(deleteTarget.replace("v", ""), 10) : ""} and update all comparisons and tracking.`}
+        confirmLabel="Delete Version"
+        destructive
+        onConfirm={() => deleteTarget && onDeleteVersion(deleteTarget)}
+      />
     </div>
   );
 }
@@ -2525,51 +2548,61 @@ function UploadVersionDialog({
     setProcessing(true);
     setTimeout(() => { onConfirm(file, label); setProcessing(false); }, 900);
   };
+  const documentType: "PDF" | "DOC" | "Unknown" = file?.name.toLowerCase().endsWith(".pdf")
+    ? "PDF"
+    : file?.name.toLowerCase().endsWith(".docx")
+      ? "DOC"
+      : "Unknown";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Upload Contract Version</DialogTitle>
-          <DialogDescription>
-            Upload the supplier's updated contract to compare changes against the previous version.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="rounded-md border border-border bg-muted/30 p-3 text-xs space-y-1">
-            <p><span className="text-muted-foreground">Initiative:</span> <span className="font-medium text-foreground"> {initiativeName} · {initiativeRef}</span></p>
-            <p><span className="text-muted-foreground">Supplier:</span> <span className="font-medium text-foreground"> {supplierName}</span></p>
-            <p><span className="text-muted-foreground">Contract:</span> <span className="font-medium text-foreground"> {contractName}</span></p>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-muted-foreground uppercase">Version label</label>
-            <Input value={label} onChange={(e) => setLabel(e.target.value)} className="h-9" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold text-muted-foreground uppercase">Contract file</label>
-            <label className="flex items-center justify-between gap-3 rounded-md border border-dashed border-border bg-card px-3 py-3 text-sm cursor-pointer hover:border-primary/40">
-              <div className="flex items-center gap-2 min-w-0">
-                <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
-                <span className="truncate text-foreground">{file ? file.name : "Choose a PDF, DOCX, or TXT file"}</span>
-              </div>
-              <span className="text-xs text-primary font-semibold shrink-0">Browse</span>
-              <input
-                type="file"
-                accept=".pdf,.docx,.txt"
-                className="hidden"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              />
-            </label>
-          </div>
-        </div>
-        <DialogFooter>
+    <V6OrbitOverlay
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Upload Contract Version"
+      description="Upload the supplier's updated contract to compare changes against the previous version."
+      footer={
+        <div className="flex justify-end gap-orbit-s">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={processing}>Cancel</Button>
-          <Button onClick={handleConfirm} disabled={!file || !label || processing} className="gap-1.5">
+          <Button onClick={handleConfirm} disabled={!file || !label || processing} className="gap-orbit-xs">
             {processing ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing…</> : <><Upload className="w-3.5 h-3.5" /> Upload &amp; analyse</>}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      }
+    >
+        <div className="space-y-orbit-base">
+          <div className="rounded-md border border-border bg-muted/30 p-orbit-base text-xs space-y-orbit-xs">
+            <p><span className="text-muted-foreground">Initiative:</span> <span className="v6-orbit-weight-medium text-foreground"> {initiativeName} · {initiativeRef}</span></p>
+            <p><span className="text-muted-foreground">Supplier:</span> <span className="v6-orbit-weight-medium text-foreground"> {supplierName}</span></p>
+            <p><span className="text-muted-foreground">Contract:</span> <span className="v6-orbit-weight-medium text-foreground"> {contractName}</span></p>
+          </div>
+          <div className="space-y-orbit-xs">
+            <label className="text-[11px] v6-orbit-weight-semibold text-muted-foreground uppercase">Version label</label>
+            <Input value={label} onChange={(e) => setLabel(e.target.value)} className="h-9" />
+          </div>
+          <div className="space-y-orbit-xs">
+            <label className="text-[11px] v6-orbit-weight-semibold text-muted-foreground uppercase">Contract file</label>
+            {file ? (
+              <FileItem
+                filename={file.name}
+                documentType={documentType}
+                trailing={
+                  <Button variant="ghost" onClick={() => setFile(null)}>
+                    Change
+                  </Button>
+                }
+              />
+            ) : (
+              <Dropzone
+                ariaLabel="Upload contract version"
+                accept=".pdf,.docx,.txt"
+                onFileSelected={setFile}
+                acceptedFileTypesLabel="File types supported: PDF, DOCX, or TXT."
+                maxFileSizeLabel="Maximum upload file size: 100 MB"
+              />
+            )}
+          </div>
+        </div>
+    </V6OrbitOverlay>
   );
 }
 
@@ -2595,20 +2628,18 @@ function CompactContractTopbar({
   onFirstAnalysisDemoChange: (enabled: boolean) => void;
 }) {
   return (
-    <div className="flex min-h-14 items-center gap-3 border-b border-[rgba(0,0,0,0.08)] px-3 py-2">
+    <div className="flex h-10 items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] px-orbit-base">
       <button
         onClick={onBack}
-        className="inline-flex shrink-0 items-center gap-1 text-[13px] font-medium text-primary hover:underline"
+        className="inline-flex shrink-0 items-center gap-orbit-xs text-[13px] v6-orbit-weight-medium text-primary hover:underline"
       >
         <ChevronLeft className="h-3.5 w-3.5" /> {backLabel}
       </button>
       <div className="h-3.5 w-px bg-border" aria-hidden />
-      <div className="flex min-w-0 flex-1 items-center">
-        <h2 className="truncate text-base font-semibold text-foreground">
-          {referenceLine}
-        </h2>
+      <div className="flex min-w-0 flex-1 items-center gap-orbit-s">
+        <h1 className="v6-orbit-heading-label min-w-0 truncate text-foreground">{referenceLine}</h1>
       </div>
-      {demoAvailable && (
+      {demoAvailable && !isInitiativesV6Route() && (
         <FirstAnalysisDemoToggle
           active={firstAnalysisDemo}
           onChange={() => onFirstAnalysisDemoChange(!firstAnalysisDemo)}
@@ -2631,7 +2662,7 @@ function FirstAnalysisDemoToggle({
       aria-pressed={active}
       onClick={onChange}
       className={cn(
-        "ml-auto inline-flex h-7 shrink-0 items-center gap-2 rounded-md border px-2.5 text-[11px] font-medium transition-colors",
+        "ml-auto inline-flex h-7 shrink-0 items-center gap-orbit-s rounded-md border px-orbit-s text-[11px] v6-orbit-weight-medium transition-colors",
         active
           ? "border-[#185FA5]/35 bg-[#E6F1FB] text-[#0C447C]"
           : "border-border bg-white text-muted-foreground hover:text-foreground",
@@ -2651,14 +2682,16 @@ function FirstAnalysisDemoToggle({
 
 function FirstAnalysisContextBanner() {
   return (
-    <section className="bg-background">
-      <div className="mx-auto w-full max-w-[1500px] px-6 pt-4 pb-0">
-        <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
+    <section>
+      <div className="mx-auto w-full max-w-[1500px] px-orbit-base pt-orbit-base pb-orbit-none">
+        <div className="rounded-lg border border-border bg-card px-orbit-base py-orbit-base shadow-sm">
           <div className="min-w-0">
-            <h2 className="text-base font-semibold text-foreground">
-              Validate ClauseIQ recommendations before supplier negotiation
-            </h2>
-            <p className="mt-1 max-w-none whitespace-nowrap text-xs leading-5 text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-orbit-s">
+              <h2 className="v6-orbit-heading-5">
+                Validate ClauseIQ recommendations before supplier negotiation
+              </h2>
+            </div>
+            <p className="mt-orbit-xs max-w-none whitespace-nowrap text-xs leading-5 text-muted-foreground">
               Review each clause, decide whether to use the recommended actionability, edit your own requested change, or mark no action. Requested changes are collected for review and generated as a CSV negotiation log.
             </p>
           </div>
@@ -2668,20 +2701,69 @@ function FirstAnalysisContextBanner() {
   );
 }
 
+function OutcomeReviewContextBanner({
+  supplierName,
+}: {
+  supplierName: string;
+}) {
+  return (
+    <section aria-label="Outcome Review">
+      <div className="mx-auto w-full max-w-[1500px] px-orbit-base pt-orbit-base pb-orbit-none">
+        <Card type="Static" padding="Base" state="Accent">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-orbit-s">
+              <Headings size="Heading 4">Outcome Review</Headings>
+              <Badge label={supplierName} status="Information" />
+            </div>
+            <Text as="p" size="Small" variant="Secondary">
+              Comparing the previous supplier output with the latest negotiated output.
+            </Text>
+          </div>
+        </Card>
+      </div>
+    </section>
+  );
+}
+
+function OutcomeMetric({
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  label: string;
+  value: string | number;
+  detail: string;
+  tone: "success" | "warning" | "danger";
+}) {
+  const toneClass =
+    tone === "success"
+      ? "text-[var(--orbit-color-text-success)]"
+      : tone === "warning"
+        ? "text-[var(--orbit-color-text-warning)]"
+        : "text-[var(--orbit-color-text-error)]";
+
+  return (
+    <div className="rounded-md border border-border bg-white px-orbit-base py-orbit-s">
+      <Text as="p" size="Small" variant="Secondary">{label}</Text>
+      <p className={cn("mt-orbit-xxs text-xl v6-orbit-weight-semibold leading-none", toneClass)}>{value}</p>
+      <p className="mt-orbit-xs text-[11px] leading-4 text-muted-foreground">{detail}</p>
+    </div>
+  );
+}
+
 function ModeSwitcher({
   mode,
   onChange,
   comparisonLabel = "Review",
-  historyDisabled = false,
   onApplyAllRecommendations,
-  onApplyRecommendationOption,
+  onApplyRecommendationOptions,
   onUndoAllRecommendations,
   applyAllRecommendationsDisabled = true,
   applyAllRecommendationsQueued = false,
   applyAllRecommendationsReviewed = false,
   applyAllRecommendationsUndoable = false,
   recommendationApplyOptions = [],
-  recommendationCount = 0,
   undoRecommendationCount = 0,
   undoRecommendationScopeLabel,
   onReviewGenerate,
@@ -2691,16 +2773,14 @@ function ModeSwitcher({
   mode: ClauseIqMode;
   onChange: (mode: ClauseIqMode) => void;
   comparisonLabel?: string;
-  historyDisabled?: boolean;
   onApplyAllRecommendations?: () => void;
-  onApplyRecommendationOption?: (option: RecommendationApplyOption) => void;
+  onApplyRecommendationOptions?: (options: RecommendationApplyOption[]) => void;
   onUndoAllRecommendations?: () => void;
   applyAllRecommendationsDisabled?: boolean;
   applyAllRecommendationsQueued?: boolean;
   applyAllRecommendationsReviewed?: boolean;
   applyAllRecommendationsUndoable?: boolean;
   recommendationApplyOptions?: RecommendationApplyOption[];
-  recommendationCount?: number;
   undoRecommendationCount?: number;
   undoRecommendationScopeLabel?: string | null;
   onReviewGenerate: () => void;
@@ -2716,191 +2796,238 @@ function ModeSwitcher({
     ? `${undoRecommendationScopeLabel ? `Undo ${undoRecommendationScopeLabel} recommendations` : "Undo recommendations"}${undoRecommendationCount > 0 ? ` (${undoRecommendationCount})` : ""}`
     : applyAllRecommendationsQueued
     ? "Recommendations added to review"
-    : `Bulk Apply Recommendation${recommendationCount > 0 ? ` (${recommendationCount})` : ""}`;
+    : "Bulk Apply Recommendation";
   const availableRecommendationApplyOptions = recommendationApplyOptions.filter((option) => option.count > 0);
-  const availableRecommendationApplyOptionIds = availableRecommendationApplyOptions.map((option) => option.id).join("|");
-  const [selectedRecommendationScopeIds, setSelectedRecommendationScopeIds] = useState<RecommendationApplyScope[]>([]);
-  const selectedRecommendationApplyOptions = availableRecommendationApplyOptions.filter((option) =>
-    selectedRecommendationScopeIds.includes(option.id),
-  );
-  const selectedRecommendationTargets = selectedRecommendationApplyOptions.some((option) => option.id === "all")
-    ? availableRecommendationApplyOptions.find((option) => option.id === "all")?.targets ?? []
-    : uniqueRecommendationTargets(selectedRecommendationApplyOptions.flatMap((option) => option.targets));
-  const selectedRecommendationCount = selectedRecommendationTargets.length;
   const canChooseRecommendationScope =
-    Boolean(onApplyRecommendationOption) &&
+    Boolean(onApplyRecommendationOptions) &&
     !canUndoAppliedRecommendations &&
     !applyAllRecommendationsQueued &&
     !applyAllRecommendationsReviewed &&
     !applyAllRecommendationsDisabled &&
     availableRecommendationApplyOptions.length > 0;
 
+  const isResponsiveTestingRoute =
+    typeof window !== "undefined" && window.location.pathname.startsWith("/initiatives-responsive-testing");
+
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] bg-white px-orbit-base py-orbit-xs",
+        isResponsiveTestingRoute && "clauseiq-responsive-mode-switcher",
+      )}
+    >
+      <div role="tablist" aria-label="Analysis mode" className="flex items-center">
+        <TabButton
+          active={mode === "comparison"}
+          onClick={() => onChange("comparison")}
+          ariaControls="clauseiq-v6-comparison-panel"
+        >
+          {comparisonLabel}
+        </TabButton>
+      </div>
+      {mode === "comparison" && (
+        <div
+          className={cn(
+            "ml-auto flex shrink-0 items-center gap-orbit-s",
+            isResponsiveTestingRoute && "clauseiq-responsive-dashboard-actions",
+          )}
+        >
+          {onApplyAllRecommendations && (
+            canChooseRecommendationScope ? (
+              <RecommendationBulkApplyMenu
+                className={cn(isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger")}
+                options={availableRecommendationApplyOptions}
+                onApply={(options) => onApplyRecommendationOptions?.(options)}
+              />
+            ) : (
+              <Button
+                variant="outline"
+                disabled={!canUndoAppliedRecommendations && applyAllRecommendationsDisabled}
+                onClick={canUndoAppliedRecommendations ? onUndoAllRecommendations : onApplyAllRecommendations}
+              >
+                {applyAllRecommendationsReviewed ? (
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                ) : canUndoAppliedRecommendations ? (
+                  <RotateCcw className="h-3.5 w-3.5" />
+                ) : applyAllRecommendationsQueued ? (
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
+                {applyAllButtonLabel}
+              </Button>
+            )
+          )}
+          <Button
+            variant={reviewGenerateDisabled ? "outline" : "default"}
+            className="h-7 gap-orbit-xs px-orbit-base text-xs"
+            disabled={reviewGenerateDisabled}
+            onClick={onReviewGenerate}
+          >
+            <Download className="h-3.5 w-3.5" />
+            Review &amp; Generate{requestCount > 0 ? ` (${requestCount})` : ""}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RecommendationBulkApplyMenu({
+  options,
+  onApply,
+  className,
+}: {
+  options: RecommendationApplyOption[];
+  onApply: (options: RecommendationApplyOption[]) => void;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<RecommendationApplyScope[]>([]);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const selectedOptions = useMemo(
+    () => options.filter((option) => selectedIds.includes(option.id)),
+    [options, selectedIds],
+  );
+  const selectedTargetCount = useMemo(
+    () => mergeRecommendationApplyTargets(selectedOptions).length,
+    [selectedOptions],
+  );
+  const buttonLabel = "Bulk Apply Recommendation";
+
   useEffect(() => {
-    const availableIds = new Set(availableRecommendationApplyOptionIds.split("|").filter(Boolean));
+    setSelectedIds((current) => {
+      const availableIds = new Set(options.map((option) => option.id));
+      const next = current.filter((id) => availableIds.has(id));
+      return next.length === current.length ? current : next;
+    });
+  }, [options]);
 
-    setSelectedRecommendationScopeIds((current) => current.filter((id) => availableIds.has(id)));
-  }, [availableRecommendationApplyOptionIds]);
+  useEffect(() => {
+    if (!open) return undefined;
 
-  const toggleRecommendationScope = (optionId: RecommendationApplyScope, nextChecked: boolean) => {
-    setSelectedRecommendationScopeIds((current) => {
-      if (!nextChecked) {
-        return current.filter((id) => id !== optionId);
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [open]);
+
+  const toggleOption = (id: RecommendationApplyScope) => {
+    setSelectedIds((current) => {
+      if (current.includes(id)) {
+        return current.filter((candidate) => candidate !== id);
       }
 
-      if (optionId === "all") {
+      if (id === "all") {
         return ["all"];
       }
 
-      const withoutAll = current.filter((id) => id !== "all");
-      return withoutAll.includes(optionId) ? withoutAll : [...withoutAll, optionId];
+      return [...current.filter((candidate) => candidate !== "all"), id];
     });
   };
 
-  const applySelectedRecommendationScopes = () => {
-    if (!onApplyRecommendationOption || selectedRecommendationCount === 0) {
-      return;
-    }
-
-    const selectedOption =
-      selectedRecommendationApplyOptions.length === 1 ? selectedRecommendationApplyOptions[0] : null;
-    const bulkOption: RecommendationApplyOption = selectedOption ?? {
-      id: "all",
-      label: "Bulk Apply Recommendation",
-      toastLabel: "selected recommendation",
-      undoLabel: "selected",
-      count: selectedRecommendationCount,
-      targets: selectedRecommendationTargets,
-    };
-
-    onApplyRecommendationOption(bulkOption);
-    setSelectedRecommendationScopeIds([]);
+  const applySelectedOptions = () => {
+    if (selectedOptions.length === 0 || selectedTargetCount === 0) return;
+    onApply(selectedOptions);
+    setSelectedIds([]);
+    setOpen(false);
   };
-
-  const reviewIcon =
-    comparisonLabel === "V1 Analysis" ? (
-      <FileSearch key="comparison-icon" className="h-[13px] w-[13px]" />
-    ) : (
-      <IconArrowsDiff key="comparison-icon" size={13} stroke={1.8} />
-    );
+  const applySelectedDisabled = selectedOptions.length === 0 || selectedTargetCount === 0;
 
   return (
-    <div className="flex min-w-0 items-center gap-3 border-b border-[rgba(0,0,0,0.08)] bg-white px-3 py-1.5">
-      <div className="inline-flex overflow-hidden rounded-md border border-border">
-        {([
-          ["comparison", reviewIcon, comparisonLabel],
-          ["history", <IconTimeline key="history-icon" size={13} stroke={1.8} />, "History"],
-        ] as const).map(([value, icon, label]) => {
-          const active = mode === value;
-          const disabled = value === "history" && historyDisabled;
-          return (
-            <button
-              key={value}
-              type="button"
-              disabled={disabled}
-              title={disabled ? "History is available after another analysis version is added." : undefined}
-              onClick={() => {
-                if (!disabled) onChange(value);
-              }}
-              className={cn(
-                "inline-flex h-7 items-center gap-1.5 border-r border-border px-3 text-[11px] font-medium last:border-r-0",
-                active ? "bg-[#1a2744] text-white" : "bg-white text-muted-foreground hover:text-foreground",
-                disabled && "cursor-not-allowed bg-muted/40 text-muted-foreground/45 hover:text-muted-foreground/45",
-              )}
-            >
-              {icon}
-              {label}
-            </button>
-          );
-        })}
-      </div>
-      <div className="ml-auto flex shrink-0 items-center gap-2">
-        {onApplyAllRecommendations && (
-          canChooseRecommendationScope ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="outline" className="h-7 gap-1.5 bg-white px-3 text-xs">
-                  <ListPlus className="h-3.5 w-3.5" />
-                  {applyAllButtonLabel}
-                  <ChevronDown className="h-3.5 w-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64">
-                <DropdownMenuLabel className="text-xs">Select recommendation groups</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {availableRecommendationApplyOptions.map((option) => {
-                  const checked = selectedRecommendationScopeIds.includes(option.id);
-
-                  return (
-                    <DropdownMenuItem
-                      key={option.id}
-                      className="gap-2 text-xs"
-                      onSelect={(event) => {
-                        event.preventDefault();
-                        toggleRecommendationScope(option.id, !checked);
-                      }}
-                    >
-                      <span
-                        aria-hidden="true"
-                        className={cn(
-                          "flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border",
-                          checked
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-border bg-white text-transparent",
-                        )}
-                      >
-                        {checked && <Check className="h-3 w-3" />}
-                      </span>
-                      <span>{option.label}</span>
-                      <span className="ml-auto tabular-nums text-muted-foreground">{option.count}</span>
-                    </DropdownMenuItem>
-                  );
-                })}
-                <DropdownMenuSeparator />
-                <div className="p-1">
-                  <Button
-                    size="sm"
-                    className="h-7 w-full text-xs"
-                    disabled={selectedRecommendationCount === 0}
-                    onClick={applySelectedRecommendationScopes}
-                  >
-                    Bulk Apply Recommendation{selectedRecommendationCount > 0 ? ` (${selectedRecommendationCount})` : ""}
-                  </Button>
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 gap-1.5 bg-white px-3 text-xs"
-              disabled={!canUndoAppliedRecommendations && applyAllRecommendationsDisabled}
-              onClick={canUndoAppliedRecommendations ? onUndoAllRecommendations : onApplyAllRecommendations}
-            >
-              {applyAllRecommendationsReviewed ? (
-                <CheckCircle2 className="h-3.5 w-3.5" />
-              ) : canUndoAppliedRecommendations ? (
-                <RotateCcw className="h-3.5 w-3.5" />
-              ) : applyAllRecommendationsQueued ? (
-                <ClipboardList className="h-3.5 w-3.5" />
-              ) : (
-                <ListPlus className="h-3.5 w-3.5" />
-              )}
-              {applyAllButtonLabel}
-            </Button>
-          )
-        )}
-        <Button
-          size="sm"
-          variant={reviewGenerateDisabled ? "outline" : "default"}
-          className="h-7 gap-1.5 px-3 text-xs"
-          disabled={reviewGenerateDisabled}
-          onClick={onReviewGenerate}
+    <div ref={rootRef} className={cn("clauseiq-v6-recommendation-bulk", className)}>
+      <Button
+        variant="outline"
+        className="clauseiq-v6-recommendation-bulk-trigger"
+        aria-label="Bulk Apply Recommendation"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <Sparkles className="h-3.5 w-3.5" />
+        <span>{buttonLabel}</span>
+        <ChevronDown className="h-3.5 w-3.5" />
+      </Button>
+      {open && (
+        <div
+          className="clauseiq-v6-recommendation-bulk-menu"
+          role="menu"
+          aria-label="Bulk Apply Recommendation options"
         >
-          <FileCheck2 className="h-3.5 w-3.5" />
-          Review &amp; Generate{requestCount > 0 ? ` (${requestCount})` : ""}
-        </Button>
-      </div>
+          <div className="clauseiq-v6-recommendation-bulk-subheader">Select Recommendation Group</div>
+          <div className="clauseiq-v6-recommendation-bulk-list">
+            {options.map((option) => {
+              const checked = selectedIds.includes(option.id);
+
+              return (
+                <div
+                  key={option.id}
+                  role="menuitemcheckbox"
+                  tabIndex={0}
+                  aria-checked={checked}
+                  className={cn("clauseiq-v6-recommendation-bulk-option", checked && "is-selected")}
+                  onClick={() => toggleOption(option.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === " " || event.key === "Enter") {
+                      event.preventDefault();
+                      toggleOption(option.id);
+                    }
+                  }}
+                >
+                  <span aria-hidden="true" className="clauseiq-v6-recommendation-bulk-checkbox">
+                    <Checkbox
+                      checked={checked}
+                      className="pointer-events-none"
+                      aria-label={option.label}
+                    />
+                  </span>
+                  <span className="clauseiq-v6-recommendation-bulk-label">{option.label}</span>
+                  <span className="clauseiq-v6-recommendation-bulk-count">{option.count}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="clauseiq-v6-recommendation-bulk-footer">
+            <OrbitButton
+              variant="Primary"
+              size="Small"
+              state={applySelectedDisabled ? "Disabled" : "Default"}
+              className="w-full"
+              disabled={applySelectedDisabled}
+              onClick={applySelectedOptions}
+            >
+              Apply Selected
+            </OrbitButton>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function HistoryComingSoon() {
+  return (
+    <main
+      id="clauseiq-v6-history-panel"
+      className="grid min-h-[calc(100vh-88px)] place-items-center bg-[#F7F9FC] px-orbit-base py-orbit-xxl"
+    >
+      <div className="flex max-w-[420px] flex-col items-center text-center">
+        <div className="grid h-12 w-12 place-items-center rounded-full border border-[#DDE5F0] bg-white text-[#185FA5] shadow-sm">
+          <History className="h-5 w-5" />
+        </div>
+        <p className="mt-orbit-base text-[10px] v6-orbit-weight-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          History
+        </p>
+        <h1 className="v6-orbit-heading-4 mt-orbit-xs text-foreground">Coming Soon</h1>
+        <p className="mt-orbit-s text-sm leading-6 text-muted-foreground">
+          This view is being prepared.
+        </p>
+      </div>
+    </main>
   );
 }
 
@@ -2929,21 +3056,21 @@ function ComparisonHeader({
 
   return (
     <>
-      <div className="flex h-8 items-center gap-3 border-b border-[rgba(0,0,0,0.08)] bg-[#f8f7f5] px-3 text-[11px] text-muted-foreground">
-        <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.04em]">Comparing</span>
+      <div className="flex h-8 items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] bg-[#f8f7f5] px-orbit-base text-[11px] text-muted-foreground">
+        <span className="shrink-0 text-[10px] v6-orbit-weight-medium uppercase tracking-[0.04em]">Comparing</span>
         {versions.length >= 2 ? (
           <PairSelector versions={versions} pair={pair} onChange={onPairChange} compact />
         ) : (
           <span className="text-[10px] text-muted-foreground">{contract.version || pair.right}</span>
         )}
-        <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+        <span className="shrink-0 rounded px-orbit-xs py-orbit-xxs text-[10px] v6-orbit-weight-medium text-muted-foreground">
           Total Clauses - <strong className="text-foreground">{contract.total}</strong>
         </span>
         <InlineMetIndicator comparison={comparison} hasVersionComparison={hasVersionComparison} />
-        <div className="ml-auto rounded-md border border-border bg-white px-2 py-0.5 text-[10px]">
-          <span className="mr-1 uppercase text-muted-foreground">Score</span>
+        <div className="ml-auto rounded-md border border-border bg-white px-orbit-s py-orbit-xxs text-[10px]">
+          <span className="mr-orbit-xs uppercase text-muted-foreground">Score</span>
           <strong className="text-[13px] text-foreground">{contract.score}</strong>
-          <span className={comparison.scoreDelta > 0 ? "ml-1 text-[#3B6D11]" : comparison.scoreDelta < 0 ? "ml-1 text-[#A32D2D]" : "ml-1 text-muted-foreground"}>
+          <span className={comparison.scoreDelta > 0 ? "ml-orbit-xs text-[#3B6D11]" : comparison.scoreDelta < 0 ? "ml-orbit-xs text-[#A32D2D]" : "ml-orbit-xs text-muted-foreground"}>
             {comparison.scoreDelta > 0 ? `↑+${comparison.scoreDelta}` : comparison.scoreDelta < 0 ? `↓-${Math.abs(comparison.scoreDelta)}` : "→0"}
           </span>
         </div>
@@ -2979,11 +3106,11 @@ function InlineMetIndicator({
   const Icon = allMet ? IconCircleCheck : noneMet ? AlertTriangle : CheckCircle2;
 
   return (
-    <span className="ml-1 inline-flex shrink-0 items-center gap-1.5 text-[10px]" style={{ color }}>
+    <span className="ml-orbit-xs inline-flex shrink-0 items-center gap-orbit-xs text-[10px]" style={{ color }}>
       <Icon className="h-3.5 w-3.5" size={13} stroke={1.8} aria-hidden />
-      <span className="text-[11px] font-medium">{label}</span>
+      <span className="text-[11px] v6-orbit-weight-medium">{label}</span>
       {!noneMet && (
-        <span className="text-[10px] font-normal text-muted-foreground">
+        <span className="text-[10px] v6-orbit-weight-regular text-muted-foreground">
           · {comparison.met}/{comparison.requestedTotal}
         </span>
       )}
@@ -3010,31 +3137,31 @@ function HistoryHeader({
   const latest = versions.at(-1);
   return (
     <>
-      <div className="flex h-8 items-center gap-1.5 border-b border-[rgba(0,0,0,0.08)] bg-[#FAEEDA]/40 px-3 text-[10px] font-medium text-[#633806]">
+      <div className="flex h-8 items-center gap-orbit-xs border-b border-[rgba(0,0,0,0.08)] bg-[#FAEEDA]/40 px-orbit-base text-[10px] v6-orbit-weight-medium text-[#633806]">
         <IconInfoCircle size={13} stroke={1.8} />
         Showing all {versions.length} rounds · {first?.version ?? "v1"} through {latest?.version ?? "v1"}
         {first && latest && <> · {formatShortDate(first.uploadedAt)} to {formatShortDate(latest.uploadedAt)}</>}
       </div>
-      <div className="grid grid-cols-4 gap-3 border-b border-[rgba(0,0,0,0.08)] bg-white px-3 py-3">
+      <div className="grid grid-cols-4 gap-orbit-base border-b border-[rgba(0,0,0,0.08)] bg-white px-orbit-base py-orbit-base">
         <HistoryStatCard value={model.stats.totalClauses} label="Total clauses" trend={`across ${model.stats.roundCount} rounds`} />
         <HistoryStatCard value={model.stats.stillOpen} label="Still open" trend={`after ${model.stats.roundCount} rounds`} tone="danger" />
         <HistoryStatCard value={model.stats.avgRoundsToResolve} label="Avg rounds to resolve" trend="computed from met clauses" tone="success" />
         <HistoryStatCard value={`${model.stats.settledByRound3Pct}%`} label="Settled by round 3" trend="benchmark 65%" tone={model.stats.settledByRound3Pct >= 65 ? "success" : "danger"} />
       </div>
-      <div className="flex items-center gap-2 border-b border-[rgba(0,0,0,0.08)] bg-[#f8f7f5] px-3 py-2">
+      <div className="flex items-center gap-orbit-s border-b border-[rgba(0,0,0,0.08)] bg-[#f8f7f5] px-orbit-base py-orbit-s">
         {(Object.keys(historyFilterLabels) as HistoryFilter[]).map((filter) => (
           <button
             key={filter}
             type="button"
             onClick={() => onFilterChange(filter)}
-            className={`inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-[10px] font-medium ${
+            className={`inline-flex h-7 items-center gap-orbit-xs rounded-full px-orbit-base text-[10px] v6-orbit-weight-medium ${
               activeFilter === filter
                 ? "bg-[#1a2744] text-white"
                 : "border border-border bg-white text-muted-foreground hover:text-foreground"
             }`}
           >
             {historyFilterLabels[filter]}
-            <span className={`rounded-full px-1.5 py-px text-[9px] ${activeFilter === filter ? "bg-white/20" : "bg-muted"}`}>
+            <span className={`rounded-full px-orbit-xs py-orbit-micro text-[9px] ${activeFilter === filter ? "bg-white/20" : "bg-muted"}`}>
               {model.filterCounts[filter]}
             </span>
           </button>
@@ -3058,10 +3185,10 @@ function HistoryHeader({
 function HistoryStatCard({ value, label, trend, tone = "neutral" }: { value: ReactNode; label: string; trend: string; tone?: "neutral" | "success" | "danger" }) {
   const trendClass = tone === "success" ? "text-[#3B6D11]" : tone === "danger" ? "text-[#A32D2D]" : "text-muted-foreground";
   return (
-    <div className="rounded-md bg-[#f8f7f5] px-3 py-2">
-      <p className="text-lg font-medium tabular-nums text-foreground">{value}</p>
-      <p className="text-[9px] font-medium uppercase text-muted-foreground">{label}</p>
-      <p className={`mt-1 text-[9px] ${trendClass}`}>{trend}</p>
+    <div className="rounded-md bg-[#f8f7f5] px-orbit-base py-orbit-s">
+      <p className="text-lg v6-orbit-weight-medium tabular-nums text-foreground">{value}</p>
+      <p className="text-[9px] v6-orbit-weight-medium uppercase text-muted-foreground">{label}</p>
+      <p className={`mt-orbit-xs text-[9px] ${trendClass}`}>{trend}</p>
     </div>
   );
 }
@@ -3082,14 +3209,14 @@ function ComparisonToolbarControls({
   onResetToLatest: () => void;
 }) {
   return (
-    <div className="ml-auto flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
+    <div className="ml-auto flex min-w-0 flex-1 flex-wrap items-center justify-end gap-orbit-s">
       <div className="relative min-w-[180px] flex-1 sm:max-w-[260px]">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder="Filter by name or ID..."
-          className="h-8 bg-card pl-8 text-xs"
+          className="h-8 bg-card pl-orbit-l text-xs"
         />
       </div>
       {showBucketFilter && (
@@ -3106,7 +3233,7 @@ function ComparisonToolbarControls({
               <SelectItem value="unmarked">Unmarked clauses</SelectItem>
             </SelectContent>
           </Select>
-          <Button size="sm" variant="ghost" className="h-8 shrink-0 text-[11px] text-muted-foreground" onClick={onResetToLatest}>
+          <Button variant="ghost" className="h-8 shrink-0 text-[11px] text-muted-foreground" onClick={onResetToLatest}>
             Reset to latest
           </Button>
         </>
@@ -3120,13 +3247,13 @@ function ComparisonTabButton({ active, icon, count, onClick, children }: { activ
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex h-10 items-center gap-1.5 border-b-2 text-[12px] font-medium ${
+      className={`inline-flex h-10 items-center gap-orbit-xs border-b-2 text-[12px] v6-orbit-weight-medium ${
         active ? "border-[#1a2744] text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
       }`}
     >
       {icon}
       {children}
-      <span className="rounded-full bg-muted px-1.5 py-px text-[9px] text-muted-foreground">{count}</span>
+      <span className="rounded-full bg-muted px-orbit-xs py-orbit-micro text-[9px] text-muted-foreground">{count}</span>
     </button>
   );
 }
@@ -3137,41 +3264,48 @@ function CompactDivider() {
 
 const changePillConfig: Record<ChangePillStatus, {
   label: string;
-  variant: DashboardChipVariant;
+  variant: "Success" | "Error" | "Style 2" | "Warning" | "Outline";
+  Icon: typeof IconCircleCheck;
 }> = {
   met: {
     label: "Met",
     variant: "Success",
+    Icon: IconCircleCheck,
   },
   not_met: {
     label: "Not met",
     variant: "Error",
+    Icon: IconCircleX,
   },
   improved: {
     label: "Improved",
     variant: "Success",
+    Icon: IconTrendingUp,
   },
   regressed: {
     label: "Regressed",
     variant: "Warning",
+    Icon: IconTrendingDown,
   },
   new: {
     label: NEW_CHANGE_LABEL,
-    variant: "Information",
+    variant: "Style 2",
+    Icon: IconPlus,
   },
 };
 
 function ChangePillBadge({ result }: { result: ChangePillResult }) {
   if (!result.status) return null;
   const config = changePillConfig[result.status];
+  const Icon = config.Icon;
   const lowConfidence =
     (result.status === "improved" || result.status === "regressed") &&
     typeof result.confidence === "number" &&
     result.confidence < CHANGE_DIRECTION_CONFIDENCE_THRESHOLD;
 
   return (
-    <span className="inline-flex items-center gap-1">
-      <DashboardChip label={config.label} variant={config.variant} />
+    <span className="inline-flex items-center gap-orbit-xs">
+      <Chip label={config.label} size="Mini" variant={config.variant} contrast="Low" />
       {lowConfidence && (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -3190,19 +3324,39 @@ function ChangePillBadge({ result }: { result: ChangePillResult }) {
 
 function DecisionBadge({ decision }: { decision: RoundDecision }) {
   if (decision === "request-update") {
-    return <DashboardChip label="Requested" variant="Information" />;
+    return (
+      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full bg-primary px-orbit-s py-orbit-xs text-[10px] v6-orbit-weight-medium text-primary-foreground">
+        <Sparkles className="h-3 w-3" />
+        Requested
+      </span>
+    );
   }
 
-  return <DashboardChip label="No Action" variant="Outline" />;
+  return (
+    <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full bg-[#EAF3DE] px-orbit-s py-orbit-xs text-[10px] v6-orbit-weight-medium text-[#27500A]">
+      <CheckCircle2 className="h-3 w-3" />
+      No Action
+    </span>
+  );
 }
 
 function RequestLifecycleBadge({ request }: { request?: ClauseRequest }) {
   if (request?.state === "pending") {
-    return <DashboardChip label="Added to Review" variant="Information" />;
+    return (
+      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full border border-[#185FA5]/25 bg-[#E6F1FB] px-orbit-s py-orbit-xs text-[10px] v6-orbit-weight-medium text-[#0C447C]">
+        <FileText className="h-3 w-3" />
+        Added to Review
+      </span>
+    );
   }
 
   if (request?.state === "submitted") {
-    return <DashboardChip label="Reviewed" variant="Success" />;
+    return (
+      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full border border-[#BFD6AB] bg-[#EAF3DE] px-orbit-s py-orbit-xs text-[10px] v6-orbit-weight-medium text-[#27500A]">
+        <CheckCircle2 className="h-3 w-3" />
+        Reviewed
+      </span>
+    );
   }
 
   return <DecisionBadge decision="request-update" />;
@@ -3210,7 +3364,7 @@ function RequestLifecycleBadge({ request }: { request?: ClauseRequest }) {
 
 function OverviewSectionLabel({ children }: { children: ReactNode }) {
   return (
-    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <p className="text-[10px] v6-orbit-weight-semibold uppercase tracking-wider text-muted-foreground">
       {children}
     </p>
   );
@@ -3232,8 +3386,8 @@ function ComparisonOverviewPanel({
     const deltaLabel = data.delta > 0 ? `+${data.delta}` : data.delta < 0 ? `−${Math.abs(data.delta)}` : "0";
     const deltaColor = data.delta > 0 ? "#3B6D11" : data.delta < 0 ? "#A32D2D" : "hsl(var(--muted-foreground))";
     return (
-      <div className="flex h-7 items-center gap-2 border-b border-[rgba(0,0,0,0.08)] bg-white px-4 text-[11px]">
-        <span className="shrink-0 font-medium text-muted-foreground">
+      <div className="flex h-7 items-center gap-orbit-s border-b border-[rgba(0,0,0,0.08)] bg-white px-orbit-base text-[11px]">
+        <span className="shrink-0 v6-orbit-weight-medium text-muted-foreground">
           {data.previous ? `${pair.from} → ${pair.to}` : "First analysis"}
         </span>
         {data.previous ? (
@@ -3241,15 +3395,15 @@ function ComparisonOverviewPanel({
             <MiniDistributionBar distribution={data.previous.distribution} muted />
             <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <MiniDistributionBar distribution={data.current.distribution} />
-            <span className="shrink-0 font-medium tabular-nums" style={{ color: deltaColor }}>
+            <span className="shrink-0 v6-orbit-weight-medium tabular-nums" style={{ color: deltaColor }}>
               {deltaLabel} pts
             </span>
             <CompactDivider />
             {data.movement.improved > 0 && (
-              <span className="shrink-0 font-medium text-[#3B6D11]">↑ {data.movement.improved} improved</span>
+              <span className="shrink-0 v6-orbit-weight-medium text-[#3B6D11]">↑ {data.movement.improved} improved</span>
             )}
             {data.movement.declined > 0 && (
-              <span className="shrink-0 font-medium text-[#A32D2D]">↓ {data.movement.declined} declined</span>
+              <span className="shrink-0 v6-orbit-weight-medium text-[#A32D2D]">↓ {data.movement.declined} declined</span>
             )}
           </>
         ) : (
@@ -3258,7 +3412,7 @@ function ComparisonOverviewPanel({
         <button
           type="button"
           onClick={onExpand}
-          className="ml-auto shrink-0 rounded px-2 py-0.5 font-medium text-primary hover:bg-primary/5"
+          className="ml-auto shrink-0 rounded px-orbit-s py-orbit-xxs v6-orbit-weight-medium text-primary hover:bg-primary/5"
         >
           Expand
         </button>
@@ -3270,6 +3424,7 @@ function ComparisonOverviewPanel({
 }
 
 function MiniDistributionBar({ distribution, muted }: { distribution: DeviationDistribution; muted?: boolean }) {
+  const colours = isInitiativesV6Route() ? v6DeviationDistributionColors : deviationDistributionColors;
   return (
     <span className={`flex h-1 w-[60px] shrink-0 overflow-hidden rounded-sm bg-muted ${muted ? "opacity-50" : ""}`} style={{ gap: 1 }}>
       {(Object.keys(deviationDistributionColors) as Array<keyof DeviationDistribution>).map((key) => {
@@ -3281,7 +3436,7 @@ function MiniDistributionBar({ distribution, muted }: { distribution: DeviationD
             style={{
               flex: `${value} 1 0`,
               minWidth: 1,
-              backgroundColor: deviationDistributionColors[key],
+              backgroundColor: colours[key],
             }}
           />
         );
@@ -3303,11 +3458,11 @@ export function ScoringOptionSwitcher({
   ];
 
   return (
-    <div className="flex items-center gap-2">
-      <span className="hidden text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:inline">
+    <div className="flex items-center gap-orbit-s">
+      <span className="hidden text-[10px] v6-orbit-weight-semibold uppercase tracking-wider text-muted-foreground sm:inline">
         Scoring options
       </span>
-      <div className="inline-flex h-7 items-center rounded-full border border-border/80 bg-muted/50 p-0.5">
+      <div className="inline-flex h-7 items-center rounded-full border border-border/80 bg-muted/50 p-orbit-xxs">
         {options.map((option) => {
           const active = value === option.value;
           return (
@@ -3315,7 +3470,7 @@ export function ScoringOptionSwitcher({
               key={option.value}
               type="button"
               onClick={() => onChange(option.value)}
-              className={`h-6 rounded-full px-2.5 text-[11px] font-medium transition-colors ${
+              className={`h-6 rounded-full px-orbit-s text-[11px] v6-orbit-weight-medium transition-colors ${
                 active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -3333,13 +3488,13 @@ function ScoringStripSummary({ option, model }: { option: ScoringOptionKey; mode
   const delta = current.delta >= 0 ? `↑+${current.delta}` : `↓${Math.abs(current.delta)}`;
   if (option === "hybrid") {
     return (
-      <span className="shrink-0 rounded px-1.5 py-0.5" style={{ color: bandColor[current.band] }}>
+      <span className="shrink-0 rounded px-orbit-xs py-orbit-xxs" style={{ color: bandColor[current.band] }}>
         <strong>{current.score} {current.band}</strong> {delta} · {model.resolvedTotal}/{model.identifiedTotal}
       </span>
     );
   }
   return (
-    <span className="shrink-0 rounded px-1.5 py-0.5" style={{ color: bandColor[current.band] }}>
+    <span className="shrink-0 rounded px-orbit-xs py-orbit-xxs" style={{ color: bandColor[current.band] }}>
       <strong>{current.score} {current.band}</strong> {delta}
     </span>
   );
@@ -3379,15 +3534,15 @@ function ScoringOptionPanel({
   const current = model.current;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)]">
-        <div className="space-y-4">
+    <div className="rounded-lg border border-border bg-card p-orbit-base">
+      <div className="grid gap-orbit-base lg:grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)]">
+        <div className="space-y-orbit-base">
           <IssueWeightedScoreOption model={model} onClauseSelect={onClauseSelect} />
         </div>
 
         <div className="hidden w-px bg-border lg:block" aria-hidden />
 
-        <div className="space-y-3">
+        <div className="space-y-orbit-base">
           <OverviewSectionLabel>What changed ({leftLabel} → {rightLabel})</OverviewSectionLabel>
           <HybridChangeList items={changeItems} onClauseSelect={onClauseSelect} />
         </div>
@@ -3414,7 +3569,7 @@ function IssueWeightedScoreOption({
 }) {
   const current = model.current;
   return (
-    <div className="space-y-4">
+    <div className="space-y-orbit-base">
       <OverviewSectionLabel>What's driving the score</OverviewSectionLabel>
       <BulletScoreBar score={current.score} previousScore={model.previous?.score} />
       <HybridRiskDriverRows drivers={current.topDrivers} onClauseSelect={onClauseSelect} />
@@ -3439,7 +3594,7 @@ function ScoringPanelFooter({
 }) {
   const stalledIds = score.stalled.map((driver) => driver.clauseId.toUpperCase()).join(", ");
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-2.5 text-[10px]">
+    <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-s border-t border-border pt-orbit-s text-[10px]">
       <HybridFooterSignal tone={score.dealBreakerPresent ? "danger" : "success"}>
         {score.dealBreakerPresent ? <ShieldX className="h-3 w-3" /> : <ShieldCheck className="h-3 w-3" />}
         {score.dealBreakerPresent ? `Deal-breaker: ${score.dealBreakerClause}` : "No deal-breakers"}
@@ -3470,13 +3625,12 @@ function ScoringPanelFooter({
           </HybridFooterSignal>
         </>
       )}
-      <div className="ml-auto flex items-center gap-2">
-        <Button size="sm" variant="outline" className="h-7 rounded-[5px] px-3 text-[10px]" onClick={onRequestChanges}>
+      <div className="ml-auto flex items-center gap-orbit-s">
+        <Button variant="outline" className="h-7 rounded-[5px] px-orbit-base text-[10px]" onClick={onRequestChanges}>
           Request changes
         </Button>
         <Button
-          size="sm"
-          className="h-7 rounded-[5px] px-3 text-[10px]"
+          className="h-7 rounded-[5px] px-orbit-base text-[10px]"
           onClick={onAcceptVersion}
         >
           Accept version
@@ -3596,8 +3750,8 @@ function HybridVersionMovementPanel({
   const canCompare = hasComparison ?? Boolean(data.previous);
   if (!canCompare || !data.previous) {
     return (
-      <div className="flex min-h-[70px] items-center gap-4 border-b border-[rgba(0,0,0,0.08)] bg-white px-4 py-3">
-        <div className="min-w-[180px] flex-1 text-[10px] font-medium text-muted-foreground">
+      <div className="flex min-h-[70px] items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] bg-white px-orbit-base py-orbit-base">
+        <div className="min-w-[180px] flex-1 text-[10px] v6-orbit-weight-medium text-muted-foreground">
           First analysis — no comparison available
         </div>
         <CompactVersionDistributionSide version={data.current} label="current" versions={versions} current />
@@ -3607,7 +3761,7 @@ function HybridVersionMovementPanel({
 
   return (
     <div className="border-b border-[rgba(0,0,0,0.08)] bg-white">
-      <div className="flex items-center gap-3 px-3 py-2.5">
+      <div className="flex items-center gap-orbit-base px-orbit-base py-orbit-s">
         <CompactVersionDistributionSide version={data.previous} label="previous" versions={versions} />
         <DeltaIndicator delta={data.delta} />
         <CompactVersionDistributionSide version={data.current} label="current" versions={versions} current />
@@ -3639,26 +3793,26 @@ function CompactVersionDistributionSide({
     <div
       aria-label={`${label} version ${labelText}, score ${version.score}`}
       className={cn(
-        "grid min-h-[54px] min-w-0 flex-1 grid-cols-[auto_1fr_auto] items-center gap-3 rounded-md border px-3 py-2",
+        "grid min-h-[54px] min-w-0 flex-1 grid-cols-[auto_1fr_auto] items-center gap-orbit-base rounded-md border px-orbit-base py-orbit-s",
         current ? "border-[#185FA5]/35 bg-[rgba(230,241,251,0.55)] shadow-[inset_3px_0_0_#185FA5]" : "border-transparent bg-[#f8f7f5]",
       )}
     >
       <div className="min-w-[62px]">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-orbit-xs">
           <span className={cn(
-            "text-[9px] font-medium uppercase tracking-[0.04em]",
+            "text-[9px] v6-orbit-weight-medium uppercase tracking-[0.04em]",
             current ? "text-[#185FA5]" : "text-muted-foreground",
           )}>
             {labelText}
           </span>
           {current && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[#185FA5] px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.04em] text-white">
+            <span className="inline-flex items-center gap-orbit-xs rounded-full bg-[#185FA5] px-orbit-xs py-orbit-xxs text-[8px] v6-orbit-weight-semibold uppercase tracking-[0.04em] text-white">
               <IconEye size={10} stroke={2} aria-hidden />
               Current version
             </span>
           )}
         </div>
-        <p className="mt-0.5 text-2xl font-medium leading-none text-foreground tabular-nums">{version.score}</p>
+        <p className="mt-orbit-xxs text-2xl v6-orbit-weight-medium leading-none text-foreground tabular-nums">{version.score}</p>
       </div>
       <div className="min-w-0">
         <DistributionCounts distribution={version.distribution} />
@@ -3673,9 +3827,9 @@ function DeltaIndicator({ delta }: { delta: number }) {
   const color = delta > 0 ? "#3B6D11" : delta < 0 ? "#A32D2D" : "hsl(var(--muted-foreground))";
   const label = delta > 0 ? `+${delta}` : delta < 0 ? `−${Math.abs(delta)}` : "0";
   return (
-    <div className="flex shrink-0 flex-col items-center gap-0.5 px-0.5">
+    <div className="flex shrink-0 flex-col items-center gap-orbit-xxs px-orbit-xxs">
       <ArrowRight className="h-[13px] w-[13px] text-muted-foreground" />
-      <span className="text-sm font-medium leading-none tabular-nums" style={{ color }}>
+      <span className="text-sm v6-orbit-weight-medium leading-none tabular-nums" style={{ color }}>
         {label}
       </span>
       <span className="text-[8px] leading-none text-muted-foreground">pts</span>
@@ -3690,16 +3844,24 @@ const deviationDistributionColors: Record<keyof DeviationDistribution, string> =
   clean: "#3B6D11",
 };
 
+const v6DeviationDistributionColors: Record<keyof DeviationDistribution, string> = {
+  high: FIRST_ANALYSIS_STATUS_THEME.high.indicatorColor,
+  medium: FIRST_ANALYSIS_STATUS_THEME.medium.indicatorColor,
+  low: FIRST_ANALYSIS_STATUS_THEME.low.indicatorColor,
+  clean: FIRST_ANALYSIS_STATUS_THEME.none.indicatorColor,
+};
+
 function DistributionCounts({ distribution }: { distribution: DeviationDistribution }) {
+  const useV6StatusColours = isInitiativesV6Route();
   return (
-    <div className="mb-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-muted-foreground">
+    <div className="mb-orbit-xs flex min-w-0 flex-wrap items-center gap-x-orbit-xs gap-y-orbit-xxs text-[10px] text-muted-foreground">
       <DistributionCount value={distribution.high} label="high" color="#A32D2D" />
       <span className="text-border">·</span>
       <DistributionCount value={distribution.medium} label="med" color="#854F0B" />
       <span className="text-border">·</span>
-      <DistributionCount value={distribution.low} label="low" color="hsl(var(--foreground))" />
+      <DistributionCount value={distribution.low} label="low" color={useV6StatusColours ? FIRST_ANALYSIS_STATUS_THEME.low.indicatorColor : "hsl(var(--foreground))"} />
       <span className="text-border">·</span>
-      <DistributionCount value={distribution.clean} label="clean" color="hsl(var(--muted-foreground))" />
+      <DistributionCount value={distribution.clean} label="clean" color={useV6StatusColours ? FIRST_ANALYSIS_STATUS_THEME.none.indicatorColor : "hsl(var(--muted-foreground))"} />
     </div>
   );
 }
@@ -3707,13 +3869,14 @@ function DistributionCounts({ distribution }: { distribution: DeviationDistribut
 function DistributionCount({ value, label, color }: { value: number; label: string; color: string }) {
   return (
     <span className="whitespace-nowrap">
-      <strong className="font-medium tabular-nums" style={{ color }}>{value}</strong> {label}
+      <strong className="v6-orbit-weight-medium tabular-nums" style={{ color }}>{value}</strong> {label}
     </span>
   );
 }
 
 function CompactDistributionBar({ distribution }: { distribution: DeviationDistribution }) {
   const total = Math.max(1, distribution.high + distribution.medium + distribution.low + distribution.clean);
+  const colours = isInitiativesV6Route() ? v6DeviationDistributionColors : deviationDistributionColors;
   return (
     <div className="flex h-2 overflow-hidden rounded-[3px] bg-muted" style={{ gap: 1 }}>
       {(Object.keys(deviationDistributionColors) as Array<keyof DeviationDistribution>).map((key) => {
@@ -3726,7 +3889,7 @@ function CompactDistributionBar({ distribution }: { distribution: DeviationDistr
             style={{
               flex: `${value} 1 0`,
               minWidth: value / total > 0.02 ? 3 : 1,
-              backgroundColor: deviationDistributionColors[key],
+              backgroundColor: colours[key],
             }}
           />
         );
@@ -3747,15 +3910,15 @@ function MovementSummaryZone({
   onSeeMoreChanges?: () => void;
 }) {
   return (
-    <div className="grid gap-[18px] border-t border-[rgba(0,0,0,0.08)] bg-[rgba(230,241,251,0.15)] px-3.5 py-3 min-[900px]:grid-cols-[1fr_1.6fr]">
+    <div className="grid gap-orbit-base border-t border-[rgba(0,0,0,0.08)] bg-[rgba(230,241,251,0.15)] px-orbit-base py-orbit-base min-[900px]:grid-cols-[1fr_1.6fr]">
       <div className="min-w-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-orbit-s">
           <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full bg-[#1a2744] text-white" aria-hidden="true">
-            <GitCompare className="h-3 w-3" />
+            <Sparkles className="h-3 w-3" />
           </span>
           <div className="min-w-0">
-            <p className="text-[9px] font-medium uppercase tracking-[0.04em] text-muted-foreground">Supplier-initiated</p>
-            <p className="text-xs font-medium text-foreground">What changed this round</p>
+            <p className="text-[9px] v6-orbit-weight-medium uppercase tracking-[0.04em] text-muted-foreground">Supplier-initiated</p>
+            <p className="text-xs v6-orbit-weight-medium text-foreground">What changed this round</p>
           </div>
         </div>
         <MovementNarrative movers={movers} delta={delta} />
@@ -3763,7 +3926,7 @@ function MovementSummaryZone({
           <button
             type="button"
             onClick={onSeeMoreChanges}
-            className="ml-[30px] mt-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            className="ml-orbit-l mt-orbit-xxs rounded px-orbit-xs py-orbit-xxs text-[10px] v6-orbit-weight-medium text-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
           >
             See all changes →
           </button>
@@ -3773,7 +3936,7 @@ function MovementSummaryZone({
         {movers.length > 0 && onMoverSelect ? (
           <TopMoversList movers={movers} onMoverSelect={onMoverSelect} />
         ) : (
-          <div className="rounded-[5px] border border-border bg-white px-2.5 py-2 text-[11px] text-muted-foreground">
+          <div className="rounded-[5px] border border-border bg-white px-orbit-s py-orbit-s text-[11px] text-muted-foreground">
             No clause movements this round.
           </div>
         )}
@@ -3796,33 +3959,33 @@ function MovementNarrative({ movers, delta }: { movers: ComparisonMover[]; delta
       : `${improved ? `${improved} improved` : ""}${improved && regressed ? ", " : ""}${regressed ? `${regressed} regressed` : ""}${(improved || regressed) && created ? ", " : ""}${created ? `${created} new clause${created === 1 ? "" : "s"}` : ""}. ${scoreText}`.trim();
 
   return (
-    <p className="ml-[30px] mt-1.5 min-w-0 text-[12px] leading-[1.55] text-foreground" aria-label={ariaLabel}>
+    <p className="ml-orbit-l mt-orbit-xs min-w-0 text-[12px] leading-[1.55] text-foreground" aria-label={ariaLabel}>
       {total === 0 ? (
         delta === 0 ? (
           <>No changes in this round.</>
         ) : (
           <>
-            <span className="font-medium">Score recalculated.</span> No clause movement this round. <ScoreDeltaText delta={delta} />
+            <span className="v6-orbit-weight-medium">Score recalculated.</span> No clause movement this round. <ScoreDeltaText delta={delta} />
           </>
         )
       ) : (
         <>
           {regressed > improved && regressed > 0 ? (
             <>
-              <NarrativeCount count={regressed} /> <span className="font-medium">regressed</span>
-              {improved > 0 && <> , <NarrativeCount count={improved} /> <span className="font-medium">improved</span></>}
+              <NarrativeCount count={regressed} /> <span className="v6-orbit-weight-medium">regressed</span>
+              {improved > 0 && <> , <NarrativeCount count={improved} /> <span className="v6-orbit-weight-medium">improved</span></>}
             </>
           ) : improved > 0 && regressed > 0 ? (
             <>
-              <NarrativeCount count={improved} /> <span className="font-medium">improved</span>, <NarrativeCount count={regressed} /> <span className="font-medium">regressed</span>
+              <NarrativeCount count={improved} /> <span className="v6-orbit-weight-medium">improved</span>, <NarrativeCount count={regressed} /> <span className="v6-orbit-weight-medium">regressed</span>
             </>
           ) : improved > 0 ? (
             <>
-              <NarrativeCount count={improved} /> clause{improved === 1 ? "" : "s"} <span className="font-medium">improved</span> this round
+              <NarrativeCount count={improved} /> clause{improved === 1 ? "" : "s"} <span className="v6-orbit-weight-medium">improved</span> this round
             </>
           ) : regressed > 0 ? (
             <>
-              <NarrativeCount count={regressed} /> clause{regressed === 1 ? "" : "s"} <span className="font-medium">regressed</span>
+              <NarrativeCount count={regressed} /> clause{regressed === 1 ? "" : "s"} <span className="v6-orbit-weight-medium">regressed</span>
             </>
           ) : null}
           {created > 0 && (
@@ -3839,7 +4002,7 @@ function MovementNarrative({ movers, delta }: { movers: ComparisonMover[]; delta
 }
 
 function NarrativeCount({ count }: { count: number }) {
-  return <span className="font-medium tabular-nums">{count}</span>;
+  return <span className="v6-orbit-weight-medium tabular-nums">{count}</span>;
 }
 
 function ScoreDeltaText({ delta }: { delta: number }) {
@@ -3848,7 +4011,7 @@ function ScoreDeltaText({ delta }: { delta: number }) {
   return (
     <>
       Net change:{" "}
-      <span className={`font-medium tabular-nums ${positive ? "text-[#27500A]" : "text-[#791F1F]"}`}>
+      <span className={`v6-orbit-weight-medium tabular-nums ${positive ? "text-[#27500A]" : "text-[#791F1F]"}`}>
         {positive ? `+${delta}` : `-${Math.abs(delta)}`} points
       </span>
       .
@@ -3866,7 +4029,7 @@ function TopMoversList({
   const visibleMovers = visibleTopMovers(movers);
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-orbit-xs">
       {visibleMovers.map((mover) => {
         const regressed = mover.direction === "regressed";
         const created = mover.direction === "new";
@@ -3879,9 +4042,9 @@ function TopMoversList({
           <span>New clause</span>
         ) : (
           <>
-            <strong className="font-medium text-foreground">{formatMoverSeverity(mover.previousSeverity)}</strong>
+            <strong className="v6-orbit-weight-medium text-foreground">{formatMoverSeverity(mover.previousSeverity)}</strong>
             <span aria-hidden> → </span>
-            <strong className="font-medium text-foreground">{formatMoverSeverity(mover.currentSeverity)}</strong>
+            <strong className="v6-orbit-weight-medium text-foreground">{formatMoverSeverity(mover.currentSeverity)}</strong>
           </>
         );
         const accessibleTransition = created
@@ -3894,13 +4057,13 @@ function TopMoversList({
             type="button"
             onClick={() => onMoverSelect(mover.id)}
             aria-label={`${mover.name}, ${accessibleTransition}`}
-            className={`grid w-full grid-cols-[16px_24px_minmax(0,1fr)_auto_12px] items-center gap-2 rounded-[5px] border border-border px-2.5 py-1.5 text-left transition-colors hover:border-[#185FA5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${tone}`}
+            className={`grid w-full grid-cols-[16px_24px_minmax(0,1fr)_auto_12px] items-center gap-orbit-s rounded-[5px] border border-border px-orbit-s py-orbit-xs text-left transition-colors hover:border-[#185FA5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${tone}`}
           >
             <span className={`grid h-4 w-4 place-items-center rounded-full text-white ${badgeClass}`} aria-hidden="true">
               <Icon size={10} stroke={2} />
             </span>
-            <span className="font-mono text-[9px] text-muted-foreground">{mover.id.toUpperCase()}</span>
-            <span className="min-w-0 truncate text-[11px] font-medium text-foreground">{mover.name}</span>
+            <span className="tabular-nums text-[9px] text-muted-foreground">{mover.id.toUpperCase()}</span>
+            <span className="min-w-0 truncate text-[11px] v6-orbit-weight-medium text-foreground">{mover.name}</span>
             <span className="shrink-0 text-[9px] text-muted-foreground">{transitionLabel}</span>
             <span className="text-xs text-muted-foreground" aria-hidden>›</span>
           </button>
@@ -3926,9 +4089,9 @@ function HybridRiskDriverRows({
   return (
     <div>
       <OverviewSectionLabel>Top risk drivers</OverviewSectionLabel>
-      <div className="mt-2 divide-y divide-border">
+      <div className="mt-orbit-s divide-y divide-border">
         {drivers.length === 0 ? (
-          <div className="py-2 text-xs text-muted-foreground">No open risk drivers.</div>
+          <div className="py-orbit-s text-xs text-muted-foreground">No open risk drivers.</div>
         ) : drivers.slice(0, 3).map((driver) => {
           const stalled = driver.roundsUnchanged >= 2;
           return (
@@ -3936,15 +4099,15 @@ function HybridRiskDriverRows({
               key={driver.clauseId}
               type="button"
               onClick={() => onClauseSelect(driver.clauseId)}
-              className="grid w-full grid-cols-[minmax(0,1fr)_28px] items-start gap-3 py-2 text-left hover:bg-muted/35"
+              className="grid w-full grid-cols-[minmax(0,1fr)_28px] items-start gap-orbit-base py-orbit-s text-left hover:bg-muted/35"
             >
-              <span className="flex min-w-0 items-start gap-2">
+              <span className="flex min-w-0 items-start gap-orbit-s">
                 <span
-                  className="mt-1.5 h-[5px] w-[5px] shrink-0 rounded-full"
+                  className="mt-orbit-xs h-[5px] w-[5px] shrink-0 rounded-full"
                   style={{ backgroundColor: panelSeverityColor[driver.severity] }}
                 />
                 <span className="min-w-0">
-                  <span className="block truncate text-[11px] font-medium text-foreground">{driver.clauseName}</span>
+                  <span className="block truncate text-[11px] v6-orbit-weight-medium text-foreground">{driver.clauseName}</span>
                   <span className="block truncate text-[10px] text-muted-foreground">
                     {driver.clauseId.toUpperCase()}
                     {stalled && <> · stalled {driver.roundsUnchanged} rounds</>}
@@ -3952,7 +4115,7 @@ function HybridRiskDriverRows({
                 </span>
               </span>
               <span
-                className="text-right text-[10px] font-medium tabular-nums"
+                className="text-right text-[10px] v6-orbit-weight-medium tabular-nums"
                 style={{ color: panelSeverityColor[driver.severity] }}
               >
                 −{driver.weightedCost}
@@ -3974,7 +4137,7 @@ function HybridResolutionRows({ score }: { score: ContractScore }) {
   return (
     <div>
       <OverviewSectionLabel>Resolution progress</OverviewSectionLabel>
-      <div className="mt-2 space-y-2">
+      <div className="mt-orbit-s space-y-orbit-s">
         {rows.map((row) => {
           const identified = score.identified[row.key];
           const total = Math.max(1, identified);
@@ -3982,15 +4145,15 @@ function HybridResolutionRows({ score }: { score: ContractScore }) {
           const remaining = score.open[row.key];
           const resolvedWidth = resolved > 0 ? Math.max(3, (resolved / total) * 100) : 3;
           return (
-            <div key={row.key} className="grid grid-cols-[48px_minmax(0,1fr)_38px] items-center gap-2">
-              <span className="text-[10px] font-medium" style={{ color: row.color }}>{row.label}</span>
+            <div key={row.key} className="grid grid-cols-[48px_minmax(0,1fr)_38px] items-center gap-orbit-s">
+              <span className="text-[10px] v6-orbit-weight-medium" style={{ color: row.color }}>{row.label}</span>
               <span className="flex h-2 overflow-hidden rounded-[3px] bg-muted">
                 <span className="bg-[#3B6D11]" style={{ width: `${resolvedWidth}%` }} />
                 {remaining > 0 && (
                   <span style={{ width: `${Math.max(0, 100 - resolvedWidth)}%`, backgroundColor: row.color }} />
                 )}
               </span>
-              <span className="text-right text-[10px] font-medium tabular-nums" style={{ color: row.color }}>
+              <span className="text-right text-[10px] v6-orbit-weight-medium tabular-nums" style={{ color: row.color }}>
                 {resolved}/{identified}
               </span>
             </div>
@@ -4010,7 +4173,7 @@ function HybridChangeList({
 }) {
   if (items.length === 0) {
     return (
-      <div className="rounded-md border border-border bg-muted/25 px-3 py-3 text-xs text-muted-foreground">
+      <div className="rounded-md border border-border bg-muted/25 px-orbit-base py-orbit-base text-xs text-muted-foreground">
         No requested or supplier-initiated changes for this comparison.
       </div>
     );
@@ -4028,7 +4191,7 @@ function HybridChangeList({
             key={item.id}
             type="button"
             onClick={() => onClauseSelect(item.id)}
-            className={`grid w-full grid-cols-[82px_minmax(0,1fr)_34px] items-center gap-2 py-2 text-left hover:bg-muted/35 ${
+            className={`grid w-full grid-cols-[82px_minmax(0,1fr)_34px] items-center gap-orbit-s py-orbit-s text-left hover:bg-muted/35 ${
               (status === "regressed" || status === "improved" || status === "new") && index === 0 ? "border-t border-border" : ""
             }`}
           >
@@ -4054,7 +4217,7 @@ function HybridFooterSignal({
       tone === "warning" ? "text-[#854F0B]" :
         tone === "danger" ? "text-[#A32D2D]" :
           "text-muted-foreground";
-  return <span className={`inline-flex items-center gap-1 font-medium ${toneClass}`}>{children}</span>;
+  return <span className={`inline-flex items-center gap-orbit-xs v6-orbit-weight-medium ${toneClass}`}>{children}</span>;
 }
 
 function BulletScoreBar({ score, previousScore }: { score: number; previousScore?: number }) {
@@ -4085,7 +4248,7 @@ function BulletScoreBar({ score, previousScore }: { score: number; previousScore
           />
         )}
       </div>
-      <div className="mt-1 grid grid-cols-5 text-[8px] text-muted-foreground">
+      <div className="mt-orbit-xs grid grid-cols-5 text-[8px] text-muted-foreground">
         {zones.map((zone) => <span key={zone.label}>{zone.label}</span>)}
       </div>
     </div>
@@ -4095,8 +4258,8 @@ function BulletScoreBar({ score, previousScore }: { score: number; previousScore
 function SummaryStat({ label, value, tone }: { label: string; value: number; tone: string }) {
   return (
     <div className="min-w-0 text-center">
-      <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-normal sm:text-[10px]">{label}</p>
-      <p className={`text-lg font-bold font-mono leading-tight ${tone}`}>{value}</p>
+      <p className="text-[9px] v6-orbit-weight-semibold text-muted-foreground uppercase tracking-normal sm:text-[10px]">{label}</p>
+      <p className={`text-lg v6-orbit-weight-bold tabular-nums leading-tight ${tone}`}>{value}</p>
     </div>
   );
 }
@@ -4113,18 +4276,18 @@ function PairSelector({
   const rightVersion = versions.find((version) => version.version === pair.right);
   const staticOnly = versions.length <= 2;
   const selectorClass = compact
-    ? "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 text-[11px]"
-    : "inline-flex items-center gap-1.5 text-sm";
-  const triggerClass = compact ? "h-6 w-full min-w-0 rounded-md bg-white px-2 text-[11px]" : "h-9 w-[164px] text-sm";
+    ? "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-orbit-xs text-[11px]"
+    : "inline-flex items-center gap-orbit-xs text-sm";
+  const triggerClass = compact ? "h-6 w-full min-w-0 rounded-md bg-white px-orbit-s text-[11px]" : "h-9 w-[164px] text-sm";
   const formatVersion = (version?: ContractVersion) =>
-    version ? `${version.version} · ${new Date(version.uploadedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : "Version";
+    version ? version.version : "Version";
 
   if (staticOnly) {
     return (
       <div className={cn(selectorClass, "text-muted-foreground")}>
-        <span className="min-w-0 truncate rounded border border-border bg-white px-2 py-0.5">{formatVersion(leftVersion)}</span>
+        <span className="min-w-0 truncate rounded border border-border bg-white px-orbit-s py-orbit-xxs">{formatVersion(leftVersion)}</span>
         <ArrowRight className="h-3.5 w-3.5 shrink-0" />
-        <span className="min-w-0 truncate rounded border border-border bg-white px-2 py-0.5">{formatVersion(rightVersion)}</span>
+        <span className="min-w-0 truncate rounded border border-border bg-white px-orbit-s py-orbit-xxs">{formatVersion(rightVersion)}</span>
       </div>
     );
   }
@@ -4195,9 +4358,11 @@ function CategorySidebar({
   onSelectCategory: (category: string | null) => void;
   variant?: "rail" | "panel";
 }) {
+  void onSortChange;
   const rowRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const sortedCategories = useMemo(() => sortCategorySidebarItems(categories, sort), [categories, sort]);
   const activeCategorySet = useMemo(() => new Set(activeCategories), [activeCategories]);
+  const categoryToggleCardStyle: CSSProperties = { boxShadow: "var(--orbit-shadow-none)" };
 
   const handleRowKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
@@ -4212,77 +4377,66 @@ function CategorySidebar({
       className={cn(
         "overflow-y-auto",
         variant === "rail"
-          ? "sticky top-[178px] max-h-[calc(100vh-190px)] w-60 shrink-0 self-start rounded-lg border border-border bg-card p-2"
+          ? "sticky top-[178px] max-h-[calc(100vh-190px)] w-60 shrink-0 self-start rounded-lg border border-border bg-card p-orbit-s"
           : "max-h-[540px] w-full",
       )}
     >
       {variant === "rail" && (
-        <p
+        <div
           tabIndex={0}
-          className="mb-1.5 rounded-md px-2 py-1 text-[9px] font-medium uppercase tracking-[0.04em] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          className="mb-orbit-xs rounded-md px-orbit-s py-orbit-xs outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]"
         >
-          Categories
-        </p>
+          <Text as="p" size="Small" variant="Secondary">CLAUSES</Text>
+        </div>
       )}
 
-      <div className="space-y-1">
-        <button
+      <div className="space-y-orbit-xs">
+        <ToggleCard
           ref={(node) => {
             rowRefs.current[0] = node;
           }}
-          type="button"
-          role="button"
+          status={activeCategories.length === 0 ? "Selected" : "Default"}
+          aria-pressed={activeCategories.length === 0}
           aria-label={`Clear category filters, ${total} clauses`}
           onClick={() => onSelectCategory(null)}
           onKeyDown={(event) => handleRowKeyDown(event, 0)}
-          className={`flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-left text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
-            activeCategories.length === 0
-              ? "bg-[#E6F1FB]/50 font-medium text-foreground"
-              : "text-muted-foreground hover:bg-[#f8f7f5]"
-          }`}
+          className="overflow-hidden"
+          style={categoryToggleCardStyle}
         >
-          <span>All</span>
-          <span
-            className={`rounded-full px-1.5 py-px text-[9px] font-medium ${
-              activeCategories.length === 0 ? "bg-card text-muted-foreground" : "bg-muted text-muted-foreground"
-            }`}
-          >
-            {total}
+          <span className="flex w-full items-center justify-between gap-orbit-s px-orbit-s py-orbit-xs">
+            <Text as="span" size="Small" variant="Secondary">
+              All
+            </Text>
+            <Chip label={String(total)} size="Mini" variant="No Status" contrast="Low" />
           </span>
-        </button>
+        </ToggleCard>
 
         {sortedCategories.map((category, index) => {
           const active = activeCategorySet.has(category.name);
           const rowIndex = index + 1;
           return (
-            <button
+            <ToggleCard
               key={category.name}
               ref={(node) => {
                 rowRefs.current[rowIndex] = node;
               }}
-              type="button"
-              role="button"
+              status={category.count === 0 ? "Disabled" : active ? "Selected" : "Default"}
               aria-pressed={active}
               aria-label={`${active ? "Remove" : "Add"} ${category.name} category filter, ${category.count} clauses`}
               onClick={() => onSelectCategory(category.name)}
               onKeyDown={(event) => handleRowKeyDown(event, rowIndex)}
-              className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${
-                category.count === 0 ? "opacity-60" : ""
-              } ${
-                active
-                  ? "bg-[#E6F1FB]/50 font-medium text-foreground"
-                  : "text-muted-foreground hover:bg-[#f8f7f5]"
-              }`}
+              className="overflow-hidden"
+              style={categoryToggleCardStyle}
             >
-              <span className="min-w-0 flex-1 truncate">{category.name}</span>
-              <span
-                className={`shrink-0 rounded-full px-1.5 py-px text-[9px] font-medium ${
-                  active ? "bg-card text-muted-foreground" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {category.count}
+              <span className="flex w-full items-center gap-orbit-s px-orbit-s py-orbit-xs">
+                <span className="min-w-0 flex-1 truncate" style={{ textAlign: "left" }}>
+                  <Text as="span" size="Small" variant="Secondary">
+                    {category.name}
+                  </Text>
+                </span>
+                <Chip label={String(category.count)} size="Mini" variant="No Status" contrast="Low" />
               </span>
-            </button>
+            </ToggleCard>
           );
         })}
       </div>
@@ -4305,69 +4459,58 @@ function CategoryStrip({
 }) {
   const topCategories = useMemo(() => sortCategorySidebarItems(categories, "risk").slice(0, 6), [categories]);
   const activeCategorySet = useMemo(() => new Set(activeCategories), [activeCategories]);
+  const [panelOpen, setPanelOpen] = useState(false);
   return (
-    <div className="rounded-lg border border-border bg-card px-3 py-2">
-      <div className="flex min-w-0 items-start gap-2">
-        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-          Categories
-        </span>
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-          <CategoryStripChip active={activeCategories.length === 0} onClick={() => onSelectCategory(null)}>
-            All <span className="text-muted-foreground">{total}</span>
-          </CategoryStripChip>
-          {topCategories.map((category) => (
+    <Card type="Static" padding="Small">
+      <div className="flex min-w-0 items-start gap-orbit-s">
+        <Text as="span" size="Small" variant="Secondary">Clauses</Text>
+        <div className="min-w-0 flex-1">
+          <QuickFilterGroup ariaLabel="Clause filters">
             <CategoryStripChip
-              key={category.name}
-              active={activeCategorySet.has(category.name)}
-              onClick={() => onSelectCategory(category.name)}
-            >
-              <span className="max-w-[170px] truncate">{category.name}</span>
-              <span className="text-muted-foreground">{category.count}</span>
-            </CategoryStripChip>
-          ))}
+              active={activeCategories.length === 0}
+              label={`All ${total}`}
+              onClick={() => onSelectCategory(null)}
+            />
+            {topCategories.map((category) => (
+              <CategoryStripChip
+                key={category.name}
+                active={activeCategorySet.has(category.name)}
+                label={`${category.name} ${category.count}`}
+                onClick={() => onSelectCategory(category.name)}
+              />
+            ))}
+          </QuickFilterGroup>
         </div>
-        <Popover>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-border bg-white px-2.5 text-[10px] font-medium text-muted-foreground hover:text-foreground"
-            >
-              <IconList size={12} stroke={1.8} />
-              Categories
-            </button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-[284px] border-none bg-transparent p-0 shadow-none">
-            {categoryPanel}
-          </PopoverContent>
-        </Popover>
+        <Button
+          type="button"
+          aria-expanded={panelOpen}
+          variant="outline"
+          className="shrink-0"
+          onClick={() => setPanelOpen((current) => !current)}
+        >
+          <IconList size={12} stroke={1.8} />
+          Clauses
+        </Button>
       </div>
-    </div>
+      {panelOpen && (
+        <div className="mt-orbit-s border-t border-border pt-orbit-s">
+          {categoryPanel}
+        </div>
+      )}
+    </Card>
   );
 }
 
 function CategoryStripChip({
   active,
   onClick,
-  children,
+  label,
 }: {
   active: boolean;
   onClick: () => void;
-  children: ReactNode;
+  label: string;
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[10px] font-medium transition-colors",
-        active
-          ? "border-[#185FA5]/30 bg-[#E6F1FB] text-[#0C447C]"
-          : "border-border bg-white text-muted-foreground hover:bg-muted hover:text-foreground",
-      )}
-    >
-      {children}
-    </button>
-  );
+  return <QuickFilterItem label={label} selected={active} onClick={onClick} />;
 }
 
 // ---- Review (v1) ------------------------------------------------------------
@@ -4377,15 +4520,15 @@ function ReviewGuidance({ versionLabel, compact = false }: { versionLabel: strin
     <div
       className={
         compact
-          ? "flex min-h-9 min-w-[240px] max-w-[360px] flex-1 items-center gap-2 rounded-md border border-primary/20 bg-card px-3 py-1.5 text-[11px] leading-snug text-muted-foreground"
-          : "bg-card border border-primary/20 rounded-lg px-4 py-3 text-xs text-muted-foreground flex items-start gap-2"
+          ? "flex min-h-9 min-w-[240px] max-w-[360px] flex-1 items-center gap-orbit-s rounded-md border border-primary/20 bg-card px-orbit-base py-orbit-xs text-[11px] leading-snug text-muted-foreground"
+          : "bg-card border border-primary/20 rounded-lg px-orbit-base py-orbit-base text-xs text-muted-foreground flex items-start gap-orbit-s"
       }
     >
-      <MessageSquarePlus className={compact ? "h-3.5 w-3.5 shrink-0 text-primary" : "w-3.5 h-3.5 text-primary mt-0.5 shrink-0"} />
+      <Sparkles className={compact ? "h-3.5 w-3.5 shrink-0 text-primary" : "w-3.5 h-3.5 text-primary mt-orbit-xxs shrink-0"} />
       <span className="min-w-0">
-        Select <span className="font-semibold text-foreground">"Request Change"</span> for clauses you want the supplier to update.
+        Select <span className="v6-orbit-weight-semibold text-foreground">"Request Change"</span> for clauses you want the supplier to update.
         {versionLabel !== "v1" && (
-          <> Notes on <span className="font-semibold text-foreground">{versionLabel}</span> override the previous round.</>
+          <> Notes on <span className="v6-orbit-weight-semibold text-foreground">{versionLabel}</span> override the previous round.</>
         )}
       </span>
     </div>
@@ -4425,17 +4568,16 @@ function ClauseRequestForm({
   onSubmit: () => void;
 }) {
   const requestValue = draft?.requestedChange ?? request?.requestedChange ?? "";
-  const rationaleValue = draft?.rationale ?? request?.rationale ?? "";
 
   return (
     <div
-      className={cn("mt-3 border-t border-border pt-3", compact ? "space-y-2" : "space-y-3")}
+      className={cn("mt-orbit-base border-t border-border pt-orbit-base", compact ? "space-y-orbit-s" : "space-y-orbit-base")}
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
       {inherited && !draft?.requestedChange && !draft?.rationale && (
-        <div className="space-y-1 rounded-md border-l-2 border-primary bg-primary/5 px-3 py-2 text-xs">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+        <div className="space-y-orbit-xs rounded-md border-l-2 border-primary bg-primary/5 px-orbit-base py-orbit-s text-xs">
+          <p className="text-[10px] v6-orbit-weight-semibold uppercase tracking-wide text-primary">
             Currently in effect · from {inherited.version}
           </p>
           {inherited.request.requestedChange && <p className="leading-snug text-foreground">{inherited.request.requestedChange}</p>}
@@ -4445,10 +4587,10 @@ function ClauseRequestForm({
           </p>
         </div>
       )}
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="space-y-1">
-          <label className="text-[11px] font-semibold uppercase text-muted-foreground">
-            Requested change ({versionLabel}) <span className="text-destructive">*</span>
+      <div className="grid w-full gap-orbit-base">
+        <div className="space-y-orbit-xs">
+          <label className="text-[11px] v6-orbit-weight-semibold uppercase text-muted-foreground">
+            REQUESTED CHANGE <span className="text-destructive">*</span>
           </label>
           <Textarea
             value={requestValue}
@@ -4457,32 +4599,25 @@ function ClauseRequestForm({
             className={cn("min-h-[64px] text-sm", compact && "min-h-[58px] text-xs")}
           />
         </div>
-        <div className="space-y-1">
-          <label className="text-[11px] font-semibold uppercase text-muted-foreground">Rationale (optional)</label>
-          <Textarea
-            value={rationaleValue}
-            onChange={(event) => onUpdate({ rationale: event.target.value })}
-            placeholder="Why is this change required?"
-            className={cn("min-h-[64px] text-sm", compact && "min-h-[58px] text-xs")}
-          />
-        </div>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-orbit-base">
         <p className="text-[11px] text-muted-foreground">
           Request will stay editable in review until submitted to the supplier.
         </p>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" className={cn("h-8 text-xs", compact && "h-7 text-[11px]")} onClick={onCancel}>
+        <div className="flex items-center gap-orbit-s">
+          <Button variant="outline" className={cn("h-8 text-xs", compact && "h-7 text-[11px]")} onClick={onCancel}>
             Cancel
           </Button>
-          <Button
-            size="sm"
-            className={cn("h-8 gap-1.5 bg-[#1a2744] text-xs text-white hover:bg-[#243454]", compact && "h-7 text-[11px]")}
+          <OrbitButton
+            variant="Primary"
+            size="Medium"
+            state={!requestValue.trim() ? "Disabled" : "Default"}
             disabled={!requestValue.trim()}
+            className="gap-orbit-xs"
             onClick={onSubmit}
           >
-            <MessageSquarePlus className="h-3.5 w-3.5" /> {submitLabel}
-          </Button>
+            <Sparkles className="h-3.5 w-3.5" /> {submitLabel}
+          </OrbitButton>
         </div>
       </div>
     </div>
@@ -4569,10 +4704,35 @@ function ClauseDecisionCard({
   const requestPreview = request?.requestedChange?.trim() ?? "";
   const settled = decision === "request-update" || decision === "no-action";
   const noActionIsPrimary = !neutralActions && clause.severity === "low";
-  const showRequestActions = !settled && !actions && !pendingBasketRequest;
+  const noneDeviationClause = isNoneDeviationClause(clause);
+  const showRequestActions = !noneDeviationClause && !settled && !actions && !pendingBasketRequest;
+  const useV6StatusTags = isInitiativesV6Route();
+  const useV6DeviationCard = isInitiativesV6Route() && neutralActions;
   const useFirstAnalysisDeviationStyle = neutralActions && hideSubclauseReference && clause.severity === "high";
-  const severityBadgeLabel = useFirstAnalysisDeviationStyle ? "High Deviation" : clause.severity;
+  const severityStatusKey = noneDeviationClause ? "none" : firstAnalysisSeverityStatus[clause.severity];
+  const severityBadgeLabel = useV6StatusTags
+    ? FIRST_ANALYSIS_STATUS_THEME[severityStatusKey].label
+    : noneDeviationClause
+    ? "None Deviation"
+    : useFirstAnalysisDeviationStyle
+    ? "High Deviation"
+    : clause.severity;
+  const severityBadgeClass = noneDeviationClause
+    ? firstAnalysisNoneDeviationBadgeClass
+    : useFirstAnalysisDeviationStyle
+    ? firstAnalysisDeviationBadgeClass
+    : `${severityTone(clause.severity)} shrink-0 rounded-full px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium`;
   const showSeverityBadge = !isPureMissingClause(clause);
+  const reviewCardState: OrbitCardState = useV6DeviationCard
+    ? firstAnalysisCardStateForClause(clause)
+    : pendingBasketRequest || decision === "request-update"
+    ? "Information"
+    : "Default";
+  const reviewCardStyle: OrbitCardStyle = {};
+  if (useV6DeviationCard && reviewCardState === "Default") {
+    reviewCardStyle["--orbit-color-card-indicator-default"] = firstAnalysisCardIndicatorColorForClause(clause);
+  }
+  const showReviewCardIndicator = useV6DeviationCard || pendingBasketRequest || decision === "request-update";
 
   if (displayMode === "row-scale" && !actions) {
     return (
@@ -4608,158 +4768,157 @@ function ClauseDecisionCard({
   return (
     <div
       id={`clause-row-${id}`}
-      className={cn(
-        "relative rounded-lg border border-border bg-card px-3.5 py-3 transition-colors",
-        decision === "request-update" && "border-l-[3px] border-l-[#185FA5] pl-[11px]",
-        pendingBasketRequest && "border-l-[3px] border-l-[#185FA5] bg-[#E6F1FB]/20 pl-[11px]",
-        highlighted && "ring-2 ring-primary/40 bg-primary/5",
-      )}
+      className={cn("rounded-lg transition-colors", highlighted && "ring-2 ring-primary/40")}
     >
-      <div className="flex min-w-0 items-center gap-2">
-        <span className="w-[22px] shrink-0 font-mono text-[9px] font-semibold text-muted-foreground">{id.toUpperCase()}</span>
-        {onTogglePin && (
-          <button
-            type="button"
-            aria-label={pinned ? "Unpin clause" : "Pin clause across version switches"}
-            title={pinned ? "Unpin clause" : "Pin clause across version switches"}
-            onClick={(event) => {
-              event.stopPropagation();
-              onTogglePin();
-            }}
-            className={cn("shrink-0 rounded p-0.5 text-muted-foreground/60 hover:bg-muted hover:text-foreground", pinned && "text-primary")}
-          >
-            <Pin className={cn("h-3.5 w-3.5", pinned && "fill-current")} />
-          </button>
-        )}
-        <h3 className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">{clause.title}</h3>
-        <span className="hidden shrink-0 text-[10px] text-muted-foreground md:inline">
-          {metaPrefix}{hideSubclauseReference ? clause.category : `${clause.subclause} · ${clause.category}`}
-        </span>
-        {changePill?.status && <ChangePillBadge result={changePill} />}
-        {missingClause && <DashboardChip label="Missing Clause" variant="Information" />}
-        {showSeverityBadge && <DashboardSeverityChip severity={clause.severity} label={severityBadgeLabel} />}
-        {stateBadge}
-        {pendingBasketRequest && <RequestLifecycleBadge request={request} />}
-        {settled && !pendingBasketRequest && (
-          <>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  {decision === "request-update" ? <RequestLifecycleBadge request={request} /> : <DecisionBadge decision={decision} />}
-                </span>
-              </TooltipTrigger>
-              {decision === "request-update" && requestLifecycleLabel(request) && (
-                <TooltipContent className="text-xs">{requestLifecycleLabel(request)}</TooltipContent>
-              )}
-            </Tooltip>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                if (decision === "request-update") onEditRequest?.();
-                else onChangeNoAction?.();
-              }}
-              className="shrink-0 text-[10px] font-medium text-primary hover:underline"
-            >
-              {decision === "request-update" ? "Edit" : "Change"}
-            </button>
-          </>
-        )}
-        {isDrafting && <DashboardChip label="Drafting request" variant="Information" />}
-      </div>
-
-      {showQueuedCompact && (
-        <div className="mt-2 space-y-2 pl-[30px]" onClick={(event) => event.stopPropagation()}>
-          <div className="flex flex-wrap items-center gap-2 rounded-md border border-[#185FA5]/20 bg-[#E6F1FB]/45 px-3 py-2">
-            <p className="min-w-[180px] flex-1 truncate text-[11px] text-[#0C447C]">
-              <span className="font-semibold">Request:</span> {requestPreview}
-            </p>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <Button size="sm" variant="outline" className="h-7 px-2.5 text-[10px]" onClick={onEditRequest}>
-                Edit request
-              </Button>
-              {onRemoveRequest && (
-                <Button size="sm" variant="outline" className="h-7 px-2.5 text-[10px] text-muted-foreground" onClick={onRemoveRequest}>
-                  Remove
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 gap-1 px-2.5 text-[10px] text-primary hover:bg-white/70"
-                onClick={() => setQueuedExpanded((current) => !current)}
+      <Card type="Static" padding="Base" state={reviewCardState} indicator={showReviewCardIndicator} style={reviewCardStyle}>
+        <div className="flex min-w-0 items-center gap-orbit-s">
+          <h3 className="v6-orbit-heading-label min-w-0 flex-1 truncate text-foreground">{clause.title}</h3>
+          {changePill?.status && <ChangePillBadge result={changePill} />}
+          {showSeverityBadge && (
+            useV6StatusTags ? (
+              <FirstAnalysisStatusTag status={severityStatusKey} />
+            ) : (
+              <Badge variant="outline" className={severityBadgeClass}>
+                {severityBadgeLabel}
+              </Badge>
+            )
+          )}
+          {missingClause && (
+            useV6StatusTags ? (
+              <FirstAnalysisStatusTag status="missing" />
+            ) : (
+              <Badge
+                variant="outline"
+                className={getFirstAnalysisMissingClauseBadgeClass()}
               >
-                {queuedExpanded ? "Hide detail" : "View detail"}
-                <ChevronDown className={cn("h-3 w-3 transition-transform", queuedExpanded && "rotate-180")} />
-              </Button>
+                Missing Clause
+              </Badge>
+            )
+          )}
+          {stateBadge}
+          {pendingBasketRequest && <RequestLifecycleBadge request={request} />}
+          {settled && !pendingBasketRequest && (
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span>
+                    {decision === "request-update" ? <RequestLifecycleBadge request={request} /> : <DecisionBadge decision={decision} />}
+                  </span>
+                </TooltipTrigger>
+                {decision === "request-update" && requestLifecycleLabel(request) && (
+                  <TooltipContent className="text-xs">{requestLifecycleLabel(request)}</TooltipContent>
+                )}
+              </Tooltip>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (decision === "request-update") onEditRequest?.();
+                  else onChangeNoAction?.();
+                }}
+                className="shrink-0 text-[10px] v6-orbit-weight-medium text-primary hover:underline"
+              >
+                {decision === "request-update" ? "Edit" : "Change"}
+              </button>
+            </>
+          )}
+          {isDrafting && (
+            <Badge variant="outline" className="bg-[#E6F1FB] text-[#0C447C] border-[#185FA5]/25 text-[10px]">
+              Drafting request
+            </Badge>
+          )}
+        </div>
+
+        {showQueuedCompact && (
+          <div className="mt-orbit-s space-y-orbit-s" onClick={(event) => event.stopPropagation()}>
+            <div className="flex flex-wrap items-center gap-orbit-s rounded-md border border-[#185FA5]/20 bg-[#E6F1FB]/45 px-orbit-base py-orbit-s">
+              <p className="min-w-[180px] flex-1 truncate text-[11px] text-[#0C447C]">
+                <span className="v6-orbit-weight-semibold">Request:</span> {requestPreview}
+              </p>
+              <div className="flex shrink-0 items-center gap-orbit-xs">
+                <Button variant="outline" className="h-7 px-orbit-s text-[10px]" onClick={onEditRequest}>
+                  Edit request
+                </Button>
+                {onRemoveRequest && (
+                  <Button variant="outline" className="h-7 px-orbit-s text-[10px] text-muted-foreground" onClick={onRemoveRequest}>
+                    Remove
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  className="h-7 gap-orbit-xs px-orbit-s text-[10px] text-primary hover:bg-white/70"
+                  onClick={() => setQueuedExpanded((current) => !current)}
+                >
+                  {queuedExpanded ? "Hide detail" : "View detail"}
+                  <ChevronDown className={cn("h-3 w-3 transition-transform", queuedExpanded && "rotate-180")} />
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {showDecisionBody && description && (
-        <p className="mt-1.5 pl-[30px] text-[11px] leading-5 text-muted-foreground">
-          {description}
-        </p>
-      )}
-      {showDecisionBody && actionability && (
-        <p className="mt-1 pl-[30px] text-[11px] leading-5 text-muted-foreground">
-          <Lightbulb className="mr-1 inline h-3 w-3 text-primary" />
-          <span className="font-semibold text-foreground">Actionability:</span> {actionability}
-        </p>
-      )}
-      {showDecisionBody && extraContent && <div className="mt-2 pl-[30px]">{extraContent}</div>}
+        {showDecisionBody && description && (
+          <p className="mt-orbit-xs text-[11px] leading-5 text-muted-foreground">
+            {description}
+          </p>
+        )}
+        {showDecisionBody && actionability && (
+          <p className="mt-orbit-xs text-[11px] leading-5 text-muted-foreground">
+            <Lightbulb className="mr-orbit-xs inline h-3 w-3 text-primary" />
+            <span className="v6-orbit-weight-semibold text-foreground">Actionability:</span> {actionability}
+          </p>
+        )}
+        {showDecisionBody && extraContent && <div className="mt-orbit-s">{extraContent}</div>}
 
-      {showRequestActions && (
-        <div className="mt-2 flex items-center gap-1.5 pl-[30px]" onClick={(event) => event.stopPropagation()}>
-          <Button
-            size="sm"
-            variant="secondary"
-            className="h-8 gap-1.5 rounded-[5px] px-3 text-[11px] font-normal"
-            onClick={onRequest}
-          >
-            <MessageSquarePlus className="h-3 w-3" /> {primaryActionLabel}
-          </Button>
-          <Button
-            size="sm"
-            variant={noActionIsPrimary ? "default" : "outline"}
-            className={cn("h-8 rounded-[5px] px-3 text-[11px] font-normal gap-1.5", noActionIsPrimary && "bg-[#1a2744] text-white hover:bg-[#243454]")}
-            onClick={onNoAction}
-          >
-            <CircleMinus className="h-3 w-3" /> No Action
-          </Button>
-        </div>
-      )}
-
-      {actions && !pendingBasketRequest && (
-        <div className="mt-2 flex items-center gap-1.5 pl-[30px]" onClick={(event) => event.stopPropagation()}>
-          {actions}
-        </div>
-      )}
-
-      {showQueuedCompact && queuedExpanded && (
-        <div className="mt-2 pl-[30px]" onClick={(event) => event.stopPropagation()}>
-          <div className="rounded-md border border-[#185FA5]/20 bg-[#E6F1FB]/55 px-3 py-2 text-[11px] text-[#0C447C]">
-            <p className="font-medium">Added to Review.</p>
-            <p className="mt-0.5 text-[#0C447C]/80">Review and generate all requests when ready.</p>
+        {showRequestActions && (
+          <div className="mt-orbit-s flex items-center gap-orbit-xs" onClick={(event) => event.stopPropagation()}>
+            <Button
+              variant="secondary"
+              className="h-8 gap-orbit-xs rounded-[5px] px-orbit-base text-[11px] v6-orbit-weight-regular"
+              onClick={onRequest}
+            >
+              <Sparkles className="h-3 w-3" /> {primaryActionLabel}
+            </Button>
+            <Button
+              variant={noActionIsPrimary ? "default" : "outline"}
+              className={cn("h-8 rounded-[5px] px-orbit-base text-[11px] v6-orbit-weight-regular gap-orbit-xs", noActionIsPrimary && "bg-[#1a2744] text-white hover:bg-[#243454]")}
+              onClick={onNoAction}
+            >
+              <CheckCircle2 className="h-3 w-3" /> No Action
+            </Button>
           </div>
-        </div>
-      )}
+        )}
 
-      {isDrafting && onUpdateDraft && onCancelDraft && onSubmitDraft && (
-        <div className="pl-[30px]">
-          <ClauseRequestForm
-            versionLabel={versionLabel}
-            draft={draft}
-            request={request}
-            inherited={inherited}
-            requestPlaceholder={requestPlaceholder}
-            onUpdate={onUpdateDraft}
-            onCancel={onCancelDraft}
-            onSubmit={onSubmitDraft}
-          />
-        </div>
-      )}
+        {actions && !pendingBasketRequest && (
+          <div className="mt-orbit-s flex items-center gap-orbit-xs" onClick={(event) => event.stopPropagation()}>
+            {actions}
+          </div>
+        )}
+
+        {showQueuedCompact && queuedExpanded && (
+          <div className="mt-orbit-s" onClick={(event) => event.stopPropagation()}>
+            <div className="rounded-md border border-[#185FA5]/20 bg-[#E6F1FB]/55 px-orbit-base py-orbit-s text-[11px] text-[#0C447C]">
+              <p className="v6-orbit-weight-medium">Added to Review.</p>
+              <p className="mt-orbit-xxs text-[#0C447C]/80">Review and generate all requests when ready.</p>
+            </div>
+          </div>
+        )}
+
+        {isDrafting && onUpdateDraft && onCancelDraft && onSubmitDraft && (
+          <div>
+            <ClauseRequestForm
+              versionLabel={versionLabel}
+              draft={draft}
+              request={request}
+              inherited={inherited}
+              requestPlaceholder={requestPlaceholder}
+              onUpdate={onUpdateDraft}
+              onCancel={onCancelDraft}
+              onSubmit={onSubmitDraft}
+            />
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
@@ -4813,10 +4972,31 @@ function ClauseRowScaleCard({
 }) {
   const tier = clause.severity;
   const theme = rowScaleSeverityThemes[tier];
-  const cardTone = missingClause ? rowScaleMissingClauseTheme : theme;
-  const cardBackground = cardTone.background;
-  const accentColor = cardTone.accent;
-  const severityLabel = hideSubclauseReference ? `${titleCaseSeverity(tier)} Deviation` : titleCaseSeverity(tier);
+  const noneDeviationClause = isNoneDeviationClause(clause);
+  const useV6StatusColours = isInitiativesV6Route();
+  const orbitCardState = useV6StatusColours ? firstAnalysisCardStateForClause(clause) : "Default";
+  const cardIndicatorToken = useV6StatusColours
+    ? firstAnalysisCardIndicatorColorForClause(clause)
+    : missingClause
+    ? "var(--orbit-color-card-indicator-error)"
+    : noneDeviationClause
+    ? "var(--orbit-color-card-indicator-success)"
+    : theme.legacyIndicatorToken;
+  const cardStyle: OrbitCardStyle = {
+    minHeight: 104,
+  };
+  if (!useV6StatusColours || orbitCardState === "Default") {
+    cardStyle["--orbit-color-card-indicator-default"] = cardIndicatorToken;
+  }
+  const severityLabel = noneDeviationClause
+    ? "None Deviation"
+    : `${titleCaseSeverity(tier)} Deviation`;
+  const severityStatusKey = noneDeviationClause ? "none" : firstAnalysisSeverityStatus[tier];
+  const severityBadgeClass = noneDeviationClause
+    ? firstAnalysisNoneDeviationBadgeClass
+    : useV6StatusColours
+    ? theme.badgeClass
+    : theme.legacyBadgeClass;
   const showSeverityBadge = !isPureMissingClause(clause);
   const metadata = hideSubclauseReference ? clause.category : `${clause.subclause} · ${clause.category}`;
   const actionabilityText = actionability?.trim() ?? "";
@@ -4889,55 +5069,68 @@ function ClauseRowScaleCard({
   return (
     <div
       id={`clause-row-${id}`}
-      className={cn(
-        "relative min-h-[104px] overflow-hidden rounded-lg border border-border bg-card px-4 py-4 pl-5 transition-colors",
-        highlighted && "ring-2 ring-primary/40",
-      )}
-      style={{ backgroundColor: cardBackground }}
+      className={cn("rounded-lg transition-colors", highlighted && "ring-2 ring-primary/40")}
     >
-      <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: accentColor }} />
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          {missingClause && <DashboardChip label="Missing Clause" variant="Information" />}
-          {showSeverityBadge && <DashboardSeverityChip severity={tier} label={severityLabel} />}
-          {isDrafting && <DashboardChip label="Drafting request" variant="Information" />}
+      <Card type="Static" padding="Base" state={orbitCardState} indicator style={cardStyle}>
+        <div className="flex flex-col gap-orbit-s">
+          <div className="flex flex-wrap items-center justify-between gap-orbit-s">
+            <div className="flex flex-wrap items-center gap-orbit-s">
+              {showSeverityBadge && (
+                useV6StatusColours ? (
+                  <FirstAnalysisStatusTag status={severityStatusKey} />
+                ) : (
+                  <Badge variant="outline" className={severityBadgeClass}>
+                    {severityLabel}
+                  </Badge>
+                )
+              )}
+              {missingClause && (
+                useV6StatusColours ? (
+                  <FirstAnalysisStatusTag status="missing" />
+                ) : (
+                  <Badge variant="outline" className={getFirstAnalysisMissingClauseBadgeClass()}>
+                    Missing Clause
+                  </Badge>
+                )
+              )}
+              {isDrafting && (
+                <Badge variant="outline" className="rounded-full border-[#185FA5]/25 bg-[#E6F1FB] px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium text-[#0C447C]">
+                  Drafting request
+                </Badge>
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {id.toUpperCase()} · {metadata}
+            </p>
+          </div>
+          <h3 className="v6-orbit-heading-label text-foreground">{clause.title}</h3>
         </div>
-        <p className="text-[11px] text-muted-foreground">
-          {id.toUpperCase()} · {metadata}
-        </p>
-      </div>
-      <h3 className="mt-2 text-[15px] font-medium text-foreground">{clause.title}</h3>
-      {description && <FindingCallout text={description} />}
-      {actionability && <RecommendedActionCallout text={actionability} />}
-      {requestForm ?? (
-        <div className="mt-3 flex flex-wrap items-center gap-2" onClick={(event) => event.stopPropagation()}>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 rounded-[5px] bg-white px-3 text-[11px]"
-            disabled={!actionabilityText || !onUseRecommendation}
-            onClick={(event) => runAction(event, onUseRecommendation)}
-          >
-            <ListPlus className="h-3 w-3" /> Use Recommendation
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 rounded-[5px] bg-white px-3 text-[11px]"
-            onClick={(event) => runAction(event, onRequest)}
-          >
-            <Pencil className="h-3 w-3" /> Edit Request
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 rounded-[5px] bg-white px-3 text-[11px]"
-            onClick={(event) => runAction(event, onNoAction)}
-          >
-            <CircleMinus className="h-3 w-3" /> No Action
-          </Button>
-        </div>
-      )}
+        {description && <FindingCallout text={description} />}
+        {actionability && <RecommendedActionCallout text={actionability} compactTop={Boolean(description)} />}
+        {requestForm ?? (!noneDeviationClause ? (
+          <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-xs" onClick={(event) => event.stopPropagation()}>
+            <Button
+              variant="outline"
+              disabled={!actionabilityText || !onUseRecommendation}
+              onClick={(event) => runAction(event, onUseRecommendation)}
+            >
+              <Sparkles className="h-3 w-3" /> Use Recommendation
+            </Button>
+            <Button
+              variant="outline"
+              onClick={(event) => runAction(event, onRequest)}
+            >
+              <Pencil className="h-3 w-3" /> Edit Request
+            </Button>
+            <Button
+              variant="outline"
+              onClick={(event) => runAction(event, onNoAction)}
+            >
+              <CheckCircle2 className="h-3 w-3" /> No Action
+            </Button>
+          </div>
+        ) : null)}
+      </Card>
     </div>
   );
 }
@@ -4945,41 +5138,44 @@ function ClauseRowScaleCard({
 const rowScaleSeverityThemes: Record<
   ClauseResult["severity"],
   {
-    accent: string;
-    background: string;
+    indicatorToken: string;
+    badgeClass: string;
+    legacyIndicatorToken: string;
+    legacyBadgeClass: string;
   }
 > = {
   high: {
-    accent: "var(--orbit-color-status-low-border-error)",
-    background: "color-mix(in srgb, var(--orbit-color-status-low-bg-error) 30%, white)",
+    indicatorToken: FIRST_ANALYSIS_STATUS_THEME.high.indicatorColor,
+    badgeClass: firstAnalysisDeviationBadgeClass,
+    legacyIndicatorToken: "var(--orbit-color-card-indicator-error)",
+    legacyBadgeClass: firstAnalysisDeviationBadgeClass,
   },
   medium: {
-    accent: "var(--orbit-color-status-low-border-warning)",
-    background: "color-mix(in srgb, var(--orbit-color-status-low-bg-warning) 30%, white)",
+    indicatorToken: FIRST_ANALYSIS_STATUS_THEME.medium.indicatorColor,
+    badgeClass: "shrink-0 rounded-full border-[#F1D29B] bg-[#FFF8E8] px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium text-[#854F0B]",
+    legacyIndicatorToken: "var(--orbit-color-card-indicator-warning)",
+    legacyBadgeClass: "shrink-0 rounded-full border-[#F1D29B] bg-[#FFF8E8] px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium text-[#854F0B]",
   },
   low: {
-    accent: "var(--orbit-color-status-low-border-no-status)",
-    background: "color-mix(in srgb, var(--orbit-color-status-low-bg-no-status) 30%, white)",
+    indicatorToken: FIRST_ANALYSIS_STATUS_THEME.low.indicatorColor,
+    badgeClass: "shrink-0 rounded-full border-[#D9D8D2] bg-[#F5F5F2] px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium text-[#5F5E5A]",
+    legacyIndicatorToken: "var(--orbit-color-card-indicator-success)",
+    legacyBadgeClass: "shrink-0 rounded-full border-border bg-muted px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium text-muted-foreground",
   },
-};
-
-const rowScaleMissingClauseTheme = {
-  accent: "var(--orbit-color-status-low-border-information)",
-  background: "color-mix(in srgb, var(--orbit-color-status-low-bg-information) 30%, white)",
 };
 
 function FindingCallout({ text }: { text: string }) {
   return (
-    <div className="mt-3 rounded-md border border-border bg-white px-3 py-2.5">
-      <div className="flex items-start gap-2.5">
-        <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border border-border bg-background text-muted-foreground">
+    <div className="mt-orbit-base rounded-md border border-border bg-white px-orbit-base py-orbit-s">
+      <div className="flex items-start gap-orbit-s">
+        <span className="mt-orbit-xxs grid h-5 w-5 shrink-0 place-items-center rounded-full border border-border bg-background text-muted-foreground">
           <Search className="h-3 w-3" />
         </span>
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          <p className="text-[10px] v6-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Finding
           </p>
-          <p className="mt-0.5 text-[12px] font-medium leading-5 text-foreground/85">
+          <p className="mt-orbit-xxs text-[12px] v6-orbit-weight-medium leading-5 text-foreground/85">
             {renderFindingText(text)}
           </p>
         </div>
@@ -4988,18 +5184,18 @@ function FindingCallout({ text }: { text: string }) {
   );
 }
 
-function RecommendedActionCallout({ text }: { text: string }) {
+function RecommendedActionCallout({ text, compactTop = false }: { text: string; compactTop?: boolean }) {
   return (
-    <div className="mt-3 rounded-md border border-border bg-white px-3 py-2.5">
-      <div className="flex items-start gap-2.5">
-        <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border border-border bg-background text-muted-foreground">
+    <div className={cn(compactTop ? "mt-orbit-s" : "mt-orbit-base", "rounded-md border border-border bg-white px-orbit-base py-orbit-s")}>
+      <div className="flex items-start gap-orbit-s">
+        <span className="mt-orbit-xxs grid h-5 w-5 shrink-0 place-items-center rounded-full border border-border bg-background text-muted-foreground">
           <Lightbulb className="h-3 w-3" />
         </span>
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          <p className="text-[10px] v6-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Recommended action
           </p>
-          <p className="mt-0.5 text-[12px] font-medium leading-5 text-foreground">
+          <p className="mt-orbit-xxs text-[12px] v6-orbit-weight-medium leading-5 text-foreground">
             {text}
           </p>
         </div>
@@ -5014,7 +5210,7 @@ function renderFindingText(text: string) {
     if (!part) return null;
     const prominent = /^(\d+(?:\.\d+)?%?(?:[-\s]?(?:day|days|month|months|year|years|hour|hours|fee|fees))?|vs|benchmark)$/i.test(part);
     return prominent ? (
-      <span key={`${part}-${index}`} className="font-semibold text-foreground">
+      <span key={`${part}-${index}`} className="v6-orbit-weight-semibold text-foreground">
         {part}
       </span>
     ) : (
@@ -5092,20 +5288,12 @@ interface RecommendationTargetItem {
   request: ClauseRequest;
 }
 
-function uniqueRecommendationTargets(targets: RecommendationTargetItem[]) {
-  const seen = new Set<string>();
+type RecommendationApplyScope = "all" | "high" | "medium" | "low" | "none" | "missing";
 
-  return targets.filter((target) => {
-    if (seen.has(target.id)) {
-      return false;
-    }
-
-    seen.add(target.id);
-    return true;
-  });
+interface RecommendationApplyScopeMeta {
+  toastLabel: string;
+  undoLabel: string;
 }
-
-type RecommendationApplyScope = "all" | "high" | "medium" | "low" | "missing";
 
 interface RecommendationApplyOption {
   id: RecommendationApplyScope;
@@ -5122,7 +5310,7 @@ function buildRecommendationApplyOptions(targets: RecommendationTargetItem[]): R
   return [
     {
       id: "all",
-      label: "Apply all recommendations",
+      label: "All recommendations",
       toastLabel: "recommendation",
       undoLabel: "all",
       count: targets.length,
@@ -5130,76 +5318,79 @@ function buildRecommendationApplyOptions(targets: RecommendationTargetItem[]): R
     },
     {
       id: "high",
-      label: "Apply High",
-      toastLabel: "High recommendation",
-      undoLabel: "High",
+      label: "High Deviation",
+      toastLabel: "High Deviation recommendation",
+      undoLabel: "High Deviation",
       count: byScope("high").length,
       targets: byScope("high"),
     },
     {
       id: "medium",
-      label: "Apply Medium",
-      toastLabel: "Medium recommendation",
-      undoLabel: "Medium",
+      label: "Medium Deviation",
+      toastLabel: "Medium Deviation recommendation",
+      undoLabel: "Medium Deviation",
       count: byScope("medium").length,
       targets: byScope("medium"),
     },
     {
       id: "low",
-      label: "Apply Low",
-      toastLabel: "Low recommendation",
-      undoLabel: "Low",
+      label: "Low Deviation",
+      toastLabel: "Low Deviation recommendation",
+      undoLabel: "Low Deviation",
       count: byScope("low").length,
       targets: byScope("low"),
     },
     {
       id: "missing",
-      label: "Apply Missing clauses",
+      label: "Missing Clauses",
       toastLabel: "Missing clause recommendation",
       undoLabel: "Missing clause",
       count: byScope("missing").length,
       targets: byScope("missing"),
     },
+    {
+      id: "none",
+      label: "None Deviation",
+      toastLabel: "None Deviation recommendation",
+      undoLabel: "None Deviation",
+      count: byScope("none").length,
+      targets: byScope("none"),
+    },
   ];
+}
+
+function mergeRecommendationApplyTargets(options: RecommendationApplyOption[]) {
+  const seenTargetIds = new Set<string>();
+  const targets: RecommendationTargetItem[] = [];
+
+  options.forEach((option) => {
+    option.targets.forEach((target) => {
+      if (seenTargetIds.has(target.id)) return;
+      seenTargetIds.add(target.id);
+      targets.push(target);
+    });
+  });
+
+  return targets;
+}
+
+function buildRecommendationApplyScopeMeta(options: RecommendationApplyOption[]): RecommendationApplyScopeMeta | undefined {
+  if (options.length === 0) return undefined;
+  if (options.length === 1) return options[0];
+
+  return {
+    toastLabel: "selected recommendation",
+    undoLabel: "selected",
+  };
 }
 
 function targetMatchesRecommendationScope(target: RecommendationTargetItem, scope: RecommendationApplyScope) {
   if (scope === "all") return true;
   if (scope === "missing") return Boolean(target.missingClause && target.sourceDeviationLevel === "None");
+  if (scope === "none") return target.sourceDeviationLevel === "None";
 
   const sourceDeviationLevel = target.sourceDeviationLevel?.toLowerCase();
   return sourceDeviationLevel === scope || (!sourceDeviationLevel && target.severity === scope);
-}
-
-function reviewClauseCardTone(tone?: ClauseResult["severity"] | "missing") {
-  if (tone === "missing") {
-    return {
-      backgroundColor: "var(--orbit-color-status-low-bg-information)",
-      borderLeftColor: "var(--orbit-color-status-low-border-information)",
-    };
-  }
-  if (tone === "high") {
-    return {
-      backgroundColor: "var(--orbit-color-status-low-bg-error)",
-      borderLeftColor: "var(--orbit-color-status-low-border-error)",
-    };
-  }
-  if (tone === "medium") {
-    return {
-      backgroundColor: "var(--orbit-color-status-low-bg-warning)",
-      borderLeftColor: "var(--orbit-color-status-low-border-warning)",
-    };
-  }
-  if (tone === "low") {
-    return {
-      backgroundColor: "var(--orbit-color-status-low-bg-no-status)",
-      borderLeftColor: "var(--orbit-color-status-low-border-no-status)",
-    };
-  }
-  return {
-    backgroundColor: "white",
-    borderLeftColor: "hsl(var(--border))",
-  };
 }
 
 function ClauseReviewModalCard({
@@ -5244,7 +5435,30 @@ function ClauseReviewModalCard({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<ClauseRequest>(request);
   const pureMissing = Boolean(missingClause && sourceDeviationLevel === "None");
-  const cardTone = reviewClauseCardTone(pureMissing ? "missing" : severity);
+  const useV6StatusTags = isInitiativesV6Route();
+  const clauseCardState = useV6StatusTags
+    ? firstAnalysisCardStateForClause({
+      severity: severity ?? "low",
+      missingClause: Boolean(missingClause),
+      sourceDeviationLevel,
+    })
+    : severity === "high"
+    ? "Error"
+    : severity === "medium"
+    ? "Warning"
+    : severity === "low"
+    ? "Success"
+    : "Default";
+  const clauseCardStyle: OrbitCardStyle = {};
+  if (clauseCardState === "Default") {
+    clauseCardStyle["--orbit-color-card-indicator-default"] = useV6StatusTags
+      ? firstAnalysisCardIndicatorColorForClause({
+        severity: severity ?? "low",
+        missingClause: Boolean(missingClause),
+        sourceDeviationLevel,
+      })
+      : "var(--orbit-color-card-border-default)";
+  }
 
   useEffect(() => {
     if (!editing) setDraft(request);
@@ -5263,41 +5477,65 @@ function ClauseReviewModalCard({
   return (
     <div
       id={domId}
-      className={cn(
-        "rounded-lg border border-l-4 px-3 py-2.5 shadow-sm",
-        highlighted && "ring-2 ring-primary/40",
-      )}
-      style={cardTone}
+      className={cn("rounded-lg transition-colors", highlighted && "ring-2 ring-primary/40")}
     >
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {pureMissing && <DashboardChip label="Missing Clause" variant="Information" />}
-          {severity && !pureMissing && <DashboardSeverityChip severity={severity} />}
-          <DashboardChip label={statusLabel} variant={dashboardStatusToneVariant(statusTone)} />
+      <Card type="Static" padding="Base" state={clauseCardState} indicator style={clauseCardStyle}>
+        <div className="flex flex-wrap items-start justify-between gap-orbit-s">
+          <div className="flex flex-wrap items-center gap-orbit-xs">
+            {severity && !pureMissing && (
+              useV6StatusTags ? (
+                <FirstAnalysisStatusTag status={firstAnalysisSeverityStatus[severity]} label={`${titleCaseSeverity(severity)} Deviation`} />
+              ) : (
+                <Badge
+                  variant="outline"
+                  className={cn("h-5 rounded-full px-orbit-s text-[9px] v6-orbit-weight-medium", severityTone(severity))}
+                >
+                  {titleCaseSeverity(severity)} Deviation
+                </Badge>
+              )
+            )}
+            {(useV6StatusTags ? missingClause : pureMissing) && (
+              useV6StatusTags ? (
+                <FirstAnalysisStatusTag status="missing" />
+              ) : (
+                <Badge variant="outline" className={getFirstAnalysisMissingClauseBadgeClass()}>
+                  Missing Clause
+                </Badge>
+              )
+            )}
+            <Badge
+              variant="outline"
+              className={cn(
+                "h-5 rounded-full px-orbit-s text-[9px] v6-orbit-weight-medium",
+                statusTone === "blue" && "border-[#185FA5]/20 bg-[#E6F1FB]/60 text-[#0C447C]",
+                statusTone === "green" && "border-[#BFD6AB] bg-[#EAF3DE] text-[#27500A]",
+                statusTone === "neutral" && "border-border bg-white text-muted-foreground",
+              )}
+            >
+              {statusLabel}
+            </Badge>
+          </div>
+          <p className="shrink-0 text-[10px] text-muted-foreground">
+            {itemId.toUpperCase()}{category ? ` · ${category}` : ""}
+          </p>
         </div>
-        <p className="shrink-0 text-[10px] text-muted-foreground">
-          {itemId.toUpperCase()}{category ? ` · ${category}` : ""}
-        </p>
-      </div>
 
-      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-semibold text-foreground">{title}</p>
-          <p className="mt-0.5 line-clamp-2 text-[11px] leading-4 text-muted-foreground">
+        <div className="mt-orbit-s min-w-0">
+          <p className="truncate text-[13px] v6-orbit-weight-semibold text-foreground">{title}</p>
+          <p className="mt-orbit-xxs line-clamp-2 text-[11px] leading-4 text-muted-foreground">
             {request.requestedChange || "No requested change entered yet."}
           </p>
           {request.rationale && (
-            <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-muted-foreground">
-              <span className="font-medium text-foreground">Rationale:</span> {request.rationale}
+            <p className="mt-orbit-xs line-clamp-2 text-[11px] leading-4 text-muted-foreground">
+              <span className="v6-orbit-weight-medium text-foreground">Rationale:</span> {request.rationale}
             </p>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-2" onClick={(event) => event.stopPropagation()}>
+
+        <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-s" onClick={(event) => event.stopPropagation()}>
           <Button
             type="button"
             variant="outline"
-            size="sm"
-            className="h-8 gap-1.5 rounded-[5px] bg-white px-3 text-[11px]"
             onClick={() => {
               if (editMode === "external") {
                 onEditRequest?.();
@@ -5312,58 +5550,50 @@ function ClauseReviewModalCard({
           <Button
             type="button"
             variant="outline"
-            size="sm"
-            className={cn(
-              "h-8 gap-1.5 rounded-[5px] px-3 text-[11px]",
-              secondaryActionTone === "danger"
-                ? "text-muted-foreground hover:border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
-                : "bg-white text-muted-foreground hover:bg-muted hover:text-foreground",
-            )}
             onClick={onRemove}
           >
             {secondaryActionIcon === undefined ? <Trash2 className="h-3.5 w-3.5" /> : secondaryActionIcon}
             {secondaryActionLabel}
           </Button>
         </div>
-      </div>
 
-      {editing && editMode === "inline" && (
-        <div className="mt-3 rounded-lg border border-border bg-white/85 p-3" onClick={(event) => event.stopPropagation()}>
-          <div className="grid gap-3">
-            <label className="grid gap-1.5 text-xs font-medium text-foreground">
-              Requested change
-              <Textarea
-                value={draft.requestedChange ?? ""}
-                onChange={(event) => setDraft((current) => ({ ...current, requestedChange: event.target.value }))}
-                className="min-h-[72px] resize-none bg-white text-xs font-normal leading-5"
-              />
-            </label>
-            <label className="grid gap-1.5 text-xs font-medium text-foreground">
-              Rationale
-              <Textarea
-                value={draft.rationale ?? ""}
-                onChange={(event) => setDraft((current) => ({ ...current, rationale: event.target.value }))}
-                placeholder="Add why this change is needed before supplier negotiation."
-                className="min-h-[64px] resize-none bg-white text-xs font-normal leading-5"
-              />
-            </label>
+        {editing && editMode === "inline" && (
+          <div className="mt-orbit-base rounded-lg border border-border bg-white/85 p-orbit-base" onClick={(event) => event.stopPropagation()}>
+            <div className="grid gap-orbit-base">
+              <label className="grid gap-orbit-xs text-xs v6-orbit-weight-medium text-foreground">
+                Requested change
+                <Textarea
+                  value={draft.requestedChange ?? ""}
+                  onChange={(event) => setDraft((current) => ({ ...current, requestedChange: event.target.value }))}
+                  className="min-h-[72px] resize-none bg-white text-xs v6-orbit-weight-regular leading-5"
+                />
+              </label>
+              <label className="grid gap-orbit-xs text-xs v6-orbit-weight-medium text-foreground">
+                Rationale
+                <Textarea
+                  value={draft.rationale ?? ""}
+                  onChange={(event) => setDraft((current) => ({ ...current, rationale: event.target.value }))}
+                  placeholder="Add why this change is needed before supplier negotiation."
+                  className="min-h-[64px] resize-none bg-white text-xs v6-orbit-weight-regular leading-5"
+                />
+              </label>
+            </div>
+            <div className="mt-orbit-base flex justify-end gap-orbit-s">
+              <Button type="button" variant="outline" className="h-8" onClick={() => setEditing(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="h-8 bg-[#1a2744] text-white hover:bg-[#243454]"
+                disabled={!canSave}
+                onClick={saveDraft}
+              >
+                Save changes
+              </Button>
+            </div>
           </div>
-          <div className="mt-3 flex justify-end gap-2">
-            <Button type="button" variant="outline" size="sm" className="h-8" onClick={() => setEditing(false)}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              className="h-8 bg-[#1a2744] text-white hover:bg-[#243454]"
-              disabled={!canSave}
-              onClick={saveDraft}
-            >
-              Save changes
-            </Button>
-          </div>
-        </div>
-      )}
+        )}
+      </Card>
     </div>
   );
 }
@@ -5462,66 +5692,55 @@ function RequestReviewDialog({
     onSubmit();
     onOpenChange(false);
   };
+  const csvAlertDescription = `The CSV will include clause IDs, titles, categories, severity, ClauseIQ findings, requested changes, and rationale so you can take it back to the supplier for negotiation. Are you ready to generate it?${
+    csvNeedsUpdate
+      ? " Changes have been made since the last generated CSV. Generate again to update the negotiation log."
+      : ""
+  }`;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-[680px] gap-0 overflow-hidden p-0">
-          <DialogHeader className="border-b border-border px-5 py-4 pr-12 text-left">
-            <DialogTitle>
-              {bulkSummaryMode ? "Generate CSV from applied recommendations" : "Review and generate selected clauses"}
-            </DialogTitle>
-            <DialogDescription>
-              {bulkSummaryMode
-                ? `You have applied all current ClauseIQ recommendations. Confirm when you are ready to generate a CSV negotiation log for ${supplierName}.`
-                : `Check the clauses you have chosen, then submit to generate a CSV negotiation log for ${supplierName}.`}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="px-3 pt-3">
-            <div className="rounded-lg border border-[#185FA5]/25 bg-[#E6F1FB]/60 p-4">
-              <div className="flex items-start gap-3">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#185FA5] text-white">
-                  <FileCheck2 className="h-5 w-5" />
-                </span>
-	                <div className="min-w-0">
-	                  <p className="text-sm font-semibold text-[#0C447C]">
-	                    {bulkSummaryMode ? "Ready to generate supplier change log" : "Ready to generate selected clauses"}
-	                  </p>
-                  <p className="mt-1 text-xs leading-5 text-[#0C447C]/80">
-                    The CSV will include clause IDs, titles, categories, severity, ClauseIQ findings, requested changes, and rationale so you can take it back to the supplier for negotiation. Are you ready to generate it?
-                  </p>
-                  {csvNeedsUpdate && (
-                    <p className="mt-2 text-xs font-medium leading-5 text-[#0C447C]">
-                      Changes have been made since the last generated CSV. Generate again to update the negotiation log.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
+    <V6OrbitOverlay
+      open={open}
+      onOpenChange={onOpenChange}
+      title={bulkSummaryMode ? "Generate CSV from applied recommendations" : "Review & Generate Selected Clauses"}
+      size="Large"
+      modalKey="review-generate"
+      footer={
+        <div className="flex flex-col gap-orbit-base sm:flex-row sm:items-center sm:justify-between">
+          <Button
+            variant="outline"
+            className="h-8 text-xs"
+            onClick={() => onOpenChange(false)}
+          >
+            Close
+          </Button>
+          <div className="flex flex-col gap-orbit-s sm:flex-row sm:items-center">
+            {canGenerate && (
+              <Button
+                className="gap-orbit-xs"
+                onClick={submitRequests}
+              >
+                <Download className="h-3.5 w-3.5" /> Submit & Generate
+              </Button>
+            )}
+          </div>
+        </div>
+      }
+    >
+          <div>
+            <Alert
+              type="Information"
+              title={bulkSummaryMode ? "Ready to generate supplier change log" : "Ready to generate selected clauses"}
+              description={csvAlertDescription}
+            />
           </div>
 
           {reviewProgress && (
-            <div className="px-3 pb-3 pt-2">
+            <div className="pt-orbit-s">
               <ReviewGenerateProgressDashboard progress={reviewProgress} />
             </div>
           )}
-
-          <DialogFooter className="border-t border-border bg-muted/30 px-5 py-3 sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">
-              Confirm to generate the CSV. Nothing is sent to the supplier from this prototype.
-	            </p>
-	            {canGenerate && (
-              <Button
-                size="sm"
-                className="gap-1.5 bg-[#1a2744] text-white hover:bg-[#243454]"
-                onClick={submitRequests}
-              >
-                <FileDown className="h-3.5 w-3.5" /> Submit & Generate
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </V6OrbitOverlay>
   );
 }
 
@@ -5530,46 +5749,49 @@ function ReviewGenerateProgressDashboard({ progress }: { progress: FirstAnalysis
   const percentage = progress.total > 0 ? Math.round((reviewed / progress.total) * 100) : 0;
 
   return (
-    <section className="rounded-lg border border-border bg-white p-3">
-      <div className="flex items-start justify-between gap-3">
+    <section className="rounded-lg border border-border bg-white p-orbit-base">
+      <div>
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          <p className="text-[10px] v6-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Summary
           </p>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          <p className="mt-orbit-xs text-xs leading-5 text-muted-foreground">
             Check what has been accepted, marked no action, and what is still left unreviewed before generating the CSV.
           </p>
         </div>
-        <span className="shrink-0 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-foreground">
-          {percentage}%
-        </span>
       </div>
 
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-        <span className="block h-full rounded-full bg-[#1a2744]" style={{ width: `${percentage}%` }} />
+      <div className="mt-orbit-base h-2 overflow-hidden rounded-full bg-muted">
+        <span
+          className="block h-full rounded-full bg-[hsl(var(--ciq-purple))]"
+          style={{ width: `${percentage}%` }}
+        />
       </div>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-4">
+      <div className="mt-orbit-base grid gap-orbit-s sm:grid-cols-4">
         <ReviewGenerateMetric label="Used recommendations" value={progress.usedRecommendations} />
         <ReviewGenerateMetric label="No action" value={progress.noAction} />
         <ReviewGenerateMetric label="Left unreviewed" value={progress.unreviewed} muted />
         <ReviewGenerateMetric label="Ready for CSV" value={progress.readyForCsv} />
       </div>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+      <div className="mt-orbit-base grid gap-orbit-s sm:grid-cols-2">
         {progress.breakdown.map((item) => {
           const itemReviewed = item.reviewed;
           const itemPercentage = item.total > 0 ? Math.round((itemReviewed / item.total) * 100) : 0;
           return (
-            <div key={item.label} className="rounded-md border border-border bg-muted/20 px-2.5 py-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-medium text-muted-foreground">{item.label}</span>
+            <div key={item.label} className="rounded-md border border-border bg-muted/20 px-orbit-s py-orbit-s">
+              <div className="flex items-center justify-between gap-orbit-s">
+                <span className="text-[10px] v6-orbit-weight-medium text-muted-foreground">{item.label}</span>
                 <span className="text-[10px] text-muted-foreground">
                   {item.unreviewed} left
                 </span>
               </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                <span className="block h-full rounded-full bg-[#1a2744]/80" style={{ width: `${itemPercentage}%` }} />
+              <div className="mt-orbit-s h-1.5 overflow-hidden rounded-full bg-muted">
+                <span
+                  className="block h-full rounded-full bg-[hsl(var(--ciq-purple))]"
+                  style={{ width: `${itemPercentage}%` }}
+                />
               </div>
             </div>
           );
@@ -5577,7 +5799,7 @@ function ReviewGenerateProgressDashboard({ progress }: { progress: FirstAnalysis
       </div>
 
       {progress.submitted > 0 && (
-        <p className="mt-3 text-[11px] text-muted-foreground">
+        <p className="mt-orbit-base text-[11px] text-muted-foreground">
           {progress.submitted} clause{progress.submitted === 1 ? "" : "s"} already generated in a previous CSV.
         </p>
       )}
@@ -5595,9 +5817,9 @@ function ReviewGenerateMetric({
   muted?: boolean;
 }) {
   return (
-    <div className={cn("rounded-md border border-border bg-[#F7FAFC] px-2.5 py-2", muted && "bg-muted/25")}>
-      <p className="text-lg font-semibold leading-none text-foreground">{value}</p>
-      <p className="mt-1 text-[9px] font-medium uppercase tracking-[0.04em] text-muted-foreground">
+    <div className={cn("rounded-md border border-border bg-[#F7FAFC] px-orbit-s py-orbit-s", muted && "bg-muted/25")}>
+      <p className="text-lg v6-orbit-weight-semibold leading-none text-foreground">{value}</p>
+      <p className="mt-orbit-xs text-[9px] v6-orbit-weight-medium uppercase tracking-[0.04em] text-muted-foreground">
         {label}
       </p>
     </div>
@@ -5614,6 +5836,7 @@ function ReviewScreen({
   quickReviewFilter,
   missingClauseIds,
   quickMissingClauseIds,
+  quickNoneDeviationFilter = false,
   neutralActions = false,
   hideSubclauseReference = false,
   displayMode = "default",
@@ -5636,6 +5859,7 @@ function ReviewScreen({
   quickReviewFilter?: "need-review" | null;
   missingClauseIds?: Set<string> | null;
   quickMissingClauseIds?: Set<string> | null;
+  quickNoneDeviationFilter?: boolean;
   neutralActions?: boolean;
   hideSubclauseReference?: boolean;
   displayMode?: "default" | "row-scale";
@@ -5649,19 +5873,28 @@ function ReviewScreen({
   onOpenDetail: (id: string) => void;
   highlightedId?: string | null;
 }) {
+  const [pendingDraftCancelId, setPendingDraftCancelId] = useState<string | null>(null);
   const q = search.trim().toLowerCase();
   const versionLabel = version.version;
   const activeCategorySet = new Set(activeCategories);
+  const hasQuickMetricFilter = Boolean(
+    (quickSeverityFilters && quickSeverityFilters.size > 0) ||
+      quickMissingClauseIds ||
+      quickNoneDeviationFilter,
+  );
+  const matchesQuickMetricFilter = (clause: ClauseResult) => {
+    if (!hasQuickMetricFilter) return true;
+    return (
+      Boolean(quickSeverityFilters?.has(clause.severity) && countsTowardDeviationMetric(clause)) ||
+      Boolean(quickMissingClauseIds?.has(clause.id)) ||
+      Boolean(quickNoneDeviationFilter && isNoneDeviationClause(clause))
+    );
+  };
   const rows = version.clauses
     .map((clause, index) => ({ clause, index }))
     .filter(({ clause: c }) => {
       if (activeCategorySet.size > 0 && !activeCategorySet.has(c.category)) return false;
-      if (quickMissingClauseIds && !quickMissingClauseIds.has(c.id)) return false;
-      if (
-        quickSeverityFilters &&
-        quickSeverityFilters.size > 0 &&
-        (!countsTowardDeviationMetric(c) || !quickSeverityFilters.has(c.severity))
-      ) return false;
+      if (!matchesQuickMetricFilter(c)) return false;
       if (
         !quickSeverityFilters &&
         quickSeverityFilter &&
@@ -5669,12 +5902,13 @@ function ReviewScreen({
       ) return false;
       if (q && !c.title.toLowerCase().includes(q) && !c.category.toLowerCase().includes(q) && !c.id.includes(q)) return false;
       if (quickReviewFilter === "need-review") {
-        if (!quickMissingClauseIds && c.resolved) return false;
+        const showNoneDeviationClause = quickNoneDeviationFilter && isNoneDeviationClause(c);
+        if (!showNoneDeviationClause && c.resolved) return false;
         if (displayMode !== "row-scale") {
           const state = stateOf(c.id);
           const decision = state.roundDecisions[versionLabel];
           const request = state.requests[versionLabel];
-          if (decision === "no-action" || decision === "request-update" || request?.requestedChange?.trim()) {
+          if (!showNoneDeviationClause && (decision === "no-action" || decision === "request-update" || request?.requestedChange?.trim())) {
             return false;
           }
         }
@@ -5684,7 +5918,7 @@ function ReviewScreen({
     .sort((a, b) => severityRank(b.clause.severity) - severityRank(a.clause.severity) || a.index - b.index)
     .map(({ clause }) => clause);
   return (
-    <div className="space-y-3">
+    <div className="space-y-orbit-base">
       {rows.map((c) => {
         const state = stateOf(c.id);
         const decision = state.roundDecisions[versionLabel];
@@ -5698,7 +5932,10 @@ function ReviewScreen({
           ? { ...own, requestedChange: own.requestedChange?.trim() || c.actionability.trim() }
           : own;
         const cancelDraft = () => {
-          if (draftHasText && !window.confirm("Discard this draft request?")) return;
+          if (draftHasText) {
+            setPendingDraftCancelId(c.id);
+            return;
+          }
           onCancelDraft(c.id);
         };
 
@@ -5734,10 +5971,24 @@ function ReviewScreen({
         );
       })}
       {rows.length === 0 && (
-        <div className="bg-card border border-border rounded-lg p-12 text-center text-sm text-muted-foreground">
+        <div className="bg-card border border-border rounded-lg p-orbit-xxl text-center text-sm text-muted-foreground">
           No clauses match this category.
         </div>
       )}
+      <V6OrbitConfirmOverlay
+        open={Boolean(pendingDraftCancelId)}
+        onOpenChange={(open) => {
+          if (!open) setPendingDraftCancelId(null);
+        }}
+        title="Discard draft request?"
+        description="This will remove the request text you have drafted for this clause."
+        confirmLabel="Discard draft"
+        destructive
+        onConfirm={() => {
+          if (pendingDraftCancelId) onCancelDraft(pendingDraftCancelId);
+          setPendingDraftCancelId(null);
+        }}
+      />
     </div>
   );
 }
@@ -5781,6 +6032,7 @@ function ComparisonSection({
 }) {
   const [open, setOpen] = useState(false);
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
+  const [pendingDraftCancelId, setPendingDraftCancelId] = useState<string | null>(null);
   if (!visible) return null;
   const accentBar =
     accent === "primary" ? "bg-primary"
@@ -5830,9 +6082,9 @@ function ComparisonSection({
   });
 
   const rowsContent = rows.length === 0 ? (
-    <div className="border-t border-border p-6 text-center text-xs text-muted-foreground">{emptyMsg}</div>
+    <div className="border-t border-border p-orbit-m text-center text-xs text-muted-foreground">{emptyMsg}</div>
   ) : (
-    <div className="space-y-2 border-t border-border p-3">
+    <div className="space-y-orbit-s border-t border-border p-orbit-base">
       {sortedRows.map((r) => {
         const display = r.curr ?? r.prev!;
         const req = requestOf(r.id);
@@ -5850,41 +6102,49 @@ function ComparisonSection({
           (r.actionState === "drafting" || expandedRequestId === r.id);
         const draft = draftOf?.(r.id) ?? {};
         const cancelDraft = () => {
-          if ((draft.requestedChange?.trim() || draft.rationale?.trim()) && !window.confirm("Discard this draft request?")) return;
+          if (draft.requestedChange?.trim() || draft.rationale?.trim()) {
+            setPendingDraftCancelId(r.id);
+            return;
+          }
           onCancelDraft?.(r.id);
           setExpandedRequestId(null);
         };
         const comparisonDetails = (
-          <div className="grid gap-2 text-[11px] md:grid-cols-2">
+          <div className="grid gap-orbit-s text-[11px] md:grid-cols-2">
             {bucket !== "new" && (
-              <div className="rounded-md border-l-2 border-primary bg-primary/5 px-2.5 py-2 md:col-span-2">
-                <p className="text-[9px] font-semibold uppercase tracking-wide text-primary">
+              <div className="md:col-span-2">
+                <Card type="Static" padding="Small" state="Accent">
+                <p className="text-[9px] v6-orbit-weight-semibold uppercase tracking-wide text-primary">
                   Requested{req.fromVersion ? ` · from ${req.fromVersion}` : ""}
                 </p>
-                <p className="mt-1 leading-snug text-foreground">{req.requestedChange ?? "No request captured"}</p>
-                {req.rationale && <p className="mt-1 italic leading-snug text-muted-foreground">{req.rationale}</p>}
+                <p className="mt-orbit-xs leading-snug text-foreground">{req.requestedChange ?? "No request captured"}</p>
+                {req.rationale && <p className="mt-orbit-xs italic leading-snug text-muted-foreground">{req.rationale}</p>}
+                </Card>
               </div>
             )}
-            <div className={cn("rounded-md bg-[#f8f7f5] px-2.5 py-2", bucket === "new" && "md:col-span-1")}>
-              <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{leftLabel}</p>
-              <p className="mt-1 leading-snug text-muted-foreground">{r.prev?.deviation ?? "Clause did not exist."}</p>
+            <div className={cn(bucket === "new" && "md:col-span-1")}>
+              <Card type="Static" padding="Small">
+                <p className="text-[9px] v6-orbit-weight-semibold uppercase tracking-wide text-muted-foreground">{leftLabel}</p>
+                <p className="mt-orbit-xs leading-snug text-muted-foreground">{r.prev?.deviation ?? "Clause did not exist."}</p>
+              </Card>
             </div>
-            <div className="rounded-md bg-[#E6F1FB]/45 px-2.5 py-2">
-              <p className="text-[9px] font-semibold uppercase tracking-wide text-[#185FA5]">{rightLabel}</p>
-              <p className="mt-1 leading-snug text-foreground">{r.curr?.deviation ?? "Clause no longer present."}</p>
+            <div>
+              <Card type="Static" padding="Small" state="Accent">
+                <p className="text-[9px] v6-orbit-weight-semibold uppercase tracking-wide text-[#185FA5]">{rightLabel}</p>
+                <p className="mt-orbit-xs leading-snug text-foreground">{r.curr?.deviation ?? "Clause no longer present."}</p>
+              </Card>
             </div>
           </div>
         );
         const rowActions =
           bucket === "new" ? undefined :
             bucket === "closed" ? (
-              <Button size="sm" variant="outline" className="h-8 text-[11px]" onClick={() => onKeepOpen(r.id)}>
+              <Button variant="outline" className="h-8 text-[11px]" onClick={() => onKeepOpen(r.id)}>
                 Reopen
               </Button>
             ) : (
               <>
                 <Button
-                  size="sm"
                   variant={closure === "closed" ? "default" : "outline"}
                   className="h-8 text-[11px]"
                   onClick={() => onClose(r.id)}
@@ -5892,7 +6152,6 @@ function ComparisonSection({
                   {classifyChange(r.prev, r.curr) === "material" ? "Close" : "Close anyway"}
                 </Button>
                 <Button
-                  size="sm"
                   variant={closure === "follow-up" ? "secondary" : "outline"}
                   className="h-8 text-[11px]"
                   onClick={() => {
@@ -5903,7 +6162,6 @@ function ComparisonSection({
                   Follow-up
                 </Button>
                 <Button
-                  size="sm"
                   variant={closure === "keep-open" ? "secondary" : "outline"}
                   className="h-8 text-[11px]"
                   onClick={() => onKeepOpen(r.id)}
@@ -5925,7 +6183,7 @@ function ComparisonSection({
             draft={draft}
             isDrafting={drafting}
             changePill={r.pill}
-            metaPrefix={r.pill.status === "new" ? <span className="mr-1 text-[#0C447C]">+</span> : null}
+            metaPrefix={r.pill.status === "new" ? <span className="mr-orbit-xs text-[#0C447C]">+</span> : null}
             extraContent={
               <>
                 {comparisonDetails}
@@ -5936,7 +6194,7 @@ function ComparisonSection({
                       event.stopPropagation();
                       onUndoClose(r.id);
                     }}
-                    className="mt-2 inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
+                    className="mt-orbit-s inline-flex items-center gap-orbit-xs text-[11px] text-primary hover:underline"
                   >
                     <RotateCcw className="h-3 w-3" /> Undo close
                   </button>
@@ -5979,54 +6237,76 @@ function ComparisonSection({
     </div>
   );
 
+  const confirmOverlay = (
+    <V6OrbitConfirmOverlay
+      open={Boolean(pendingDraftCancelId)}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) setPendingDraftCancelId(null);
+      }}
+      title="Discard draft request?"
+      description="This will remove the request text you have drafted for this clause."
+      confirmLabel="Discard draft"
+      destructive
+      onConfirm={() => {
+        if (pendingDraftCancelId) onCancelDraft?.(pendingDraftCancelId);
+        setExpandedRequestId(null);
+        setPendingDraftCancelId(null);
+      }}
+    />
+  );
+
   if (layout === "plain") {
     return (
-      <section className={`overflow-hidden rounded-lg border ${accentBorder} bg-card`}>
-        <div className={`flex items-start gap-3 p-4 ${accentBg}`}>
-          <span className={`w-1 self-stretch rounded ${accentBar}`} />
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className={`text-sm font-semibold ${accentText}`}>
-                {title} · <span className="font-mono text-foreground">{displayedStats.total}</span>
-              </h3>
-              {bucketSummary && (
-                <span className="text-[11px] font-medium text-muted-foreground">{bucketSummary}</span>
-              )}
+      <>
+        <section className={`overflow-hidden rounded-lg border ${accentBorder} bg-card`}>
+          <div className={`flex items-start gap-orbit-base p-orbit-base ${accentBg}`}>
+            <span className={`w-1 self-stretch rounded ${accentBar}`} />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-orbit-s">
+                <h3 className={`v6-orbit-heading-strong ${accentText}`}>
+                  {title} · <span className="tabular-nums text-foreground">{displayedStats.total}</span>
+                </h3>
+                {bucketSummary && (
+                  <span className="text-[11px] v6-orbit-weight-medium text-muted-foreground">{bucketSummary}</span>
+                )}
+              </div>
+              <p className="mt-orbit-xxs text-xs text-muted-foreground">{description}</p>
             </div>
-            <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
           </div>
-        </div>
-        {rowsContent}
-      </section>
+          {rowsContent}
+        </section>
+        {confirmOverlay}
+      </>
     );
   }
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className={`bg-card border ${accentBorder} rounded-lg overflow-hidden`}>
-      <CollapsibleTrigger asChild>
+    <>
+      <section className={`overflow-hidden rounded-lg border ${accentBorder} bg-card`}>
         <button
           type="button"
-          className={`w-full flex items-start gap-3 p-4 text-left transition-colors ${accentBg}`}
+          aria-expanded={open}
+          className={`flex w-full items-start gap-orbit-base p-orbit-base text-left transition-colors ${accentBg}`}
+          onClick={() => setOpen((current) => !current)}
         >
           <span className={`w-1 self-stretch rounded ${accentBar}`} />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className={`text-sm font-semibold ${accentText}`}>
-                {title} · <span className="font-mono text-foreground">{displayedStats.total}</span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-orbit-s">
+              <h3 className={`v6-orbit-heading-strong ${accentText}`}>
+                {title} · <span className="tabular-nums text-foreground">{displayedStats.total}</span>
               </h3>
               {bucketSummary && (
-                <span className="text-[11px] text-muted-foreground font-medium">{bucketSummary}</span>
+                <span className="text-[11px] v6-orbit-weight-medium text-muted-foreground">{bucketSummary}</span>
               )}
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+            <p className="mt-orbit-xxs text-xs text-muted-foreground">{description}</p>
           </div>
-          <ChevronDown className={`w-4 h-4 text-muted-foreground mt-1 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+          <ChevronDown className={`mt-orbit-xs h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        {rowsContent}
-      </CollapsibleContent>
-    </Collapsible>
+        {open && rowsContent}
+      </section>
+      {confirmOverlay}
+    </>
   );
 }
 
@@ -6057,6 +6337,7 @@ function UnmarkedSection({
   const [open, setOpen] = useState(defaultOpen);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [localSearch, setLocalSearch] = useState("");
+  const [pendingDraftCancelId, setPendingDraftCancelId] = useState<string | null>(null);
   useEffect(() => { if (defaultOpen) setOpen(true); }, [defaultOpen]);
   const q = localSearch.trim().toLowerCase();
   const filteredRows = q
@@ -6071,49 +6352,48 @@ function UnmarkedSection({
     : rows;
   if (!visible) return null;
   return (
-    <div className="bg-card border border-border rounded-lg overflow-hidden">
-      <Collapsible open={open} onOpenChange={setOpen}>
-        <CollapsibleTrigger asChild>
-          <button className="w-full flex items-start gap-3 p-4 border-b border-border text-left hover:bg-muted/30 transition-colors">
+    <>
+      <div className="bg-card border border-border rounded-lg overflow-hidden">
+          <button
+            type="button"
+            aria-expanded={open}
+            className="w-full flex items-start gap-orbit-base p-orbit-base border-b border-border text-left hover:bg-muted/30 transition-colors"
+            onClick={() => setOpen((current) => !current)}
+          >
             <span className="w-1 self-stretch rounded bg-muted-foreground/40" />
             <div className="flex-1">
-              <h3 className="text-sm font-semibold text-foreground">
-                Unmarked clauses · <span className="font-mono text-muted-foreground">{rows.length}</span>
+              <h3 className="v6-orbit-heading-strong text-foreground">
+                Unmarked clauses · <span className="tabular-nums text-muted-foreground">{rows.length}</span>
               </h3>
               <p className="text-xs text-muted-foreground">
-                Clauses you didn't previously flag and the supplier didn't materially change. Expand to search this list, or use the <span className="font-medium text-foreground">filter and search above</span> to narrow results, then request a change in this round.
+                Clauses you didn't previously flag and the supplier didn't materially change. Expand to search this list, or use the <span className="v6-orbit-weight-medium text-foreground">filter and search above</span> to narrow results, then request a change in this round.
               </p>
             </div>
-            <ChevronDown className={`w-4 h-4 text-muted-foreground mt-1 transition-transform ${open ? "rotate-180" : ""}`} />
+            <ChevronDown className={`w-4 h-4 text-muted-foreground mt-orbit-xs transition-transform ${open ? "rotate-180" : ""}`} />
           </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          {rows.length === 0 ? (
-            <div className="p-6 text-center text-xs text-muted-foreground">
+        {open && (
+          rows.length === 0 ? (
+            <div className="p-orbit-m text-center text-xs text-muted-foreground">
               Every clause has either been actioned or already has a material change in this round.
             </div>
           ) : (
             <>
-              <div className="p-3 border-b border-border bg-muted/20 flex items-center gap-2">
-                <div className="relative flex-1 max-w-md">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <Input
+              <div className="p-orbit-base border-b border-border bg-muted/20 flex items-center gap-orbit-s">
+                <div className="flex-1 max-w-md">
+                  <Searchbox
+                    ariaLabel="Search unmarked clauses"
                     value={localSearch}
-                    onChange={(e) => setLocalSearch(e.target.value)}
+                    onChange={setLocalSearch}
                     placeholder={`Search ${rows.length} unmarked clauses…`}
-                    className="pl-9 h-8 text-sm"
                   />
                 </div>
-                <span className="text-[11px] text-muted-foreground font-mono">
-                  {filteredRows.length} / {rows.length}
-                </span>
               </div>
               {filteredRows.length === 0 ? (
-                <div className="p-6 text-center text-xs text-muted-foreground">
+                <div className="p-orbit-m text-center text-xs text-muted-foreground">
                   No unmarked clauses match "{localSearch}".
                 </div>
               ) : (
-                <div className="space-y-2 p-3">
+                <div className="space-y-orbit-s p-orbit-base">
                   {filteredRows.map((r) => {
                     const display = r.curr ?? r.prev!;
                     const requested = isRequested(r.id);
@@ -6123,7 +6403,10 @@ function UnmarkedSection({
                     const draft = draftOf(r.id);
                     const isExpanded = expandedId === r.id || drafting;
                     const cancelDraft = () => {
-                      if ((draft.requestedChange?.trim() || draft.rationale?.trim()) && !window.confirm("Discard this draft request?")) return;
+                      if (draft.requestedChange?.trim() || draft.rationale?.trim()) {
+                        setPendingDraftCancelId(r.id);
+                        return;
+                      }
                       onCancelDraft(r.id);
                       setExpandedId(null);
                     };
@@ -6139,14 +6422,18 @@ function UnmarkedSection({
                         draft={draft}
                         isDrafting={isExpanded}
                         extraContent={
-                          <div className="grid gap-2 text-[11px] md:grid-cols-2">
-                            <div className="rounded-md bg-[#f8f7f5] px-2.5 py-2">
-                              <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{leftLabel}</p>
-                              <p className="mt-1 leading-snug text-muted-foreground">{r.prev?.deviation ?? "Clause did not exist."}</p>
+                          <div className="grid gap-orbit-s text-[11px] md:grid-cols-2">
+                            <div>
+                              <Card type="Static" padding="Small">
+                                <p className="text-[9px] v6-orbit-weight-semibold uppercase tracking-wide text-muted-foreground">{leftLabel}</p>
+                                <p className="mt-orbit-xs leading-snug text-muted-foreground">{r.prev?.deviation ?? "Clause did not exist."}</p>
+                              </Card>
                             </div>
-                            <div className="rounded-md bg-[#E6F1FB]/45 px-2.5 py-2">
-                              <p className="text-[9px] font-semibold uppercase tracking-wide text-[#185FA5]">{rightLabel}</p>
-                              <p className="mt-1 leading-snug text-foreground">{r.curr?.deviation ?? "Clause no longer present."}</p>
+                            <div>
+                              <Card type="Static" padding="Small" state="Accent">
+                                <p className="text-[9px] v6-orbit-weight-semibold uppercase tracking-wide text-[#185FA5]">{rightLabel}</p>
+                                <p className="mt-orbit-xs leading-snug text-foreground">{r.curr?.deviation ?? "Clause no longer present."}</p>
+                              </Card>
                             </div>
                           </div>
                         }
@@ -6177,10 +6464,25 @@ function UnmarkedSection({
                 </div>
               )}
             </>
-          )}
-        </CollapsibleContent>
-      </Collapsible>
-    </div>
+          )
+        )}
+      </div>
+      <V6OrbitConfirmOverlay
+        open={Boolean(pendingDraftCancelId)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setPendingDraftCancelId(null);
+        }}
+        title="Discard draft request?"
+        description="This will remove the request text you have drafted for this clause."
+        confirmLabel="Discard draft"
+        destructive
+        onConfirm={() => {
+          if (pendingDraftCancelId) onCancelDraft(pendingDraftCancelId);
+          setExpandedId(null);
+          setPendingDraftCancelId(null);
+        }}
+      />
+    </>
   );
 }
 
@@ -6204,58 +6506,62 @@ function RoundTracker({
     }
     return true;
   });
+  const roundColumns = [
+    {
+      id: "clause",
+      header: "Clause",
+      width: "260px",
+      render: (def: (typeof CLAUSE_FRAMEWORK)[number]) => (
+        <div>
+          <span className="text-sm v6-orbit-weight-medium text-foreground hover:text-primary">
+            {def.title}
+          </span>
+          <p className="text-[11px] tabular-nums text-muted-foreground">{def.id.toUpperCase()} · {def.category}</p>
+        </div>
+      ),
+    },
+    ...versions.map((v) => ({
+      id: v.version,
+      header: (
+        <div className="flex flex-col items-center">
+          <span className="tabular-nums text-xs v6-orbit-weight-bold text-foreground">Round {parseInt(v.version.replace("v", ""), 10)}</span>
+          <span className="text-[10px] text-muted-foreground tabular-nums">{v.version}</span>
+        </div>
+      ),
+      render: (def: (typeof CLAUSE_FRAMEWORK)[number]) => {
+        const state = stateOf(def.id);
+        const outcome = roundOutcome(def.id, v.version, versions, state);
+        return <Badge variant="outline" className={`${outcome.tone} text-[10px]`}>{outcome.label}</Badge>;
+      },
+    })),
+    {
+      id: "current",
+      header: "Current Status",
+      width: "140px",
+      render: (def: (typeof CLAUSE_FRAMEWORK)[number]) => {
+        const state = stateOf(def.id);
+        const latest = roundOutcome(def.id, versions.at(-1)!.version, versions, state);
+        return <Badge variant="outline" className={`${latest.tone} text-[10px]`}>{latest.label}</Badge>;
+      },
+    },
+  ];
 
   return (
-    <div className="space-y-3">
-      <div className="bg-card border border-border rounded-lg p-4">
-        <h2 className="text-base font-semibold text-foreground">History</h2>
+    <div className="space-y-orbit-base">
+      <div className="bg-card border border-border rounded-lg p-orbit-base">
+        <h2 className="v6-orbit-heading-5">History</h2>
         <p className="text-xs text-muted-foreground">Track clause changes and outcomes across negotiation rounds.</p>
       </div>
       <div className="bg-card border border-border rounded-lg overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[260px]">Clause</TableHead>
-            {versions.map((v) => (
-              <TableHead key={v.version} className="text-center">
-                <div className="flex flex-col items-center">
-                  <span className="font-mono text-xs font-bold text-foreground">Round {parseInt(v.version.replace("v", ""), 10)}</span>
-                  <span className="text-[10px] text-muted-foreground font-mono">{v.version}</span>
-                </div>
-              </TableHead>
-            ))}
-            <TableHead className="text-center w-[140px]">Current Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((def) => {
-            const state = stateOf(def.id);
-            // Current status = outcome of latest version.
-            const latest = roundOutcome(def.id, versions.at(-1)!.version, versions, state);
-            return (
-              <TableRow key={def.id} className="align-top cursor-pointer" onClick={() => onOpenDetail(def.id)}>
-                <TableCell>
-                  <span className="text-sm font-medium text-foreground hover:text-primary">
-                    {def.title}
-                  </span>
-                  <p className="text-[11px] font-mono text-muted-foreground">{def.id.toUpperCase()} · {def.category}</p>
-                </TableCell>
-                {versions.map((v) => {
-                  const o = roundOutcome(def.id, v.version, versions, state);
-                  return (
-                    <TableCell key={v.version} className="text-center">
-                      <DashboardChip label={o.label} variant={dashboardRoundOutcomeVariant(o.label)} />
-                    </TableCell>
-                  );
-                })}
-                <TableCell className="text-center">
-                  <DashboardChip label={latest.label} variant={dashboardRoundOutcomeVariant(latest.label)} />
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+        <OrbitTable
+          ariaLabel="Clause negotiation history"
+          columns={roundColumns}
+          rows={rows}
+          getRowKey={(row) => row.id}
+          density="Compact"
+          onRowSelect={(row) => onOpenDetail(row.id)}
+          getRowSelectionLabel={(row) => `Open ${row.title}`}
+        />
       </div>
     </div>
   );
@@ -6309,44 +6615,44 @@ function ClauseSlideOver({
     <div className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-foreground/25" onClick={onClose} />
       <aside className="flex h-full w-[380px] flex-col border-l border-border bg-white shadow-xl">
-        <div className="shrink-0 border-b border-border px-3.5 py-3">
-          <div className="flex items-start justify-between gap-3">
+        <div className="shrink-0 border-b border-border px-orbit-base py-orbit-base">
+          <div className="flex items-start justify-between gap-orbit-base">
             <div className="min-w-0">
-              <p className="text-[9px] font-medium uppercase text-muted-foreground">{clauseId.toUpperCase()} · {def.category}</p>
-              <h2 className="mt-1 truncate text-[13px] font-medium text-foreground">{display.title}</h2>
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                <DashboardSeverityChip severity={display.severity} label={display.severity} />
+              <p className="text-[9px] v6-orbit-weight-medium uppercase text-muted-foreground">{clauseId.toUpperCase()} · {def.category}</p>
+              <h2 className="v6-orbit-heading-label mt-orbit-xs truncate text-foreground">{display.title}</h2>
+              <div className="mt-orbit-s flex flex-wrap items-center gap-orbit-xs">
+                <Badge variant="outline" className={`${severityTone(display.severity)} text-[9px]`}>{display.severity}</Badge>
                 {changePill.status ? <ChangePillBadge result={changePill} /> : <RoundStatusPill status={historyRow.currentStatus}>{roundStatusLabel(historyRow.currentStatus)}</RoundStatusPill>}
                 <button
                   type="button"
                   onClick={() => onViewHistory(clauseId)}
-                  className="inline-flex items-center gap-1 rounded-full bg-[#FAEEDA]/70 px-2 py-0.5 text-[9px] font-medium text-[#633806] hover:bg-[#FAEEDA]"
+                  className="inline-flex items-center gap-orbit-xs rounded-full bg-[#FAEEDA]/70 px-orbit-s py-orbit-xxs text-[9px] v6-orbit-weight-medium text-[#633806] hover:bg-[#FAEEDA]"
                 >
                   <IconTimeline size={11} stroke={1.8} />
                   {historyRow.existsInRounds} rounds of history
                 </button>
               </div>
             </div>
-            <button type="button" onClick={onClose} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
+            <button type="button" onClick={onClose} className="rounded p-orbit-xs text-muted-foreground hover:bg-muted hover:text-foreground">
               <X className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
 
-        <div className="shrink-0 border-b border-border bg-[#f8f7f5] px-3.5 py-2">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-[9px] font-medium uppercase text-muted-foreground">Negotiation timeline</p>
+        <div className="shrink-0 border-b border-border bg-[#f8f7f5] px-orbit-base py-orbit-s">
+          <div className="mb-orbit-s flex items-center justify-between">
+            <p className="text-[9px] v6-orbit-weight-medium uppercase text-muted-foreground">Negotiation timeline</p>
             {mode === "comparison" && (
-              <button type="button" onClick={() => onViewHistory(clauseId)} className="text-[9px] font-medium text-primary hover:underline">
+              <button type="button" onClick={() => onViewHistory(clauseId)} className="text-[9px] v6-orbit-weight-medium text-primary hover:underline">
                 View in History →
               </button>
             )}
           </div>
-          <div className="relative flex min-w-0 items-start gap-3 overflow-x-auto px-1 pb-1" aria-label={`Timeline for ${display.title}`}>
+          <div className="relative flex min-w-0 items-start gap-orbit-base overflow-x-auto px-orbit-xs pb-orbit-xs" aria-label={`Timeline for ${display.title}`}>
             <div className="absolute left-4 right-4 top-2 h-px bg-border" aria-hidden />
             {historyRow.cells.map((cell, index) => (
-              <div key={cell.version || index} className="relative z-10 flex min-w-[42px] flex-col items-center gap-1">
-                <span className={`grid h-4 w-4 place-items-center rounded-full border text-[8px] font-medium ${roundStatusTone(cell.status)} ${index === historyRow.cells.length - 1 ? "outline outline-2 outline-offset-1 outline-[#185FA5]" : ""}`}>
+              <div key={cell.version || index} className="relative z-10 flex min-w-[42px] flex-col items-center gap-orbit-xs">
+                <span className={`grid h-4 w-4 place-items-center rounded-full border text-[8px] v6-orbit-weight-medium ${roundStatusTone(cell.status)} ${index === historyRow.cells.length - 1 ? "outline outline-2 outline-offset-1 outline-[#185FA5]" : ""}`}>
                   {index + 1}
                 </span>
                 <span className="text-[7px] text-muted-foreground">{cell.version || "—"}</span>
@@ -6355,55 +6661,55 @@ function ClauseSlideOver({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3.5 py-3">
+        <div className="min-h-0 flex-1 space-y-orbit-base overflow-y-auto px-orbit-base py-orbit-base">
           {mode === "comparison" ? (
             <>
               {callout && (
-                <div className={`rounded-md border-l-2 px-2.5 py-2 text-[10px] ${callout.className}`}>
+                <div className={`rounded-md border-l-2 px-orbit-s py-orbit-s text-[10px] ${callout.className}`}>
                   <p>{callout.text}</p>
                 </div>
               )}
               <SectionLabel>{leftLabel} → {rightLabel} diff</SectionLabel>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-md bg-[#f8f7f5] px-2.5 py-2 opacity-75">
-                  <p className="text-[8px] font-medium uppercase text-muted-foreground">{leftLabel} · previous</p>
-                  <p className="mt-1 text-[10px] text-foreground">{isNewClause ? `(Clause did not exist in ${leftLabel})` : prev?.deviation ?? "—"}</p>
+              <div className="grid grid-cols-2 gap-orbit-s">
+                <div className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s opacity-75">
+                  <p className="text-[8px] v6-orbit-weight-medium uppercase text-muted-foreground">{leftLabel} · previous</p>
+                  <p className="mt-orbit-xs text-[10px] text-foreground">{isNewClause ? `(Clause did not exist in ${leftLabel})` : prev?.deviation ?? "—"}</p>
                 </div>
-                <div className="rounded-md bg-[#E6F1FB]/50 px-2.5 py-2">
-                  <p className="text-[8px] font-medium uppercase text-[#185FA5]">{rightLabel} · current</p>
-                  <p className="mt-1 text-[10px] text-foreground">{curr?.deviation ?? display.deviation}</p>
+                <div className="rounded-md bg-[#E6F1FB]/50 px-orbit-s py-orbit-s">
+                  <p className="text-[8px] v6-orbit-weight-medium uppercase text-[#185FA5]">{rightLabel} · current</p>
+                  <p className="mt-orbit-xs text-[10px] text-foreground">{curr?.deviation ?? display.deviation}</p>
                 </div>
               </div>
               <SectionLabel>AI analysis</SectionLabel>
-              <p className="rounded-md bg-[#f8f7f5] px-2.5 py-2 text-[11px] text-muted-foreground">
+              <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s text-[11px] text-muted-foreground">
                 {display.improvementReason ?? display.actionability ?? `Based on the playbook benchmark for ${def.category}, review this clause before accepting the version.`}
               </p>
               {(changePill.status === "met" || changePill.status === "not_met") && request?.requestedChange && (
                 <>
                   <SectionLabel>Your request</SectionLabel>
-                  <p className="rounded-md bg-[#f8f7f5] px-2.5 py-2 text-[11px] text-muted-foreground">{request.requestedChange}</p>
+                  <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s text-[11px] text-muted-foreground">{request.requestedChange}</p>
                 </>
               )}
             </>
           ) : (
             <>
               <SectionLabel>Description</SectionLabel>
-              <p className="rounded-md bg-[#f8f7f5] px-2.5 py-2 text-[11px] text-muted-foreground">{display.deviation}</p>
+              <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s text-[11px] text-muted-foreground">{display.deviation}</p>
               <SectionLabel>Latest diff</SectionLabel>
-              <p className="rounded-md bg-[#f8f7f5] px-2.5 py-2 text-[11px] text-muted-foreground">
+              <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s text-[11px] text-muted-foreground">
                 {latestCell?.clause?.improvementReason ?? latestCell?.clause?.deviation ?? "No latest change available."}
               </p>
               <SectionLabel>AI analysis</SectionLabel>
-              <p className="rounded-md bg-[#f8f7f5] px-2.5 py-2 text-[11px] text-muted-foreground">
+              <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s text-[11px] text-muted-foreground">
                 {display.actionability ?? `Clause history shows ${historyRow.stateChanges} state change${historyRow.stateChanges === 1 ? "" : "s"} across the negotiation.`}
               </p>
               <SectionLabel>Round-by-round</SectionLabel>
-              <div className="space-y-1.5">
+              <div className="space-y-orbit-xs">
                 {historyRow.cells.map((cell, index) => (
-                  <div key={`${cell.version}-${index}`} className="flex items-start justify-between gap-2 rounded-md border border-border px-2.5 py-2 text-[10px]">
+                  <div key={`${cell.version}-${index}`} className="flex items-start justify-between gap-orbit-s rounded-md border border-border px-orbit-s py-orbit-s text-[10px]">
                     <div>
-                      <p className="font-medium text-foreground">Round {index + 1} · {cell.version}</p>
-                      <p className="mt-0.5 text-muted-foreground">{cell.clause?.improvementReason ?? cell.clause?.deviation ?? "Clause not present in this round."}</p>
+                      <p className="v6-orbit-weight-medium text-foreground">Round {index + 1} · {cell.version}</p>
+                      <p className="mt-orbit-xxs text-muted-foreground">{cell.clause?.improvementReason ?? cell.clause?.deviation ?? "Clause not present in this round."}</p>
                     </div>
                     <RoundStatusPill status={cell.status}>{cell.label}</RoundStatusPill>
                   </div>
@@ -6413,8 +6719,8 @@ function ClauseSlideOver({
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2 border-t border-border px-3.5 py-2.5">
-          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => toast({ title: "Full text", description: display.excerpt })}>
+        <div className="flex shrink-0 items-center gap-orbit-s border-t border-border px-orbit-base py-orbit-s">
+          <Button variant="outline" className="h-8 text-xs" onClick={() => toast({ title: "Full text", description: display.excerpt })}>
             View full text
           </Button>
           <SlideOverPrimaryAction
@@ -6462,12 +6768,12 @@ function SlideOverPrimaryAction({
   onKeepOpen: () => void;
   onMarkNewIssue: () => void;
 }) {
-  const className = "ml-auto h-8 bg-[#1a2744] px-3 text-xs text-white hover:bg-[#243454]";
-  if (status === "regressed") return <Button size="sm" className={className} onClick={onMarkNewIssue}>Request revert</Button>;
-  if (status === "new" || status === "improved") return <Button size="sm" className={className} onClick={onCloseClause}>Accept</Button>;
-  if (status === "met") return <Button size="sm" className={className} onClick={onCloseClause}>Mark resolved</Button>;
-  if (status === "not_met") return <Button size="sm" className={className} onClick={onKeepOpen}>Re-request</Button>;
-  return <Button size="sm" className={className} onClick={onMarkNewIssue}>Request change</Button>;
+  const className = "ml-auto h-8 bg-[#1a2744] px-orbit-base text-xs text-white hover:bg-[#243454]";
+  if (status === "regressed") return <Button className={className} onClick={onMarkNewIssue}>Request revert</Button>;
+  if (status === "new" || status === "improved") return <Button className={className} onClick={onCloseClause}>Accept</Button>;
+  if (status === "met") return <Button className={className} onClick={onCloseClause}>Mark resolved</Button>;
+  if (status === "not_met") return <Button className={className} onClick={onKeepOpen}>Re-request</Button>;
+  return <Button className={className} onClick={onMarkNewIssue}>Request change</Button>;
 }
 
 function detailCalloutForStatus(status: ChangePillStatus | null): {
@@ -6526,22 +6832,22 @@ function ClauseDetailPanel({
     <div className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-foreground/30" onClick={onClose} />
       <div className="w-full max-w-3xl bg-background border-l border-border overflow-y-auto">
-        <div className="sticky top-0 bg-background border-b border-border px-6 py-4 flex items-start justify-between gap-4">
+        <div className="sticky top-0 bg-background border-b border-border px-orbit-m py-orbit-base flex items-start justify-between gap-orbit-base">
           <div>
-            <p className="text-[10px] font-mono font-bold text-muted-foreground">{clauseId.toUpperCase()} · {def.category}</p>
-            <h2 className="text-lg font-bold text-foreground">{display.title}</h2>
-            <p className="text-xs font-mono text-muted-foreground">{display.subclause}</p>
+            <p className="text-[10px] tabular-nums v6-orbit-weight-bold text-muted-foreground">{clauseId.toUpperCase()} · {def.category}</p>
+            <h2 className="v6-orbit-heading-4">{display.title}</h2>
+            <p className="text-xs tabular-nums text-muted-foreground">{display.subclause}</p>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-orbit-xs">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-orbit-m space-y-orbit-m">
           {directionalCallout && (
-            <div className={`rounded-md border px-3 py-2 text-sm ${directionalCallout.className}`}>
-              <p className="font-medium">{directionalCallout.title}</p>
-              <p className="mt-0.5 text-xs opacity-85">{directionalCallout.description}</p>
+            <div className={`rounded-md border px-orbit-base py-orbit-s text-sm ${directionalCallout.className}`}>
+              <p className="v6-orbit-weight-medium">{directionalCallout.title}</p>
+              <p className="mt-orbit-xxs text-xs opacity-85">{directionalCallout.description}</p>
             </div>
           )}
 
@@ -6550,7 +6856,7 @@ function ClauseDetailPanel({
           {isNewClause ? (
             <SidePanel label={rightLabel} clause={curr} highlight />
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-orbit-base">
               <SidePanel label={leftLabel} clause={prev} />
               <SidePanel label={rightLabel} clause={curr} highlight={change === "material"} />
             </div>
@@ -6569,7 +6875,7 @@ function ClauseDetailPanel({
           {isNewClause ? (
             <ExcerptPanel label={rightLabel} text={curr?.excerpt} highlight />
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-orbit-base">
               <ExcerptPanel label={leftLabel} text={prev?.excerpt} />
               <ExcerptPanel label={rightLabel} text={curr?.excerpt} highlight={prev?.excerpt !== curr?.excerpt} />
             </div>
@@ -6581,25 +6887,25 @@ function ClauseDetailPanel({
 
           {/* Locations + actionability */}
           <SectionLabel>Additional locations & actionability</SectionLabel>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-md border border-border bg-card p-3 space-y-2">
+          <div className="grid grid-cols-2 gap-orbit-base">
+            <div className="rounded-md border border-border bg-card p-orbit-base space-y-orbit-s">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase">{leftLabel}</span>
-                <DashboardSeverityChip severity={prev?.severity} label={prev?.severity ?? "—"} />
+                <span className="text-[10px] tabular-nums v6-orbit-weight-semibold text-muted-foreground uppercase">{leftLabel}</span>
+                <Badge variant="outline" className={severityTone((prev ?? display).severity)}>{prev?.severity ?? "—"}</Badge>
               </div>
               <LocationsList items={prev?.locations} />
             </div>
-            <div className="rounded-md border border-border bg-card p-3 space-y-2">
+            <div className="rounded-md border border-border bg-card p-orbit-base space-y-orbit-s">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase">{rightLabel}</span>
-                <DashboardSeverityChip severity={curr?.severity} label={curr?.severity ?? "—"} />
+                <span className="text-[10px] tabular-nums v6-orbit-weight-semibold text-muted-foreground uppercase">{rightLabel}</span>
+                <Badge variant="outline" className={severityTone((curr ?? display).severity)}>{curr?.severity ?? "—"}</Badge>
               </div>
               <LocationsList items={curr?.locations} />
             </div>
           </div>
           {display.actionability && (
-            <div className="rounded-md border border-primary/20 bg-primary/5 p-3 space-y-1">
-              <p className="text-[10px] font-semibold text-primary uppercase tracking-wider flex items-center gap-1.5">
+            <div className="rounded-md border border-primary/20 bg-primary/5 p-orbit-base space-y-orbit-xs">
+              <p className="text-[10px] v6-orbit-weight-semibold text-primary uppercase tracking-wider flex items-center gap-orbit-xs">
                 <Lightbulb className="w-3 h-3" /> Suggested action
               </p>
               <p className="text-sm text-foreground">{display.actionability}</p>
@@ -6610,18 +6916,18 @@ function ClauseDetailPanel({
           {Object.keys(state.requests).length > 0 && (
             <>
               <SectionLabel>Requested change history</SectionLabel>
-              <div className="space-y-2">
+              <div className="space-y-orbit-s">
                 {Object.entries(state.requests)
                   .filter(([, r]) => r.requestedChange || r.rationale)
                   .sort((a, b) => a[0].localeCompare(b[0]))
                   .map(([v, r]) => (
-                    <div key={v} className="rounded-md border border-border bg-card p-3 text-sm space-y-1">
-                      <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">{v}</p>
+                    <div key={v} className="rounded-md border border-border bg-card p-orbit-base text-sm space-y-orbit-xs">
+                      <p className="text-[10px] v6-orbit-weight-semibold text-primary uppercase tracking-wider">{v}</p>
                       {r.requestedChange && (
-                        <p><span className="text-[10px] font-semibold text-muted-foreground uppercase mr-2">Ask</span>{r.requestedChange}</p>
+                        <p><span className="text-[10px] v6-orbit-weight-semibold text-muted-foreground uppercase mr-orbit-s">Ask</span>{r.requestedChange}</p>
                       )}
                       {r.rationale && (
-                        <p><span className="text-[10px] font-semibold text-muted-foreground uppercase mr-2">Why</span>{r.rationale}</p>
+                        <p><span className="text-[10px] v6-orbit-weight-semibold text-muted-foreground uppercase mr-orbit-s">Why</span>{r.rationale}</p>
                       )}
                     </div>
                   ))}
@@ -6631,59 +6937,55 @@ function ClauseDetailPanel({
 
 
           {/* Action panel */}
-          <div className="sticky bottom-0 -mx-6 px-6 py-4 bg-background border-t border-border flex items-center justify-between flex-wrap gap-3">
-            <div className="text-xs text-muted-foreground flex items-center gap-2">
-              <span className="font-semibold">{leftLabel} → {rightLabel}:</span>
+          <div className="sticky bottom-0 -mx-orbit-m px-orbit-m py-orbit-base bg-background border-t border-border flex items-center justify-between flex-wrap gap-orbit-base">
+            <div className="text-xs text-muted-foreground flex items-center gap-orbit-s">
+              <span className="v6-orbit-weight-semibold">{leftLabel} → {rightLabel}:</span>
               {changePill.status ? (
                 <ChangePillBadge result={changePill} />
               ) : (
-                <DashboardChip
-                  label={materialChangeLabel(change)}
-                  variant={dashboardMaterialChangeVariant(change)}
-                  borderedNoStatus={change === "material"}
-                />
+                <Badge variant="outline" className={`${materialChangeTone(change)} text-[10px]`}>{materialChangeLabel(change)}</Badge>
               )}
               {state.closures[targetVersion] && (
-                <span>· status <span className="font-semibold text-foreground">{state.closures[targetVersion]}</span></span>
+                <span>· status <span className="v6-orbit-weight-semibold text-foreground">{state.closures[targetVersion]}</span></span>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-orbit-s">
               {changePill.status === "improved" ? (
                 <>
-                  <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => onCloseClause(clauseId)}>
+                  <Button className="h-8 gap-orbit-xs text-xs" onClick={() => onCloseClause(clauseId)}>
                     <CheckCircle2 className="w-3.5 h-3.5" /> Accept
                   </Button>
-                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onMarkNewIssue(clauseId)}>
+                  <Button variant="outline" className="h-8 text-xs gap-orbit-xs" onClick={() => onMarkNewIssue(clauseId)}>
                     Challenge change
                   </Button>
                 </>
               ) : changePill.status === "regressed" ? (
                 <>
-                  <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => onMarkNewIssue(clauseId)}>
+                  <Button className="h-8 gap-orbit-xs text-xs" onClick={() => onMarkNewIssue(clauseId)}>
                     <AlertTriangle className="w-3.5 h-3.5" /> Request revert
                   </Button>
-                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onCloseClause(clauseId)}>
+                  <Button variant="outline" className="h-8 text-xs gap-orbit-xs" onClick={() => onCloseClause(clauseId)}>
                     Accept change
                   </Button>
                 </>
               ) : changePill.status === "new" ? (
                 <>
-                  <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => onCloseClause(clauseId)}>
+                  <Button className="h-8 gap-orbit-xs text-xs" onClick={() => onCloseClause(clauseId)}>
                     <CheckCircle2 className="w-3.5 h-3.5" /> Accept
                   </Button>
-                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onMarkNewIssue(clauseId)}>
+                  <Button variant="outline" className="h-8 text-xs gap-orbit-xs" onClick={() => onMarkNewIssue(clauseId)}>
                     Request removal
                   </Button>
                 </>
               ) : (
                 <>
-                  <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => onKeepOpen(clauseId)}>
-                    <Clock className="w-3.5 h-3.5" /> Keep Open
+                  <Button variant="outline" className="h-8 text-xs gap-orbit-xs" onClick={() => onKeepOpen(clauseId)}>
+                    <ArrowRight className="w-3.5 h-3.5" /> Keep Open
                   </Button>
-                  <Button size="sm" variant="default" className="h-8 text-xs gap-1.5" onClick={() => onCloseClause(clauseId)}>
+                  <Button variant="default" className="h-8 text-xs gap-orbit-xs" onClick={() => onCloseClause(clauseId)}>
                     <CheckCircle2 className="w-3.5 h-3.5" /> Close
                   </Button>
-                  <Button size="sm" variant="secondary" className="h-8 text-xs gap-1.5" onClick={() => onMarkNewIssue(clauseId)}>
+                  <Button variant="secondary" className="h-8 text-xs gap-orbit-xs" onClick={() => onMarkNewIssue(clauseId)}>
                     <AlertTriangle className="w-3.5 h-3.5" /> Mark as New Issue
                   </Button>
                 </>
@@ -6697,16 +6999,16 @@ function ClauseDetailPanel({
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{children}</p>;
+  return <p className="text-[10px] v6-orbit-weight-semibold text-muted-foreground uppercase tracking-wider">{children}</p>;
 }
 
 function SidePanel({ label, clause, highlight }: { label: string; clause?: ClauseResult; highlight?: boolean }) {
   return (
-    <div className={`rounded-md border p-3 space-y-2 ${highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
+    <div className={`rounded-md border p-orbit-base space-y-orbit-s ${highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase">{label}</span>
+        <span className="text-[10px] tabular-nums v6-orbit-weight-semibold text-muted-foreground uppercase">{label}</span>
         {clause && (
-          <DashboardSeverityChip severity={clause.severity} label={clause.severity} />
+          <Badge variant="outline" className={severityTone(clause.severity)}>{clause.severity}</Badge>
         )}
       </div>
       <p className="text-sm text-foreground">{clause?.deviation ?? "— Not present —"}</p>
@@ -6716,10 +7018,10 @@ function SidePanel({ label, clause, highlight }: { label: string; clause?: Claus
 
 function ExcerptPanel({ label, text, highlight }: { label: string; text?: string; highlight?: boolean }) {
   return (
-    <div className={`rounded-md border p-3 space-y-2 ${highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
-      <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase">{label}</span>
+    <div className={`rounded-md border p-orbit-base space-y-orbit-s ${highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
+      <span className="text-[10px] tabular-nums v6-orbit-weight-semibold text-muted-foreground uppercase">{label}</span>
       {text ? (
-        <p className="text-xs text-muted-foreground italic border-l-2 border-border pl-2">"{text}"</p>
+        <p className="text-xs text-muted-foreground italic border-l-2 border-border pl-orbit-s">"{text}"</p>
       ) : (
         <p className="text-xs text-muted-foreground italic">— Not present —</p>
       )}
@@ -6730,13 +7032,42 @@ function ExcerptPanel({ label, text, highlight }: { label: string; text?: string
 function LocationsList({ items }: { items?: string[] }) {
   if (!items || items.length === 0) return <p className="text-xs text-muted-foreground italic">No additional locations.</p>;
   return (
-    <ul className="space-y-1">
+    <ul className="space-y-orbit-xs">
       {items.map((l) => (
-        <li key={l} className="text-xs text-foreground font-mono flex items-center gap-1.5">
+        <li key={l} className="text-xs text-foreground tabular-nums flex items-center gap-orbit-xs">
           <MapPin className="w-3 h-3 text-muted-foreground" /> {l}
         </li>
       ))}
     </ul>
+  );
+}
+
+// ---- Supplier grouping provenance popover (TASK-04) ------------------------
+
+function SupplierGroupingPopover({
+  supplierId,
+  supplierName,
+  compact = false,
+}: {
+  supplierId: string;
+  supplierName: string;
+  compact?: boolean;
+}) {
+  const g = getSupplierGrouping(supplierId);
+  const isManual = g.source === "manual";
+  const groupingDetails = `Why is this grouped under ${supplierName}? ${g.matchBasis} Source: ${g.source}. Confidence: ${(g.confidence * 100).toFixed(0)}%.`;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button variant="outline" className={`${compact ? "h-7 px-orbit-s text-xs" : "h-9"} gap-orbit-xs`}>
+          <Info className="w-3.5 h-3.5" /> Why grouped?
+          <Badge variant="outline" className={`${compact ? "hidden 2xl:inline-flex" : ""} ${isManual ? "bg-secondary text-secondary-foreground border-border ml-orbit-xs" : "bg-success/10 text-success border-success/20 ml-orbit-xs"}`}>
+            {isManual ? "Manual" : `Auto · ${(g.confidence * 100).toFixed(0)}%`}
+          </Badge>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{groupingDetails}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -6765,11 +7096,11 @@ function HistoryDesignContent({
 
   if (option === "side-by-side") {
     return (
-      <div className="mx-auto grid w-full max-w-[1500px] gap-4 px-6 py-4 xl:grid-cols-[360px_minmax(0,1fr)] xl:items-start">
+      <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-base py-orbit-base xl:grid-cols-[360px_minmax(0,1fr)] xl:items-start">
         <aside className="self-start xl:sticky xl:top-[104px] xl:max-h-[calc(100vh-128px)] xl:overflow-y-auto">
           <section className="overflow-hidden rounded-lg border border-border bg-card">
             <HistoryRailTabs active={railTab} onChange={setRailTab} />
-            <div className="p-3">
+            <div className="p-orbit-base">
               {railTab === "summary" ? (
                 summaryRail
               ) : (
@@ -6791,7 +7122,7 @@ function HistoryDesignContent({
   }
 
   return (
-    <div className="mx-auto grid max-w-[1600px] grid-cols-[240px_minmax(0,1fr)] gap-6 px-6 py-6">
+    <div className="mx-auto grid max-w-[1600px] grid-cols-[240px_minmax(0,1fr)] gap-orbit-m px-orbit-base py-orbit-m">
       {categoryRail}
       <HistoryRoundTable
         versions={versions}
@@ -6811,14 +7142,14 @@ function HistoryRailTabs({
   onChange: (value: "summary" | "categories") => void;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-1 border-b border-border bg-[#f8f7f5] p-1">
+    <div className="grid grid-cols-2 gap-orbit-xs border-b border-border bg-[#f8f7f5] p-orbit-xs">
       {(["summary", "categories"] as const).map((value) => (
         <button
           key={value}
           type="button"
           onClick={() => onChange(value)}
           className={cn(
-            "h-7 rounded-md text-[11px] font-medium capitalize transition-colors",
+            "h-7 rounded-md text-[11px] v6-orbit-weight-medium capitalize transition-colors",
             active === value ? "bg-[#1a2744] text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
         >
@@ -6841,17 +7172,17 @@ function HistorySummaryPanel({
   const first = versions[0];
   const latest = versions.at(-1);
   return (
-    <div className={cn("space-y-3", !compact && "mt-4")}>
-      <div className="rounded-lg border border-border bg-[#f8f7f5] p-3">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Scope</p>
-        <p className="mt-1 text-sm font-semibold text-foreground">
+    <div className={cn("space-y-orbit-base", !compact && "mt-orbit-base")}>
+      <div className="rounded-lg border border-border bg-[#f8f7f5] p-orbit-base">
+        <p className="text-[10px] v6-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">Scope</p>
+        <p className="mt-orbit-xs text-sm v6-orbit-weight-semibold text-foreground">
           {first?.version ?? "v1"} → {latest?.version ?? "v1"}
         </p>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">
+        <p className="mt-orbit-xxs text-[11px] text-muted-foreground">
           {versions.length} rounds{first && latest ? ` · ${formatShortDate(first.uploadedAt)} to ${formatShortDate(latest.uploadedAt)}` : ""}
         </p>
       </div>
-      <div className={cn("grid gap-2", compact ? "grid-cols-2" : "grid-cols-2 lg:grid-cols-4")}>
+      <div className={cn("grid gap-orbit-s", compact ? "grid-cols-2" : "grid-cols-2 lg:grid-cols-4")}>
         <HistoryStatCard value={model.stats.totalClauses} label="Total clauses" trend={`across ${model.stats.roundCount} rounds`} />
         <HistoryStatCard value={model.stats.stillOpen} label="Still open" trend="needs attention" tone="danger" />
         <HistoryStatCard value={model.stats.avgRoundsToResolve} label="Avg resolve" trend="rounds to resolve" tone="success" />
@@ -6879,7 +7210,7 @@ function HistoryRoundTable({
 }) {
   if (rows.length === 0) {
     return (
-      <div className="py-16 text-center text-[11px] italic text-muted-foreground">
+      <div className="py-orbit-mega text-center text-[11px] italic text-muted-foreground">
         No clauses match the current filters.
       </div>
     );
@@ -6891,15 +7222,15 @@ function HistoryRoundTable({
         className="min-w-[560px]"
         style={{ display: "grid", gridTemplateColumns: `24px minmax(160px,1.35fr) repeat(${versions.length}, minmax(62px,0.75fr)) minmax(76px,0.8fr) 28px` }}
       >
-        <div className="border-b border-border bg-[#f8f7f5] px-3 py-2" />
-        <div className="border-b border-border bg-[#f8f7f5] px-3 py-2 text-[9px] font-medium uppercase tracking-[0.04em] text-muted-foreground">Clause</div>
+        <div className="border-b border-border bg-[#f8f7f5] px-orbit-base py-orbit-s" />
+        <div className="border-b border-border bg-[#f8f7f5] px-orbit-base py-orbit-s text-[9px] v6-orbit-weight-medium uppercase tracking-[0.04em] text-muted-foreground">Clause</div>
         {versions.map((version, index) => (
-          <div key={version.version} className="border-b border-border bg-[#f8f7f5] px-2 py-2 text-center text-[9px] font-medium uppercase tracking-[0.04em] text-muted-foreground">
+          <div key={version.version} className="border-b border-border bg-[#f8f7f5] px-orbit-s py-orbit-s text-center text-[9px] v6-orbit-weight-medium uppercase tracking-[0.04em] text-muted-foreground">
             R{index + 1} {version.version}
           </div>
         ))}
-        <div className="border-b border-border bg-[#f8f7f5] px-2 py-2 text-center text-[9px] font-medium uppercase tracking-[0.04em] text-muted-foreground">Status</div>
-        <div className="border-b border-border bg-[#f8f7f5] px-2 py-2" />
+        <div className="border-b border-border bg-[#f8f7f5] px-orbit-s py-orbit-s text-center text-[9px] v6-orbit-weight-medium uppercase tracking-[0.04em] text-muted-foreground">Status</div>
+        <div className="border-b border-border bg-[#f8f7f5] px-orbit-s py-orbit-s" />
 
         {rows.map((row) => (
           <button
@@ -6909,22 +7240,22 @@ function HistoryRoundTable({
             onClick={() => onOpenDetail(row.id)}
             className={`group contents text-left ${highlightedId === row.id ? "[&>*]:bg-[#E6F1FB]" : ""}`}
           >
-            <div className="border-b border-border px-3 py-2.5 transition-colors group-hover:bg-[#f8f7f5]">
-              {row.stateChanges >= 3 && <span className="mt-2 block h-1.5 w-1.5 rounded-full bg-[#A32D2D]" title="Highly contentious" />}
+            <div className="border-b border-border px-orbit-base py-orbit-s transition-colors group-hover:bg-[#f8f7f5]">
+              {row.stateChanges >= 3 && <span className="mt-orbit-s block h-1.5 w-1.5 rounded-full bg-[#A32D2D]" title="Highly contentious" />}
             </div>
-            <div className="min-w-0 border-b border-border px-3 py-2.5 transition-colors group-hover:bg-[#f8f7f5]">
-              <p className="truncate text-[11px] font-medium text-foreground">{row.title}</p>
+            <div className="min-w-0 border-b border-border px-orbit-base py-orbit-s transition-colors group-hover:bg-[#f8f7f5]">
+              <p className="truncate text-[11px] v6-orbit-weight-medium text-foreground">{row.title}</p>
               <p className="truncate text-[9px] uppercase text-muted-foreground">{row.id.toUpperCase()} · {row.category}</p>
             </div>
             {row.cells.map((cell) => (
-              <div key={`${row.id}-${cell.version}`} className="border-b border-border px-2 py-2.5 text-center transition-colors group-hover:bg-[#f8f7f5]">
+              <div key={`${row.id}-${cell.version}`} className="border-b border-border px-orbit-s py-orbit-s text-center transition-colors group-hover:bg-[#f8f7f5]">
                 <RoundStatusPill status={cell.status}>{cell.label}</RoundStatusPill>
               </div>
             ))}
-            <div className="border-b border-border px-2 py-2.5 text-center transition-colors group-hover:bg-[#f8f7f5]">
+            <div className="border-b border-border px-orbit-s py-orbit-s text-center transition-colors group-hover:bg-[#f8f7f5]">
               {row.currentPill.status ? <ChangePillBadge result={row.currentPill} /> : <RoundStatusPill status={row.currentStatus}>{roundStatusLabel(row.currentStatus)}</RoundStatusPill>}
             </div>
-            <div className="border-b border-border px-2 py-2.5 text-center text-sm text-muted-foreground transition-colors group-hover:bg-[#f8f7f5]">›</div>
+            <div className="border-b border-border px-orbit-s py-orbit-s text-center text-sm text-muted-foreground transition-colors group-hover:bg-[#f8f7f5]">›</div>
           </button>
         ))}
       </div>
@@ -6933,7 +7264,11 @@ function HistoryRoundTable({
 }
 
 function RoundStatusPill({ status, children }: { status: RoundStatus; children: ReactNode }) {
-  return <DashboardChip label={String(children)} variant={dashboardRoundStatusVariant(status)} />;
+  return (
+    <span className={`inline-flex rounded-full border px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium ${roundStatusTone(status)}`}>
+      {children}
+    </span>
+  );
 }
 
 function roundStatusTone(status: RoundStatus) {
@@ -6961,22 +7296,22 @@ function ClauseAuditPanel({ clauseId }: { clauseId: string }) {
   const conf = confidenceLabel(audit.confidence);
   const history = audit.history ?? [];
   return (
-    <div className="rounded-md border border-border bg-card p-4 space-y-3">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
+    <div className="rounded-md border border-border bg-card p-orbit-base space-y-orbit-base">
+      <div className="flex items-start justify-between gap-orbit-base flex-wrap">
         <div>
-          <p className="text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+          <p className="text-[10px] tabular-nums v6-orbit-weight-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-orbit-xs">
             <ShieldCheck className="w-3 h-3" /> {audit.ruleId} · {audit.ruleName}
           </p>
           <p className="text-xs text-muted-foreground">
-            Rule version <span className="font-mono">{audit.ruleVersion}</span>
+            Rule version <span className="tabular-nums">{audit.ruleVersion}</span>
           </p>
         </div>
         {/* DI-17: numeric band + reasoning shown inline, no hover required */}
-        <div className="flex flex-col items-end gap-1">
-          <Badge variant="outline" className={`${conf.tone} text-[11px] gap-1`}>
+        <div className="flex flex-col items-end gap-orbit-xs">
+          <Badge variant="outline" className={`${conf.tone} text-[11px] gap-orbit-xs`}>
             <Sigma className="w-3 h-3" /> {conf.label} confidence ·{" "}
-            <span className="font-mono">{(audit.confidence * 100).toFixed(0)}%</span>
-            <span className="opacity-60 font-mono">({conf.range})</span>
+            <span className="tabular-nums">{(audit.confidence * 100).toFixed(0)}%</span>
+            <span className="opacity-60 tabular-nums">({conf.range})</span>
           </Badge>
           <p className="text-[11px] text-muted-foreground max-w-[280px] text-right">{conf.reasoning}</p>
         </div>
@@ -6985,71 +7320,71 @@ function ClauseAuditPanel({ clauseId }: { clauseId: string }) {
       <Tabs defaultValue="rule" className="w-full">
         <TabsList className="h-8">
           <TabsTrigger value="rule" className="text-[11px] h-7">Active rule</TabsTrigger>
-          <TabsTrigger value="history" className="text-[11px] h-7 gap-1">
+          <TabsTrigger value="history" className="text-[11px] h-7 gap-orbit-xs">
             <History className="w-3 h-3" /> Rule history
             {history.length > 0 && (
-              <span className="ml-0.5 px-1 rounded bg-muted text-[10px] font-mono text-muted-foreground">
+              <span className="ml-orbit-xxs px-orbit-xs rounded bg-muted text-[10px] tabular-nums text-muted-foreground">
                 {history.length}
               </span>
             )}
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="rule" className="m-0 mt-3 space-y-3">
+        <TabsContent value="rule" className="m-orbit-none mt-orbit-base space-y-orbit-base">
           <div>
-            <p className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">Expectation</p>
+            <p className="text-[10px] v6-orbit-weight-semibold uppercase text-muted-foreground tracking-wider">Expectation</p>
             <p className="text-sm text-foreground">{audit.expectation}</p>
           </div>
           {audit.matchedExcerpt && (
             <div>
-              <p className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">Matched clause excerpt</p>
-              <p className="text-xs italic text-muted-foreground border-l-2 border-primary/40 pl-2 mt-1">"{audit.matchedExcerpt}"</p>
-              {audit.location && <p className="text-[11px] font-mono text-muted-foreground mt-1">Location: {audit.location}</p>}
+              <p className="text-[10px] v6-orbit-weight-semibold uppercase text-muted-foreground tracking-wider">Matched clause excerpt</p>
+              <p className="text-xs italic text-muted-foreground border-l-2 border-primary/40 pl-orbit-s mt-orbit-xs">"{audit.matchedExcerpt}"</p>
+              {audit.location && <p className="text-[11px] tabular-nums text-muted-foreground mt-orbit-xs">Location: {audit.location}</p>}
             </div>
           )}
           <div>
-            <p className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider">AI rationale</p>
+            <p className="text-[10px] v6-orbit-weight-semibold uppercase text-muted-foreground tracking-wider">AI rationale</p>
             <p className="text-xs text-foreground">{audit.rationale}</p>
           </div>
           {audit.confidence < 0.7 && (
-            <div className="rounded border border-destructive/30 bg-destructive/5 p-2 text-[11px] text-destructive flex items-center gap-1.5">
+            <div className="rounded border border-destructive/30 bg-destructive/5 p-orbit-s text-[11px] text-destructive flex items-center gap-orbit-xs">
               <AlertTriangle className="w-3 h-3" /> Low confidence — review the source clause before accepting.
             </div>
           )}
           {audit.evidenceUrl && (
             <a
               href={audit.evidenceUrl}
-              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+              className="inline-flex items-center gap-orbit-xs text-xs text-primary hover:underline"
             >
               View evidence <ExternalLink className="w-3 h-3" />
             </a>
           )}
         </TabsContent>
 
-        <TabsContent value="history" className="m-0 mt-3">
+        <TabsContent value="history" className="m-orbit-none mt-orbit-base">
           {history.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">No prior versions recorded for this rule.</p>
           ) : (
-            <ol className="space-y-2.5 border-l border-border pl-3">
+            <ol className="space-y-orbit-s border-l border-border pl-orbit-base">
               {history.map((h, i) => {
                 const prevExpectation = history[i + 1]?.expectation;
                 const changedExpectation = prevExpectation && prevExpectation !== h.expectation;
                 return (
                   <li key={h.version} className="relative">
                     <span className="absolute -left-[18px] top-1 w-2.5 h-2.5 rounded-full bg-primary/70 border-2 border-card" aria-hidden />
-                    <div className="flex flex-wrap items-baseline gap-2">
-                      <span className="font-mono text-[11px] font-semibold text-foreground">{h.version}</span>
+                    <div className="flex flex-wrap items-baseline gap-orbit-s">
+                      <span className="tabular-nums text-[11px] v6-orbit-weight-semibold text-foreground">{h.version}</span>
                       <span className="text-[10px] text-muted-foreground">{h.date}</span>
                       <span className="text-[10px] text-muted-foreground">· {h.author}</span>
                       {i === 0 && (
-                        <Badge variant="outline" className="text-[9px] h-4 px-1.5 bg-primary/10 text-primary border-primary/30">
+                        <Badge variant="outline" className="text-[9px] h-4 px-orbit-xs bg-primary/10 text-primary border-primary/30">
                           current
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-foreground mt-0.5">{h.change}</p>
+                    <p className="text-xs text-foreground mt-orbit-xxs">{h.change}</p>
                     {changedExpectation && (
-                      <div className="mt-1 text-[11px] rounded border border-border bg-muted/30 p-2 space-y-0.5">
+                      <div className="mt-orbit-xs text-[11px] rounded border border-border bg-muted/30 p-orbit-s space-y-orbit-xxs">
                         <p>
                           <span className="text-destructive line-through decoration-destructive">
                             {prevExpectation}

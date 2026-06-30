@@ -55,6 +55,11 @@ export function isPrototypeV5(version: PrototypeVersion) {
   return version.versionNumber === 5 || title === "prototype v5" || title.includes("v5");
 }
 
+export function isPrototypeV6(version: PrototypeVersion) {
+  const title = version.title.trim().toLowerCase();
+  return version.versionNumber === 6 || title === "prototype v6" || title.includes("v6") || version.previewUrl === "/clauseiq-v6";
+}
+
 export function isResponsiveTestingPrototype(version: PrototypeVersion) {
   const title = version.title.trim().toLowerCase();
   return title === "responsive testing" || title.includes("responsive testing") || version.previewUrl?.startsWith("/clauseiq-responsive-testing");
@@ -73,6 +78,7 @@ export function isPrototypeCP(version: PrototypeVersion) {
 export function prototypePreviewUrl(version: PrototypeVersion) {
   if (isPrototypeCP(version)) return "/prototype-cp-v2";
   if (isResponsiveTestingPrototype(version)) return "/clauseiq-responsive-testing";
+  if (isPrototypeV6(version)) return "/clauseiq-v6";
   if (isPrototypeV5(version)) return "/clauseiq-v5";
   if (isPrototypeV4(version)) return "/clauseiq-v4";
   if (isPrototypeV3(version)) return "/clauseiq-v3";
@@ -138,9 +144,10 @@ function seed(): Prototype {
   const v3 = createV3Version(protoId, 3);
   const v4 = createV4Version(protoId, 4);
   const v5 = createV5Version(protoId, 5);
-  const responsiveTesting = createResponsiveTestingVersion(protoId, 6);
-  const prototypeCP = createPrototypeCPVersion(protoId, 7);
-  return { id: protoId, name: "ClauseIQ Prototype", versions: [v1, v2, v3, v4, v5, responsiveTesting, prototypeCP] };
+  const v6 = createV6Version(protoId, 6);
+  const responsiveTesting = createResponsiveTestingVersion(protoId, 7);
+  const prototypeCP = createPrototypeCPVersion(protoId, 8);
+  return { id: protoId, name: "ClauseIQ Prototype", versions: [v1, v2, v3, v4, v5, v6, responsiveTesting, prototypeCP] };
 }
 
 function createV3Version(protoId: string, versionNumber: number): PrototypeVersion {
@@ -182,6 +189,21 @@ function createV5Version(protoId: string, versionNumber: number): PrototypeVersi
     goal: "Move ClauseIQ onto the Orbit design system and refine the first-analysis dashboard workflow.",
     notes: "Promoted the Orbit-based v5 branch with updated intake, output panel, initiative modal, first-analysis dashboard cards, and History placeholder.",
     previewUrl: "/clauseiq-v5",
+    status: "In progress",
+    createdAt: new Date().toISOString(),
+    feedback: [],
+  };
+}
+
+function createV6Version(protoId: string, versionNumber: number): PrototypeVersion {
+  return {
+    id: uid(),
+    prototypeId: protoId,
+    versionNumber,
+    title: "Prototype CCP - v6",
+    goal: "Duplicate Prototype CCP - v5 into a fully isolated v6 branch for the next design iteration.",
+    notes: "Forked from v5 with separate /clauseiq-v6, /initiatives-v6, and /delivery-engine-v6 routes so v6 changes no longer affect v5.",
+    previewUrl: "/clauseiq-v6",
     status: "In progress",
     createdAt: new Date().toISOString(),
     feedback: [],
@@ -258,6 +280,19 @@ function ensureCurrentVersions(prototype: Prototype): Prototype {
       changed = changed || JSON.stringify(next) !== JSON.stringify(version);
       return next;
     }
+    if (isPrototypeV6(version)) {
+      const next = {
+        ...version,
+        versionNumber: 6,
+        title: "Prototype CCP - v6",
+        goal: "Duplicate Prototype CCP - v5 into a fully isolated v6 branch for the next design iteration.",
+        notes: "Forked from v5 with separate /clauseiq-v6, /initiatives-v6, and /delivery-engine-v6 routes so v6 changes no longer affect v5.",
+        previewUrl: "/clauseiq-v6",
+        status: version.status === "Complete" ? "In progress" as VersionStatus : version.status,
+      };
+      changed = changed || JSON.stringify(next) !== JSON.stringify(version);
+      return next;
+    }
     if (isPrototypeV4(version)) {
       const next = {
         ...version,
@@ -299,13 +334,17 @@ function ensureCurrentVersions(prototype: Prototype): Prototype {
     nextVersions = [...nextVersions, createV5Version(prototype.id, 5)];
     changed = true;
   }
+  if (!nextVersions.some((version) => isPrototypeV6(version))) {
+    nextVersions = [...nextVersions, createV6Version(prototype.id, 6)];
+    changed = true;
+  }
   if (!nextVersions.some((version) => isResponsiveTestingPrototype(version))) {
-    const nextNumber = Math.max(6, ...nextVersions.map((version) => version.versionNumber + 1));
+    const nextNumber = Math.max(7, ...nextVersions.map((version) => version.versionNumber + 1));
     nextVersions = [...nextVersions, createResponsiveTestingVersion(prototype.id, nextNumber)];
     changed = true;
   }
   if (!nextVersions.some((version) => isPrototypeCP(version))) {
-    const nextNumber = Math.max(7, ...nextVersions.map((version) => version.versionNumber + 1));
+    const nextNumber = Math.max(8, ...nextVersions.map((version) => version.versionNumber + 1));
     nextVersions = [...nextVersions, createPrototypeCPVersion(prototype.id, nextNumber)];
     changed = true;
   }
@@ -373,7 +412,9 @@ export function usePrototypeStore() {
         const nextNumber = Math.max(...prev.versions.map((v) => v.versionNumber)) + 1;
         const title = `Prototype v${nextNumber}`;
         const previewUrl =
-          nextNumber >= 5 || isPrototypeV5(src)
+          isPrototypeV6(src)
+            ? "/clauseiq-v6"
+            : nextNumber >= 5 || isPrototypeV5(src)
             ? "/clauseiq-v5"
             : nextNumber >= 4 || isPrototypeV4(src)
             ? "/clauseiq-v4"

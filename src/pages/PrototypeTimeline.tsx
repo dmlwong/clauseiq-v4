@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, type NavigateFunction } from "react-router-dom";
 import {
   Copy,
   ChevronRight,
@@ -128,10 +128,10 @@ function relativeDate(iso: string) {
   return fmtDate(iso);
 }
 
-function openPrototype(url?: string) {
+function openPrototype(url: string | undefined, navigate: NavigateFunction) {
   if (!url) return;
   if (url.startsWith("/")) {
-    window.location.assign(url);
+    navigate(url);
     return;
   }
   window.open(url, "_blank", "noopener,noreferrer");
@@ -223,12 +223,12 @@ export default function PrototypeTimeline() {
             </div>
             <div className="space-y-4">
               {currentVersions.map((version) => (
-                <CurrentCard
+              <CurrentCard
                   key={version.id}
                   version={version}
                   onView={() => navigate(`/prototypes/${version.id}`)}
                   onDuplicate={() => handleDuplicate(version.id)}
-                  onOpen={() => openPrototype(prototypePreviewUrl(version))}
+                  onOpen={() => openPrototype(prototypePreviewUrl(version), navigate)}
                   onDelete={() => handleDelete(version.id)}
                 />
               ))}
@@ -249,7 +249,7 @@ export default function PrototypeTimeline() {
                     version={v}
                     onView={() => navigate(`/prototypes/${v.id}`)}
                     onDuplicate={() => handleDuplicate(v.id)}
-                    onOpen={() => openPrototype(prototypePreviewUrl(v))}
+                    onOpen={() => openPrototype(prototypePreviewUrl(v), navigate)}
                     onDelete={() => handleDelete(v.id)}
                   />
                 ))}
@@ -270,9 +270,9 @@ export default function PrototypeTimeline() {
 
         {activeTab === "current" && hasCurrentVersions && (
           <div className="space-y-4">
-            {hasCurrentV6 && <V6QuickLinksSection />}
-            {hasCurrentV5 && <V5QuickLinksSection />}
-            {hasResponsiveTestingCurrent && <ResponsiveTestingQuickLinksSection />}
+            {hasCurrentV6 && <V6QuickLinksSection onOpen={(url) => openPrototype(url, navigate)} />}
+            {hasCurrentV5 && <V5QuickLinksSection onOpen={(url) => openPrototype(url, navigate)} />}
+            {hasResponsiveTestingCurrent && <ResponsiveTestingQuickLinksSection onOpen={(url) => openPrototype(url, navigate)} />}
           </div>
         )}
       </div>
@@ -280,7 +280,7 @@ export default function PrototypeTimeline() {
   );
 }
 
-function V6QuickLinksSection() {
+function V6QuickLinksSection({ onOpen }: { onOpen: (url: string) => void }) {
   return (
     <section className="rounded-xl border border-primary/20 bg-primary/5 p-5 shadow-sm">
       <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
@@ -300,7 +300,7 @@ function V6QuickLinksSection() {
               key={entry.url}
               variant={entry.primary ? "default" : "outline"}
               className="h-auto justify-between gap-3 px-4 py-3 text-left"
-              onClick={() => openPrototype(entry.url)}
+              onClick={() => onOpen(entry.url)}
             >
               <span className="min-w-0">
                 <span className="block text-sm font-semibold">{entry.label}</span>
@@ -317,7 +317,7 @@ function V6QuickLinksSection() {
   );
 }
 
-function V5QuickLinksSection() {
+function V5QuickLinksSection({ onOpen }: { onOpen: (url: string) => void }) {
   return (
     <section className="rounded-xl border border-primary/20 bg-primary/5 p-5 shadow-sm">
       <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
@@ -337,7 +337,7 @@ function V5QuickLinksSection() {
               key={entry.url}
               variant={entry.primary ? "default" : "outline"}
               className="h-auto justify-between gap-3 px-4 py-3 text-left"
-              onClick={() => openPrototype(entry.url)}
+              onClick={() => onOpen(entry.url)}
             >
               <span className="min-w-0">
                 <span className="block text-sm font-semibold">{entry.label}</span>
@@ -354,7 +354,7 @@ function V5QuickLinksSection() {
   );
 }
 
-function ResponsiveTestingQuickLinksSection() {
+function ResponsiveTestingQuickLinksSection({ onOpen }: { onOpen: (url: string) => void }) {
   return (
     <section className="rounded-xl border border-primary/20 bg-primary/5 p-5 shadow-sm">
       <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
@@ -374,7 +374,7 @@ function ResponsiveTestingQuickLinksSection() {
               key={entry.url}
               variant={entry.primary ? "default" : "outline"}
               className="h-auto justify-between gap-3 px-4 py-3 text-left"
-              onClick={() => openPrototype(entry.url)}
+              onClick={() => onOpen(entry.url)}
             >
               <span className="min-w-0">
                 <span className="block text-sm font-semibold">{entry.label}</span>

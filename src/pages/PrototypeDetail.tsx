@@ -26,6 +26,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   usePrototypeStore,
+  isPrototypeCP,
+  isPrototypeV3,
+  isPrototypeV4,
+  isPrototypeV5,
+  isPrototypeV6,
+  isResponsiveTestingPrototype,
   prototypePreviewUrl,
   summarize,
   type FeedbackItem,
@@ -57,6 +63,26 @@ const statusTone: Record<FeedbackStatus, string> = {
   "In progress": "bg-warning/10 text-warning-foreground border-warning/30",
   Resolved: "bg-success/10 text-success border-success/30",
 };
+
+function isInternalPrototypeUrl(url?: string) {
+  if (!url) return false;
+  if (url.startsWith("/")) return true;
+  return [
+    "/prototype-cp",
+    "/prototype-cp-v2",
+    "/clauseiq-responsive-testing",
+    "/clauseiq-v6",
+    "/clauseiq-v5",
+    "/clauseiq-v4",
+    "/clauseiq-v3",
+    "/initiatives",
+    "/initiatives-v2",
+    "/initiatives-v3",
+    "/initiatives-v4",
+    "/initiatives-v5",
+    "/initiatives-v6",
+  ].some((path) => url.includes(path));
+}
 
 export default function PrototypeDetail() {
   const { versionId } = useParams();
@@ -117,6 +143,15 @@ export default function PrototypeDetail() {
   const handleDelete = () => {
     deleteVersion(version.id);
     navigate("/");
+  };
+
+  const openPrototype = () => {
+    if (!previewUrl) return;
+    if (isInternalPrototypeUrl(previewUrl)) {
+      navigate(previewUrl);
+      return;
+    }
+    window.open(previewUrl, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -238,14 +273,13 @@ export default function PrototypeDetail() {
               <Link2 className="w-3.5 h-3.5" /> Prototype URL
             </p>
             {previewUrl ? (
-              <a
-                href={previewUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary text-sm underline break-all"
+              <button
+                type="button"
+                onClick={openPrototype}
+                className="text-primary text-sm underline break-all text-left hover:text-primary/90"
               >
                 {previewUrl}
-              </a>
+              </button>
             ) : (
               <p className="text-sm text-muted-foreground italic">
                 No prototype URL set yet — add one via Edit.
@@ -253,7 +287,7 @@ export default function PrototypeDetail() {
             )}
           </div>
           <Button
-            onClick={() => previewUrl && window.open(previewUrl, "_blank", "noopener,noreferrer")}
+            onClick={openPrototype}
             disabled={!previewUrl}
             className="gap-2 shrink-0"
           >

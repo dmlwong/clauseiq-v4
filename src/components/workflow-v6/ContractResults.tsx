@@ -3056,10 +3056,12 @@ function ComparisonHeader({
 
   return (
     <>
-      <div className="flex h-8 items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] bg-[#f8f7f5] px-orbit-base text-[11px] text-muted-foreground">
+      <div className="flex min-h-8 items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] bg-[#f8f7f5] px-orbit-base py-orbit-xxs text-[11px] text-muted-foreground">
         <span className="shrink-0 text-[10px] v6-orbit-weight-medium uppercase tracking-[0.04em]">Comparing</span>
         {versions.length >= 2 ? (
-          <PairSelector versions={versions} pair={pair} onChange={onPairChange} compact />
+          <span className="text-[10px] text-muted-foreground">
+            {pair.left} to {pair.right}
+          </span>
         ) : (
           <span className="text-[10px] text-muted-foreground">{contract.version || pair.right}</span>
         )}
@@ -3067,12 +3069,19 @@ function ComparisonHeader({
           Total Clauses - <strong className="text-foreground">{contract.total}</strong>
         </span>
         <InlineMetIndicator comparison={comparison} hasVersionComparison={hasVersionComparison} />
-        <div className="ml-auto rounded-md border border-border bg-white px-orbit-s py-orbit-xxs text-[10px]">
-          <span className="mr-orbit-xs uppercase text-muted-foreground">Score</span>
-          <strong className="text-[13px] text-foreground">{contract.score}</strong>
-          <span className={comparison.scoreDelta > 0 ? "ml-orbit-xs text-[#3B6D11]" : comparison.scoreDelta < 0 ? "ml-orbit-xs text-[#A32D2D]" : "ml-orbit-xs text-muted-foreground"}>
-            {comparison.scoreDelta > 0 ? `↑+${comparison.scoreDelta}` : comparison.scoreDelta < 0 ? `↓-${Math.abs(comparison.scoreDelta)}` : "→0"}
-          </span>
+        <div className="ml-auto min-w-[220px] rounded-md border border-border bg-white px-orbit-s py-orbit-xxs text-[10px]">
+          <div className="flex items-center">
+            <span className="mr-orbit-xs uppercase text-muted-foreground">Score</span>
+            <strong className="text-[13px] text-foreground">{contract.score}</strong>
+            <span className={comparison.scoreDelta > 0 ? "ml-orbit-xs text-[#3B6D11]" : comparison.scoreDelta < 0 ? "ml-orbit-xs text-[#A32D2D]" : "ml-orbit-xs text-muted-foreground"}>
+              {comparison.scoreDelta > 0 ? `↑+${comparison.scoreDelta}` : comparison.scoreDelta < 0 ? `↓-${Math.abs(comparison.scoreDelta)}` : "→0"}
+            </span>
+          </div>
+          {versions.length >= 2 && (
+            <div className="mt-orbit-xxs">
+              <PairSelector versions={versions} pair={pair} onChange={onPairChange} compact />
+            </div>
+          )}
         </div>
       </div>
       <HybridVersionMovementPanel
@@ -4796,7 +4805,6 @@ function ClauseDecisionCard({
             )
           )}
           {stateBadge}
-          {pendingBasketRequest && <RequestLifecycleBadge request={request} />}
           {settled && !pendingBasketRequest && (
             <>
               <Tooltip>
@@ -4821,11 +4829,6 @@ function ClauseDecisionCard({
                 {decision === "request-update" ? "Edit" : "Change"}
               </button>
             </>
-          )}
-          {isDrafting && (
-            <Badge variant="outline" className="bg-[#E6F1FB] text-[#0C447C] border-[#185FA5]/25 text-[10px]">
-              Drafting request
-            </Badge>
           )}
         </div>
 
@@ -5092,11 +5095,6 @@ function ClauseRowScaleCard({
                     Missing Clause
                   </Badge>
                 )
-              )}
-              {isDrafting && (
-                <Badge variant="outline" className="rounded-full border-[#185FA5]/25 bg-[#E6F1FB] px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium text-[#0C447C]">
-                  Drafting request
-                </Badge>
               )}
             </div>
             <p className="text-[11px] text-muted-foreground">

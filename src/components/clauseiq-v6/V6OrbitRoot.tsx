@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { OrbitInspector } from "@efficio/orbit/inspector";
 import "@orbit-tokens";
 import "@orbit-fonts";
 import "@/components/clauseiq-v6/orbit-theme.css";
@@ -22,6 +23,7 @@ export function V6OrbitRoot({ children }: V6OrbitRootProps) {
     >
       {children}
       <V6OrbitToastHost />
+      <OrbitInspector />
     </div>
   );
 }

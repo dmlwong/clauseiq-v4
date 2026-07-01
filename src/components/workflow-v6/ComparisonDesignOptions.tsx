@@ -321,7 +321,7 @@ function SidebarFiltersPanel({ children }: { children: ReactNode }) {
 
 function CategoryFiltersSection({ children }: { children: ReactNode }) {
   return (
-    <div className="mt-orbit-base border-t border-border pt-orbit-base">
+    <div className="mt-orbit-base pt-orbit-base">
       <div className="mb-orbit-s">
         <Text as="p" size="Small" variant="Secondary">CLAUSES</Text>
       </div>
@@ -964,7 +964,7 @@ function FirstAnalysisMetricGrid({
       <div className="mt-orbit-base">
         <div
           tabIndex={0}
-          className="mb-orbit-xs rounded-md px-orbit-s py-orbit-xs outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]"
+          className="mb-orbit-xs rounded-md py-orbit-xs outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]"
         >
           <Text as="p" size="Small" variant="Secondary">DEVIATION LEVEL</Text>
         </div>
@@ -1060,7 +1060,7 @@ function MetricGrid({
       <div className="mt-orbit-base">
         <div className="space-y-orbit-base">
           <div>
-            <div className="mb-orbit-xs rounded-md px-orbit-s py-orbit-xs">
+            <div className="mb-orbit-xs rounded-md py-orbit-xs">
               <Text as="p" size="Small" variant="Secondary">CHANGES</Text>
             </div>
             <div className="space-y-orbit-xs">
@@ -1068,7 +1068,7 @@ function MetricGrid({
             </div>
           </div>
           <div>
-            <div className="mb-orbit-xs rounded-md px-orbit-s py-orbit-xs">
+            <div className="mb-orbit-xs rounded-md py-orbit-xs">
               <Text as="p" size="Small" variant="Secondary">DEVIATION LEVEL</Text>
             </div>
             <div className="space-y-orbit-xs">

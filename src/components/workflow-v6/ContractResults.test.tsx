@@ -17,6 +17,8 @@ const firstAnalysisRoute =
   "/initiatives-v6?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=first-analysis";
 const outcomeReviewRoute =
   "/initiatives-v6?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=negotiated-reanalysis&resultMode=outcome&analysisId=a-001&previousAnalysisId=a-002&outputSupplierId=sup-001&from=v2&to=v3";
+const outcomeReviewDraftRoute =
+  "/initiatives-v6?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=negotiated-reanalysis&resultMode=outcome&analysisId=a-004&previousAnalysisId=a-005&outputSupplierId=sup-002&from=v1&to=v2";
 
 function renderContractResults(route = firstAnalysisRoute) {
   window.history.pushState({}, "", route);
@@ -71,10 +73,19 @@ describe("ContractResults V6 review controls", () => {
   it("renders the negotiated re-analysis outcome review for later supplier outputs", () => {
     renderContractResults(outcomeReviewRoute);
 
-    expect(screen.getByRole("heading", { name: "Outcome Review" })).toBeInTheDocument();
-    expect(screen.getByText("Comparing the previous supplier output with the latest negotiated output.")).toBeInTheDocument();
+    expect(screen.getByText("Supplier: Thomson Reuters")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Compare from version v2" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Compare to version v3" })).toBeInTheDocument();
     expect(screen.queryByText("MSA_ThomsonReuters_v1.pdf")).not.toBeInTheDocument();
     expect(screen.queryByText("MSA_ThomsonReuters_v2.pdf")).not.toBeInTheDocument();
+  });
+
+  it("keeps open review clauses free of draft and added-to-review header pills", () => {
+    renderContractResults(outcomeReviewDraftRoute);
+
+    expect(screen.getByText("Liability Cap of Supplier")).toBeInTheDocument();
+    expect(screen.queryByText("Drafting request")).not.toBeInTheDocument();
+    expect(screen.queryByText("Added to Review")).not.toBeInTheDocument();
   });
 
   it("shows full deviation labels in the bulk recommendation menu without a trigger count", () => {

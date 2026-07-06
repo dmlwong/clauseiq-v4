@@ -17,6 +17,29 @@ export type RoundDecision = "request-update" | "no-action";
  */
 export type ClosureDecision = "closed" | "keep-open" | "follow-up";
 export type RequestLifecycle = "pending" | "submitted";
+export type ClauseVerdict = "met" | "notmet";
+
+export interface ClauseTargetVersion {
+  version: number;
+  text: string;
+  round: number;
+  reason?: string;
+  createdAt: string;
+}
+
+export interface ClauseVerdictConfirmation {
+  verdict: ClauseVerdict;
+  originalVerdict?: ClauseVerdict;
+  confirmedBy?: string;
+  confirmedAt?: string;
+  overrideComment?: string;
+}
+
+export interface ClauseAuditEntry {
+  timestamp: string;
+  clauseId: string;
+  entry: string;
+}
 
 export interface ClauseRequest {
   requestedChange?: string;
@@ -45,6 +68,15 @@ export interface ClauseDecisionState {
   requests: Record<string, ClauseRequest>;
   /** Draft request text keyed by target version, before the user submits the request. */
   draftRequests?: Record<string, ClauseRequest>;
+  targetVersions?: ClauseTargetVersion[];
+  verdictConfirmations?: Record<string, ClauseVerdictConfirmation>;
+  auditLog?: ClauseAuditEntry[];
+  pushFurtherOpen?: boolean;
+  acceptedClosed?: boolean;
+  alteredAfterAgreement?: boolean;
+  simulatedMet?: boolean;
+  signoffResolved?: boolean;
+  signoffNote?: string;
   updatedAt: string;
 }
 
@@ -209,6 +241,21 @@ export function useClauseDecisions(initial: Store = {}, options: ClauseDecisionO
       mutate(supplierId, contractId, clauseId, (s) => ({
         ...s,
         closures: { ...s.closures, [targetVersion]: closure },
+      }));
+    },
+    [mutate],
+  );
+
+  const patchClauseState = useCallback(
+    (
+      supplierId: string,
+      contractId: string,
+      clauseId: string,
+      patch: Partial<ClauseDecisionState> | ((state: ClauseDecisionState) => Partial<ClauseDecisionState>),
+    ) => {
+      mutate(supplierId, contractId, clauseId, (state) => ({
+        ...state,
+        ...(typeof patch === "function" ? patch(state) : patch),
       }));
     },
     [mutate],
@@ -584,6 +631,7 @@ export function useClauseDecisions(initial: Store = {}, options: ClauseDecisionO
       resetContract,
       setRoundDecision,
       setClosure,
+      patchClauseState,
       setFollowUpNote,
       startDraftRequest,
       updateDraftRequestText,
@@ -606,6 +654,7 @@ export function useClauseDecisions(initial: Store = {}, options: ClauseDecisionO
       resetContract,
       setRoundDecision,
       setClosure,
+      patchClauseState,
       setFollowUpNote,
       startDraftRequest,
       updateDraftRequestText,

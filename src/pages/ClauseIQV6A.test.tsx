@@ -2,20 +2,20 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, describe, expect, it, vi, beforeAll } from "vitest";
 
-import ClauseIQV6 from "./ClauseIQV6";
+import ClauseIQV6A from "./ClauseIQV6A";
 import { CIQ_DEFAULT_PLAYBOOK } from "@/lib/clauseiq-v6-data";
-import { TooltipProvider } from "@/components/clauseiq-v6/orbit-ui/tooltip";
-import { SupplierOutputsPanel } from "@/components/clauseiq-v6/supplier-results";
+import { TooltipProvider } from "@/components/clauseiq-v6a/orbit-ui/tooltip";
+import { SupplierOutputsPanel } from "@/components/clauseiq-v6a/supplier-results";
 import { mockInitiative } from "@/data/mock-clauseiq-v6";
 
 function renderClauseIQ(
-  route = "/clauseiq-v6",
+  route = "/clauseiq-v6a",
   props: { forceResults?: boolean; resultsLayout?: "accordion" | "output-panel" } = {},
 ) {
   return render(
     <MemoryRouter initialEntries={[route]}>
       <TooltipProvider>
-        <ClauseIQV6 {...props} />
+        <ClauseIQV6A {...props} />
       </TooltipProvider>
     </MemoryRouter>,
   );
@@ -29,7 +29,7 @@ function LocationEcho() {
 function startAndSelectInitiative() {
   fireEvent.click(screen.getByRole("button", { name: /get started/i }));
   fireEvent.click(screen.getByRole("button", { name: /search initiatives/i }));
-  fireEvent.click(screen.getByRole("button", { name: "Select Fleet Telematics Refresh" }));
+  fireEvent.click(screen.getByRole("row", { name: /Fleet Telematics Refresh Logistics Sarah Chen/i }));
 }
 
 function selectDefaultPlaybook() {
@@ -71,7 +71,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("ClauseIQ V6 flow", () => {
+describe("ClauseIQ V6A flow", () => {
   it("starts at welcome and reveals initiative selection after Get Started", async () => {
     renderClauseIQ();
 
@@ -336,7 +336,7 @@ describe("ClauseIQ V6 flow", () => {
   });
 
   it("renders the output-panel route with the first-run output by default", () => {
-    renderClauseIQ("/clauseiq-v6/output-panel", { forceResults: true, resultsLayout: "output-panel" });
+    renderClauseIQ("/clauseiq-v6a/output-panel", { forceResults: true, resultsLayout: "output-panel" });
 
     expect(screen.getAllByText("Supplier Outputs").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Thomson Reuters").length).toBeGreaterThan(0);
@@ -408,14 +408,14 @@ describe("ClauseIQ V6 flow", () => {
 
   it("opens the negotiated re-analysis outcome route for a later supplier output", () => {
     const { container } = render(
-      <MemoryRouter initialEntries={["/clauseiq-v6/output-panel?resultScenario=history"]}>
+      <MemoryRouter initialEntries={["/clauseiq-v6a/output-panel?resultScenario=history"]}>
         <TooltipProvider>
           <Routes>
             <Route
-              path="/clauseiq-v6/output-panel"
-              element={<ClauseIQV6 forceResults resultsLayout="output-panel" />}
+              path="/clauseiq-v6a/output-panel"
+              element={<ClauseIQV6A forceResults resultsLayout="output-panel" />}
             />
-            <Route path="/initiatives-v6" element={<LocationEcho />} />
+            <Route path="/initiatives-v6a" element={<LocationEcho />} />
           </Routes>
         </TooltipProvider>
       </MemoryRouter>,
@@ -434,7 +434,7 @@ describe("ClauseIQ V6 flow", () => {
     fireEvent.click(latestThomsonReutersButton!);
 
     const route = screen.getByTestId("location").textContent ?? "";
-    expect(route).toContain("/initiatives-v6?");
+    expect(route).toContain("/initiatives-v6a?");
     expect(route).toContain("resultMode=outcome");
     expect(route).toContain("scenario=negotiated-reanalysis");
     expect(route).toContain("analysisId=a-001");
@@ -444,7 +444,7 @@ describe("ClauseIQ V6 flow", () => {
   });
 
   it("shows next actions below the completed output-panel analysis", () => {
-    renderClauseIQ("/clauseiq-v6/output-panel", { forceResults: true, resultsLayout: "output-panel" });
+    renderClauseIQ("/clauseiq-v6a/output-panel", { forceResults: true, resultsLayout: "output-panel" });
 
     const analysisHeading = screen.getByRole("heading", { name: "Here is your Analysis Result" });
     const nextActionsHeading = screen.getByRole("heading", { name: "Next, you can..." });
@@ -458,7 +458,7 @@ describe("ClauseIQ V6 flow", () => {
   });
 
   it("marks individual next-action milestones as complete", () => {
-    renderClauseIQ("/clauseiq-v6/output-panel", { forceResults: true, resultsLayout: "output-panel" });
+    renderClauseIQ("/clauseiq-v6a/output-panel", { forceResults: true, resultsLayout: "output-panel" });
 
     const gate1Row = screen.getByText("Gate 1").closest("tr");
     expect(gate1Row).toBeTruthy();
@@ -472,7 +472,7 @@ describe("ClauseIQ V6 flow", () => {
   });
 
   it("hides the complete initiative action after completion", () => {
-    renderClauseIQ("/clauseiq-v6/output-panel", { forceResults: true, resultsLayout: "output-panel" });
+    renderClauseIQ("/clauseiq-v6a/output-panel", { forceResults: true, resultsLayout: "output-panel" });
 
     fireEvent.click(screen.getByRole("button", { name: /complete initiative/i }));
 
@@ -482,7 +482,7 @@ describe("ClauseIQ V6 flow", () => {
   });
 
   it("starts a fresh workflow from the next-action analyse-another-initiative action", () => {
-    renderClauseIQ("/clauseiq-v6?view=results");
+    renderClauseIQ("/clauseiq-v6a?view=results");
 
     fireEvent.click(screen.getByRole("button", { name: /analyse contract on another initiative/i }));
 
@@ -492,7 +492,7 @@ describe("ClauseIQ V6 flow", () => {
   });
 
   it("lets users select parameters before upload when running another output-panel analysis", () => {
-    renderClauseIQ("/clauseiq-v6/output-panel", { forceResults: true, resultsLayout: "output-panel" });
+    renderClauseIQ("/clauseiq-v6a/output-panel", { forceResults: true, resultsLayout: "output-panel" });
 
     expect(screen.queryByRole("heading", { name: "Upload Contract" })).not.toBeInTheDocument();
 
@@ -521,7 +521,7 @@ describe("ClauseIQ V6 flow", () => {
   });
 
   it("lets rerun analyses skip optional benchmark fields before upload", () => {
-    renderClauseIQ("/clauseiq-v6/output-panel?rerun=upload", {
+    renderClauseIQ("/clauseiq-v6a/output-panel?rerun=upload", {
       forceResults: true,
       resultsLayout: "output-panel",
     });
@@ -557,7 +557,7 @@ describe("ClauseIQ V6 flow", () => {
 
   it("keeps previous output and the New Analysis divider after rerun completion", async () => {
     vi.useFakeTimers();
-    const { container } = renderClauseIQ("/clauseiq-v6/output-panel", {
+    const { container } = renderClauseIQ("/clauseiq-v6a/output-panel", {
       forceResults: true,
       resultsLayout: "output-panel",
     });
@@ -602,7 +602,7 @@ describe("ClauseIQ V6 flow", () => {
 
   it("uses the confirmed rerun benchmark on the completed output card", async () => {
     vi.useFakeTimers();
-    const { container } = renderClauseIQ("/clauseiq-v6/output-panel", {
+    const { container } = renderClauseIQ("/clauseiq-v6a/output-panel", {
       forceResults: true,
       resultsLayout: "output-panel",
     });
@@ -638,7 +638,7 @@ describe("ClauseIQ V6 flow", () => {
   });
 
   it("renders direct results routes with the default playbook selected", () => {
-    const { container } = renderClauseIQ("/clauseiq-v6?view=results");
+    const { container } = renderClauseIQ("/clauseiq-v6a?view=results");
 
     expect(container.textContent).toContain(CIQ_DEFAULT_PLAYBOOK);
     expect(screen.getAllByText("Selected").length).toBeGreaterThan(0);

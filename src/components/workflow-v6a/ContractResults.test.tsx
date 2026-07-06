@@ -56,6 +56,12 @@ function generateCsv() {
   fireEvent.click(screen.getByRole("button", { name: /submit & generate/i }));
 }
 
+function reviewGenerateCount() {
+  const label = screen.getByRole("button", { name: /review & generate/i }).textContent ?? "";
+  const match = label.match(/\((\d+)\)/);
+  return match ? Number(match[1]) : 0;
+}
+
 beforeAll(() => {
   Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
     configurable: true,
@@ -99,12 +105,45 @@ describe("ContractResults V6A review controls", () => {
     expect(within(notMetSection as HTMLElement).queryByText("Liability Cap of Supplier")).not.toBeInTheDocument();
   });
 
+  it("sorts outcome rows within each verdict group by deviation level", () => {
+    renderContractResults(outcomeReviewRoute);
+
+    const highDeviationRow = screen.getByText("Subcontracting").closest('[id^="clause-row-"]');
+    const mediumDeviationRow = screen.getByText("Data Processing").closest('[id^="clause-row-"]');
+
+    expect(highDeviationRow).toBeTruthy();
+    expect(mediumDeviationRow).toBeTruthy();
+    expect(highDeviationRow?.closest("section")).toBe(mediumDeviationRow?.closest("section"));
+    expect(highDeviationRow?.compareDocumentPosition(mediumDeviationRow as HTMLElement)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
   it("keeps open review clauses free of draft and added-to-review header pills", () => {
     renderContractResults(outcomeReviewDraftRoute);
 
     expect(screen.getByText("Liability Cap of Supplier")).toBeInTheDocument();
     expect(screen.queryByText("Drafting request")).not.toBeInTheDocument();
     expect(screen.queryByText("Added to Review")).not.toBeInTheDocument();
+  });
+
+  it("maps stakeholder demo examples into simplified Met and Not Met verdict states", () => {
+    renderContractResults(outcomeReviewRoute);
+
+    const regressedRow = screen.getByText("Service Levels").closest('[id^="clause-row-"]');
+    const newMissingRow = screen.getByText("Data Breach Notification").closest('[id^="clause-row-"]');
+
+    expect(regressedRow).toBeTruthy();
+    expect(newMissingRow).toBeTruthy();
+
+    expect(within(regressedRow as HTMLElement).getByText("Not met")).toBeInTheDocument();
+    expect(within(regressedRow as HTMLElement).queryByText("Regressed")).not.toBeInTheDocument();
+    expect(within(regressedRow as HTMLElement).getByText("None Deviation")).toBeInTheDocument();
+    expect(within(newMissingRow as HTMLElement).getByText("Not met")).toBeInTheDocument();
+    expect(within(newMissingRow as HTMLElement).queryByText("New supplier change")).not.toBeInTheDocument();
+    expect(within(newMissingRow as HTMLElement).getByText("Missing Clause")).toBeInTheDocument();
+    expect(screen.queryByText("New supplier changes")).not.toBeInTheDocument();
+    expect(screen.queryByText("Needs decision")).not.toBeInTheDocument();
   });
 
   it("uses the simplified target, previous, and current hierarchy on negotiated outcome cards", () => {
@@ -119,7 +158,7 @@ describe("ContractResults V6A review controls", () => {
     expect(scope.getByText("Previous Analysis · v2")).toBeInTheDocument();
     expect(scope.getByText("Current Analysis · v3")).toBeInTheDocument();
     expect(
-      scope.getByText("Add a full GDPR Art. 28 schedule with 24-hour breach notification SLA."),
+      scope.getByText("Require full GDPR Art. 28 schedule and 24-hour breach notification SLA."),
     ).toBeInTheDocument();
     expect(scope.queryByText("Outcome summary")).not.toBeInTheDocument();
     expect(scope.queryByText("Matched text")).not.toBeInTheDocument();
@@ -132,33 +171,29 @@ describe("ContractResults V6A review controls", () => {
     expect(rowText.indexOf("Current Analysis · v3")).toBeLessThan(rowText.indexOf("Recommended Best Practice"));
   });
 
-  it("omits the target slot when a comparison clause has no requested target yet", () => {
+  it("shows the clause best practice even when a comparison clause has no custom target yet", () => {
     renderContractResults(outcomeReviewRoute);
 
-    const needsDecisionToggle = screen.getAllByRole("button", { name: /needs decision/i })[1];
-    fireEvent.click(needsDecisionToggle);
-
-    const section = needsDecisionToggle.parentElement;
-    const clauseRow = section?.querySelector('[id^="clause-row-"]');
+    const clauseRow = screen.getByText("Service Levels").closest('[id^="clause-row-"]');
 
     expect(clauseRow).toBeTruthy();
 
     const scope = within(clauseRow as HTMLElement);
 
-    expect(scope.queryByText("Recommended Best Practice")).not.toBeInTheDocument();
+    expect(scope.getByText("Recommended Best Practice")).toBeInTheDocument();
     expect(scope.getByText("Previous Analysis · v2")).toBeInTheDocument();
     expect(scope.getByText("Current Analysis · v3")).toBeInTheDocument();
   });
 
-  it("keeps Revise target left while grouping Accept and Hold my position on the right", () => {
+  it("keeps Write My Own Target left while ordering Continue with Actionability before Accept Supplier Position on the right", () => {
     renderContractResults(outcomeReviewRoute);
 
     const clauseRow = screen.getByText("Data Processing").closest('[id^="clause-row-"]');
     expect(clauseRow).toBeTruthy();
 
-    const reviseButton = within(clauseRow as HTMLElement).getByRole("button", { name: "Revise target" });
-    const acceptButton = within(clauseRow as HTMLElement).getByRole("button", { name: "Accept" });
-    const holdButton = within(clauseRow as HTMLElement).getByRole("button", { name: "Hold my position" });
+    const reviseButton = within(clauseRow as HTMLElement).getByRole("button", { name: "Write My Own Target" });
+    const acceptButton = within(clauseRow as HTMLElement).getByRole("button", { name: "Accept Supplier Position" });
+    const holdButton = within(clauseRow as HTMLElement).getByRole("button", { name: "Continue with Actionability" });
 
     const rightGroup = acceptButton.parentElement;
 
@@ -166,6 +201,61 @@ describe("ContractResults V6A review controls", () => {
     expect(rightGroup).toBe(holdButton.parentElement);
     expect(rightGroup).not.toBe(reviseButton.parentElement);
     expect(rightGroup?.className).toContain("ml-auto");
+
+    const rightButtons = Array.from((rightGroup as HTMLElement).querySelectorAll("button")).map((button) =>
+      button.textContent?.trim(),
+    );
+    expect(rightButtons.indexOf("Continue with Actionability")).toBeLessThan(rightButtons.indexOf("Accept Supplier Position"));
+  });
+
+  it("switches comparison cards into handled states after continuing with actionability or accepting supplier position", () => {
+    renderContractResults(outcomeReviewRoute);
+
+    const holdRow = screen.getByText("Data Processing").closest('[id^="clause-row-"]');
+    expect(holdRow).toBeTruthy();
+
+    fireEvent.click(within(holdRow as HTMLElement).getByRole("button", { name: "Continue with Actionability" }));
+
+    const updatedHoldRow = screen.getByText("Data Processing").closest('[id^="clause-row-"]');
+    expect(updatedHoldRow).toBeTruthy();
+
+    const holdScope = within(updatedHoldRow as HTMLElement);
+    expect(holdScope.getByText("Request:")).toBeInTheDocument();
+    expect(
+      holdScope.getByText("Require full GDPR Art. 28 schedule and 24-hour breach notification SLA."),
+    ).toBeInTheDocument();
+    expect(holdScope.queryByText("Recommended Best Practice")).not.toBeInTheDocument();
+    expect(holdScope.queryByText("Previous Analysis · v2")).not.toBeInTheDocument();
+    expect(holdScope.queryByText("Current Analysis · v3")).not.toBeInTheDocument();
+    expect(holdScope.getByRole("button", { name: "Edit request" })).toBeInTheDocument();
+    fireEvent.click(holdScope.getByRole("button", { name: "View detail" }));
+    expect(holdScope.getByText("Recommended Best Practice")).toBeInTheDocument();
+    expect(holdScope.getByText("Previous Analysis · v2")).toBeInTheDocument();
+    expect(holdScope.getByText("Current Analysis · v3")).toBeInTheDocument();
+    expect(holdScope.queryByRole("button", { name: "Continue with Actionability" })).not.toBeInTheDocument();
+    expect(holdScope.queryByRole("button", { name: "Accept Supplier Position" })).not.toBeInTheDocument();
+
+    const acceptRow = screen.getByText("Payment Terms").closest('[id^="clause-row-"]');
+    expect(acceptRow).toBeTruthy();
+
+    fireEvent.click(within(acceptRow as HTMLElement).getByRole("button", { name: "Accept Supplier Position" }));
+
+    const updatedAcceptRow = screen.getByText("Payment Terms").closest('[id^="clause-row-"]');
+    expect(updatedAcceptRow).toBeTruthy();
+
+    const acceptScope = within(updatedAcceptRow as HTMLElement);
+    expect(acceptScope.getByText("Accepted:")).toBeInTheDocument();
+    expect(acceptScope.getByText("Supplier position accepted for this round.")).toBeInTheDocument();
+    expect(acceptScope.queryByText("Recommended Best Practice")).not.toBeInTheDocument();
+    expect(acceptScope.queryByText("Previous Analysis · v2")).not.toBeInTheDocument();
+    expect(acceptScope.queryByText("Current Analysis · v3")).not.toBeInTheDocument();
+    expect(acceptScope.getByRole("button", { name: "Change decision" })).toBeInTheDocument();
+    fireEvent.click(acceptScope.getByRole("button", { name: "View detail" }));
+    expect(acceptScope.getByText("Recommended Best Practice")).toBeInTheDocument();
+    expect(acceptScope.getByText("Previous Analysis · v2")).toBeInTheDocument();
+    expect(acceptScope.getByText("Current Analysis · v3")).toBeInTheDocument();
+    expect(acceptScope.queryByRole("button", { name: "Continue with Actionability" })).not.toBeInTheDocument();
+    expect(acceptScope.queryByRole("button", { name: "Accept Supplier Position" })).not.toBeInTheDocument();
   });
 
   it("shows full deviation labels in the bulk recommendation menu without a trigger count", () => {
@@ -234,5 +324,43 @@ describe("ContractResults V6A review controls", () => {
 
     expect(mocks.downloadCsv).toHaveBeenCalledTimes(2);
     expect(mocks.downloadCsv.mock.calls[1][1]).toContain("Requested change");
+  });
+
+  it("adds actionability requests and accepted supplier positions into Review & Generate for comparison reviews", async () => {
+    renderContractResults(outcomeReviewRoute);
+
+    const baselineCount = reviewGenerateCount();
+
+    const holdRow = screen.getByText("Data Processing").closest('[id^="clause-row-"]');
+    expect(holdRow).toBeTruthy();
+    fireEvent.click(within(holdRow as HTMLElement).getByRole("button", { name: "Continue with Actionability" }));
+
+    expect(reviewGenerateCount()).toBe(baselineCount + 1);
+
+    generateCsv();
+
+    expect(mocks.downloadCsv).toHaveBeenCalledTimes(1);
+    expect(mocks.downloadCsv.mock.calls[0][1]).toContain("Data Processing");
+    expect(mocks.downloadCsv.mock.calls[0][1]).toContain("Request update");
+    expect(mocks.downloadCsv.mock.calls[0][1]).toContain(
+      "Require full GDPR Art. 28 schedule and 24-hour breach notification SLA.",
+    );
+    expect(localStorage.getItem("ciq-v6a-generated-csv:sup-1:ct-1:v3")).toBeTruthy();
+
+    const acceptRow = screen.getByText("Payment Terms").closest('[id^="clause-row-"]');
+    expect(acceptRow).toBeTruthy();
+    fireEvent.click(within(acceptRow as HTMLElement).getByRole("button", { name: "Accept Supplier Position" }));
+
+    fireEvent.click(screen.getByRole("button", { name: /review & generate/i }));
+
+    expect(
+      screen.getByText(/Changes have been made since the last generated CSV/i),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /submit & generate/i }));
+
+    expect(mocks.downloadCsv).toHaveBeenCalledTimes(2);
+    expect(mocks.downloadCsv.mock.calls[1][1]).toContain("Payment Terms");
+    expect(mocks.downloadCsv.mock.calls[1][1]).toContain("Accept supplier wording");
   });
 });

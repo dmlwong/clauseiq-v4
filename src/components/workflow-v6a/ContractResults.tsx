@@ -154,6 +154,12 @@ type CategorySortKey = "risk" | "az" | "count";
 export type ScoringOptionKey = "issue-score" | "hybrid";
 type ScoreBand = "A" | "B" | "C" | "D" | "F";
 
+const CLAUSE_ACTION_LABELS = {
+  reviseTarget: "Write My Own Target",
+  holdPosition: "Continue with Actionability",
+  acceptSupplierPosition: "Accept Supplier Position",
+} as const;
+
 interface CategorySidebarItem {
   name: string;
   count: number;
@@ -563,6 +569,30 @@ function severityRank(severity: "high" | "medium" | "low") {
   return 1;
 }
 
+function outcomeDeviationSortRank(clause?: ClauseResult) {
+  if (!clause) return 5;
+  if (clause.missingClause && clause.sourceDeviationLevel === "None") return 3;
+  if (clause.sourceDeviationLevel === "High") return 0;
+  if (clause.sourceDeviationLevel === "Medium") return 1;
+  if (clause.sourceDeviationLevel === "Low") return 2;
+  if (clause.severity === "high") return 0;
+  if (clause.severity === "medium") return 1;
+  if (clause.severity === "low") return 2;
+  return 4;
+}
+
+function sortOutcomeComparisonRows<T extends { id: string; prev?: ClauseResult; curr?: ClauseResult }>(rows: T[]) {
+  return [...rows].sort((a, b) => {
+    const aClause = a.curr ?? a.prev;
+    const bClause = b.curr ?? b.prev;
+    const deviationDelta = outcomeDeviationSortRank(aClause) - outcomeDeviationSortRank(bClause);
+    if (deviationDelta !== 0) return deviationDelta;
+    const aTitle = aClause?.title ?? a.id;
+    const bTitle = bClause?.title ?? b.id;
+    return aTitle.localeCompare(bTitle);
+  });
+}
+
 function isMissingClause(clause: ClauseResult) {
   return Boolean(clause.missingClause || clause.change === "new");
 }
@@ -711,6 +741,66 @@ interface RoundOutcome {
   tone: string;
 }
 
+const V6A_OUTCOME_DEMO_OVERRIDES: Record<string, Record<string, Partial<ClauseResult>>> = {
+  v2: {
+    c10: {
+      severity: "low",
+      resolved: true,
+      change: "unchanged",
+      sourceDeviationLevel: "None",
+      deviation: "Service levels aligned to the benchmark playbook with full service credits in place.",
+      excerpt: "Supplier shall meet 99.9% availability with service credits for sustained service failures.",
+    },
+  },
+  v3: {
+    c10: {
+      severity: "high",
+      resolved: false,
+      change: "worsened",
+      sourceDeviationLevel: "None",
+      deviation: "Availability target dropped to 99.0% and service credits have been removed.",
+      excerpt: "Supplier shall use reasonable endeavours to meet 99.0% availability. Service credits no longer apply.",
+      improvementReason: undefined,
+    },
+    c46: {
+      severity: "low",
+      resolved: true,
+      change: "unchanged",
+      sourceDeviationLevel: "None",
+      deviation: "Audit rights align with the benchmark playbook.",
+      excerpt: "Supplier grants Buyer annual audit rights on reasonable notice.",
+    },
+    c50: {
+      severity: "high",
+      resolved: false,
+      change: "new",
+      missingClause: true,
+      sourceDeviationLevel: "None",
+      deviation: "No standalone data breach notification clause is present in the supplier draft.",
+      excerpt: "The draft does not include an express obligation to notify Buyer of a personal data breach within a defined timeframe.",
+      actionability: "Insert a 24-hour breach notification obligation with named escalation contacts.",
+    },
+  },
+};
+
+function applyOutcomeReviewDemoExamples(versions: ContractVersion[]) {
+  let changed = false;
+
+  const nextVersions = versions.map((version) => {
+    const clauseOverrides = V6A_OUTCOME_DEMO_OVERRIDES[version.version];
+    if (!clauseOverrides) return version;
+    changed = true;
+    return {
+      ...version,
+      clauses: version.clauses.map((clause) => (
+        clauseOverrides[clause.id] ? { ...clause, ...clauseOverrides[clause.id] } : clause
+      )),
+    };
+  });
+
+  return changed ? nextVersions : versions;
+}
+
 function roundOutcome(
   clauseId: string,
   versionLabel: string,
@@ -807,7 +897,16 @@ export function ContractResults({
   // round or deleting an existing one without touching shared seed data.
   const firstAnalysisSeedVersions = firstAnalysisDemo ? [SWITCHED_ON_FIRST_ANALYSIS_VERSION] : contract?.versions ?? [];
   const [availableVersions, setAvailableVersions] = useState<ContractVersion[]>(firstAnalysisSeedVersions);
-  const versions = firstAnalysisDemo ? availableVersions.slice(0, 1) : availableVersions;
+  const versions = useMemo(
+    () => (
+      firstAnalysisDemo
+        ? availableVersions.slice(0, 1)
+        : outcomeReviewMode
+        ? applyOutcomeReviewDemoExamples(availableVersions)
+        : availableVersions
+    ),
+    [availableVersions, firstAnalysisDemo, outcomeReviewMode],
+  );
   const v1 = versions[0] ?? null;
   const latest = versions.at(-1) ?? null;
 
@@ -902,6 +1001,10 @@ export function ContractResults({
   const pair = { left: comparisonPair.from, right: comparisonPair.to };
   const leftVersion = versions.find((v) => v.version === comparisonPair.from) ?? v1;
   const rightVersion = versions.find((v) => v.version === comparisonPair.to) ?? latest;
+  const simplifyComparisonStatus =
+    mode === "comparison" &&
+    versions.length >= 2 &&
+    Boolean(leftVersion && rightVersion && leftVersion.version !== rightVersion.version);
 
   // Which version the Review tab is focused on (defaults to latest so the user
   // can review v1 first, then re-review v2 once it's uploaded).
@@ -1053,6 +1156,15 @@ export function ContractResults({
   );
   const [firstAnalysisMetricFilters, setFirstAnalysisMetricFilters] = useState<Set<FirstAnalysisMetricKey>>(() => new Set());
   useEffect(() => {
+    if (!simplifyComparisonStatus) return;
+    if (filter === "new-issues" || filter === "unmarked") {
+      setFilter("open");
+    }
+    if (quickFilter === "worsened" || quickFilter === "unexpected" || quickFilter === "manual-review") {
+      setQuickFilter("not-met");
+    }
+  }, [filter, quickFilter, simplifyComparisonStatus]);
+  useEffect(() => {
     if (mode !== "comparison" || versions.length >= 2) return;
     if (quickFilter === "open-items" || quickFilter === "met" || quickFilter === "closed" || quickFilter === "changes") {
       setQuickFilter(null);
@@ -1066,18 +1178,47 @@ export function ContractResults({
   const pendingRequestItems = useMemo<BasketRequestItem[]>(() => {
     if (mode !== "comparison" || !activeRequestVersion) return [];
     return decisions.getPendingRequests(supplierId, decisionContractId, activeRequestVersion.version).map((item) => {
-      return buildBasketRequestItem(item.clauseId, item.request, activeRequestVersion, leftVersion);
+      const closure = allDecisions[item.clauseId]?.closures?.[activeRequestVersion.version];
+      return buildBasketRequestItem(
+        item.clauseId,
+        activeRequestVersion,
+        closure === "follow-up" ? "revise-target" : "request-update",
+        item.request,
+        leftVersion,
+      );
     });
-  }, [activeRequestVersion, decisionContractId, decisions, leftVersion, mode, supplierId]);
-  const currentRequestItems = useMemo<BasketRequestItem[]>(() => {
+  }, [activeRequestVersion, allDecisions, decisionContractId, decisions, leftVersion, mode, supplierId]);
+  const currentReviewItems = useMemo<BasketRequestItem[]>(() => {
     if (mode !== "comparison" || !activeRequestVersion) return [];
 
-    return Object.entries(allDecisions)
-      .filter(([, state]) => state.roundDecisions[activeRequestVersion.version] === "request-update")
-      .map(([clauseId, state]) => {
+    return activeRequestVersion.clauses
+      .map((clause) => {
+        const state = allDecisions[clause.id];
+        if (!state) return null;
+
+        const decision = state.roundDecisions[activeRequestVersion.version];
+        const closure = state.closures[activeRequestVersion.version];
         const request = state.requests[activeRequestVersion.version];
-        if (!request?.requestedChange?.trim()) return null;
-        return buildBasketRequestItem(clauseId, request, activeRequestVersion, leftVersion);
+
+        if (decision === "request-update" && request?.requestedChange?.trim()) {
+          return buildBasketRequestItem(
+            clause.id,
+            activeRequestVersion,
+            closure === "follow-up" ? "revise-target" : "request-update",
+            request,
+            leftVersion,
+          );
+        }
+        if (closure === "closed") {
+          return buildBasketRequestItem(clause.id, activeRequestVersion, "accept", undefined, leftVersion);
+        }
+        if (closure === "keep-open") {
+          return buildBasketRequestItem(clause.id, activeRequestVersion, "hold-position", undefined, leftVersion);
+        }
+        if (decision === "no-action") {
+          return buildBasketRequestItem(clause.id, activeRequestVersion, "no-action", undefined, leftVersion);
+        }
+        return null;
       })
       .filter((item): item is BasketRequestItem => Boolean(item))
       .sort((a, b) => versionClauseIndex(activeRequestVersion, a.clauseId) - versionClauseIndex(activeRequestVersion, b.clauseId));
@@ -1104,8 +1245,8 @@ export function ContractResults({
   const lastGeneratedCsvSignature = generatedCsvStorageKey ? generatedCsvSignatures[generatedCsvStorageKey] : null;
   const hasGeneratedCsv = lastGeneratedCsvSignature !== undefined && lastGeneratedCsvSignature !== null;
   const csvNeedsUpdate = hasGeneratedCsv && lastGeneratedCsvSignature !== currentReviewSignature;
-  const reviewGenerateRequestItems = csvNeedsUpdate ? currentRequestItems : pendingRequestItems;
-  const reviewGenerateDisabled = !activeRequestVersion || (!csvNeedsUpdate && pendingRequestItems.length === 0);
+  const reviewGenerateItems = !hasGeneratedCsv || csvNeedsUpdate ? currentReviewItems : pendingRequestItems;
+  const reviewGenerateDisabled = !activeRequestVersion || (!csvNeedsUpdate && reviewGenerateItems.length === 0);
   const generateRequestedChangesCsv = () => {
     if (!activeRequestVersion || reviewGenerateDisabled) return;
     const csv = exportRequestChangeCsv(
@@ -1116,7 +1257,7 @@ export function ContractResults({
         versionLabel: activeRequestVersion.version,
       },
       activeRequestVersion,
-      reviewGenerateRequestItems,
+      reviewGenerateItems,
     );
     downloadCsv(
       `${supplier.name}-${contract.name}-${activeRequestVersion.version}-requested-changes.csv`,
@@ -1136,9 +1277,9 @@ export function ContractResults({
     setBulkReviewSelection(null);
     toast({
       title: "CSV generated",
-      description: reviewGenerateRequestItems.length > 0
-        ? `${reviewGenerateRequestItems.length} requested change${reviewGenerateRequestItems.length === 1 ? "" : "s"} exported for supplier negotiation.`
-        : "No requested changes remain. The generated CSV reflects the latest review decisions.",
+      description: reviewGenerateItems.length > 0
+        ? `${reviewGenerateItems.length} review decision${reviewGenerateItems.length === 1 ? "" : "s"} exported for supplier negotiation.`
+        : "No review decisions remain. The generated CSV reflects the latest review decisions.",
     });
   };
   const bulkReviewClauseIdSet = new Set(bulkReviewSelection?.clauseIds ?? []);
@@ -1146,9 +1287,9 @@ export function ContractResults({
     bulkReviewSelection &&
       activeRequestVersion &&
       bulkReviewSelection.version === activeRequestVersion.version &&
-      reviewGenerateRequestItems.length > 0 &&
-      reviewGenerateRequestItems.length === bulkReviewClauseIdSet.size &&
-      reviewGenerateRequestItems.every((item) => bulkReviewClauseIdSet.has(item.clauseId)),
+      reviewGenerateItems.length > 0 &&
+      reviewGenerateItems.length === bulkReviewClauseIdSet.size &&
+      reviewGenerateItems.every((item) => bulkReviewClauseIdSet.has(item.clauseId)),
   );
 
   const onUploadVersion = (file: File | null, label: string) => {
@@ -1196,7 +1337,7 @@ export function ContractResults({
   // change/no prior request.
   const comparisonSections = useMemo(
     () => {
-      if (!outcomeReviewMode) {
+      if (!simplifyComparisonStatus) {
         return {
           open: comparisonModel.buckets.open_items,
           newIssues: comparisonModel.buckets.new_changes,
@@ -1207,13 +1348,13 @@ export function ContractResults({
 
       const rows = Object.values(comparisonModel.buckets).flat();
       return {
-        open: rows.filter((row) => !row.closed && row.pill.status === "not_met"),
-        newIssues: rows.filter((row) => !row.closed && (row.pill.status === "regressed" || row.pill.status === "new")),
+        open: rows.filter((row) => !row.closed && row.pill.status !== "met"),
+        newIssues: [],
         closed: rows.filter((row) => row.closed || row.pill.status === "met"),
-        unmarked: rows.filter((row) => !row.closed && !row.pill.status),
+        unmarked: [],
       };
     },
-    [comparisonModel, outcomeReviewMode],
+    [comparisonModel, simplifyComparisonStatus],
   );
   const comparisonSectionStats = useMemo(
     () => ({
@@ -1251,6 +1392,7 @@ export function ContractResults({
   const closeWithUndo = (id: string, label: string, prev: ClosureDecision | undefined) => {
     if (!rightVersion) return;
     decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "closed");
+    decisions.patchClauseState(supplierId, decisionContractId, id, { acceptedClosed: true });
     setRecentlyClosed((m) => ({ ...m, [id]: Date.now() + 30_000 }));
     toast({
       title: `Closed "${label}" for ${rightVersion.version}`,
@@ -1260,6 +1402,7 @@ export function ContractResults({
         label: "Undo",
         onClick: () => {
           decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, prev ?? "keep-open");
+          decisions.patchClauseState(supplierId, decisionContractId, id, { acceptedClosed: false });
           setRecentlyClosed((m) => { const n = { ...m }; delete n[id]; return n; });
         },
       },
@@ -1274,6 +1417,7 @@ export function ContractResults({
   const undoClose = (id: string) => {
     if (!rightVersion) return;
     decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open");
+    decisions.patchClauseState(supplierId, decisionContractId, id, { acceptedClosed: false });
     setRecentlyClosed((m) => { const n = { ...m }; delete n[id]; return n; });
   };
 
@@ -1375,6 +1519,37 @@ export function ContractResults({
       },
     });
     recordAudit(clauseId, "Simulated supplier response: supplier returned 30-month schedule; Met vs v2.");
+  };
+
+  const clearClosureDecision = (clauseId: string, version: string) => {
+    decisions.patchClauseState(supplierId, decisionContractId, clauseId, (state) => {
+      if (!state.closures?.[version]) return {};
+      const nextClosures = { ...state.closures };
+      delete nextClosures[version];
+      return { closures: nextClosures };
+    });
+  };
+
+  const continueWithActionability = (clauseId: string, request: ClauseRequest) => {
+    const version = rightVersion?.version ?? "v1";
+    const requestedChange = request.requestedChange?.trim();
+    if (!requestedChange) return;
+    const pill = changePillFor(
+      clauseId,
+      leftVersion?.clauses.find((clause) => clause.id === clauseId),
+      rightVersion?.clauses.find((clause) => clause.id === clauseId),
+    );
+    confirmVerdictFromAction(
+      clauseId,
+      effectiveVerdict(stateOf(clauseId), version, pill.status),
+      "Continued with actionability",
+    );
+    clearClosureDecision(clauseId, version);
+    decisions.patchClauseState(supplierId, decisionContractId, clauseId, { acceptedClosed: false });
+    decisions.acceptRequest(supplierId, decisionContractId, clauseId, version, {
+      requestedChange,
+      rationale: request.rationale?.trim() || undefined,
+    });
   };
 
   const acceptAndClose = (clauseId: string) => {
@@ -1513,7 +1688,7 @@ export function ContractResults({
   };
   const showMoreChanges = () => {
     setTab("changes");
-    setFilter("new-issues");
+    setFilter(simplifyComparisonStatus ? "open" : "new-issues");
     setQuickFilter(null);
     setTimeout(() => {
       document.getElementById("comparison-buckets")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1528,31 +1703,42 @@ export function ContractResults({
       if (severityQuickFilter && !matchesQuickSeverity(clause)) return false;
       if (quickMissingClauseFilter && !(clause && isMissingClause(clause))) return false;
       if (quickNoneDeviationFilter && !(clause && isNoneDeviationClause(clause))) return false;
-      if (quickFilter === "met" && row.pill?.status !== "met") return false;
-      if (quickFilter === "not-met" && row.pill?.status !== "not_met" && row.pill?.status !== "improved") return false;
+      if (quickFilter === "met") {
+        if (simplifyComparisonStatus) {
+          const treatedAsMet = "closed" in row ? Boolean(row.closed) || row.pill?.status === "met" : row.pill?.status === "met";
+          if (!treatedAsMet) return false;
+        } else if (row.pill?.status !== "met") return false;
+      }
+      if (quickFilter === "not-met") {
+        if (simplifyComparisonStatus) {
+          const treatedAsNotMet = !("closed" in row && row.closed) && row.pill?.status !== "met";
+          if (!treatedAsNotMet) return false;
+        } else if (row.pill?.status !== "not_met" && row.pill?.status !== "improved") return false;
+      }
       if (quickFilter === "worsened" && row.pill?.status !== "regressed") return false;
       if (quickFilter === "unexpected" && row.pill?.status !== "new") return false;
       if (quickFilter === "manual-review" && row.actionState !== "unreviewed") return false;
       return true;
     });
 
-  const openRows = filterRowsByQuickState(
+  const openRows = sortOutcomeComparisonRows(filterRowsByQuickState(
     comparisonSections.open.filter((r) => matchesSearch(r.id) && matchesCategory(r.id)),
-  );
-  const newIssueRows = filterRowsByQuickState(
+  ));
+  const newIssueRows = sortOutcomeComparisonRows(filterRowsByQuickState(
     comparisonSections.newIssues.filter((r) => matchesSearch(r.id) && matchesCategory(r.id)),
-  );
-  const closedRows = filterRowsByQuickState(
+  ));
+  const closedRows = sortOutcomeComparisonRows(filterRowsByQuickState(
     comparisonSections.closed.filter((r) => matchesSearch(r.id) && matchesCategory(r.id)),
-  );
-  const unmarkedRows = filterRowsByQuickState(
+  ));
+  const unmarkedRows = sortOutcomeComparisonRows(filterRowsByQuickState(
     comparisonSections.unmarked.filter((r) => matchesSearch(r.id) && matchesCategory(r.id)),
-  );
+  ));
   const showOpenSection =
     (filter === "all" || filter === "open") &&
     quickFilter !== "changes" &&
     quickFilter !== "met";
   const showNewIssueSection =
+    !simplifyComparisonStatus &&
     (filter === "all" || filter === "new-issues") &&
     (quickFilter === null || quickFilter === "need-action" || quickFilter === "changes" || !!severityQuickFilter);
   const showClosedSection =
@@ -1561,6 +1747,7 @@ export function ContractResults({
     quickFilter !== "changes" &&
     quickFilter !== "open-items";
   const showUnmarkedSection =
+    !simplifyComparisonStatus &&
     (filter === "all" || filter === "unmarked") &&
     quickFilter !== "need-action" &&
     quickFilter !== "changes" &&
@@ -1856,11 +2043,15 @@ export function ContractResults({
   const categoryOpenStats = summariseComparisonRows(categoryOpenRows);
   const categoryNewIssueStats = summariseComparisonRows(categoryNewIssueRows);
   const evidenceMetrics: EvidenceMetricCounts = {
-    notMet: categoryAllRows.filter((row) => row.pill.status === "not_met" || row.pill.status === "improved").length,
-    met: categoryAllRows.filter((row) => row.pill.status === "met").length,
-    worsened: categoryAllRows.filter((row) => row.pill.status === "regressed").length,
-    unexpected: categoryAllRows.filter((row) => row.pill.status === "new").length,
-    manualReview: categoryAllRows.filter((row) => row.actionState === "unreviewed").length,
+    notMet: simplifyComparisonStatus
+      ? categoryOpenRows.length
+      : categoryAllRows.filter((row) => row.pill.status === "not_met" || row.pill.status === "improved").length,
+    met: simplifyComparisonStatus
+      ? categoryClosedRows.length
+      : categoryAllRows.filter((row) => row.pill.status === "met").length,
+    worsened: simplifyComparisonStatus ? 0 : categoryAllRows.filter((row) => row.pill.status === "regressed").length,
+    unexpected: simplifyComparisonStatus ? 0 : categoryAllRows.filter((row) => row.pill.status === "new").length,
+    manualReview: simplifyComparisonStatus ? 0 : categoryAllRows.filter((row) => row.actionState === "unreviewed").length,
     high: categoryAllRows.filter((row) => {
       const clause = row.curr ?? row.prev;
       return clause?.severity === "high" && !clause.resolved;
@@ -1882,18 +2073,18 @@ export function ContractResults({
       return clause ? isNoneDeviationClause(clause) : false;
     }).length,
   };
-  const designOpenRows = filterRowsByQuickState(
+  const designOpenRows = sortOutcomeComparisonRows(filterRowsByQuickState(
     categoryOpenRows,
-  );
-  const designNewIssueRows = filterRowsByQuickState(
+  ));
+  const designNewIssueRows = sortOutcomeComparisonRows(filterRowsByQuickState(
     categoryNewIssueRows,
-  );
-  const designClosedRows = filterRowsByQuickState(
+  ));
+  const designClosedRows = sortOutcomeComparisonRows(filterRowsByQuickState(
     categoryClosedRows,
-  );
-  const designUnmarkedRows = filterRowsByQuickState(
+  ));
+  const designUnmarkedRows = sortOutcomeComparisonRows(filterRowsByQuickState(
     categoryUnmarkedRows,
-  );
+  ));
   const activeEvidenceMetric: EvidenceMetricKey | null =
     quickFilter === "not-met" ||
     quickFilter === "met" ||
@@ -1928,9 +2119,9 @@ export function ContractResults({
     setTab("changes");
   };
   const showDesignOpenSection = quickFilter === null || designOpenRows.length > 0;
-  const showDesignNewIssueSection = quickFilter === null || designNewIssueRows.length > 0;
+  const showDesignNewIssueSection = !simplifyComparisonStatus && (quickFilter === null || designNewIssueRows.length > 0);
   const showDesignClosedSection = quickFilter === null || designClosedRows.length > 0;
-  const showDesignUnmarkedSection = quickFilter === null || designUnmarkedRows.length > 0;
+  const showDesignUnmarkedSection = !simplifyComparisonStatus && (quickFilter === null || designUnmarkedRows.length > 0);
   const outcomeSectionCopy = outcomeReviewMode
     ? {
         openTitle: "Not Met",
@@ -2153,11 +2344,12 @@ export function ContractResults({
       activeEvidenceMetric={activeEvidenceMetric}
       onEvidenceMetricSelect={selectEvidenceMetric}
       evidenceMetrics={evidenceMetrics}
+      simplifyStatusMetrics={simplifyComparisonStatus}
       openItems={
         <ComparisonSection
           title={outcomeSectionCopy.openTitle}
           description={outcomeSectionCopy.openDescription}
-          accent="primary"
+          accent="destructive"
           rows={designOpenRows}
           leftLabel={leftVersion.version}
           rightLabel={rightVersion.version}
@@ -2177,6 +2369,11 @@ export function ContractResults({
             closeWithUndo(id, display?.title ?? id.toUpperCase(), prev);
           }}
           onKeepOpen={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open")}
+          onContinueWithActionability={continueWithActionability}
+          onReopenAcceptedDecision={(id) => {
+            clearClosureDecision(id, rightVersion.version);
+            decisions.patchClauseState(supplierId, decisionContractId, id, { acceptedClosed: false });
+          }}
           onFollowUp={(id) =>
             decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version, {
               requestedChange: "",
@@ -2198,13 +2395,14 @@ export function ContractResults({
           recentlyClosed={recentlyClosed}
           onUndoClose={undoClose}
           layout="plain"
+          overrideVerdict={simplifyComparisonStatus ? "notmet" : undefined}
         />
       }
       newChanges={
         <ComparisonSection
           title={outcomeSectionCopy.newTitle}
           description={outcomeSectionCopy.newDescription}
-          accent="destructive"
+          accent="primary"
           rows={designNewIssueRows}
           leftLabel={leftVersion.version}
           rightLabel={rightVersion.version}
@@ -2227,6 +2425,7 @@ export function ContractResults({
           pinnedIds={pinnedClauseIds}
           onTogglePin={togglePin}
           layout="plain"
+          overrideVerdict={simplifyComparisonStatus ? "notmet" : undefined}
         />
       }
       closedItems={
@@ -2247,8 +2446,13 @@ export function ContractResults({
           }}
           basketRequestOf={(id) => stateOf(id).requests[rightVersion.version]}
           draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
-          onClose={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "closed")}
+          onClose={acceptAndClose}
           onKeepOpen={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open")}
+          onContinueWithActionability={continueWithActionability}
+          onReopenAcceptedDecision={(id) => {
+            clearClosureDecision(id, rightVersion.version);
+            decisions.patchClauseState(supplierId, decisionContractId, id, { acceptedClosed: false });
+          }}
           onFollowUp={(id) => decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
           onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
           onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
@@ -2263,6 +2467,7 @@ export function ContractResults({
           pinnedIds={pinnedClauseIds}
           onTogglePin={togglePin}
           layout="plain"
+          overrideVerdict={simplifyComparisonStatus ? "met" : undefined}
         />
       }
       unmarkedClauses={
@@ -2334,7 +2539,7 @@ export function ContractResults({
             undoRecommendationScopeLabel={bulkAppliedRecommendationScopeLabel}
             onReviewGenerate={() => setRequestReviewOpen(true)}
             reviewGenerateDisabled={reviewGenerateDisabled}
-            requestCount={reviewGenerateRequestItems.length}
+            requestCount={reviewGenerateItems.length}
           />
         </div>
       ) : (
@@ -2388,7 +2593,7 @@ export function ContractResults({
                     onClick={() => setRequestReviewOpen(true)}
                   >
                     <Download className="w-3.5 h-3.5" />
-                    Review &amp; Generate{reviewGenerateRequestItems.length > 0 ? ` (${reviewGenerateRequestItems.length})` : ""}
+                    Review &amp; Generate{reviewGenerateItems.length > 0 ? ` (${reviewGenerateItems.length})` : ""}
                   </Button>
                   <Button variant="default" className="h-9 gap-orbit-xs" onClick={() => setUploadOpen(true)}>
                     <Upload className="w-3.5 h-3.5" /> Upload New Version
@@ -2495,7 +2700,7 @@ export function ContractResults({
             }}
             onJumpToChanges={() => {
               setTab("changes");
-              setFilter("new-issues");
+              setFilter(simplifyComparisonStatus ? "open" : "new-issues");
               setTimeout(() => document.getElementById("comparison-buckets")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
             }}
           />
@@ -2565,6 +2770,7 @@ export function ContractResults({
                   filter={filter}
                   onFilterChange={setFilter}
                   showBucketFilter={tab === "changes"}
+                  simplifyOutcomeStatus={simplifyComparisonStatus}
                   onResetToLatest={resetPair}
                 />
               </div>
@@ -2579,6 +2785,7 @@ export function ContractResults({
                   filter={filter}
                   onFilterChange={setFilter}
                   showBucketFilter={false}
+                  simplifyOutcomeStatus={simplifyComparisonStatus}
                   onResetToLatest={resetPair}
                 />
               </div>
@@ -2615,7 +2822,7 @@ export function ContractResults({
                 <ComparisonSection
                   title={outcomeSectionCopy.openTitle}
                   description={outcomeSectionCopy.openDescription}
-                  accent="primary"
+                  accent="destructive"
                   rows={openRows}
                   leftLabel={leftVersion.version}
                   rightLabel={rightVersion.version}
@@ -2635,6 +2842,11 @@ export function ContractResults({
                     closeWithUndo(id, display?.title ?? id.toUpperCase(), prev);
                   }}
                   onKeepOpen={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open")}
+                  onContinueWithActionability={continueWithActionability}
+                  onReopenAcceptedDecision={(id) => {
+                    clearClosureDecision(id, rightVersion.version);
+                    decisions.patchClauseState(supplierId, decisionContractId, id, { acceptedClosed: false });
+                  }}
                   onFollowUp={(id) =>
                     decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version, {
                       requestedChange: "",
@@ -2654,11 +2866,12 @@ export function ContractResults({
                   onTogglePin={togglePin}
                   recentlyClosed={recentlyClosed}
                   onUndoClose={undoClose}
+                  overrideVerdict={simplifyComparisonStatus ? "notmet" : undefined}
                 />
                 <ComparisonSection
                   title={outcomeSectionCopy.newTitle}
                   description={outcomeSectionCopy.newDescription}
-                  accent="destructive"
+                  accent="primary"
                   rows={newIssueRows}
                   leftLabel={leftVersion.version}
                   rightLabel={rightVersion.version}
@@ -2679,6 +2892,7 @@ export function ContractResults({
                   onConfirmVerdictFromAction={confirmVerdictFromAction}
                   pinnedIds={pinnedClauseIds}
                   onTogglePin={togglePin}
+                  overrideVerdict={simplifyComparisonStatus ? "notmet" : undefined}
                 />
                 <ComparisonSection
                   title={outcomeSectionCopy.closedTitle}
@@ -2697,8 +2911,13 @@ export function ContractResults({
                   }}
                   basketRequestOf={(id) => stateOf(id).requests[rightVersion.version]}
                   draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
-                  onClose={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "closed")}
+                  onClose={acceptAndClose}
                   onKeepOpen={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open")}
+                  onContinueWithActionability={continueWithActionability}
+                  onReopenAcceptedDecision={(id) => {
+                    clearClosureDecision(id, rightVersion.version);
+                    decisions.patchClauseState(supplierId, decisionContractId, id, { acceptedClosed: false });
+                  }}
                   onFollowUp={(id) => decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
                   onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
                   onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
@@ -2711,6 +2930,7 @@ export function ContractResults({
                   onConfirmVerdictFromAction={confirmVerdictFromAction}
                   pinnedIds={pinnedClauseIds}
                   onTogglePin={togglePin}
+                  overrideVerdict={simplifyComparisonStatus ? "met" : undefined}
                 />
                 <UnmarkedSection
                   rows={unmarkedRows}
@@ -2753,6 +2973,7 @@ export function ContractResults({
           versions={versions}
           state={detail.state}
           targetVersion={rightVersion?.version ?? "v1"}
+          simplifyOutcomeStatus={simplifyComparisonStatus}
           changePill={changePillFor(detail.id, detail.prev, detail.curr)}
           onConfirmVerdict={confirmVerdict}
           onSupersedeVerdict={supersedeVerdict}
@@ -2788,7 +3009,7 @@ export function ContractResults({
       <RequestReviewDialog
         open={requestReviewOpen}
         onOpenChange={setRequestReviewOpen}
-        requests={reviewGenerateRequestItems}
+        requests={reviewGenerateItems}
         supplierName={supplier.name}
         csvNeedsUpdate={csvNeedsUpdate}
         bulkSummaryMode={firstAnalysisDemo && bulkReviewSummaryMode}
@@ -3524,6 +3745,7 @@ function ComparisonToolbarControls({
   filter,
   onFilterChange,
   showBucketFilter,
+  simplifyOutcomeStatus = false,
   onResetToLatest,
 }: {
   search: string;
@@ -3531,6 +3753,7 @@ function ComparisonToolbarControls({
   filter: FilterKey;
   onFilterChange: (value: FilterKey) => void;
   showBucketFilter: boolean;
+  simplifyOutcomeStatus?: boolean;
   onResetToLatest: () => void;
 }) {
   return (
@@ -3553,9 +3776,9 @@ function ComparisonToolbarControls({
             <SelectContent>
               <SelectItem value="all">All buckets</SelectItem>
               <SelectItem value="open">Not Met</SelectItem>
-              <SelectItem value="new-issues">New supplier changes</SelectItem>
               <SelectItem value="closed">Met</SelectItem>
-              <SelectItem value="unmarked">Needs decision</SelectItem>
+              {!simplifyOutcomeStatus && <SelectItem value="new-issues">New supplier changes</SelectItem>}
+              {!simplifyOutcomeStatus && <SelectItem value="unmarked">Needs decision</SelectItem>}
             </SelectContent>
           </Select>
           <Button variant="ghost" className="h-8 shrink-0 text-[11px] text-muted-foreground" onClick={onResetToLatest}>
@@ -3678,7 +3901,7 @@ function DecisionBadge({ decision }: { decision: RoundDecision }) {
   return (
     <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full bg-[#EAF3DE] px-orbit-s py-orbit-xs text-[10px] v6-orbit-weight-medium text-[#27500A]">
       <CheckCircle2 className="h-3 w-3" />
-      Hold my position
+      {CLAUSE_ACTION_LABELS.holdPosition}
     </span>
   );
 }
@@ -3688,7 +3911,7 @@ function RequestLifecycleBadge({ request }: { request?: ClauseRequest }) {
     return (
       <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full border border-[#185FA5]/25 bg-[#E6F1FB] px-orbit-s py-orbit-xs text-[10px] v6-orbit-weight-medium text-[#0C447C]">
         <FileText className="h-3 w-3" />
-        Revise target
+        {CLAUSE_ACTION_LABELS.reviseTarget}
       </span>
     );
   }
@@ -5006,6 +5229,7 @@ function ClauseDecisionCard({
   versionLabel,
   extraContent,
   actions,
+  selectedComparisonAction,
   pinned,
   onTogglePin,
   onRequest,
@@ -5013,6 +5237,7 @@ function ClauseDecisionCard({
   onNoAction,
   onEditRequest,
   onChangeNoAction,
+  onChangeSelectedAction,
   onUndoDecision,
   onUpdateDraft,
   onCancelDraft,
@@ -5054,6 +5279,7 @@ function ClauseDecisionCard({
   onNoAction?: () => void;
   onEditRequest?: () => void;
   onChangeNoAction?: () => void;
+  onChangeSelectedAction?: () => void;
   onUndoDecision?: () => void;
   onUpdateDraft?: (patch: { requestedChange?: string; rationale?: string }) => void;
   onCancelDraft?: () => void;
@@ -5061,16 +5287,20 @@ function ClauseDecisionCard({
   onRemoveRequest?: () => void;
   onOpenDetail: () => void;
   neutralActions?: boolean;
+  selectedComparisonAction?: "accepted";
 }) {
   const [queuedExpanded, setQueuedExpanded] = useState(false);
+  const useDefaultComparisonCard = Boolean(extraContent && !neutralActions);
   const pendingBasketRequest = request?.state === "pending" && Boolean(request.requestedChange?.trim());
+  const showAcceptedCompact = selectedComparisonAction === "accepted" && !pendingBasketRequest && !isDrafting;
   const showQueuedCompact = pendingBasketRequest && !isDrafting;
-  const showDecisionBody = !showQueuedCompact || queuedExpanded;
+  const showHandledCompact = showQueuedCompact || showAcceptedCompact;
+  const showDecisionBody = !showHandledCompact || queuedExpanded;
   const requestPreview = request?.requestedChange?.trim() ?? "";
   const settled = decision === "request-update" || decision === "no-action";
   const noActionIsPrimary = !neutralActions && clause.severity === "low";
   const noneDeviationClause = isNoneDeviationClause(clause);
-  const showRequestActions = !noneDeviationClause && !settled && !actions && !pendingBasketRequest;
+  const showRequestActions = !noneDeviationClause && !settled && !actions && !showHandledCompact;
   const useV6StatusTags = isInitiativesV6Route();
   const useV6DeviationCard = isInitiativesV6Route() && neutralActions;
   const useFirstAnalysisDeviationStyle = neutralActions && hideSubclauseReference && clause.severity === "high";
@@ -5090,6 +5320,8 @@ function ClauseDecisionCard({
   const showSeverityBadge = !isPureMissingClause(clause);
   const reviewCardState: OrbitCardState = useV6DeviationCard
     ? firstAnalysisCardStateForClause(clause)
+    : useDefaultComparisonCard
+    ? "Default"
     : pendingBasketRequest || decision === "request-update"
     ? "Information"
     : "Default";
@@ -5097,7 +5329,9 @@ function ClauseDecisionCard({
   if (useV6DeviationCard && reviewCardState === "Default") {
     reviewCardStyle["--orbit-color-card-indicator-default"] = firstAnalysisCardIndicatorColorForClause(clause);
   }
-  const showReviewCardIndicator = useV6DeviationCard || pendingBasketRequest || decision === "request-update";
+  const showReviewCardIndicator =
+    useV6DeviationCard ||
+    (!useDefaultComparisonCard && (pendingBasketRequest || decision === "request-update"));
 
   if (displayMode === "row-scale" && !actions) {
     return (
@@ -5191,24 +5425,58 @@ function ClauseDecisionCard({
           )}
         </div>
 
-        {showQueuedCompact && (
+        {showHandledCompact && (
           <div className="mt-orbit-s space-y-orbit-s" onClick={(event) => event.stopPropagation()}>
-            <div className="flex flex-wrap items-center gap-orbit-s rounded-md border border-[#185FA5]/20 bg-[#E6F1FB]/45 px-orbit-base py-orbit-s">
-              <p className="min-w-[180px] flex-1 truncate text-[11px] text-[#0C447C]">
-                <span className="v6-orbit-weight-semibold">Request:</span> {requestPreview}
+            <div
+              className={cn(
+                "flex flex-wrap items-center gap-orbit-s rounded-md px-orbit-base py-orbit-s",
+                showAcceptedCompact
+                  ? "border border-[#BFD6AB] bg-[#EAF3DE]"
+                  : useDefaultComparisonCard
+                  ? "border border-border bg-muted/20"
+                  : "border border-[#185FA5]/20 bg-[#E6F1FB]/45",
+              )}
+            >
+              <p
+                className={cn(
+                  "min-w-[180px] flex-1 truncate text-[11px]",
+                  showAcceptedCompact
+                    ? "text-[#27500A]"
+                    : useDefaultComparisonCard
+                    ? "text-muted-foreground"
+                    : "text-[#0C447C]",
+                )}
+              >
+                <span className={cn("v6-orbit-weight-semibold", useDefaultComparisonCard && !showAcceptedCompact && "text-foreground")}>
+                  {showAcceptedCompact ? "Accepted:" : "Request:"}
+                </span>{" "}
+                {showAcceptedCompact ? "Supplier position accepted for this round." : requestPreview}
               </p>
               <div className="flex shrink-0 items-center gap-orbit-xs">
-                <Button variant="outline" className="h-7 px-orbit-s text-[10px]" onClick={onEditRequest}>
-                  Edit request
-                </Button>
-                {onRemoveRequest && (
-                  <Button variant="outline" className="h-7 px-orbit-s text-[10px] text-muted-foreground" onClick={onRemoveRequest}>
-                    Remove
-                  </Button>
+                {showAcceptedCompact ? (
+                  onChangeSelectedAction && (
+                    <Button variant="outline" className="h-7 px-orbit-s text-[10px]" onClick={onChangeSelectedAction}>
+                      Change decision
+                    </Button>
+                  )
+                ) : (
+                  <>
+                    <Button variant="outline" className="h-7 px-orbit-s text-[10px]" onClick={onEditRequest}>
+                      Edit request
+                    </Button>
+                    {onRemoveRequest && (
+                      <Button variant="outline" className="h-7 px-orbit-s text-[10px] text-muted-foreground" onClick={onRemoveRequest}>
+                        Remove
+                      </Button>
+                    )}
+                  </>
                 )}
                 <Button
                   variant="ghost"
-                  className="h-7 gap-orbit-xs px-orbit-s text-[10px] text-primary hover:bg-white/70"
+                  className={cn(
+                    "h-7 gap-orbit-xs px-orbit-s text-[10px] hover:bg-white/70",
+                    showAcceptedCompact ? "text-[#27500A]" : "text-primary",
+                  )}
                   onClick={() => setQueuedExpanded((current) => !current)}
                 >
                   {queuedExpanded ? "Hide detail" : "View detail"}
@@ -5246,12 +5514,12 @@ function ClauseDecisionCard({
               className={cn("h-8 rounded-[5px] px-orbit-base text-[11px] v6-orbit-weight-regular gap-orbit-xs", noActionIsPrimary && "bg-[#1a2744] text-white hover:bg-[#243454]")}
               onClick={onNoAction}
             >
-              <CheckCircle2 className="h-3 w-3" /> Hold my position
+              <CheckCircle2 className="h-3 w-3" /> {CLAUSE_ACTION_LABELS.holdPosition}
             </Button>
           </div>
         )}
 
-        {actions && !pendingBasketRequest && (
+        {actions && !showHandledCompact && (
           <div className="mt-orbit-s flex items-center gap-orbit-xs" onClick={(event) => event.stopPropagation()}>
             {actions}
           </div>
@@ -5259,9 +5527,29 @@ function ClauseDecisionCard({
 
         {showQueuedCompact && queuedExpanded && (
           <div className="mt-orbit-s" onClick={(event) => event.stopPropagation()}>
-            <div className="rounded-md border border-[#185FA5]/20 bg-[#E6F1FB]/55 px-orbit-base py-orbit-s text-[11px] text-[#0C447C]">
-              <p className="v6-orbit-weight-medium">Revise target.</p>
-              <p className="mt-orbit-xxs text-[#0C447C]/80">This clause is queued for the next round target.</p>
+            <div
+              className={cn(
+                "rounded-md px-orbit-base py-orbit-s text-[11px]",
+                useDefaultComparisonCard
+                  ? "border border-border bg-muted/20 text-muted-foreground"
+                  : "border border-[#185FA5]/20 bg-[#E6F1FB]/55 text-[#0C447C]",
+              )}
+            >
+              <p className={cn("v6-orbit-weight-medium", useDefaultComparisonCard && "text-foreground")}>Revise target.</p>
+              <p className={cn("mt-orbit-xxs", useDefaultComparisonCard ? "text-muted-foreground" : "text-[#0C447C]/80")}>
+                This clause is queued for the next round target.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {showAcceptedCompact && queuedExpanded && (
+          <div className="mt-orbit-s" onClick={(event) => event.stopPropagation()}>
+            <div className="rounded-md border border-[#BFD6AB] bg-[#EAF3DE] px-orbit-base py-orbit-s text-[11px] text-[#27500A]">
+              <p className="v6-orbit-weight-medium">Accepted supplier position.</p>
+              <p className="mt-orbit-xxs text-[#27500A]/80">
+                This clause is accepted for the current supplier version and stays monitored in future rounds.
+              </p>
             </div>
           </div>
         )}
@@ -5484,13 +5772,13 @@ function ClauseRowScaleCard({
               variant="outline"
               onClick={(event) => runAction(event, onRequest)}
             >
-              <Pencil className="h-3 w-3" /> Revise target
+              <Pencil className="h-3 w-3" /> {CLAUSE_ACTION_LABELS.reviseTarget}
             </Button>
             <Button
               variant="outline"
               onClick={(event) => runAction(event, onNoAction)}
             >
-              <CheckCircle2 className="h-3 w-3" /> Hold my position
+              <CheckCircle2 className="h-3 w-3" /> {CLAUSE_ACTION_LABELS.holdPosition}
             </Button>
           </div>
         ) : null)}
@@ -5591,6 +5879,8 @@ function SimplifiedComparisonContent({
   );
 }
 
+type ReviewGenerateAction = "request-update" | "revise-target" | "no-action" | "accept" | "hold-position";
+
 interface BasketRequestItem {
   clauseId: string;
   clauseTitle: string;
@@ -5598,7 +5888,8 @@ interface BasketRequestItem {
   severity?: ClauseResult["severity"];
   missingClause?: boolean;
   sourceDeviationLevel?: ClauseResult["sourceDeviationLevel"];
-  request: ClauseRequest;
+  action: ReviewGenerateAction;
+  request?: ClauseRequest;
 }
 
 function versionClauseIndex(version: ContractVersion, clauseId: string) {
@@ -5608,8 +5899,9 @@ function versionClauseIndex(version: ContractVersion, clauseId: string) {
 
 function buildBasketRequestItem(
   clauseId: string,
-  request: ClauseRequest,
   version: ContractVersion,
+  action: ReviewGenerateAction,
+  request?: ClauseRequest,
   fallbackVersion?: ContractVersion | null,
 ): BasketRequestItem {
   const clause =
@@ -5624,8 +5916,26 @@ function buildBasketRequestItem(
     severity: clause?.severity,
     missingClause: clause?.missingClause,
     sourceDeviationLevel: clause?.sourceDeviationLevel,
+    action,
     request,
   };
+}
+
+function reviewGenerateActionLabel(action: ReviewGenerateAction) {
+  switch (action) {
+    case "request-update":
+      return "Request update";
+    case "revise-target":
+      return "Revise target";
+    case "no-action":
+      return "No action";
+    case "accept":
+      return "Accept supplier wording";
+    case "hold-position":
+      return "Hold previous position";
+    default:
+      return "Review decision";
+  }
 }
 
 function buildReviewDecisionSignature(
@@ -5636,11 +5946,14 @@ function buildReviewDecisionSignature(
     .map((clause) => {
       const state = decisionsByClause[clause.id];
       const decision = state?.roundDecisions?.[version.version] ?? "";
+      const closure = state?.closures?.[version.version] ?? "";
       const request = state?.requests?.[version.version];
       const requestedChange = request?.requestedChange?.trim() ?? "";
       const rationale = request?.rationale?.trim() ?? "";
-      if (!decision && !requestedChange && !rationale) return null;
-      return [clause.id, decision, requestedChange, rationale].map((part) => part.replace(/\|/g, "\\|")).join("|");
+      if (!decision && !closure && !requestedChange && !rationale) return null;
+      return [clause.id, decision, closure, requestedChange, rationale]
+        .map((part) => part.replace(/\|/g, "\\|"))
+        .join("|");
     })
     .filter((item): item is string => Boolean(item))
     .join("\n");
@@ -5913,7 +6226,7 @@ function ClauseReviewModalCard({
             }}
           >
             <Pencil className="h-3.5 w-3.5" />
-            Revise target
+            {CLAUSE_ACTION_LABELS.reviseTarget}
           </Button>
           <Button
             type="button"
@@ -6003,6 +6316,7 @@ function exportRequestChangeCsv(
       "Category",
       "Severity",
       "Clause summary",
+      "Review action",
       "Requested change",
       "Rationale",
     ],
@@ -6021,8 +6335,9 @@ function exportRequestChangeCsv(
       clause?.category ?? "",
       requestSeverityLabel(clause),
       clause?.deviation ?? "",
-      item.request.requestedChange ?? "",
-      item.request.rationale ?? "",
+      reviewGenerateActionLabel(item.action),
+      item.request?.requestedChange ?? "",
+      item.request?.rationale ?? "",
     ]);
   }
 
@@ -6060,7 +6375,7 @@ function RequestReviewDialog({
     onSubmit();
     onOpenChange(false);
   };
-  const csvAlertDescription = `The CSV will include clause IDs, titles, categories, severity, ClauseIQ findings, requested changes, and rationale so you can take it back to the supplier for negotiation. Are you ready to generate it?${
+  const csvAlertDescription = `The CSV will include clause IDs, titles, categories, severity, ClauseIQ findings, review actions, requested changes, and rationale so you can take it back to the supplier for negotiation. Are you ready to generate it?${
     csvNeedsUpdate
       ? " Changes have been made since the last generated CSV. Generate again to update the negotiation log."
       : ""
@@ -6373,12 +6688,7 @@ function ReviewScreen({
 
 // ---- Comparison sections ----------------------------------------------------
 
-function ComparisonSection({
-  title, description, accent, rows, leftLabel, rightLabel, visible, bucket, stats,
-  closureOf, requestOf, basketRequestOf, onClose, onKeepOpen, onFollowUp, onRemoveRequest, onOpenDetail,
-  pinnedIds, onTogglePin, recentlyClosed, onUndoClose, draftOf,
-  onUpdateText, onCancelDraft, onSubmitDraft, onConfirmVerdictFromAction, stateOf, layout = "collapsible",
-}: {
+function ComparisonSection(props: {
   title: string;
   description: string;
   accent: "primary" | "warning" | "destructive" | "success";
@@ -6394,6 +6704,8 @@ function ComparisonSection({
   draftOf?: (id: string) => { requestedChange?: string; rationale?: string };
   onClose: (id: string) => void;
   onKeepOpen: (id: string) => void;
+  onContinueWithActionability?: (id: string, request: ClauseRequest) => void;
+  onReopenAcceptedDecision?: (id: string) => void;
   onFollowUp?: (id: string) => void;
   onRemoveRequest?: (id: string) => void;
   onOpenDetail: (id: string) => void;
@@ -6407,7 +6719,16 @@ function ComparisonSection({
   onConfirmVerdictFromAction?: (id: string, verdict: ClauseVerdict | null | undefined, action: string) => void;
   stateOf?: (id: string) => ClauseDecisionState;
   layout?: "collapsible" | "plain";
+  overrideVerdict?: ClauseVerdict | null;
 }) {
+  const {
+    title, description, accent, rows, leftLabel, rightLabel, visible, bucket, stats,
+    closureOf, requestOf, basketRequestOf, onClose, onKeepOpen, onFollowUp, onRemoveRequest, onOpenDetail,
+    onContinueWithActionability,
+    onReopenAcceptedDecision,
+    pinnedIds, onTogglePin, recentlyClosed, onUndoClose, draftOf,
+    onUpdateText, onCancelDraft, onSubmitDraft, onConfirmVerdictFromAction, stateOf, layout = "collapsible", overrideVerdict,
+  } = props;
   const [open, setOpen] = useState(false);
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
   const [pendingDraftCancelId, setPendingDraftCancelId] = useState<string | null>(null);
@@ -6436,6 +6757,7 @@ function ComparisonSection({
     bucket === "open" ? "No open requests for this round."
       : bucket === "closed" ? "No clauses have been closed for this round yet."
       : "No new material changes identified.";
+  const resolvedOverrideVerdict = typeof overrideVerdict === "undefined" ? null : overrideVerdict;
   const visibleStats = summariseComparisonRows(rows);
   const displayedStats = layout === "plain" ? visibleStats : stats;
   const bucketSummary = [
@@ -6443,7 +6765,11 @@ function ComparisonSection({
     displayedStats.actioned > 0 ? `${displayedStats.actioned} actioned` : null,
     rows.length !== displayedStats.total ? `${visibleStats.visible} shown` : null,
   ].filter(Boolean).join(" · ");
-  const sortedRows = [...rows].sort((a, b) => {
+  const sortedRows = sortOutcomeComparisonRows(rows).sort((a, b) => {
+    const deviationDelta =
+      outcomeDeviationSortRank(a.curr ?? a.prev) -
+      outcomeDeviationSortRank(b.curr ?? b.prev);
+    if (deviationDelta !== 0) return deviationDelta;
     if (bucket === "new") {
       const statusDelta =
         sortChangePillStatus(a.pill.status) -
@@ -6466,7 +6792,11 @@ function ComparisonSection({
       {sortedRows.map((r) => {
         const display = r.curr ?? r.prev!;
         const rowState = stateOf?.(r.id);
-        const rowVerdict = rowState ? effectiveVerdict(rowState, rightLabel, r.pill.status) : verdictFromChangePill(r.pill.status);
+        const rowVerdict = resolvedOverrideVerdict
+          ? rowState?.verdictConfirmations?.[rightLabel]?.verdict ?? resolvedOverrideVerdict
+          : rowState
+          ? effectiveVerdict(rowState, rightLabel, r.pill.status)
+          : verdictFromChangePill(r.pill.status);
         const rowConfirmation = rowState?.verdictConfirmations?.[rightLabel];
         const rowDeviationDelta = getDeviationDelta(r.prev, r.curr, rowState?.simulatedMet ? { from: "Medium", to: "Aligned" } : undefined);
         const req = requestOf(r.id);
@@ -6490,6 +6820,11 @@ function ComparisonSection({
           display.deviation?.trim() ||
           "";
         const previousTargetReason = req.rationale?.trim() || basketRequest?.rationale?.trim() || "";
+        const actionabilityRequest: ClauseRequest | undefined = display.actionability?.trim()
+          ? { requestedChange: display.actionability.trim() }
+          : previousTargetText
+          ? { requestedChange: previousTargetText, rationale: previousTargetReason || undefined }
+          : undefined;
         const openReviseTargetEditor = (actionLabel = "Chose to revise target") => {
           onConfirmVerdictFromAction?.(r.id, rowVerdict, actionLabel);
           onFollowUp?.(r.id);
@@ -6509,9 +6844,10 @@ function ComparisonSection({
           onCancelDraft?.(r.id);
           setExpandedRequestId(null);
         };
+        const comparisonBestPractice = display.actionability?.trim() || req.requestedChange;
         const comparisonDetails = (
           <SimplifiedComparisonContent
-            target={req.requestedChange}
+            target={comparisonBestPractice}
             previousLabel={`Previous Analysis · ${leftLabel}`}
             previousText={r.prev?.deviation ?? "Clause did not exist."}
             currentLabel={`Current Analysis · ${rightLabel}`}
@@ -6523,14 +6859,24 @@ function ComparisonSection({
             bucket === "closed" ? (
               <div className="flex w-full flex-wrap items-center gap-orbit-xs sm:flex-nowrap">
                 <Button variant="outline" className="h-8 text-[11px]" onClick={() => openReviseTargetEditor()}>
-                  Revise target
+                  {CLAUSE_ACTION_LABELS.reviseTarget}
                 </Button>
                 <div className="ml-auto flex flex-wrap items-center gap-orbit-xs">
-                  <Button variant="default" className="h-8 text-[11px]" onClick={() => onClose(r.id)}>
-                    Accept
+                  <Button
+                    variant="outline"
+                    className="h-8 text-[11px]"
+                    onClick={() => {
+                      if (actionabilityRequest && onContinueWithActionability) {
+                        onContinueWithActionability(r.id, actionabilityRequest);
+                        return;
+                      }
+                      onKeepOpen(r.id);
+                    }}
+                  >
+                    {CLAUSE_ACTION_LABELS.holdPosition}
                   </Button>
-                  <Button variant="outline" className="h-8 text-[11px]" onClick={() => onKeepOpen(r.id)}>
-                    Hold my position
+                  <Button variant="default" className="h-8 text-[11px]" onClick={() => onClose(r.id)}>
+                    {CLAUSE_ACTION_LABELS.acceptSupplierPosition}
                   </Button>
                 </div>
               </div>
@@ -6541,28 +6887,32 @@ function ComparisonSection({
                   className="h-8 text-[11px]"
                   onClick={() => openReviseTargetEditor()}
                 >
-                  Revise target
+                  {CLAUSE_ACTION_LABELS.reviseTarget}
                 </Button>
                 <div className="ml-auto flex flex-wrap items-center gap-orbit-xs">
                   <Button
-                    variant={closure === "closed" ? "default" : "outline"}
+                    variant={closure === "keep-open" ? "secondary" : "outline"}
+                    className="h-8 text-[11px]"
+                    onClick={() => {
+                      if (actionabilityRequest && onContinueWithActionability) {
+                        onContinueWithActionability(r.id, actionabilityRequest);
+                        return;
+                      }
+                      onConfirmVerdictFromAction?.(r.id, rowVerdict, "Held previous target");
+                      onKeepOpen(r.id);
+                    }}
+                  >
+                    {CLAUSE_ACTION_LABELS.holdPosition}
+                  </Button>
+                  <Button
+                    variant="default"
                     className="h-8 text-[11px]"
                     onClick={() => {
                       onConfirmVerdictFromAction?.(r.id, rowVerdict, "Accepted supplier wording");
                       onClose(r.id);
                     }}
                   >
-                    Accept
-                  </Button>
-                  <Button
-                    variant={closure === "keep-open" ? "secondary" : "outline"}
-                    className="h-8 text-[11px]"
-                    onClick={() => {
-                      onConfirmVerdictFromAction?.(r.id, rowVerdict, "Held previous target");
-                      onKeepOpen(r.id);
-                    }}
-                  >
-                    Hold my position
+                    {CLAUSE_ACTION_LABELS.acceptSupplierPosition}
                   </Button>
                 </div>
               </div>
@@ -6584,7 +6934,9 @@ function ComparisonSection({
             verdictSuperseded={Boolean(rowConfirmation?.overrideComment)}
             deviationDelta={rowDeviationDelta}
             alteredAfterAgreement={Boolean(rowState?.alteredAfterAgreement)}
-            metaPrefix={r.pill.status === "new" ? <span className="mr-orbit-xs text-[#0C447C]">+</span> : null}
+            missingClause={Boolean(display.missingClause)}
+            metaPrefix={!resolvedOverrideVerdict && r.pill.status === "new" ? <span className="mr-orbit-xs text-[#0C447C]">+</span> : null}
+            selectedComparisonAction={closure === "closed" || rowState?.acceptedClosed ? "accepted" : undefined}
             extraContent={
               <>
                 {comparisonDetails}
@@ -6612,6 +6964,14 @@ function ComparisonSection({
             onNoAction={() => onClose(r.id)}
             onEditRequest={() => openReviseTargetEditor()}
             onChangeNoAction={() => openReviseTargetEditor()}
+            onChangeSelectedAction={
+              closure === "closed"
+                ? () => {
+                    onReopenAcceptedDecision?.(r.id);
+                    openReviseTargetEditor("Changed accepted supplier position");
+                  }
+                : undefined
+            }
             onUpdateDraft={onUpdateText ? (patch) => onUpdateText(r.id, patch) : undefined}
             onCancelDraft={cancelDraft}
             onSubmitDraft={onSubmitDraft ? () => {
@@ -6812,7 +7172,7 @@ function UnmarkedSection({
                         isDrafting={isExpanded}
                         extraContent={
                           <SimplifiedComparisonContent
-                            target={req.requestedChange}
+                            target={display.actionability?.trim() || req.requestedChange}
                             previousLabel={`Previous Analysis · ${leftLabel}`}
                             previousText={r.prev?.deviation ?? "Clause did not exist."}
                             currentLabel={`Current Analysis · ${rightLabel}`}
@@ -6961,6 +7321,7 @@ function ClauseSlideOver({
   versions,
   state,
   targetVersion,
+  simplifyOutcomeStatus = false,
   changePill,
   onConfirmVerdict,
   onSupersedeVerdict,
@@ -6983,6 +7344,7 @@ function ClauseSlideOver({
   versions: ContractVersion[];
   state: ClauseDecisionState;
   targetVersion: string;
+  simplifyOutcomeStatus?: boolean;
   changePill: ChangePillResult;
   onConfirmVerdict: (id: string, verdict: ClauseVerdict) => void;
   onSupersedeVerdict: (id: string, original: ClauseVerdict, comment: string) => void;
@@ -7004,8 +7366,12 @@ function ClauseSlideOver({
   const callout = slideOverCallout(changePill.status, leftLabel);
   const request = getLatestRequest(state, leftLabel)?.request;
   const latestCell = [...historyRow.cells].reverse().find((cell) => cell.status !== "missing");
-  const computedVerdict = verdictFromChangePill(changePill.status);
-  const verdict = effectiveVerdict(state, targetVersion, changePill.status);
+  const computedVerdict = simplifyOutcomeStatus
+    ? (state.closures[targetVersion] === "closed" || changePill.status === "met" ? "met" : "notmet")
+    : verdictFromChangePill(changePill.status);
+  const verdict = simplifyOutcomeStatus
+    ? state.verdictConfirmations?.[targetVersion]?.verdict ?? computedVerdict
+    : effectiveVerdict(state, targetVersion, changePill.status);
   const confirmation = state.verdictConfirmations?.[targetVersion];
   const deviationDelta = getDeviationDelta(prev, curr, state.simulatedMet ? { from: "Medium", to: "Aligned" } : state.alteredAfterAgreement ? { from: "Aligned", to: "High" } : undefined);
   const targets = targetVersionsForClause(state, request);
@@ -7431,9 +7797,9 @@ function ClauseJourneyActions({
 }) {
   return (
     <div className="ml-auto flex flex-wrap items-center justify-end gap-orbit-xs">
-      <Button className="h-8 bg-[#1a2744] px-orbit-base text-xs text-white hover:bg-[#243454]" onClick={onRevise}>Revise target</Button>
-      <Button variant="outline" className="h-8 text-xs" onClick={onAccept}>Accept</Button>
-      <Button variant="outline" className="h-8 text-xs" onClick={onHold}>Hold my position</Button>
+      <Button className="h-8 bg-[#1a2744] px-orbit-base text-xs text-white hover:bg-[#243454]" onClick={onRevise}>{CLAUSE_ACTION_LABELS.reviseTarget}</Button>
+      <Button variant="outline" className="h-8 text-xs" onClick={onHold}>{CLAUSE_ACTION_LABELS.holdPosition}</Button>
+      <Button variant="default" className="h-8 text-xs" onClick={onAccept}>{CLAUSE_ACTION_LABELS.acceptSupplierPosition}</Button>
       {canSimulateRegression && (
         <Button variant="outline" className="h-8 border-dashed text-xs" onClick={onSimulateRegression}>▶ Simulate next-round redline</Button>
       )}
@@ -7561,7 +7927,9 @@ function SlideOverPrimaryAction({
 }) {
   const className = "ml-auto h-8 bg-[#1a2744] px-orbit-base text-xs text-white hover:bg-[#243454]";
   if (status === "regressed") return <Button className={className} onClick={onMarkNewIssue}>Request revert</Button>;
-  if (status === "new" || status === "improved") return <Button className={className} onClick={onCloseClause}>Accept</Button>;
+  if (status === "new" || status === "improved") {
+    return <Button className={className} onClick={onCloseClause}>{CLAUSE_ACTION_LABELS.acceptSupplierPosition}</Button>;
+  }
   if (status === "met") return <Button className={className} onClick={onCloseClause}>Mark resolved</Button>;
   if (status === "not_met") return <Button className={className} onClick={onKeepOpen}>Re-request</Button>;
   return <Button className={className} onClick={onMarkNewIssue}>Request change</Button>;
@@ -7744,7 +8112,7 @@ function ClauseDetailPanel({
               {changePill.status === "improved" ? (
                 <>
                   <Button className="h-8 gap-orbit-xs text-xs" onClick={() => onCloseClause(clauseId)}>
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Accept
+                    <CheckCircle2 className="w-3.5 h-3.5" /> {CLAUSE_ACTION_LABELS.acceptSupplierPosition}
                   </Button>
                   <Button variant="outline" className="h-8 text-xs gap-orbit-xs" onClick={() => onMarkNewIssue(clauseId)}>
                     Challenge change
@@ -7762,7 +8130,7 @@ function ClauseDetailPanel({
               ) : changePill.status === "new" ? (
                 <>
                   <Button className="h-8 gap-orbit-xs text-xs" onClick={() => onCloseClause(clauseId)}>
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Accept
+                    <CheckCircle2 className="w-3.5 h-3.5" /> {CLAUSE_ACTION_LABELS.acceptSupplierPosition}
                   </Button>
                   <Button variant="outline" className="h-8 text-xs gap-orbit-xs" onClick={() => onMarkNewIssue(clauseId)}>
                     Request removal
@@ -7771,7 +8139,7 @@ function ClauseDetailPanel({
               ) : (
                 <>
                   <Button variant="outline" className="h-8 text-xs gap-orbit-xs" onClick={() => onKeepOpen(clauseId)}>
-                    <ArrowRight className="w-3.5 h-3.5" /> Hold my position
+                    <ArrowRight className="w-3.5 h-3.5" /> {CLAUSE_ACTION_LABELS.holdPosition}
                   </Button>
                   <Button variant="default" className="h-8 text-xs gap-orbit-xs" onClick={() => onCloseClause(clauseId)}>
                     <CheckCircle2 className="w-3.5 h-3.5" /> Close

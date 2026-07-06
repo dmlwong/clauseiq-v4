@@ -138,6 +138,7 @@ export function ComparisonDesignOptions({
   activeEvidenceMetric,
   onEvidenceMetricSelect,
   evidenceMetrics,
+  simplifyStatusMetrics = false,
 }: {
   option: ComparisonDesignOption;
   comparisonControl: ReactNode;
@@ -163,6 +164,7 @@ export function ComparisonDesignOptions({
   activeEvidenceMetric?: EvidenceMetricKey | null;
   onEvidenceMetricSelect?: (metric: EvidenceMetricKey) => void;
   evidenceMetrics?: EvidenceMetricCounts;
+  simplifyStatusMetrics?: boolean;
 }) {
   if (option === "side-by-side" || option === "row-scale") {
     return (
@@ -180,6 +182,7 @@ export function ComparisonDesignOptions({
               activeMetric={activeEvidenceMetric}
               onMetricSelect={onEvidenceMetricSelect}
               metrics={evidenceMetrics}
+              simplifyStatusMetrics={simplifyStatusMetrics}
             />
             <CategoryFiltersSection>{categoryPanel}</CategoryFiltersSection>
           </section>
@@ -205,6 +208,7 @@ export function ComparisonDesignOptions({
           onMetricSelect={onEvidenceMetricSelect}
           metrics={evidenceMetrics}
           grouped
+          simplifyStatusMetrics={simplifyStatusMetrics}
         />
         <VersionMovementCard
           panel={panel}
@@ -473,6 +477,7 @@ export function ComparisonSummaryRail({
   activeMetric,
   onMetricSelect,
   metrics,
+  simplifyStatusMetrics = false,
 }: {
   panel: VersionPanelData;
   stripStats: ComparisonStripStats;
@@ -484,6 +489,7 @@ export function ComparisonSummaryRail({
   activeMetric?: EvidenceMetricKey | null;
   onMetricSelect?: (metric: EvidenceMetricKey) => void;
   metrics?: EvidenceMetricCounts;
+  simplifyStatusMetrics?: boolean;
 }) {
   const { contract, comparison, actions } = stripStats;
   const metricCounts = metrics ?? {
@@ -515,6 +521,7 @@ export function ComparisonSummaryRail({
         activeMetric={activeMetric}
         onMetricSelect={onMetricSelect}
         density="rail"
+        simplifyStatusMetrics={simplifyStatusMetrics}
       />
     </section>
   );
@@ -551,7 +558,7 @@ function ScoreHero({
         <div className="flex items-center justify-between gap-orbit-s">
           <Text as="p" size="Small" variant="Secondary">Score</Text>
         </div>
-        <div className="mt-orbit-base grid grid-cols-[minmax(0,1fr)_40px_minmax(0,1fr)] items-stretch gap-orbit-s">
+        <div className="mt-orbit-s grid grid-cols-[minmax(0,1fr)_40px_minmax(0,1fr)] items-stretch gap-orbit-s">
           <ScoreSnapshot label={leftLabel} score={previous.score} band={previous.band} />
           <div className="flex min-w-0 flex-col items-center justify-center gap-orbit-xs text-muted-foreground">
             <ArrowRight className="h-4 w-4" />
@@ -765,6 +772,7 @@ function NarrativeSummary({
   onMetricSelect,
   metrics,
   grouped = false,
+  simplifyStatusMetrics = false,
 }: {
   stripStats: ComparisonStripStats;
   className?: string;
@@ -772,6 +780,7 @@ function NarrativeSummary({
   onMetricSelect?: (metric: EvidenceMetricKey) => void;
   metrics?: EvidenceMetricCounts;
   grouped?: boolean;
+  simplifyStatusMetrics?: boolean;
 }) {
   const { contract, comparison, actions } = stripStats;
   const metricCounts = metrics ?? {
@@ -802,6 +811,7 @@ function NarrativeSummary({
         onMetricSelect={onMetricSelect}
         density="inline"
         grouped={grouped}
+        simplifyStatusMetrics={simplifyStatusMetrics}
       />
       </Card>
     </div>
@@ -997,13 +1007,19 @@ function MetricGrid({
   onMetricSelect,
   density,
   grouped = false,
+  simplifyStatusMetrics = false,
 }: {
   metrics: EvidenceMetricCounts;
   activeMetric?: EvidenceMetricKey | null;
   onMetricSelect?: (metric: EvidenceMetricKey) => void;
   density: "inline" | "rail";
   grouped?: boolean;
+  simplifyStatusMetrics?: boolean;
 }) {
+  const visibleMetricDefinitions = simplifyStatusMetrics
+    ? metricDefinitions.filter((definition) =>
+      definition.key !== "worsened" && definition.key !== "unexpected" && definition.key !== "manual-review")
+    : metricDefinitions;
   const renderMetricRow = (definition: (typeof metricDefinitions)[number], label = definition.label) => {
     const value = metrics[definition.value];
     const active = activeMetric === definition.key;
@@ -1044,16 +1060,21 @@ function MetricGrid({
 
   const groupedMetricSections: Array<{ title: string; keys: EvidenceMetricKey[] }> = [
     { title: "Verdict", keys: ["met", "not-met"] },
+    { title: "Deviation", keys: ["missing", "high", "medium", "low", "none"] },
+  ];
+  const fullGroupedMetricSections: Array<{ title: string; keys: EvidenceMetricKey[] }> = [
+    { title: "Verdict", keys: ["met", "not-met"] },
     { title: "Work needed", keys: ["manual-review"] },
     { title: "System detection", keys: ["unexpected", "worsened"] },
     { title: "Deviation", keys: ["missing", "high", "medium", "low", "none"] },
   ];
-  const metricByKey = new Map(metricDefinitions.map((definition) => [definition.key, definition]));
+  const sections = simplifyStatusMetrics ? groupedMetricSections : fullGroupedMetricSections;
+  const metricByKey = new Map(visibleMetricDefinitions.map((definition) => [definition.key, definition]));
 
   if (grouped) {
     return (
       <div className="mt-orbit-base grid gap-orbit-base lg:grid-cols-2">
-        {groupedMetricSections.map((section) => (
+        {sections.map((section) => (
           <div key={section.title} className="rounded-lg border border-border/70 bg-white/60 p-orbit-s">
             <Text as="p" size="Small" variant="Secondary">{section.title}</Text>
             <div className="grid grid-cols-2 gap-orbit-s">
@@ -1069,7 +1090,7 @@ function MetricGrid({
     return (
       <div className="mt-orbit-base">
         <div className="space-y-orbit-base">
-          {groupedMetricSections.map((section) => (
+          {sections.map((section) => (
           <div key={section.title}>
             <div className="mb-orbit-xs rounded-md py-orbit-xs">
               <Text as="p" size="Small" variant="Secondary">{section.title}</Text>
@@ -1094,7 +1115,7 @@ function MetricGrid({
         "grid-cols-2 sm:grid-cols-4",
       )}
     >
-      {metricDefinitions.map(renderMetric)}
+      {visibleMetricDefinitions.map(renderMetric)}
     </div>
   );
 }

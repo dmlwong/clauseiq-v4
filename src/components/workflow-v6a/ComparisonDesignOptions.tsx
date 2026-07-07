@@ -561,7 +561,7 @@ function ScoreHero({
     band: panel.current.band,
   };
   return (
-    <div className={className}>
+    <div className={cn("clauseiq-v6a-score-hero", className)}>
       <Card type="Static" padding={compact ? "Small" : "Base"} state="Accent">
         <div className="flex items-center justify-between gap-orbit-s">
           <Text as="p" size="Small" variant="Secondary">Score</Text>
@@ -631,7 +631,7 @@ function VersionMovementCard({
   comparisonControl: ReactNode;
 }) {
   return (
-    <Card type="Static" padding="Small">
+    <Card type="Static" padding="Small" style={{ overflow: "visible" }}>
       <div className="mb-orbit-base flex flex-wrap items-center justify-between gap-orbit-s border-b border-border pb-orbit-base">
         <Text as="p" size="Small" variant="Secondary">Version movement</Text>
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-orbit-s">

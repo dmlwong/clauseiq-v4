@@ -5675,7 +5675,7 @@ function ClauseDecisionCard({
                   ? "border border-[#BFD6AB] bg-[#EAF3DE]"
                   : useDefaultComparisonCard
                   ? "border border-border bg-muted/20"
-                  : "border border-[#185FA5]/20 bg-[#E6F1FB]/45",
+                  : "border border-[#BFD6AB] bg-[#EAF3DE]",
               )}
             >
               <p
@@ -5685,7 +5685,7 @@ function ClauseDecisionCard({
                     ? "text-[#27500A]"
                     : useDefaultComparisonCard
                     ? "text-muted-foreground"
-                    : "text-[#0C447C]",
+                    : "text-[#27500A]",
                 )}
               >
                 <span className={cn("v6-orbit-weight-semibold", useDefaultComparisonCard && !showAcceptedCompact && "text-foreground")}>
@@ -5706,7 +5706,7 @@ function ClauseDecisionCard({
                       variant="ghost"
                       className={cn(
                         "h-7 gap-orbit-xs px-orbit-s text-[10px] hover:bg-white/70",
-                        showAcceptedCompact ? "text-[#27500A]" : "text-primary",
+                        showHandledCompact ? "text-[#27500A]" : "text-primary",
                       )}
                       onClick={() => setQueuedExpanded((current) => !current)}
                     >
@@ -5786,11 +5786,11 @@ function ClauseDecisionCard({
                 "rounded-md px-orbit-base py-orbit-s text-[11px]",
                 useDefaultComparisonCard
                   ? "border border-border bg-muted/20 text-muted-foreground"
-                  : "border border-[#185FA5]/20 bg-[#E6F1FB]/55 text-[#0C447C]",
+                  : "border border-[#BFD6AB] bg-[#EAF3DE] text-[#27500A]",
               )}
             >
               <p className={cn("v6-orbit-weight-medium", useDefaultComparisonCard && "text-foreground")}>Revise target.</p>
-              <p className={cn("mt-orbit-xxs", useDefaultComparisonCard ? "text-muted-foreground" : "text-[#0C447C]/80")}>
+              <p className={cn("mt-orbit-xxs", useDefaultComparisonCard ? "text-muted-foreground" : "text-[#27500A]/80")}>
                 This clause is queued for the next round target.
               </p>
             </div>

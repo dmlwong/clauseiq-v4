@@ -1,3 +1,4 @@
+// Temporary SPA fallback worker for Sites-hosted static prototype builds.
 const ROUTE_ASSET_PATTERN = /\.[^/]+$/;
 
 function shouldServeAppShell(request, response) {

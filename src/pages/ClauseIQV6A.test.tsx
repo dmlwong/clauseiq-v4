@@ -351,8 +351,8 @@ describe("ClauseIQ V6A flow", () => {
     expect(screen.queryByText("0 vs previous")).not.toBeInTheDocument();
     expect(screen.queryByText("Summary shown below. View the result for full details.")).not.toBeInTheDocument();
     expect(screen.queryByText("Missing Clauses and deviation levels")).not.toBeInTheDocument();
-    expect(screen.getAllByText("Missing Clauses").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Deviations Level").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Clause Status").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Deviation").length).toBeGreaterThan(0);
     expect(screen.queryByLabelText("Deviation level definitions")).not.toBeInTheDocument();
   });
 
@@ -441,6 +441,30 @@ describe("ClauseIQ V6A flow", () => {
     expect(route).toContain("previousAnalysisId=a-002");
     expect(route).toContain("from=v2");
     expect(route).toContain("to=v3");
+  });
+
+  it("opens the dashboard from the completed output-panel analysis card", () => {
+    render(
+      <MemoryRouter initialEntries={["/clauseiq-v6a/output-panel"]}>
+        <TooltipProvider>
+          <Routes>
+            <Route
+              path="/clauseiq-v6a/output-panel"
+              element={<ClauseIQV6A forceResults resultsLayout="output-panel" />}
+            />
+            <Route path="/initiatives-v6a" element={<LocationEcho />} />
+          </Routes>
+        </TooltipProvider>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "View Result" }));
+
+    const route = screen.getByTestId("location").textContent ?? "";
+    expect(route).toContain("/initiatives-v6a?");
+    expect(route).toContain("resultMode=outcome");
+    expect(route).toContain("analysisId=a-001");
+    expect(route).toContain("previousAnalysisId=a-002");
   });
 
   it("shows next actions below the completed output-panel analysis", () => {

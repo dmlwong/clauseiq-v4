@@ -296,6 +296,26 @@ body
 
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-list {
   display: grid;
+  gap: 0;
+}
+
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-section + .clauseiq-v6-recommendation-bulk-section {
+  border-top: 1px solid var(--orbit-color-border-default);
+  margin-top: var(--orbit-space-s);
+  padding-top: var(--orbit-space-s);
+}
+
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-section-title {
+  color: var(--orbit-color-text-secondary);
+  font-size: 11px;
+  font-weight: var(--orbit-font-weight-medium);
+  line-height: var(--orbit-leading-snug);
+  margin-bottom: var(--orbit-space-xxs);
+  padding: 0 var(--orbit-space-s);
+}
+
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-section-options {
+  display: grid;
   gap: var(--orbit-space-xxs);
 }
 

@@ -359,6 +359,22 @@ function displayTitleForClause(clauseId: string, fallback: string) {
   return clauseId === DEMO_TARGET_CLAUSE_ID ? "Payment Term — Instalment Schedule" : fallback;
 }
 
+function ClauseTitleInline({
+  clauseId,
+  fallback,
+}: {
+  clauseId: string;
+  fallback: string;
+}) {
+  return (
+    <span className="inline-flex min-w-0 max-w-full items-center gap-[4px]">
+      <span className="shrink-0 text-[0.92em] v6-orbit-weight-regular text-muted-foreground">{clauseId}</span>
+      <span aria-hidden="true" className="h-[1em] w-px shrink-0 bg-border" />
+      <span className="min-w-0 truncate">{displayTitleForClause(clauseId, fallback)}</span>
+    </span>
+  );
+}
+
 const SEVERITY_WEIGHTS: Record<"high" | "medium" | "low", number> = {
   high: 9,
   medium: 3,
@@ -2228,6 +2244,64 @@ export function ContractResults({
       : "All recommendations reviewed";
   const firstAnalysisRecommendationApplyOptions = buildRecommendationApplyOptions(firstAnalysisRecommendationTargets);
   const firstAnalysisAvailableRecommendationApplyOptions = firstAnalysisRecommendationApplyOptions.filter((option) => option.count > 0);
+  const outcomeRecommendationTargets =
+    outcomeReviewMode && rightVersion
+      ? comparisonSections.open
+          .map((row): RecommendationTargetItem | null => {
+            const display = row.curr ?? row.prev;
+            if (!display) return null;
+
+            const state = stateOf(row.id);
+            const existingRequest = state.requests[rightVersion.version];
+            if (existingRequest?.requestedChange?.trim()) return null;
+            if (state.closures[rightVersion.version] === "closed") return null;
+
+            const latestRequest = leftVersion ? getLatestRequest(state, leftVersion.version)?.request : undefined;
+            const requestedChange =
+              display.actionability?.trim() ||
+              latestRequest?.requestedChange?.trim();
+            if (!requestedChange) return null;
+
+            return {
+              id: row.id,
+              clauseTitle: display.title,
+              category: display.category,
+              severity: display.severity,
+              verdict: effectiveVerdict(state, rightVersion.version, row.pill.status) ?? undefined,
+              missingClause: display.missingClause,
+              sourceDeviationLevel: display.sourceDeviationLevel,
+              request: {
+                requestedChange,
+                rationale: latestRequest?.rationale?.trim() || undefined,
+              },
+            };
+          })
+          .filter((target): target is RecommendationTargetItem => Boolean(target))
+      : [];
+  const outcomeRecommendationApplyOptions = buildRecommendationApplyOptions(outcomeRecommendationTargets);
+  const applyOutcomeRecommendations = (targets: RecommendationTargetItem[], scope?: RecommendationApplyScopeMeta) => {
+    if (!outcomeReviewMode || targets.length === 0) return;
+    targets.forEach((target) => continueWithActionability(target.id, target.request));
+    toast({
+      title: "Best practices added to review",
+      description: `${targets.length} ${scope?.toastLabel ?? "recommendation"}${targets.length === 1 ? "" : "s"} added from the outcome review. Review and generate when ready.`,
+    });
+  };
+  const applyOutcomeRecommendationOptions = (options: RecommendationApplyOption[]) => {
+    applyOutcomeRecommendations(
+      mergeRecommendationApplyTargets(options),
+      buildRecommendationApplyScopeMeta(options),
+    );
+  };
+  const bulkRecommendationApplyOptions = outcomeReviewMode
+    ? outcomeRecommendationApplyOptions
+    : firstAnalysisRecommendationApplyOptions;
+  const bulkRecommendationsDisabled = outcomeReviewMode
+    ? outcomeRecommendationTargets.length === 0
+    : !firstAnalysisDemo || firstAnalysisRecommendationTargets.length === 0;
+  const bulkRecommendationsReviewed = outcomeReviewMode
+    ? outcomeRecommendationTargets.length === 0
+    : firstAnalysisRecommendationsReviewed;
   const applyAllRecommendations = (targets: RecommendationTargetItem[], scope?: RecommendationApplyScopeMeta) => {
     if (!firstAnalysisVersion || targets.length === 0) return;
     const bulkClauseIds = new Set(pendingRequestItems.map((item) => item.clauseId));
@@ -2527,14 +2601,18 @@ export function ContractResults({
             mode={mode}
             onChange={switchMode}
             comparisonLabel="Review"
-            onApplyAllRecommendations={() => applyAllRecommendations(firstAnalysisRecommendationTargets)}
-            onApplyRecommendationOptions={applyRecommendationOptions}
-            onUndoAllRecommendations={undoAppliedRecommendations}
-            applyAllRecommendationsDisabled={!firstAnalysisDemo || firstAnalysisRecommendationTargets.length === 0}
-            applyAllRecommendationsQueued={firstAnalysisDemo && firstAnalysisRecommendationsQueued}
-            applyAllRecommendationsReviewed={firstAnalysisDemo && firstAnalysisRecommendationsReviewed}
-            applyAllRecommendationsUndoable={firstAnalysisDemo && canUndoFirstAnalysisRecommendations}
-            recommendationApplyOptions={firstAnalysisRecommendationApplyOptions}
+            onApplyAllRecommendations={() =>
+              outcomeReviewMode
+                ? applyOutcomeRecommendations(outcomeRecommendationTargets)
+                : applyAllRecommendations(firstAnalysisRecommendationTargets)
+            }
+            onApplyRecommendationOptions={outcomeReviewMode ? applyOutcomeRecommendationOptions : applyRecommendationOptions}
+            onUndoAllRecommendations={outcomeReviewMode ? undefined : undoAppliedRecommendations}
+            applyAllRecommendationsDisabled={bulkRecommendationsDisabled}
+            applyAllRecommendationsQueued={!outcomeReviewMode && firstAnalysisDemo && firstAnalysisRecommendationsQueued}
+            applyAllRecommendationsReviewed={bulkRecommendationsReviewed}
+            applyAllRecommendationsUndoable={!outcomeReviewMode && firstAnalysisDemo && canUndoFirstAnalysisRecommendations}
+            recommendationApplyOptions={bulkRecommendationApplyOptions}
             undoRecommendationCount={firstAnalysisUndoRecommendationCount}
             undoRecommendationScopeLabel={bulkAppliedRecommendationScopeLabel}
             onReviewGenerate={() => setRequestReviewOpen(true)}
@@ -3101,7 +3179,7 @@ function UploadVersionDialog({
         <div className="flex justify-end gap-orbit-s">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={processing}>Cancel</Button>
           <Button onClick={handleConfirm} disabled={!file || !label || processing} className="gap-orbit-xs">
-            {processing ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing…</> : <><Upload className="w-3.5 h-3.5" /> Upload &amp; analyse</>}
+            {processing ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Processing…</> : <><Upload className="w-3.5 h-3.5" /> Upload &amp; Analyse</>}
           </Button>
         </div>
       }
@@ -3426,6 +3504,7 @@ function RecommendationBulkApplyMenu({
     () => options.filter((option) => selectedIds.includes(option.id)),
     [options, selectedIds],
   );
+  const groupedOptions = useMemo(() => groupRecommendationApplyOptions(options), [options]);
   const selectedTargetCount = useMemo(
     () => mergeRecommendationApplyTargets(selectedOptions).length,
     [selectedOptions],
@@ -3497,36 +3576,45 @@ function RecommendationBulkApplyMenu({
         >
           <div className="clauseiq-v6-recommendation-bulk-subheader">Select Recommendation Group</div>
           <div className="clauseiq-v6-recommendation-bulk-list">
-            {options.map((option) => {
-              const checked = selectedIds.includes(option.id);
+            {groupedOptions.map((group) => (
+              <div key={group.id} className="clauseiq-v6-recommendation-bulk-section">
+                {group.label && (
+                  <div className="clauseiq-v6-recommendation-bulk-section-title">{group.label}</div>
+                )}
+                <div className="clauseiq-v6-recommendation-bulk-section-options">
+                  {group.options.map((option) => {
+                    const checked = selectedIds.includes(option.id);
 
-              return (
-                <div
-                  key={option.id}
-                  role="menuitemcheckbox"
-                  tabIndex={0}
-                  aria-checked={checked}
-                  className={cn("clauseiq-v6-recommendation-bulk-option", checked && "is-selected")}
-                  onClick={() => toggleOption(option.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === " " || event.key === "Enter") {
-                      event.preventDefault();
-                      toggleOption(option.id);
-                    }
-                  }}
-                >
-                  <span aria-hidden="true" className="clauseiq-v6-recommendation-bulk-checkbox">
-                    <Checkbox
-                      checked={checked}
-                      className="pointer-events-none"
-                      aria-label={option.label}
-                    />
-                  </span>
-                  <span className="clauseiq-v6-recommendation-bulk-label">{option.label}</span>
-                  <span className="clauseiq-v6-recommendation-bulk-count">{option.count}</span>
+                    return (
+                      <div
+                        key={option.id}
+                        role="menuitemcheckbox"
+                        tabIndex={0}
+                        aria-checked={checked}
+                        className={cn("clauseiq-v6-recommendation-bulk-option", checked && "is-selected")}
+                        onClick={() => toggleOption(option.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === " " || event.key === "Enter") {
+                            event.preventDefault();
+                            toggleOption(option.id);
+                          }
+                        }}
+                      >
+                        <span aria-hidden="true" className="clauseiq-v6-recommendation-bulk-checkbox">
+                          <Checkbox
+                            checked={checked}
+                            className="pointer-events-none"
+                            aria-label={option.label}
+                          />
+                        </span>
+                        <span className="clauseiq-v6-recommendation-bulk-label">{option.label}</span>
+                        <span className="clauseiq-v6-recommendation-bulk-count">{option.count}</span>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
           <div className="clauseiq-v6-recommendation-bulk-footer">
             <OrbitButton
@@ -4193,13 +4281,13 @@ function ScoringPanelFooter({
       )}
       <div className="ml-auto flex items-center gap-orbit-s">
         <Button variant="outline" className="h-7 rounded-[5px] px-orbit-base text-[10px]" onClick={onRequestChanges}>
-          Request changes
+          Request Changes
         </Button>
         <Button
           className="h-7 rounded-[5px] px-orbit-base text-[10px]"
           onClick={onAcceptVersion}
         >
-          Accept version
+          Accept Version
         </Button>
       </div>
     </div>
@@ -5127,7 +5215,7 @@ function ClauseRequestForm({
   draft,
   request,
   inherited,
-  submitLabel = "Add to requests",
+  submitLabel = "Add to Requests",
   requestPlaceholder = "Describe the change you want from the supplier",
   compact = false,
   onUpdate,
@@ -5225,7 +5313,7 @@ function ClauseDecisionCard({
   displayMode = "default",
   primaryActionLabel = "Request Change",
   requestPlaceholder,
-  requestSubmitLabel = "Add to requests",
+  requestSubmitLabel = "Add to Requests",
   versionLabel,
   extraContent,
   actions,
@@ -5372,7 +5460,9 @@ function ClauseDecisionCard({
       <Card type="Static" padding="Base" state={reviewCardState} indicator={showReviewCardIndicator} style={reviewCardStyle}>
           <div className="flex min-w-0 items-center gap-orbit-s">
           <div className="min-w-0 flex-1">
-            <h3 className="v6-orbit-heading-label truncate text-foreground">{displayTitleForClause(id, clause.title)}</h3>
+            <h3 className="v6-orbit-heading-label truncate text-foreground">
+              <ClauseTitleInline clauseId={id} fallback={clause.title} />
+            </h3>
           </div>
           {alteredAfterAgreement && <Chip label="Altered after agreement" size="Mini" variant="Error" contrast="Low" />}
           {verdict ? <VerdictPill verdict={verdict} superseded={verdictSuperseded} /> : changePill?.status && <ChangePillBadge result={changePill} />}
@@ -5456,13 +5546,24 @@ function ClauseDecisionCard({
                 {showAcceptedCompact ? (
                   onChangeSelectedAction && (
                     <Button variant="outline" className="h-7 px-orbit-s text-[10px]" onClick={onChangeSelectedAction}>
-                      Change decision
+                      Change Decision
                     </Button>
                   )
                 ) : (
                   <>
+                    <Button
+                      variant="ghost"
+                      className={cn(
+                        "h-7 gap-orbit-xs px-orbit-s text-[10px] hover:bg-white/70",
+                        showAcceptedCompact ? "text-[#27500A]" : "text-primary",
+                      )}
+                      onClick={() => setQueuedExpanded((current) => !current)}
+                    >
+                      {queuedExpanded ? "Hide Detail" : "View Detail"}
+                      <ChevronDown className={cn("h-3 w-3 transition-transform", queuedExpanded && "rotate-180")} />
+                    </Button>
                     <Button variant="outline" className="h-7 px-orbit-s text-[10px]" onClick={onEditRequest}>
-                      Edit request
+                      Edit Request
                     </Button>
                     {onRemoveRequest && (
                       <Button variant="outline" className="h-7 px-orbit-s text-[10px] text-muted-foreground" onClick={onRemoveRequest}>
@@ -5471,17 +5572,19 @@ function ClauseDecisionCard({
                     )}
                   </>
                 )}
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    "h-7 gap-orbit-xs px-orbit-s text-[10px] hover:bg-white/70",
-                    showAcceptedCompact ? "text-[#27500A]" : "text-primary",
-                  )}
-                  onClick={() => setQueuedExpanded((current) => !current)}
-                >
-                  {queuedExpanded ? "Hide detail" : "View detail"}
-                  <ChevronDown className={cn("h-3 w-3 transition-transform", queuedExpanded && "rotate-180")} />
-                </Button>
+                {showAcceptedCompact && (
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "h-7 gap-orbit-xs px-orbit-s text-[10px] hover:bg-white/70",
+                      "text-[#27500A]",
+                    )}
+                    onClick={() => setQueuedExpanded((current) => !current)}
+                  >
+                    {queuedExpanded ? "Hide Detail" : "View Detail"}
+                    <ChevronDown className={cn("h-3 w-3 transition-transform", queuedExpanded && "rotate-180")} />
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -5698,7 +5801,7 @@ function ClauseRowScaleCard({
       <ClauseReviewModalCard
         domId={`clause-row-${id}`}
         itemId={id}
-        title={clause.title}
+        title={<ClauseTitleInline clauseId={id} fallback={clause.title} />}
         category={metadata}
         severity={tier}
         missingClause={clause.missingClause}
@@ -5749,7 +5852,9 @@ function ClauseRowScaleCard({
               {id.toUpperCase()} · {metadata}
             </p>
           </div>
-          <h3 className="v6-orbit-heading-label text-foreground">{clause.title}</h3>
+          <h3 className="v6-orbit-heading-label text-foreground">
+            <ClauseTitleInline clauseId={id} fallback={clause.title} />
+          </h3>
         </div>
         {description && (
           <div className="mt-orbit-base">
@@ -5964,12 +6069,19 @@ interface RecommendationTargetItem {
   clauseTitle: string;
   category: string;
   severity: ClauseResult["severity"];
+  verdict?: ClauseVerdict;
   missingClause?: boolean;
   sourceDeviationLevel?: ClauseResult["sourceDeviationLevel"];
   request: ClauseRequest;
 }
 
-type RecommendationApplyScope = "all" | "high" | "medium" | "low" | "none" | "missing";
+type BuiltInRecommendationApplyScope = "all" | "high" | "medium" | "low" | "none" | "missing";
+type VerdictRecommendationApplyScope = `verdict:${ClauseVerdict}`;
+type CategoryRecommendationApplyScope = `category:${string}`;
+type RecommendationApplyScope =
+  | BuiltInRecommendationApplyScope
+  | VerdictRecommendationApplyScope
+  | CategoryRecommendationApplyScope;
 
 interface RecommendationApplyScopeMeta {
   toastLabel: string;
@@ -5985,59 +6097,131 @@ interface RecommendationApplyOption {
   targets: RecommendationTargetItem[];
 }
 
+interface RecommendationApplyOptionGroup {
+  id: "overview" | "verdict" | "deviation" | "category";
+  label?: string;
+  options: RecommendationApplyOption[];
+}
+
+function buildRecommendationApplyOption(
+  id: RecommendationApplyScope,
+  label: string,
+  toastLabel: string,
+  undoLabel: string,
+  targets: RecommendationTargetItem[],
+): RecommendationApplyOption {
+  return {
+    id,
+    label,
+    toastLabel,
+    undoLabel,
+    count: targets.length,
+    targets,
+  };
+}
+
 function buildRecommendationApplyOptions(targets: RecommendationTargetItem[]): RecommendationApplyOption[] {
   const byScope = (scope: RecommendationApplyScope) => targets.filter((target) => targetMatchesRecommendationScope(target, scope));
+  const verdictOptions = (["notmet", "met"] as ClauseVerdict[]).map((verdict) => {
+    const label = verdictLabel(verdict);
+    return buildRecommendationApplyOption(
+      `verdict:${verdict}`,
+      `Verdict: ${label}`,
+      `${label} recommendation`,
+      label,
+      byScope(`verdict:${verdict}`),
+    );
+  });
+  const categoryOptions = Array.from(
+    new Set(
+      targets
+        .map((target) => target.category?.trim())
+        .filter((category): category is string => Boolean(category)),
+    ),
+    )
+    .sort((a, b) => a.localeCompare(b))
+    .map((category) =>
+      buildRecommendationApplyOption(
+        `category:${category}`,
+        category,
+        `${category} recommendation`,
+        category,
+        byScope(`category:${category}`),
+      ),
+    );
 
   return [
+    buildRecommendationApplyOption("all", "All recommendations", "recommendation", "all", targets),
+    ...verdictOptions,
+    buildRecommendationApplyOption(
+      "high",
+      "High Deviation",
+      "High Deviation recommendation",
+      "High Deviation",
+      byScope("high"),
+    ),
+    buildRecommendationApplyOption(
+      "medium",
+      "Medium Deviation",
+      "Medium Deviation recommendation",
+      "Medium Deviation",
+      byScope("medium"),
+    ),
+    buildRecommendationApplyOption(
+      "low",
+      "Low Deviation",
+      "Low Deviation recommendation",
+      "Low Deviation",
+      byScope("low"),
+    ),
+    buildRecommendationApplyOption(
+      "missing",
+      "Missing Clauses",
+      "Missing clause recommendation",
+      "Missing clause",
+      byScope("missing"),
+    ),
+    buildRecommendationApplyOption(
+      "none",
+      "None Deviation",
+      "None Deviation recommendation",
+      "None Deviation",
+      byScope("none"),
+    ),
+    ...categoryOptions,
+  ];
+}
+
+function groupRecommendationApplyOptions(options: RecommendationApplyOption[]): RecommendationApplyOptionGroup[] {
+  const groups: RecommendationApplyOptionGroup[] = [
     {
-      id: "all",
-      label: "All recommendations",
-      toastLabel: "recommendation",
-      undoLabel: "all",
-      count: targets.length,
-      targets,
+      id: "overview",
+      options: options.filter((option) => option.id === "all"),
     },
     {
-      id: "high",
-      label: "High Deviation",
-      toastLabel: "High Deviation recommendation",
-      undoLabel: "High Deviation",
-      count: byScope("high").length,
-      targets: byScope("high"),
+      id: "verdict",
+      label: "Verdict",
+      options: options.filter((option) => typeof option.id === "string" && option.id.startsWith("verdict:")),
     },
     {
-      id: "medium",
-      label: "Medium Deviation",
-      toastLabel: "Medium Deviation recommendation",
-      undoLabel: "Medium Deviation",
-      count: byScope("medium").length,
-      targets: byScope("medium"),
+      id: "deviation",
+      label: "Deviation",
+      options: options.filter((option) =>
+        option.id === "high" ||
+        option.id === "medium" ||
+        option.id === "low" ||
+        option.id === "none" ||
+        option.id === "missing",
+      ),
     },
     {
-      id: "low",
-      label: "Low Deviation",
-      toastLabel: "Low Deviation recommendation",
-      undoLabel: "Low Deviation",
-      count: byScope("low").length,
-      targets: byScope("low"),
-    },
-    {
-      id: "missing",
-      label: "Missing Clauses",
-      toastLabel: "Missing clause recommendation",
-      undoLabel: "Missing clause",
-      count: byScope("missing").length,
-      targets: byScope("missing"),
-    },
-    {
-      id: "none",
-      label: "None Deviation",
-      toastLabel: "None Deviation recommendation",
-      undoLabel: "None Deviation",
-      count: byScope("none").length,
-      targets: byScope("none"),
+      id: "category",
+      label: "Clause Type",
+      options: options.filter((option) => typeof option.id === "string" && option.id.startsWith("category:")),
     },
   ];
+
+  return groups.filter((group) => group.options.length > 0);
 }
 
 function mergeRecommendationApplyTargets(options: RecommendationApplyOption[]) {
@@ -6066,6 +6250,12 @@ function buildRecommendationApplyScopeMeta(options: RecommendationApplyOption[])
 }
 
 function targetMatchesRecommendationScope(target: RecommendationTargetItem, scope: RecommendationApplyScope) {
+  if (scope.startsWith("category:")) {
+    return target.category === scope.slice("category:".length);
+  }
+  if (scope.startsWith("verdict:")) {
+    return target.verdict === scope.slice("verdict:".length);
+  }
   if (scope === "all") return true;
   if (scope === "missing") return Boolean(target.missingClause && target.sourceDeviationLevel === "None");
   if (scope === "none") return target.sourceDeviationLevel === "None";
@@ -6096,7 +6286,7 @@ function ClauseReviewModalCard({
 }: {
   domId?: string;
   itemId: string;
-  title: string;
+  title: ReactNode;
   category?: string;
   severity?: ClauseResult["severity"];
   missingClause?: boolean;
@@ -6959,7 +7149,7 @@ function ComparisonSection(props: {
             onTogglePin={onTogglePin ? () => onTogglePin(r.id) : undefined}
             primaryActionLabel="Request Change"
             requestPlaceholder="Write the target you want to send in the next round"
-            requestSubmitLabel="Save target"
+            requestSubmitLabel="Save Target"
             onRequest={() => openReviseTargetEditor()}
             onNoAction={() => onClose(r.id)}
             onEditRequest={() => openReviseTargetEditor()}
@@ -7384,7 +7574,9 @@ function ClauseSlideOver({
           <div className="flex items-start justify-between gap-orbit-base">
             <div className="min-w-0">
               <p className="text-[9px] v6-orbit-weight-medium uppercase text-muted-foreground">{clauseId.toUpperCase()} · {def.category}</p>
-              <h2 className="v6-orbit-heading-label mt-orbit-xs truncate text-foreground">{displayTitleForClause(clauseId, display.title)}</h2>
+              <h2 className="v6-orbit-heading-label mt-orbit-xs truncate text-foreground">
+                <ClauseTitleInline clauseId={clauseId} fallback={display.title} />
+              </h2>
               <div className="mt-orbit-s flex flex-wrap items-center gap-orbit-xs">
                 <Badge variant="outline" className={`${severityTone(display.severity)} text-[9px]`}>{display.severity}</Badge>
                 {state.alteredAfterAgreement && <Chip label="Altered after agreement" size="Mini" variant="Error" contrast="Low" />}
@@ -7552,13 +7744,13 @@ function ClauseSlideOver({
 
         <div className="flex shrink-0 items-center gap-orbit-s border-t border-border px-orbit-base py-orbit-s">
           <Button variant="outline" className="h-8 text-xs" onClick={() => toast({ title: "Full text", description: display.excerpt })}>
-            View full text
+            View Full Text
           </Button>
           {state.alteredAfterAgreement ? (
             <div className="ml-auto flex items-center gap-orbit-xs">
-              <Button className="h-8 bg-[#1a2744] px-orbit-base text-xs text-white hover:bg-[#243454]" onClick={() => onMarkNewIssue(clauseId)}>Reject — restore agreed wording</Button>
-              <Button variant="outline" className="h-8 text-xs" onClick={() => onCloseClause(clauseId)}>Accept their change</Button>
-              <Button variant="outline" className="h-8 text-xs" onClick={() => onKeepOpen(clauseId)}>Park & escalate</Button>
+              <Button className="h-8 bg-[#1a2744] px-orbit-base text-xs text-white hover:bg-[#243454]" onClick={() => onMarkNewIssue(clauseId)}>Reject — Restore Agreed Wording</Button>
+              <Button variant="outline" className="h-8 text-xs" onClick={() => onCloseClause(clauseId)}>Accept Their Change</Button>
+              <Button variant="outline" className="h-8 text-xs" onClick={() => onKeepOpen(clauseId)}>Park &amp; Escalate</Button>
             </div>
           ) : verdict === "met" ? (
             <ClauseJourneyActions
@@ -7693,7 +7885,7 @@ function VerdictConfirmationPanel({
               onSupersede(comment.trim());
             }}
           >
-            Save override
+            Save Override
           </Button>
         </div>
       )}
@@ -7773,7 +7965,7 @@ function ReviseTargetPanel({
           setSubmitted(true);
         }}
       >
-        Set as Round {nextVersion} target (v{nextVersion})
+        Set as Round {nextVersion} Target (v{nextVersion})
       </Button>
       {submitted && (
         <p className="mt-orbit-s text-[10px] text-[#0C447C]">Round {nextVersion} target set (v{nextVersion}): {text}. The previous verdict is preserved in the lineage.</p>
@@ -7801,7 +7993,7 @@ function ClauseJourneyActions({
       <Button variant="outline" className="h-8 text-xs" onClick={onHold}>{CLAUSE_ACTION_LABELS.holdPosition}</Button>
       <Button variant="default" className="h-8 text-xs" onClick={onAccept}>{CLAUSE_ACTION_LABELS.acceptSupplierPosition}</Button>
       {canSimulateRegression && (
-        <Button variant="outline" className="h-8 border-dashed text-xs" onClick={onSimulateRegression}>▶ Simulate next-round redline</Button>
+        <Button variant="outline" className="h-8 border-dashed text-xs" onClick={onSimulateRegression}>▶ Simulate Next-Round Redline</Button>
       )}
     </div>
   );
@@ -7840,7 +8032,7 @@ function SignoffView({
           <p className="text-[10px] v6-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">Round sign-off</p>
           <h2 className="v6-orbit-heading-3 text-foreground">Negotiation audit pack</h2>
         </div>
-        <Button variant="outline" className="h-9 text-xs" onClick={onClose}>Back to review</Button>
+        <Button variant="outline" className="h-9 text-xs" onClick={onClose}>Back to Review</Button>
       </div>
       <div className="grid gap-orbit-base md:grid-cols-3">
         <Card type="Static" padding="Base" state="Success">
@@ -7868,10 +8060,10 @@ function SignoffView({
                   {item.status === "escalated" ? <Chip label="Escalated" size="Mini" variant="Warning" contrast="Low" /> : <VerdictPill verdict={item.status} />}
                 </div>
                 {item.status === "escalated" ? (
-                  <Button variant="outline" className="h-8 text-xs" onClick={() => onSaveNote(item.id)}>Save note & mark resolved</Button>
+                  <Button variant="outline" className="h-8 text-xs" onClick={() => onSaveNote(item.id)}>Save Note &amp; Mark Resolved</Button>
                 ) : (
                   <Button variant="outline" className="h-8 text-xs" onClick={() => onResolve(item.id)} disabled={item.resolved}>
-                  {item.resolved ? "Resolved" : "Mark resolved"}
+                  {item.resolved ? "Resolved" : "Mark Resolved"}
                   </Button>
                 )}
               </div>
@@ -7892,7 +8084,7 @@ function SignoffView({
       </Card>
       <div className="flex justify-end">
         <Button className="h-9" disabled={outstandingCount > 0} onClick={onExport}>
-          {outstandingCount > 0 ? `Export audit pack (${outstandingCount} items outstanding)` : "Export audit pack"}
+          {outstandingCount > 0 ? `Export Audit Pack (${outstandingCount} Items Outstanding)` : "Export Audit Pack"}
         </Button>
       </div>
       {auditPackOpen && (
@@ -7926,13 +8118,13 @@ function SlideOverPrimaryAction({
   onMarkNewIssue: () => void;
 }) {
   const className = "ml-auto h-8 bg-[#1a2744] px-orbit-base text-xs text-white hover:bg-[#243454]";
-  if (status === "regressed") return <Button className={className} onClick={onMarkNewIssue}>Request revert</Button>;
+  if (status === "regressed") return <Button className={className} onClick={onMarkNewIssue}>Request Revert</Button>;
   if (status === "new" || status === "improved") {
     return <Button className={className} onClick={onCloseClause}>{CLAUSE_ACTION_LABELS.acceptSupplierPosition}</Button>;
   }
-  if (status === "met") return <Button className={className} onClick={onCloseClause}>Mark resolved</Button>;
-  if (status === "not_met") return <Button className={className} onClick={onKeepOpen}>Re-request</Button>;
-  return <Button className={className} onClick={onMarkNewIssue}>Request change</Button>;
+  if (status === "met") return <Button className={className} onClick={onCloseClause}>Mark Resolved</Button>;
+  if (status === "not_met") return <Button className={className} onClick={onKeepOpen}>Re-Request</Button>;
+  return <Button className={className} onClick={onMarkNewIssue}>Request Change</Button>;
 }
 
 function detailCalloutForStatus(status: ChangePillStatus | null): {
@@ -8115,16 +8307,16 @@ function ClauseDetailPanel({
                     <CheckCircle2 className="w-3.5 h-3.5" /> {CLAUSE_ACTION_LABELS.acceptSupplierPosition}
                   </Button>
                   <Button variant="outline" className="h-8 text-xs gap-orbit-xs" onClick={() => onMarkNewIssue(clauseId)}>
-                    Challenge change
+                    Challenge Change
                   </Button>
                 </>
               ) : changePill.status === "regressed" ? (
                 <>
                   <Button className="h-8 gap-orbit-xs text-xs" onClick={() => onMarkNewIssue(clauseId)}>
-                    <AlertTriangle className="w-3.5 h-3.5" /> Request revert
+                    <AlertTriangle className="w-3.5 h-3.5" /> Request Revert
                   </Button>
                   <Button variant="outline" className="h-8 text-xs gap-orbit-xs" onClick={() => onCloseClause(clauseId)}>
-                    Accept change
+                    Accept Change
                   </Button>
                 </>
               ) : changePill.status === "new" ? (
@@ -8133,7 +8325,7 @@ function ClauseDetailPanel({
                     <CheckCircle2 className="w-3.5 h-3.5" /> {CLAUSE_ACTION_LABELS.acceptSupplierPosition}
                   </Button>
                   <Button variant="outline" className="h-8 text-xs gap-orbit-xs" onClick={() => onMarkNewIssue(clauseId)}>
-                    Request removal
+                    Request Removal
                   </Button>
                 </>
               ) : (

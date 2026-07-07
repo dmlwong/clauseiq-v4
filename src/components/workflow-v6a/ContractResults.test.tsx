@@ -119,6 +119,22 @@ describe("ContractResults V6A review controls", () => {
     );
   });
 
+  it("enables bulk best-practice application by deviation level in outcome review", async () => {
+    renderContractResults(outcomeReviewRoute);
+
+    const bulkApplyButton = screen.getByRole("button", { name: /bulk apply recommendation/i });
+    expect(bulkApplyButton).toBeEnabled();
+
+    openRecommendationMenu();
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /High Deviation/i }));
+    fireEvent.click(screen.getByRole("button", { name: /apply selected/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /review & generate/i })).toBeEnabled();
+      expect(reviewGenerateCount()).toBeGreaterThan(0);
+    });
+  });
+
   it("keeps open review clauses free of draft and added-to-review header pills", () => {
     renderContractResults(outcomeReviewDraftRoute);
 
@@ -208,6 +224,14 @@ describe("ContractResults V6A review controls", () => {
     expect(rightButtons.indexOf("Continue with Actionability")).toBeLessThan(rightButtons.indexOf("Accept Supplier Position"));
   });
 
+  it("shows the clause id inline with the clause title in v6a cards", () => {
+    renderContractResults(outcomeReviewDraftRoute);
+
+    const clauseRow = screen.getByText("Exclusivity").closest('[id^="clause-row-"]');
+    expect(clauseRow).toBeTruthy();
+    expect(within(clauseRow as HTMLElement).getByText("c19")).toBeInTheDocument();
+  });
+
   it("switches comparison cards into handled states after continuing with actionability or accepting supplier position", () => {
     renderContractResults(outcomeReviewRoute);
 
@@ -227,8 +251,14 @@ describe("ContractResults V6A review controls", () => {
     expect(holdScope.queryByText("Recommended Best Practice")).not.toBeInTheDocument();
     expect(holdScope.queryByText("Previous Analysis · v2")).not.toBeInTheDocument();
     expect(holdScope.queryByText("Current Analysis · v3")).not.toBeInTheDocument();
-    expect(holdScope.getByRole("button", { name: "Edit request" })).toBeInTheDocument();
-    fireEvent.click(holdScope.getByRole("button", { name: "View detail" }));
+    expect(holdScope.getByRole("button", { name: "Edit Request" })).toBeInTheDocument();
+    const handledActionRow = holdScope.getByRole("button", { name: "Edit Request" }).parentElement;
+    expect(handledActionRow).toBeTruthy();
+    const handledButtonOrder = Array.from((handledActionRow as HTMLElement).querySelectorAll("button")).map((button) =>
+      button.textContent?.trim(),
+    );
+    expect(handledButtonOrder).toEqual(["View Detail", "Edit Request", "Remove"]);
+    fireEvent.click(holdScope.getByRole("button", { name: "View Detail" }));
     expect(holdScope.getByText("Recommended Best Practice")).toBeInTheDocument();
     expect(holdScope.getByText("Previous Analysis · v2")).toBeInTheDocument();
     expect(holdScope.getByText("Current Analysis · v3")).toBeInTheDocument();
@@ -249,8 +279,8 @@ describe("ContractResults V6A review controls", () => {
     expect(acceptScope.queryByText("Recommended Best Practice")).not.toBeInTheDocument();
     expect(acceptScope.queryByText("Previous Analysis · v2")).not.toBeInTheDocument();
     expect(acceptScope.queryByText("Current Analysis · v3")).not.toBeInTheDocument();
-    expect(acceptScope.getByRole("button", { name: "Change decision" })).toBeInTheDocument();
-    fireEvent.click(acceptScope.getByRole("button", { name: "View detail" }));
+    expect(acceptScope.getByRole("button", { name: "Change Decision" })).toBeInTheDocument();
+    fireEvent.click(acceptScope.getByRole("button", { name: "View Detail" }));
     expect(acceptScope.getByText("Recommended Best Practice")).toBeInTheDocument();
     expect(acceptScope.getByText("Previous Analysis · v2")).toBeInTheDocument();
     expect(acceptScope.getByText("Current Analysis · v3")).toBeInTheDocument();
@@ -271,6 +301,16 @@ describe("ContractResults V6A review controls", () => {
     expect(screen.getByRole("menuitemcheckbox", { name: /Low Deviation/i })).toBeInTheDocument();
     expect(screen.getByRole("menuitemcheckbox", { name: /Missing Clauses/i })).toBeInTheDocument();
     expect(screen.getByRole("menuitemcheckbox", { name: /None Deviation/i })).toBeInTheDocument();
+  });
+
+  it("shows verdict and clause type groups in the outcome bulk recommendation menu", () => {
+    renderContractResults(outcomeReviewDraftRoute);
+
+    openRecommendationMenu();
+
+    expect(screen.getByRole("menuitemcheckbox", { name: /Verdict: Not met/i })).toBeInTheDocument();
+    expect(screen.getByRole("menuitemcheckbox", { name: /Clause Type: Commercial Terms/i })).toBeInTheDocument();
+    expect(screen.getByRole("menuitemcheckbox", { name: /Clause Type: Restrictions/i })).toBeInTheDocument();
   });
 
   it("renders first-analysis clause cards with only the current analysis in the simplified hierarchy", () => {

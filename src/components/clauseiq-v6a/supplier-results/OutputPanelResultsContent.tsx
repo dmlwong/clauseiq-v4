@@ -19,7 +19,6 @@ import { cn } from "@/lib/utils";
 import { AnalysisCard } from "./AnalysisCard";
 import {
   getSupplierScorePresentationByAnalysisId,
-  OutputFindingsSummary,
   OutputScoreLine,
   type OutputScorePresentation,
 } from "./OutputSummaryMetrics";
@@ -83,6 +82,7 @@ export function OutputPanelResultsContent({
               analysisParameters={analysisParameters}
               outputScore={outputScoresBySupplierId[supplier.id]?.[analysis.id]}
               higherIsBetter={higherIsBetter}
+              showVerdictSummary={false}
             />
           ))
         )}
@@ -431,13 +431,13 @@ function CompactOutputRow({
 
       {score && (
         <div className="mt-orbit-xs">
-          <OutputScoreLine score={score} higherIsBetter={higherIsBetter} />
+          <OutputScoreLine
+            score={score}
+            deviations={analysis.deviations}
+            higherIsBetter={higherIsBetter}
+          />
         </div>
       )}
-
-      <div className="mt-orbit-s">
-        <OutputFindingsSummary deviations={analysis.deviations} />
-      </div>
     </article>
   );
 }

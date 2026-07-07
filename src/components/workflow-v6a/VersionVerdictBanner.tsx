@@ -169,10 +169,10 @@ export function VersionVerdictBanner({
                 variant="outline"
                 onClick={() => onDecision("changes-requested")}
               >
-                Request changes
+                Request Changes
               </Button>
               <Button onClick={() => onDecision("accepted")}>
-                <CheckCircle2 className="h-4 w-4 mr-orbit-xs" /> Accept version
+                <CheckCircle2 className="h-4 w-4 mr-orbit-xs" /> Accept Version
               </Button>
             </>
           )}

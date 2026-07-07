@@ -29,6 +29,7 @@ import {
   usePrototypeStore,
   prototypePreviewUrl,
   isPrototypeCP,
+  isPrototypeV6A,
   isPrototypeV6,
   isPrototypeV5,
   isResponsiveTestingPrototype,
@@ -50,6 +51,8 @@ const RESPONSIVE_TESTING_DASHBOARD_ROUTE =
   "/initiatives-responsive-testing?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=first-analysis";
 const V6_DASHBOARD_ROUTE =
   "/initiatives-v6?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=first-analysis";
+const V6A_DASHBOARD_ROUTE =
+  "/initiatives-v6a?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=negotiated-reanalysis&resultMode=outcome&analysisId=a-001&previousAnalysisId=a-002&outputSupplierId=sup-001&from=v2&to=v3";
 
 const v5EntryPoints = [
   {
@@ -86,6 +89,25 @@ const v6EntryPoints = [
     label: "Open intake flow",
     description: "Start at the separate ClauseIQ v6 upload journey.",
     url: "/clauseiq-v6",
+  },
+];
+
+const v6aEntryPoints = [
+  {
+    label: "Open output panel",
+    description: "Latest v6a supplier output panel and completed analysis card.",
+    url: "/clauseiq-v6a/output-panel",
+    primary: true,
+  },
+  {
+    label: "Open outcome dashboard",
+    description: "Negotiated re-analysis outcome review dashboard for v6a.",
+    url: V6A_DASHBOARD_ROUTE,
+  },
+  {
+    label: "Open intake flow",
+    description: "Start at the separate ClauseIQ v6a upload journey.",
+    url: "/clauseiq-v6a",
   },
 ];
 
@@ -138,7 +160,7 @@ function openPrototype(url: string | undefined, navigate: NavigateFunction) {
 }
 
 function isHomepageCurrentVersion(version: PrototypeVersion) {
-  return isPrototypeCP(version) || isPrototypeV5(version) || isPrototypeV6(version);
+  return isPrototypeCP(version) || isPrototypeV5(version) || isPrototypeV6(version) || isPrototypeV6A(version);
 }
 
 export default function PrototypeTimeline() {
@@ -159,9 +181,8 @@ export default function PrototypeTimeline() {
   const currentVersions = sorted.filter(isHomepageCurrentVersion);
   const history = sorted.filter((version) => !isHomepageCurrentVersion(version));
   const hasCurrentVersions = currentVersions.length > 0;
+  const hasCurrentV6A = currentVersions.some(isPrototypeV6A);
   const hasCurrentV6 = currentVersions.some(isPrototypeV6);
-  const hasCurrentV5 = currentVersions.some(isPrototypeV5);
-  const hasResponsiveTestingCurrent = currentVersions.some(isResponsiveTestingPrototype);
 
   return (
     <div className="h-screen overflow-y-auto overflow-x-hidden bg-background p-8">
@@ -270,13 +291,49 @@ export default function PrototypeTimeline() {
 
         {activeTab === "current" && hasCurrentVersions && (
           <div className="space-y-4">
+            {hasCurrentV6A && <V6AQuickLinksSection onOpen={(url) => openPrototype(url, navigate)} />}
             {hasCurrentV6 && <V6QuickLinksSection onOpen={(url) => openPrototype(url, navigate)} />}
-            {hasCurrentV5 && <V5QuickLinksSection onOpen={(url) => openPrototype(url, navigate)} />}
-            {hasResponsiveTestingCurrent && <ResponsiveTestingQuickLinksSection onOpen={(url) => openPrototype(url, navigate)} />}
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+function V6AQuickLinksSection({ onOpen }: { onOpen: (url: string) => void }) {
+  return (
+    <section className="rounded-xl border border-primary/20 bg-primary/5 p-5 shadow-sm">
+      <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+        <div className="max-w-2xl space-y-2">
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-background/80 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
+            <Sparkles className="h-3.5 w-3.5" />
+            v6a
+          </div>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">V6A quick links</h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Direct access to the latest v6a outcome-review prototype surfaces.
+          </p>
+        </div>
+        <div className="grid w-full gap-2 md:w-[340px]">
+          {v6aEntryPoints.map((entry) => (
+            <Button
+              key={entry.url}
+              variant={entry.primary ? "default" : "outline"}
+              className="h-auto justify-between gap-3 px-4 py-3 text-left"
+              onClick={() => onOpen(entry.url)}
+            >
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">{entry.label}</span>
+                <span className="mt-0.5 block whitespace-normal text-xs font-normal opacity-80">
+                  {entry.description}
+                </span>
+              </span>
+              <ExternalLink className="h-4 w-4 shrink-0" />
+            </Button>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 

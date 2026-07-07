@@ -118,7 +118,11 @@ export function AnalysisCard({
           <div className="space-y-orbit-base">
             {outputScore ? (
               <div className="space-y-orbit-s" role="group" aria-label="Output score and findings summary">
-                <OutputScoreLine score={outputScore} higherIsBetter={higherIsBetter} />
+                <OutputScoreLine
+                  score={outputScore}
+                  deviations={analysis.deviations}
+                  higherIsBetter={higherIsBetter}
+                />
                 <OutputFindingsSummary deviations={analysis.deviations} />
               </div>
             ) : (

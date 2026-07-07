@@ -154,10 +154,13 @@ export default function ClauseIQV6A({ forceResults = false, resultsLayout = "acc
   };
 
   const handleViewResult = (selection?: SupplierOutputSelection) => {
+    const selectedOutput = selection && "analysis" in selection ? selection : undefined;
+    const analysisId = selectedOutput?.analysis.id ?? "a-001";
+    const previousAnalysisId = selectedOutput?.previousAnalysis?.id ?? "a-002";
     const context = getSupplierOutputComparisonContext(
       mockInitiative,
-      selection?.analysis.id,
-      selection?.previousAnalysis?.id,
+      analysisId,
+      previousAnalysisId,
     );
 
     if (!context?.previousAnalysis || !context.previousVersionLabel) {

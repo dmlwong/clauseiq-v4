@@ -201,15 +201,16 @@ export const buildAnalysisParameters = (
     const { score } = benchmarkPrecision(parameter);
     rows.push({ label: "Benchmark", value: benchmarkReadout(parameter) });
     rows.push({ label: "Precision", value: `${score}-of-3` });
-    return rows;
-  }
-
-  if (parameter.basis) {
+  } else if (parameter.basis) {
     rows.push({ label: parameter.basis.kind, value: parameter.basis.label });
   }
 
   if (parameter.category) {
     rows.push({ label: "Category", value: parameter.category });
+  }
+
+  if (parameter.basis?.kind === "Governing Law") {
+    rows.push({ label: "Governing Law", value: parameter.basis.label });
   }
 
   return rows;

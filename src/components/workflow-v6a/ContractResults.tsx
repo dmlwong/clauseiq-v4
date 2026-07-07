@@ -2302,12 +2302,30 @@ export function ContractResults({
   const bulkRecommendationApplyOptions = outcomeReviewMode
     ? outcomeRecommendationApplyOptions
     : firstAnalysisRecommendationApplyOptions;
+  const availableBulkRecommendationApplyOptions = bulkRecommendationApplyOptions.filter((option) => option.count > 0);
   const bulkRecommendationsDisabled = outcomeReviewMode
     ? outcomeRecommendationTargets.length === 0
     : !firstAnalysisDemo || firstAnalysisRecommendationTargets.length === 0;
   const bulkRecommendationsReviewed = outcomeReviewMode
     ? outcomeRecommendationTargets.length === 0
     : firstAnalysisRecommendationsReviewed;
+  const [compactBulkBannerOpen, setCompactBulkBannerOpen] = useState(false);
+  const compactBulkCanUndoAppliedRecommendations = Boolean(
+    !outcomeReviewMode && firstAnalysisDemo && canUndoFirstAnalysisRecommendations,
+  );
+  const compactBulkRecommendationsQueued = !outcomeReviewMode && firstAnalysisDemo && firstAnalysisRecommendationsQueued;
+  const compactBulkCanChooseRecommendationScope =
+    mode === "comparison" &&
+    !compactBulkCanUndoAppliedRecommendations &&
+    !compactBulkRecommendationsQueued &&
+    !bulkRecommendationsReviewed &&
+    !bulkRecommendationsDisabled &&
+    availableBulkRecommendationApplyOptions.length > 0;
+  useEffect(() => {
+    if (!compactHeader || !compactBulkCanChooseRecommendationScope) {
+      setCompactBulkBannerOpen(false);
+    }
+  }, [compactBulkCanChooseRecommendationScope, compactHeader]);
   const applyAllRecommendations = (targets: RecommendationTargetItem[], scope?: RecommendationApplyScopeMeta) => {
     if (!firstAnalysisVersion || targets.length === 0) return;
     const bulkClauseIds = new Set(pendingRequestItems.map((item) => item.clauseId));
@@ -2332,6 +2350,21 @@ export function ContractResults({
       buildRecommendationApplyScopeMeta(options),
     );
   };
+  const compactBulkBanner =
+    compactHeader && compactBulkCanChooseRecommendationScope && compactBulkBannerOpen ? (
+      <RecommendationBulkApplyBanner
+        options={availableBulkRecommendationApplyOptions}
+        onApply={(options) => {
+          if (outcomeReviewMode) {
+            applyOutcomeRecommendationOptions(options);
+          } else {
+            applyRecommendationOptions(options);
+          }
+          setCompactBulkBannerOpen(false);
+        }}
+        onClose={() => setCompactBulkBannerOpen(false)}
+      />
+    ) : null;
   const undoAppliedRecommendations = () => {
     if (!firstAnalysisVersion || firstAnalysisUndoableRecommendationIds.length === 0) return;
     firstAnalysisUndoableRecommendationIds.forEach((id) => {
@@ -2387,6 +2420,7 @@ export function ContractResults({
   const firstAnalysisDesignContent = firstAnalysisVersion && mode === "comparison" && versions.length < 2 ? (
     <FirstAnalysisDesignOptions
       option={designOption}
+      banner={compactBulkBanner}
       metrics={firstAnalysisMetrics}
       clausesToReview={firstAnalysisReviewList}
       visibleCount={firstAnalysisVisibleClauses.length}
@@ -2406,6 +2440,7 @@ export function ContractResults({
   const comparisonDesignContent = leftVersion && rightVersion && hasVersionComparison ? (
     <ComparisonDesignOptions
       option={designOption}
+      banner={compactBulkBanner}
       comparisonControl={<PairSelector versions={versions} pair={pair} onChange={setPair} compact />}
       stripStats={stripStats}
       panel={comparisonModel.panel}
@@ -2624,6 +2659,9 @@ export function ContractResults({
             onReviewGenerate={() => setRequestReviewOpen(true)}
             reviewGenerateDisabled={reviewGenerateDisabled}
             requestCount={reviewGenerateItems.length}
+            bulkBannerOpen={compactBulkBannerOpen}
+            onBulkBannerOpenChange={setCompactBulkBannerOpen}
+            suppressBulkBannerRender={compactHeader}
           />
         </div>
       ) : (
@@ -3409,6 +3447,9 @@ function ModeSwitcher({
   onReviewGenerate,
   reviewGenerateDisabled,
   requestCount,
+  bulkBannerOpen: controlledBulkBannerOpen,
+  onBulkBannerOpenChange,
+  suppressBulkBannerRender = false,
 }: {
   mode: ClauseIqMode;
   onChange: (mode: ClauseIqMode) => void;
@@ -3426,11 +3467,16 @@ function ModeSwitcher({
   onReviewGenerate: () => void;
   reviewGenerateDisabled: boolean;
   requestCount: number;
+  bulkBannerOpen?: boolean;
+  onBulkBannerOpenChange?: (open: boolean) => void;
+  suppressBulkBannerRender?: boolean;
 }) {
   const canUndoAppliedRecommendations = Boolean(
     applyAllRecommendationsUndoable && onUndoAllRecommendations,
   );
-  const [bulkBannerOpen, setBulkBannerOpen] = useState(false);
+  const [uncontrolledBulkBannerOpen, setUncontrolledBulkBannerOpen] = useState(false);
+  const bulkBannerOpen = controlledBulkBannerOpen ?? uncontrolledBulkBannerOpen;
+  const setBulkBannerOpen = onBulkBannerOpenChange ?? setUncontrolledBulkBannerOpen;
   const applyAllButtonLabel = applyAllRecommendationsReviewed
     ? "All recommendations reviewed"
     : canUndoAppliedRecommendations
@@ -3528,7 +3574,7 @@ function ModeSwitcher({
           </div>
         )}
       </div>
-      {mode === "comparison" && canChooseRecommendationScope && bulkBannerOpen && (
+      {mode === "comparison" && canChooseRecommendationScope && bulkBannerOpen && !suppressBulkBannerRender && (
         <RecommendationBulkApplyBanner
           options={availableRecommendationApplyOptions}
           onApply={(options) => onApplyRecommendationOptions?.(options)}
@@ -7119,8 +7165,11 @@ function ComparisonSection(props: {
                   {CLAUSE_ACTION_LABELS.reviseTarget}
                 </Button>
                 <div className="ml-auto flex flex-wrap items-center gap-orbit-xs">
+                  <Button variant="outline" className="h-8 text-[11px]" onClick={() => onClose(r.id)}>
+                    {CLAUSE_ACTION_LABELS.acceptSupplierPosition}
+                  </Button>
                   <Button
-                    variant="outline"
+                    variant="default"
                     className="h-8 text-[11px]"
                     onClick={() => {
                       if (actionabilityRequest && onContinueWithActionability) {
@@ -7131,9 +7180,6 @@ function ComparisonSection(props: {
                     }}
                   >
                     {CLAUSE_ACTION_LABELS.holdPosition}
-                  </Button>
-                  <Button variant="default" className="h-8 text-[11px]" onClick={() => onClose(r.id)}>
-                    {CLAUSE_ACTION_LABELS.acceptSupplierPosition}
                   </Button>
                 </div>
               </div>
@@ -7148,7 +7194,17 @@ function ComparisonSection(props: {
                 </Button>
                 <div className="ml-auto flex flex-wrap items-center gap-orbit-xs">
                   <Button
-                    variant={closure === "keep-open" ? "secondary" : "outline"}
+                    variant="outline"
+                    className="h-8 text-[11px]"
+                    onClick={() => {
+                      onConfirmVerdictFromAction?.(r.id, rowVerdict, "Accepted supplier wording");
+                      onClose(r.id);
+                    }}
+                  >
+                    {CLAUSE_ACTION_LABELS.acceptSupplierPosition}
+                  </Button>
+                  <Button
+                    variant="default"
                     className="h-8 text-[11px]"
                     onClick={() => {
                       if (actionabilityRequest && onContinueWithActionability) {
@@ -7160,16 +7216,6 @@ function ComparisonSection(props: {
                     }}
                   >
                     {CLAUSE_ACTION_LABELS.holdPosition}
-                  </Button>
-                  <Button
-                    variant="default"
-                    className="h-8 text-[11px]"
-                    onClick={() => {
-                      onConfirmVerdictFromAction?.(r.id, rowVerdict, "Accepted supplier wording");
-                      onClose(r.id);
-                    }}
-                  >
-                    {CLAUSE_ACTION_LABELS.acceptSupplierPosition}
                   </Button>
                 </div>
               </div>

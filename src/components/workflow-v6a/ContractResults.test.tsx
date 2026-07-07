@@ -206,7 +206,7 @@ describe("ContractResults V6A review controls", () => {
     expect(scope.getByText("Current Analysis · v3")).toBeInTheDocument();
   });
 
-  it("keeps Set Custom Position left while ordering Use Recommended Position before Accept Supplier Position on the right", () => {
+  it("keeps Set Custom Position left while ordering Accept Supplier Position before Use Recommended Position on the right", () => {
     renderContractResults(outcomeReviewRoute);
 
     const clauseRow = screen.getByText("Data Processing").closest('[id^="clause-row-"]');
@@ -226,7 +226,7 @@ describe("ContractResults V6A review controls", () => {
     const rightButtons = Array.from((rightGroup as HTMLElement).querySelectorAll("button")).map((button) =>
       button.textContent?.trim(),
     );
-    expect(rightButtons.indexOf("Use Recommended Position")).toBeLessThan(rightButtons.indexOf("Accept Supplier Position"));
+    expect(rightButtons.indexOf("Accept Supplier Position")).toBeLessThan(rightButtons.indexOf("Use Recommended Position"));
   });
 
   it("shows the clause id inline with the clause title in v6a cards", () => {

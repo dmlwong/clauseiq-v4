@@ -121,6 +121,7 @@ export function DesignOptionSwitcher({
 
 export function ComparisonDesignOptions({
   option,
+  banner,
   comparisonControl,
   stripStats,
   panel,
@@ -141,6 +142,7 @@ export function ComparisonDesignOptions({
   simplifyStatusMetrics = false,
 }: {
   option: ComparisonDesignOption;
+  banner?: ReactNode;
   comparisonControl: ReactNode;
   stripStats: ComparisonStripStats;
   panel: VersionPanelData;
@@ -188,6 +190,7 @@ export function ComparisonDesignOptions({
           </section>
         </aside>
         <div id="comparison-work-column" className="min-w-0 space-y-orbit-base">
+          {banner}
           <WorkflowStack
             openItems={openItems}
             newChanges={newChanges}
@@ -224,6 +227,7 @@ export function ComparisonDesignOptions({
         </div>
         <div id="comparison-work-column" className="flex min-w-0 flex-1 flex-col gap-orbit-base">
           <div className="min-[900px]:hidden">{categoryStrip}</div>
+          {banner}
           <WorkflowStack
             openItems={openItems}
             newChanges={newChanges}
@@ -238,6 +242,7 @@ export function ComparisonDesignOptions({
 
 export function FirstAnalysisDesignOptions({
   option,
+  banner,
   metrics,
   clausesToReview,
   visibleCount,
@@ -248,6 +253,7 @@ export function FirstAnalysisDesignOptions({
   onMetricSelect,
 }: {
   option: ComparisonDesignOption;
+  banner?: ReactNode;
   metrics: FirstAnalysisMetrics;
   clausesToReview: ReactNode;
   visibleCount: number;
@@ -280,6 +286,7 @@ export function FirstAnalysisDesignOptions({
           </section>
         </aside>
         <div id="comparison-work-column" className="min-w-0 space-y-orbit-base">
+          {banner}
           <FirstAnalysisReviewShell>{clausesToReview}</FirstAnalysisReviewShell>
         </div>
       </div>
@@ -306,6 +313,7 @@ export function FirstAnalysisDesignOptions({
         </div>
         <div id="comparison-work-column" className="flex min-w-0 flex-1 flex-col gap-orbit-base">
           <div className="min-[900px]:hidden">{categoryStrip}</div>
+          {banner}
           <FirstAnalysisReviewShell>{clausesToReview}</FirstAnalysisReviewShell>
         </div>
       </div>
@@ -1058,13 +1066,13 @@ function MetricGrid({
 
   const groupedMetricSections: Array<{ title: string; keys: EvidenceMetricKey[] }> = [
     { title: "Clause Target Status", keys: ["met", "not-met", "missing"] },
-    { title: "Deviations Level", keys: ["high", "medium", "low", "none"] },
+    { title: "Deviation Level", keys: ["high", "medium", "low", "none"] },
   ];
   const fullGroupedMetricSections: Array<{ title: string; keys: EvidenceMetricKey[] }> = [
     { title: "Clause Target Status", keys: ["met", "not-met", "missing"] },
     { title: "Work needed", keys: ["manual-review"] },
     { title: "System detection", keys: ["unexpected", "worsened"] },
-    { title: "Deviations Level", keys: ["high", "medium", "low", "none"] },
+    { title: "Deviation Level", keys: ["high", "medium", "low", "none"] },
   ];
   const sections = simplifyStatusMetrics ? groupedMetricSections : fullGroupedMetricSections;
   const metricByKey = new Map(visibleMetricDefinitions.map((definition) => [definition.key, definition]));

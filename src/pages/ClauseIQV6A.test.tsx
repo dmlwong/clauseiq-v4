@@ -671,6 +671,8 @@ describe("ClauseIQ V6A flow", () => {
       "Benchmark · Benchmarked against Germany · Services standards. The more you specify, the sharper the findings.",
     );
     expect(latestCardText).toContain("Precision · 3-of-3");
+    expect(latestCardText).toContain("Category · Services");
+    expect(latestCardText).toContain("Governing Law · Germany");
     expect(latestCardText).not.toContain("United States · Professional Services");
   });
 

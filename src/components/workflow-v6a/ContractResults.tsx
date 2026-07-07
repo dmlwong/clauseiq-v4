@@ -23,6 +23,7 @@ import {
   Button as OrbitButton,
   Text,
   ToggleCard,
+  MultiSelectDropdown,
 } from "@orbit";
 import { showV6OrbitToast as toast } from "@/components/clauseiq-v6a/V6OrbitToast";
 import { V6OrbitConfirmOverlay, V6OrbitOverlay } from "@/components/clauseiq-v6a/V6OrbitOverlay";
@@ -30,7 +31,6 @@ import { Input } from "@/components/clauseiq-v6a/orbit-ui/input";
 import { Textarea } from "@/components/clauseiq-v6a/orbit-ui/textarea";
 import { Badge } from "@/components/clauseiq-v6a/orbit-ui/badge";
 import { Button } from "@/components/clauseiq-v6a/orbit-ui/button";
-import { Checkbox } from "@/components/clauseiq-v6a/orbit-ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/clauseiq-v6a/orbit-ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/clauseiq-v6a/orbit-ui/select";
 import { ChevronDown } from "lucide-react";
@@ -155,8 +155,8 @@ export type ScoringOptionKey = "issue-score" | "hybrid";
 type ScoreBand = "A" | "B" | "C" | "D" | "F";
 
 const CLAUSE_ACTION_LABELS = {
-  reviseTarget: "Write My Own Target",
-  holdPosition: "Continue with Actionability",
+  reviseTarget: "Set Custom Position",
+  holdPosition: "Use Recommended Position",
   acceptSupplierPosition: "Accept Supplier Position",
 } as const;
 
@@ -1158,6 +1158,7 @@ export function ContractResults({
   const [decisions_, setDecisions_] = useState<Record<string, "accepted" | "changes-requested" | null>>({});
   const [acceptConfirmOpen, setAcceptConfirmOpen] = useState(false);
   const [requestReviewOpen, setRequestReviewOpen] = useState(false);
+  const [nonCompactBulkBannerOpen, setNonCompactBulkBannerOpen] = useState(false);
   const [bulkReviewSelection, setBulkReviewSelection] = useState<{ version: string; clauseIds: string[] } | null>(null);
   const [bulkAppliedRecommendationIds, setBulkAppliedRecommendationIds] = useState<string[]>([]);
   const [bulkAppliedRecommendationScopeLabel, setBulkAppliedRecommendationScopeLabel] = useState<string | null>(null);
@@ -2117,7 +2118,7 @@ export function ContractResults({
   const activeMetricLabel =
     activeEvidenceMetric
       ? ({
-          "not-met": "Not met",
+          "not-met": "Not Met",
           met: "Met",
           worsened: "Regressed",
           unexpected: "New supplier change",
@@ -2244,6 +2245,11 @@ export function ContractResults({
       : "All recommendations reviewed";
   const firstAnalysisRecommendationApplyOptions = buildRecommendationApplyOptions(firstAnalysisRecommendationTargets);
   const firstAnalysisAvailableRecommendationApplyOptions = firstAnalysisRecommendationApplyOptions.filter((option) => option.count > 0);
+  useEffect(() => {
+    if (firstAnalysisAvailableRecommendationApplyOptions.length === 0 || canUndoFirstAnalysisRecommendations) {
+      setNonCompactBulkBannerOpen(false);
+    }
+  }, [canUndoFirstAnalysisRecommendations, firstAnalysisAvailableRecommendationApplyOptions.length]);
   const outcomeRecommendationTargets =
     outcomeReviewMode && rightVersion
       ? comparisonSections.open
@@ -2649,11 +2655,21 @@ export function ContractResults({
                           : firstAnalysisApplyAllLabel}
                       </Button>
                     ) : firstAnalysisAvailableRecommendationApplyOptions.length > 0 ? (
-                      <RecommendationBulkApplyMenu
-                        className={cn(isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger")}
-                        options={firstAnalysisAvailableRecommendationApplyOptions}
-                        onApply={applyRecommendationOptions}
-                      />
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "h-9 gap-orbit-xs bg-white clauseiq-v6-recommendation-bulk-trigger",
+                          isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger",
+                        )}
+                        aria-label="Bulk Apply Recommendation"
+                        aria-expanded={nonCompactBulkBannerOpen}
+                        aria-controls="clauseiq-v6-recommendation-bulk-banner"
+                        onClick={() => setNonCompactBulkBannerOpen((current) => !current)}
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Bulk Apply Recommendation</span>
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </Button>
                     ) : (
                       <Button
                         variant="outline"
@@ -2686,6 +2702,15 @@ export function ContractResults({
                   </Button>
                 </div>
               </div>
+              {firstAnalysisDemo && mode === "comparison" && firstAnalysisAvailableRecommendationApplyOptions.length > 0 && nonCompactBulkBannerOpen && (
+                <div className="mt-orbit-s overflow-hidden rounded-md">
+                  <RecommendationBulkApplyBanner
+                    options={firstAnalysisAvailableRecommendationApplyOptions}
+                    onApply={applyRecommendationOptions}
+                    onClose={() => setNonCompactBulkBannerOpen(false)}
+                  />
+                </div>
+              )}
               <div className="mt-orbit-s grid gap-orbit-base lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px] lg:items-end">
                 <div className="min-w-0">
                   <p className="text-xs v6-orbit-weight-semibold text-muted-foreground uppercase tracking-wider">
@@ -3405,6 +3430,7 @@ function ModeSwitcher({
   const canUndoAppliedRecommendations = Boolean(
     applyAllRecommendationsUndoable && onUndoAllRecommendations,
   );
+  const [bulkBannerOpen, setBulkBannerOpen] = useState(false);
   const applyAllButtonLabel = applyAllRecommendationsReviewed
     ? "All recommendations reviewed"
     : canUndoAppliedRecommendations
@@ -3424,214 +3450,287 @@ function ModeSwitcher({
   const isResponsiveTestingRoute =
     typeof window !== "undefined" && window.location.pathname.startsWith("/initiatives-responsive-testing");
 
+  useEffect(() => {
+    if (!canChooseRecommendationScope) {
+      setBulkBannerOpen(false);
+    }
+  }, [canChooseRecommendationScope]);
+
+  return (
+    <>
+      <div
+        className={cn(
+          "flex min-w-0 items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] bg-white px-orbit-base py-orbit-xs",
+          isResponsiveTestingRoute && "clauseiq-responsive-mode-switcher",
+        )}
+      >
+        <div role="tablist" aria-label="Analysis mode" className="flex items-center">
+          <TabButton
+            active={mode === "comparison"}
+            onClick={() => onChange("comparison")}
+            ariaControls="clauseiq-v6-comparison-panel"
+          >
+            {comparisonLabel}
+          </TabButton>
+        </div>
+        {mode === "comparison" && (
+          <div
+            className={cn(
+              "ml-auto flex shrink-0 items-center gap-orbit-s",
+              isResponsiveTestingRoute && "clauseiq-responsive-dashboard-actions",
+            )}
+          >
+            {onApplyAllRecommendations && (
+              canChooseRecommendationScope ? (
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "clauseiq-v6-recommendation-bulk-trigger",
+                    isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger",
+                  )}
+                  aria-label="Bulk Apply Recommendation"
+                  aria-expanded={bulkBannerOpen}
+                  aria-controls="clauseiq-v6-recommendation-bulk-banner"
+                  onClick={() => setBulkBannerOpen((current) => !current)}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>Bulk Apply Recommendation</span>
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  disabled={!canUndoAppliedRecommendations && applyAllRecommendationsDisabled}
+                  onClick={canUndoAppliedRecommendations ? onUndoAllRecommendations : onApplyAllRecommendations}
+                >
+                  {applyAllRecommendationsReviewed ? (
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  ) : canUndoAppliedRecommendations ? (
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  ) : applyAllRecommendationsQueued ? (
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                  {applyAllButtonLabel}
+                </Button>
+              )
+            )}
+            <Button
+              variant={reviewGenerateDisabled ? "outline" : "default"}
+              className="h-7 gap-orbit-xs px-orbit-base text-xs"
+              disabled={reviewGenerateDisabled}
+              onClick={onReviewGenerate}
+            >
+              <Download className="h-3.5 w-3.5" />
+              Review &amp; Generate{requestCount > 0 ? ` (${requestCount})` : ""}
+            </Button>
+          </div>
+        )}
+      </div>
+      {mode === "comparison" && canChooseRecommendationScope && bulkBannerOpen && (
+        <RecommendationBulkApplyBanner
+          options={availableRecommendationApplyOptions}
+          onApply={(options) => onApplyRecommendationOptions?.(options)}
+          onClose={() => setBulkBannerOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+
+interface RecommendationBulkBannerSelection {
+  status: RecommendationApplyScope[];
+  deviation: RecommendationApplyScope[];
+  category: RecommendationApplyScope[];
+}
+
+const EMPTY_RECOMMENDATION_BULK_BANNER_SELECTION: RecommendationBulkBannerSelection = {
+  status: [],
+  deviation: [],
+  category: [],
+};
+
+function RecommendationBulkApplyBanner({
+  options,
+  onApply,
+  onClose,
+}: {
+  options: RecommendationApplyOption[];
+  onApply: (options: RecommendationApplyOption[]) => void;
+  onClose: () => void;
+}) {
+  const [selection, setSelection] = useState<RecommendationBulkBannerSelection>(
+    EMPTY_RECOMMENDATION_BULK_BANNER_SELECTION,
+  );
+  const optionById = useMemo(() => new Map(options.map((option) => [option.id, option])), [options]);
+  const allTargets = useMemo(() => mergeRecommendationApplyTargets(options), [options]);
+  const statusOptions = useMemo(() => buildRecommendationBulkBannerDropdownOptions(options, "status"), [options]);
+  const deviationOptions = useMemo(() => buildRecommendationBulkBannerDropdownOptions(options, "deviation"), [options]);
+  const categoryOptions = useMemo(() => buildRecommendationBulkBannerDropdownOptions(options, "category"), [options]);
+  const selectedTargets = useMemo(
+    () => filterRecommendationTargetsForBanner(allTargets, selection),
+    [allTargets, selection],
+  );
+  const selectedCount = selectedTargets.length;
+  const addSelectedDisabled = selectedCount === 0;
+
+  useEffect(() => {
+    setSelection((current) => ({
+      status: current.status.filter((id) => optionById.has(id)),
+      deviation: current.deviation.filter((id) => optionById.has(id)),
+      category: current.category.filter((id) => optionById.has(id)),
+    }));
+  }, [optionById]);
+
+  const setSelectionGroup = (group: keyof RecommendationBulkBannerSelection, values: string[]) => {
+    const validValues = values.filter((value): value is RecommendationApplyScope =>
+      optionById.has(value as RecommendationApplyScope),
+    );
+    setSelection((current) => ({ ...current, [group]: validValues }));
+  };
+
+  const handleClose = () => {
+    setSelection(EMPTY_RECOMMENDATION_BULK_BANNER_SELECTION);
+    onClose();
+  };
+
+  const handleApply = () => {
+    if (addSelectedDisabled) return;
+    const selectedOptionIds = [
+      ...selection.status,
+      ...selection.deviation,
+      ...selection.category,
+    ];
+    const selectedOption = selectedOptionIds.length === 1 ? optionById.get(selectedOptionIds[0]) : null;
+    onApply([
+      {
+        id: "all",
+        label: selectedOption?.label ?? "Selected recommendations",
+        toastLabel: selectedOption?.toastLabel ?? "selected recommendation",
+        undoLabel: selectedOption?.undoLabel ?? "selected",
+        count: selectedCount,
+        targets: selectedTargets,
+      },
+    ]);
+    setSelection(EMPTY_RECOMMENDATION_BULK_BANNER_SELECTION);
+    onClose();
+  };
+
   return (
     <div
-      className={cn(
-        "flex min-w-0 items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] bg-white px-orbit-base py-orbit-xs",
-        isResponsiveTestingRoute && "clauseiq-responsive-mode-switcher",
-      )}
+      id="clauseiq-v6-recommendation-bulk-banner"
+      className="clauseiq-v6-recommendation-bulk-banner"
+      role="region"
+      aria-label="Bulk recommendation filters"
     >
-      <div role="tablist" aria-label="Analysis mode" className="flex items-center">
-        <TabButton
-          active={mode === "comparison"}
-          onClick={() => onChange("comparison")}
-          ariaControls="clauseiq-v6-comparison-panel"
-        >
-          {comparisonLabel}
-        </TabButton>
-      </div>
-      {mode === "comparison" && (
-        <div
-          className={cn(
-            "ml-auto flex shrink-0 items-center gap-orbit-s",
-            isResponsiveTestingRoute && "clauseiq-responsive-dashboard-actions",
-          )}
-        >
-          {onApplyAllRecommendations && (
-            canChooseRecommendationScope ? (
-              <RecommendationBulkApplyMenu
-                className={cn(isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger")}
-                options={availableRecommendationApplyOptions}
-                onApply={(options) => onApplyRecommendationOptions?.(options)}
-              />
-            ) : (
-              <Button
-                variant="outline"
-                disabled={!canUndoAppliedRecommendations && applyAllRecommendationsDisabled}
-                onClick={canUndoAppliedRecommendations ? onUndoAllRecommendations : onApplyAllRecommendations}
-              >
-                {applyAllRecommendationsReviewed ? (
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                ) : canUndoAppliedRecommendations ? (
-                  <RotateCcw className="h-3.5 w-3.5" />
-                ) : applyAllRecommendationsQueued ? (
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                ) : (
-                  <Sparkles className="h-3.5 w-3.5" />
-                )}
-                {applyAllButtonLabel}
-              </Button>
-            )
-          )}
-          <Button
-            variant={reviewGenerateDisabled ? "outline" : "default"}
-            className="h-7 gap-orbit-xs px-orbit-base text-xs"
-            disabled={reviewGenerateDisabled}
-            onClick={onReviewGenerate}
-          >
-            <Download className="h-3.5 w-3.5" />
-            Review &amp; Generate{requestCount > 0 ? ` (${requestCount})` : ""}
-          </Button>
+      <div className="clauseiq-v6-recommendation-bulk-banner-count">{selectedCount} Selected</div>
+      <div className="clauseiq-v6-recommendation-bulk-banner-controls">
+        <div className="clauseiq-v6-recommendation-bulk-banner-control">
+          <MultiSelectDropdown
+            ariaLabel="Clause Target Status"
+            placeholder="Clause Target Status"
+            options={statusOptions}
+            value={selection.status}
+            onChange={(values) => setSelectionGroup("status", values)}
+          />
         </div>
-      )}
+        <div className="clauseiq-v6-recommendation-bulk-banner-control">
+          <MultiSelectDropdown
+            ariaLabel="Deviation Level"
+            placeholder="Deviation Level"
+            options={deviationOptions}
+            value={selection.deviation}
+            onChange={(values) => setSelectionGroup("deviation", values)}
+          />
+        </div>
+        <div className="clauseiq-v6-recommendation-bulk-banner-control">
+          <MultiSelectDropdown
+            ariaLabel="Clause Name"
+            placeholder="Clause Name"
+            options={categoryOptions}
+            value={selection.category}
+            onChange={(values) => setSelectionGroup("category", values)}
+          />
+        </div>
+      </div>
+      <div className="clauseiq-v6-recommendation-bulk-banner-actions">
+        <Button
+          variant="default"
+          className="h-8 shrink-0 px-orbit-base text-xs"
+          disabled={addSelectedDisabled}
+          onClick={handleApply}
+        >
+          Add Selected
+        </Button>
+        <button
+          type="button"
+          className="clauseiq-v6-recommendation-bulk-banner-close"
+          aria-label="Close bulk recommendation banner"
+          onClick={handleClose}
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }
 
-function RecommendationBulkApplyMenu({
-  options,
-  onApply,
-  className,
-}: {
-  options: RecommendationApplyOption[];
-  onApply: (options: RecommendationApplyOption[]) => void;
-  className?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<RecommendationApplyScope[]>([]);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const selectedOptions = useMemo(
-    () => options.filter((option) => selectedIds.includes(option.id)),
-    [options, selectedIds],
-  );
-  const groupedOptions = useMemo(() => groupRecommendationApplyOptions(options), [options]);
-  const selectedTargetCount = useMemo(
-    () => mergeRecommendationApplyTargets(selectedOptions).length,
-    [selectedOptions],
-  );
-  const buttonLabel = "Bulk Apply Recommendation";
+function buildRecommendationBulkBannerDropdownOptions(
+  options: RecommendationApplyOption[],
+  group: keyof RecommendationBulkBannerSelection,
+) {
+  return options
+    .filter((option) => recommendationOptionBelongsToBannerGroup(option, group))
+    .map((option) => ({
+      label: recommendationBulkBannerOptionLabel(option),
+      value: option.id,
+    }));
+}
 
-  useEffect(() => {
-    setSelectedIds((current) => {
-      const availableIds = new Set(options.map((option) => option.id));
-      const next = current.filter((id) => availableIds.has(id));
-      return next.length === current.length ? current : next;
-    });
-  }, [options]);
+function recommendationOptionBelongsToBannerGroup(
+  option: RecommendationApplyOption,
+  group: keyof RecommendationBulkBannerSelection,
+) {
+  if (group === "status") {
+    return (
+      (typeof option.id === "string" && option.id.startsWith("verdict:")) ||
+      option.id === "missing"
+    );
+  }
+  if (group === "deviation") {
+    return option.id === "high" || option.id === "medium" || option.id === "low" || option.id === "none";
+  }
+  return typeof option.id === "string" && option.id.startsWith("category:");
+}
 
-  useEffect(() => {
-    if (!open) return undefined;
+function recommendationBulkBannerOptionLabel(option: RecommendationApplyOption) {
+  if (typeof option.id === "string" && option.id.startsWith("verdict:")) {
+    return option.label.replace(/^Verdict:\s*/, "");
+  }
+  return option.label;
+}
 
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
+function filterRecommendationTargetsForBanner(
+  targets: RecommendationTargetItem[],
+  selection: RecommendationBulkBannerSelection,
+) {
+  const activeGroups = [selection.status, selection.deviation, selection.category].filter((group) => group.length > 0);
+  if (activeGroups.length === 0) return [];
 
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [open]);
+  const seenTargetIds = new Set<string>();
+  const selectedTargets: RecommendationTargetItem[] = [];
 
-  const toggleOption = (id: RecommendationApplyScope) => {
-    setSelectedIds((current) => {
-      if (current.includes(id)) {
-        return current.filter((candidate) => candidate !== id);
-      }
+  targets.forEach((target) => {
+    const matchesEverySelectedGroup = activeGroups.every((group) =>
+      group.some((scope) => targetMatchesRecommendationScope(target, scope)),
+    );
+    if (!matchesEverySelectedGroup || seenTargetIds.has(target.id)) return;
+    seenTargetIds.add(target.id);
+    selectedTargets.push(target);
+  });
 
-      if (id === "all") {
-        return ["all"];
-      }
-
-      return [...current.filter((candidate) => candidate !== "all"), id];
-    });
-  };
-
-  const applySelectedOptions = () => {
-    if (selectedOptions.length === 0 || selectedTargetCount === 0) return;
-    onApply(selectedOptions);
-    setSelectedIds([]);
-    setOpen(false);
-  };
-  const applySelectedDisabled = selectedOptions.length === 0 || selectedTargetCount === 0;
-
-  return (
-    <div ref={rootRef} className={cn("clauseiq-v6-recommendation-bulk", className)}>
-      <Button
-        variant="outline"
-        className="clauseiq-v6-recommendation-bulk-trigger"
-        aria-label="Bulk Apply Recommendation"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <Sparkles className="h-3.5 w-3.5" />
-        <span>{buttonLabel}</span>
-        <ChevronDown className="h-3.5 w-3.5" />
-      </Button>
-      {open && (
-        <div
-          className="clauseiq-v6-recommendation-bulk-menu"
-          role="menu"
-          aria-label="Bulk Apply Recommendation options"
-        >
-          <div className="clauseiq-v6-recommendation-bulk-subheader">Select Recommendation Group</div>
-          <div className="clauseiq-v6-recommendation-bulk-list">
-            {groupedOptions.map((group) => (
-              <div key={group.id} className="clauseiq-v6-recommendation-bulk-section">
-                {group.label && (
-                  <div className="clauseiq-v6-recommendation-bulk-section-title">{group.label}</div>
-                )}
-                <div className="clauseiq-v6-recommendation-bulk-section-options">
-                  {group.options.map((option) => {
-                    const checked = selectedIds.includes(option.id);
-
-                    return (
-                      <div
-                        key={option.id}
-                        role="menuitemcheckbox"
-                        tabIndex={0}
-                        aria-checked={checked}
-                        className={cn("clauseiq-v6-recommendation-bulk-option", checked && "is-selected")}
-                        onClick={() => toggleOption(option.id)}
-                        onKeyDown={(event) => {
-                          if (event.key === " " || event.key === "Enter") {
-                            event.preventDefault();
-                            toggleOption(option.id);
-                          }
-                        }}
-                      >
-                        <span aria-hidden="true" className="clauseiq-v6-recommendation-bulk-checkbox">
-                          <Checkbox
-                            checked={checked}
-                            className="pointer-events-none"
-                            aria-label={option.label}
-                          />
-                        </span>
-                        <span className="clauseiq-v6-recommendation-bulk-label">{option.label}</span>
-                        <span className="clauseiq-v6-recommendation-bulk-count">{option.count}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="clauseiq-v6-recommendation-bulk-footer">
-            <OrbitButton
-              variant="Primary"
-              size="Small"
-              state={applySelectedDisabled ? "Disabled" : "Default"}
-              className="w-full"
-              disabled={applySelectedDisabled}
-              onClick={applySelectedOptions}
-            >
-              Apply Selected
-            </OrbitButton>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  return selectedTargets;
 }
 
 function HistoryComingSoon() {
@@ -3909,7 +4008,7 @@ const changePillConfig: Record<ChangePillStatus, {
     Icon: IconCircleCheck,
   },
   not_met: {
-    label: "Not met",
+    label: "Not Met",
     variant: "Error",
     Icon: IconCircleX,
   },
@@ -3973,7 +4072,7 @@ function VerdictPill({ verdict, superseded = false }: { verdict: ClauseVerdict; 
 }
 
 function verdictLabel(verdict: ClauseVerdict) {
-  return verdict === "met" ? "Met" : "Not met";
+  return verdict === "met" ? "Met" : "Not Met";
 }
 
 function DecisionBadge({ decision }: { decision: RoundDecision }) {
@@ -5016,14 +5115,18 @@ function CategorySidebar({
   const rowRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const sortedCategories = useMemo(() => sortCategorySidebarItems(categories, sort), [categories, sort]);
   const activeCategorySet = useMemo(() => new Set(activeCategories), [activeCategories]);
+  const allActive = activeCategories.length === 0;
   const categoryToggleCardStyle: CSSProperties = { boxShadow: "var(--orbit-shadow-none)" };
   const getToggleCardStatus = ({
+    active,
     disabled,
   }: {
+    active: boolean;
     disabled: boolean;
-  }): React.ComponentProps<typeof ToggleCard>["status"] | "Subtle" => {
+  }): React.ComponentProps<typeof ToggleCard>["status"] => {
     if (disabled) return "Disabled";
-    return "Subtle";
+    if (active) return "Selected";
+    return "Default";
   };
 
   const handleRowKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
@@ -5058,13 +5161,14 @@ function CategorySidebar({
             rowRefs.current[0] = node;
           }}
           status={getToggleCardStatus({
+            active: allActive,
             disabled: false,
-          }) as React.ComponentProps<typeof ToggleCard>["status"]}
-          aria-pressed={activeCategories.length === 0}
+          })}
+          aria-pressed={allActive}
           aria-label={`Clear category filters, ${total} clauses`}
           onClick={() => onSelectCategory(null)}
           onKeyDown={(event) => handleRowKeyDown(event, 0)}
-          className="overflow-hidden clauseiq-v6a-togglecard-subtle"
+          className={cn("overflow-hidden", !allActive && "clauseiq-v6a-togglecard-subtle")}
           style={categoryToggleCardStyle}
         >
           <span className="flex w-full items-center justify-between gap-orbit-s px-orbit-s py-orbit-xs">
@@ -5085,13 +5189,14 @@ function CategorySidebar({
                 rowRefs.current[rowIndex] = node;
               }}
               status={getToggleCardStatus({
+                active,
                 disabled: category.count === 0,
-              }) as React.ComponentProps<typeof ToggleCard>["status"]}
+              })}
               aria-pressed={active}
               aria-label={`${active ? "Remove" : "Add"} ${category.name} category filter, ${category.count} clauses`}
               onClick={() => onSelectCategory(category.name)}
               onKeyDown={(event) => handleRowKeyDown(event, rowIndex)}
-              className={cn("overflow-hidden", category.count !== 0 && "clauseiq-v6a-togglecard-subtle")}
+              className={cn("overflow-hidden", category.count !== 0 && !active && "clauseiq-v6a-togglecard-subtle")}
               style={categoryToggleCardStyle}
             >
               <span className="flex w-full items-center gap-orbit-s px-orbit-s py-orbit-xs">
@@ -6097,12 +6202,6 @@ interface RecommendationApplyOption {
   targets: RecommendationTargetItem[];
 }
 
-interface RecommendationApplyOptionGroup {
-  id: "overview" | "verdict" | "deviation" | "category";
-  label?: string;
-  options: RecommendationApplyOption[];
-}
-
 function buildRecommendationApplyOption(
   id: RecommendationApplyScope,
   label: string,
@@ -6190,38 +6289,6 @@ function buildRecommendationApplyOptions(targets: RecommendationTargetItem[]): R
     ),
     ...categoryOptions,
   ];
-}
-
-function groupRecommendationApplyOptions(options: RecommendationApplyOption[]): RecommendationApplyOptionGroup[] {
-  const groups: RecommendationApplyOptionGroup[] = [
-    {
-      id: "overview",
-      options: options.filter((option) => option.id === "all"),
-    },
-    {
-      id: "verdict",
-      label: "Verdict",
-      options: options.filter((option) => typeof option.id === "string" && option.id.startsWith("verdict:")),
-    },
-    {
-      id: "deviation",
-      label: "Deviation",
-      options: options.filter((option) =>
-        option.id === "high" ||
-        option.id === "medium" ||
-        option.id === "low" ||
-        option.id === "none" ||
-        option.id === "missing",
-      ),
-    },
-    {
-      id: "category",
-      label: "Clause Type",
-      options: options.filter((option) => typeof option.id === "string" && option.id.startsWith("category:")),
-    },
-  ];
-
-  return groups.filter((group) => group.options.length > 0);
 }
 
 function mergeRecommendationApplyTargets(options: RecommendationApplyOption[]) {
@@ -7668,9 +7735,9 @@ function ClauseSlideOver({
               <SectionLabel>AI analysis</SectionLabel>
               <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s text-[11px] text-muted-foreground">
                 {verdict === "notmet" && deviationDelta
-                  ? "Not met — the supplier conceded movement, but withheld the requested position. Deviation improved: they are moving on this clause."
+                  ? "Not Met — the supplier conceded movement, but withheld the requested position. Deviation improved: they are moving on this clause."
                   : verdict === "notmet"
-                  ? "Not met — the supplier has not accepted the requested position, and deviation hasn't moved: a stonewall, not a negotiation."
+                  ? "Not Met — the supplier has not accepted the requested position, and deviation hasn't moved: a stonewall, not a negotiation."
                   : display.improvementReason ?? display.actionability ?? `Based on the playbook benchmark for ${def.category}, review this clause before accepting the version.`}
               </p>
               {(changePill.status === "met" || changePill.status === "not_met") && request?.requestedChange && (
@@ -7922,7 +7989,7 @@ function TargetLineagePanel({
           <span className="absolute -left-[19px] top-1 h-2.5 w-2.5 rounded-full border-2 border-card bg-[#BA7517]" />
           <p className="text-[9px] v6-orbit-weight-semibold uppercase text-muted-foreground">Supplier · {targetVersion}</p>
           <p className="mt-orbit-xxs text-foreground">Returned: {supplierText}</p>
-          {verdict && <p className="mt-orbit-xxs text-muted-foreground">Graded vs v{targets.at(-1)?.version ?? 1}: {verdict === "met" ? "Met" : "Not met"} — frozen</p>}
+          {verdict && <p className="mt-orbit-xxs text-muted-foreground">Graded vs v{targets.at(-1)?.version ?? 1}: {verdict === "met" ? "Met" : "Not Met"} — frozen</p>}
         </li>
         {!simulatedMet && (
           <li className="relative text-[11px]">
@@ -8634,7 +8701,7 @@ function roundStatusTone(status: RoundStatus) {
 }
 
 function roundStatusLabel(status: RoundStatus) {
-  if (status === "not_met") return "Not met";
+  if (status === "not_met") return "Not Met";
   if (status === "requested") return "Req";
   if (status === "updated") return "Upd";
   return status === "missing" ? "—" : status.charAt(0).toUpperCase() + status.slice(1);

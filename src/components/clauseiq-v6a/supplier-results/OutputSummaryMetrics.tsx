@@ -33,25 +33,32 @@ export function OutputScoreLine({
   score,
   deviations,
   higherIsBetter,
+  showComparisonStatus = score.hasPreviousOutput,
 }: {
   score: OutputScorePresentation;
   deviations: DeviationCounts;
   higherIsBetter: boolean;
+  showComparisonStatus?: boolean;
 }) {
   const delta = score.deltaFromPrevious;
 
   return (
     <div className="flex min-w-0 items-center gap-orbit-s whitespace-nowrap">
-      <span className="v6-orbit-text-body v6-orbit-weight-medium text-foreground">Score {score.score}</span>
+      <span
+        className="v6-orbit-text-body v6-orbit-weight-medium"
+        style={scoreBandTextStyle(score.score)}
+      >
+        Score {score.score}
+      </span>
       {!score.hasPreviousOutput || typeof delta !== "number" ? (
         <span className="inline-flex items-center gap-orbit-xs v6-orbit-text-small text-[var(--orbit-color-text-secondary)]">
           <span>first output</span>
-          <OutputMetadataTooltip deviations={deviations} />
+          <OutputMetadataTooltip deviations={deviations} showComparisonStatus={showComparisonStatus} />
         </span>
       ) : delta === 0 ? (
         <span className="inline-flex items-center gap-orbit-xs v6-orbit-text-small text-[var(--orbit-color-text-secondary)]">
           <span>no change</span>
-          <OutputMetadataTooltip deviations={deviations} />
+          <OutputMetadataTooltip deviations={deviations} showComparisonStatus={showComparisonStatus} />
         </span>
       ) : (
         <span className="inline-flex items-center gap-orbit-xs">
@@ -65,26 +72,36 @@ export function OutputScoreLine({
             <span aria-hidden="true">{score.trend === "up" ? "↗" : "↘"}</span>
             <span>{formatDelta(delta)} vs previous</span>
           </span>
-          <OutputMetadataTooltip deviations={deviations} />
+          <OutputMetadataTooltip deviations={deviations} showComparisonStatus={showComparisonStatus} />
         </span>
       )}
     </div>
   );
 }
 
-export function OutputFindingsSummary({ deviations }: { deviations: DeviationCounts }) {
+export function OutputFindingsSummary({
+  deviations,
+  showComparisonStatus,
+}: {
+  deviations: DeviationCounts;
+  showComparisonStatus: boolean;
+}) {
   return (
     <div className="flex flex-wrap items-start gap-orbit-s">
       <div className="space-y-orbit-xs">
         <Text as="span" size="Small" variant="Secondary">
-          Clause Status
+          Clause Target Status
         </Text>
         <div className="flex flex-wrap items-center gap-orbit-xs">
-          <OutputSummaryPill
-            label={`Not Met ${Math.max(0, deviations.high + deviations.medium + deviations.low + deviations.missing)}`}
-            variant="Error"
-          />
-          <OutputSummaryPill label={`Met ${deviations.none}`} variant="Success" />
+          {showComparisonStatus && (
+            <>
+              <OutputSummaryPill
+                label={`Not Met ${Math.max(0, deviations.high + deviations.medium + deviations.low + deviations.missing)}`}
+                variant="Error"
+              />
+              <OutputSummaryPill label={`Met ${deviations.none}`} variant="Success" />
+            </>
+          )}
           <OutputSummaryPill
             label={`Missing ${deviations.missing}`}
             variant="Outline"
@@ -101,7 +118,7 @@ export function OutputFindingsSummary({ deviations }: { deviations: DeviationCou
 
       <div className="space-y-orbit-xs">
         <Text as="span" size="Small" variant="Secondary">
-          Deviation
+          Deviations Level
         </Text>
         <div className="min-w-0 flex flex-wrap items-center gap-orbit-xs">
           <OutputSummaryPill label={`High ${deviations.high}`} variant="Error" />
@@ -158,7 +175,13 @@ function OutputSummaryPill({
   );
 }
 
-function OutputMetadataTooltip({ deviations }: { deviations: DeviationCounts }) {
+function OutputMetadataTooltip({
+  deviations,
+  showComparisonStatus,
+}: {
+  deviations: DeviationCounts;
+  showComparisonStatus: boolean;
+}) {
   const notMet = Math.max(0, deviations.high + deviations.medium + deviations.low + deviations.missing);
 
   return (
@@ -176,16 +199,18 @@ function OutputMetadataTooltip({ deviations }: { deviations: DeviationCounts }) 
         <span className="block space-y-orbit-xs">
           <span className="block">
             <span className="block v6-orbit-text-small v6-orbit-weight-medium text-[var(--orbit-color-text-inverse)]">
-              Clause Status
+              Clause Target Status
             </span>
             <span className="block v6-orbit-text-small text-[var(--orbit-color-text-inverse)] opacity-90">
-              Met {deviations.none} | Not Met {notMet} | Missing {deviations.missing}
+              {showComparisonStatus
+                ? `Not Met ${notMet} | Met ${deviations.none} | Missing ${deviations.missing}`
+                : `Missing ${deviations.missing}`}
             </span>
           </span>
           <span className="block h-px bg-white/10" aria-hidden="true" />
           <span className="block">
             <span className="block v6-orbit-text-small v6-orbit-weight-medium text-[var(--orbit-color-text-inverse)]">
-              Deviation
+              Deviations Level
             </span>
             <span className="block v6-orbit-text-small text-[var(--orbit-color-text-inverse)] opacity-90">
               High {deviations.high} | Medium {deviations.medium} | Low {deviations.low} | None {deviations.none}
@@ -216,6 +241,26 @@ function scoreDeltaValenceTextClass(valence: OutputScoreValence) {
 
 function formatDelta(delta: number) {
   return delta > 0 ? `+${delta}` : `${delta}`;
+}
+
+function scoreBandTextStyle(score: number): CSSProperties {
+  if (score <= 39) {
+    return { color: "var(--orbit-color-red-ribbon)" };
+  }
+
+  if (score <= 59) {
+    return { color: "var(--orbit-color-bright-orange)" };
+  }
+
+  if (score <= 74) {
+    return { color: "var(--orbit-color-web-orange)" };
+  }
+
+  if (score <= 89) {
+    return { color: "var(--orbit-color-bright-green)" };
+  }
+
+  return { color: "var(--orbit-color-text-success)" };
 }
 
 

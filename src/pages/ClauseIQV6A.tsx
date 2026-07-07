@@ -43,6 +43,7 @@ export default function ClauseIQV6A({ forceResults = false, resultsLayout = "acc
   const resultsFromRoute = forceResults || searchParams.get("view") === "results";
   const rerunUploadFromRoute = resultsFromRoute && searchParams.get("rerun") === "upload";
   const resultScenario = searchParams.get("resultScenario") === "history" ? "history" : "empty";
+  const showComparisonStatus = resultScenario === "history";
   const currentRoute = `${window.location.pathname}${window.location.search}`;
   const defaultCompletedInitiative =
     CIQ_INITIATIVES.find((item) => item.name === "Network Edge Hardware") ?? CIQ_INITIATIVES[0];
@@ -211,6 +212,7 @@ export default function ClauseIQV6A({ forceResults = false, resultsLayout = "acc
             onRunAgain={workflow.actions.showRunAgainUpload}
             onDownload={workflow.actions.handleDownload}
             onViewResult={handleViewResult}
+            showComparisonStatus={showComparisonStatus}
           />
         </div>
       }
@@ -231,6 +233,7 @@ export default function ClauseIQV6A({ forceResults = false, resultsLayout = "acc
           onViewResult={handleViewResult}
           refs={journeyRefs}
           resultsLayout={resultsLayout}
+          showComparisonStatus={showComparisonStatus}
           showMobileSupplierPanel={!outputPanelResultsVisible}
           workflow={workflow}
         />

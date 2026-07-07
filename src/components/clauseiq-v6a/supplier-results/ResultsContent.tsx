@@ -12,6 +12,7 @@ interface Props {
   highlightLatestOutput?: boolean;
   higherIsBetter?: boolean;
   analysisParameters?: AnalysisParameterItem[];
+  showComparisonStatus?: boolean;
   layout?: ResultsLayout;
 }
 
@@ -24,6 +25,7 @@ export function ResultsContent({
   highlightLatestOutput = true,
   higherIsBetter,
   analysisParameters,
+  showComparisonStatus,
   layout = "accordion",
 }: Props) {
   if (layout === "output-panel") {
@@ -37,6 +39,7 @@ export function ResultsContent({
         highlightLatestOutput={highlightLatestOutput}
         higherIsBetter={higherIsBetter}
         analysisParameters={analysisParameters}
+        showComparisonStatus={showComparisonStatus}
       />
     );
   }

@@ -351,8 +351,11 @@ describe("ClauseIQ V6A flow", () => {
     expect(screen.queryByText("0 vs previous")).not.toBeInTheDocument();
     expect(screen.queryByText("Summary shown below. View the result for full details.")).not.toBeInTheDocument();
     expect(screen.queryByText("Missing Clauses and deviation levels")).not.toBeInTheDocument();
-    expect(screen.getAllByText("Clause Status").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Deviation").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Clause Target Status").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Deviations Level").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^Not Met \d+$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Met \d+$/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/^Missing \d+$/).length).toBeGreaterThan(0);
     expect(screen.queryByLabelText("Deviation level definitions")).not.toBeInTheDocument();
   });
 
@@ -371,6 +374,16 @@ describe("ClauseIQ V6A flow", () => {
     expect(screen.getAllByText("+12 vs previous").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("View Results").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("Download").length).toBeGreaterThan(0);
+  });
+
+  it("shows Met and Not Met metadata once previous analysis exists", () => {
+    renderClauseIQ("/clauseiq-v6a/output-panel?resultScenario=history", {
+      forceResults: true,
+      resultsLayout: "output-panel",
+    });
+
+    expect(screen.getAllByText(/^Not Met \d+$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Met \d+$/).length).toBeGreaterThan(0);
   });
 
   it("passes the clicked supplier output and immediate previous output to View Result", () => {

@@ -30,6 +30,7 @@ interface Props {
   analysisParameters?: AnalysisParameterItem[];
   outputScore?: OutputScorePresentation;
   higherIsBetter?: boolean;
+  showComparisonStatus?: boolean;
 }
 
 const ICON_FILE = "\uf15b";
@@ -55,10 +56,12 @@ export function AnalysisCard({
   analysisParameters = [],
   outputScore,
   higherIsBetter = true,
+  showComparisonStatus,
 }: Props) {
   const [saveToDocuments, setSaveToDocuments] = useState(false);
   const deviationSummaryId = useId();
   const status = statusCopy[analysis.status];
+  const resolvedShowComparisonStatus = showComparisonStatus ?? outputScore?.hasPreviousOutput ?? false;
 
   return (
     <motion.article
@@ -122,8 +125,12 @@ export function AnalysisCard({
                   score={outputScore}
                   deviations={analysis.deviations}
                   higherIsBetter={higherIsBetter}
+                  showComparisonStatus={resolvedShowComparisonStatus}
                 />
-                <OutputFindingsSummary deviations={analysis.deviations} />
+                <OutputFindingsSummary
+                  deviations={analysis.deviations}
+                  showComparisonStatus={resolvedShowComparisonStatus}
+                />
               </div>
             ) : (
               <div className="space-y-orbit-base">

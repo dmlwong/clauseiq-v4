@@ -37,6 +37,7 @@ export function OutputPanelResultsContent({
   highlightLatestOutput = true,
   higherIsBetter = true,
   analysisParameters,
+  showComparisonStatus = false,
 }: ResultsViewProps) {
   const rows = useMemo(() => {
     return flattenSupplierAnalyses(initiative.suppliers).sort(
@@ -82,7 +83,7 @@ export function OutputPanelResultsContent({
               analysisParameters={analysisParameters}
               outputScore={outputScoresBySupplierId[supplier.id]?.[analysis.id]}
               higherIsBetter={higherIsBetter}
-              showVerdictSummary={false}
+              showComparisonStatus={showComparisonStatus}
             />
           ))
         )}
@@ -95,6 +96,7 @@ export function OutputPanelResultsContent({
         onViewResult={onViewResult}
         outputState="filled"
         higherIsBetter={higherIsBetter}
+        showComparisonStatus={showComparisonStatus}
         className="lg:hidden"
       />
     </motion.div>
@@ -115,6 +117,7 @@ export function SupplierOutputsPanel({
   outputState = "filled",
   // TODO: confirm score polarity with scoring model owner.
   higherIsBetter = true,
+  showComparisonStatus = false,
   className,
 }: SupplierOutputsPanelProps) {
   const [outputScope, setOutputScope] = useState<OutputScope>(initialOutputScope);
@@ -237,6 +240,7 @@ export function SupplierOutputsPanel({
               onDownload={onDownload}
               onViewResult={onViewResult}
               higherIsBetter={higherIsBetter}
+              showComparisonStatus={showComparisonStatus}
             />
           ))
         )}
@@ -311,6 +315,7 @@ function SupplierOutputGroup({
   onDownload,
   onViewResult,
   higherIsBetter,
+  showComparisonStatus,
 }: {
   supplier: Supplier;
   latestAnalysisId?: string;
@@ -319,6 +324,7 @@ function SupplierOutputGroup({
   onDownload?: () => void;
   onViewResult?: (selection?: SupplierOutputSelection) => void;
   higherIsBetter: boolean;
+  showComparisonStatus: boolean;
 }) {
   const analyses = newestFirst(supplier.analyses);
   const scoresByAnalysisId = getSupplierScorePresentationByAnalysisId(analyses);
@@ -389,6 +395,7 @@ function SupplierOutputGroup({
                           : undefined
                       }
                       higherIsBetter={higherIsBetter}
+                      showComparisonStatus={showComparisonStatus}
                     />
                   </div>
                 ))}
@@ -408,6 +415,7 @@ function CompactOutputRow({
   onDownload,
   onViewResult,
   higherIsBetter,
+  showComparisonStatus,
 }: {
   analysis: ClauseAnalysis;
   displayFileName: string;
@@ -415,6 +423,7 @@ function CompactOutputRow({
   onDownload?: () => void;
   onViewResult?: (selection?: SupplierOutputSelection) => void;
   higherIsBetter: boolean;
+  showComparisonStatus: boolean;
 }) {
   return (
     <article className="px-orbit-xs">
@@ -435,6 +444,7 @@ function CompactOutputRow({
             score={score}
             deviations={analysis.deviations}
             higherIsBetter={higherIsBetter}
+            showComparisonStatus={showComparisonStatus}
           />
         </div>
       )}

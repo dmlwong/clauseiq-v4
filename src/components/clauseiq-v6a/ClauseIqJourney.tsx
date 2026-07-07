@@ -227,6 +227,7 @@ function ResultsStep({
   onViewResult,
   rerunUploadRef,
   resultsLayout,
+  showComparisonStatus = false,
   workflow,
 }: {
   includeResultBottomSpacer?: boolean;
@@ -235,6 +236,7 @@ function ResultsStep({
   onViewResult: () => void;
   rerunUploadRef?: RefObject<HTMLDivElement>;
   resultsLayout: ResultsLayout;
+  showComparisonStatus?: boolean;
   workflow: ClauseIqWorkflow;
 }) {
   const rerunJourneyVisible = workflow.rerunUploadVisible || workflow.rerunProcessing;
@@ -255,6 +257,7 @@ function ResultsStep({
           viewResultPrimary={!workflow.newAnalysisSectionVisible}
           highlightLatestOutput={!workflow.newAnalysisSectionVisible}
           analysisParameters={workflow.selectedAnalysisParameters}
+          showComparisonStatus={showComparisonStatus}
         />
       </div>
       {workflow.newAnalysisSectionVisible && <NewAnalysisDivider />}
@@ -303,6 +306,7 @@ function ResultsStep({
             isLatestOutput
             highlighted
             analysisParameters={workflow.completedRerunAnalysisParameters}
+            showComparisonStatus={showComparisonStatus}
           />
         </div>
       )}
@@ -329,6 +333,7 @@ function SingleStepJourneyContent({
   onViewResult,
   renderSelectedFileRow,
   resultsLayout,
+  showComparisonStatus,
   workflow,
 }: ClauseIqJourneyContentProps) {
   if (workflow.step === "welcome") {
@@ -402,6 +407,7 @@ function SingleStepJourneyContent({
       onStartAnotherInitiative={onStartAnotherInitiative}
       onViewResult={onViewResult}
       resultsLayout={resultsLayout}
+      showComparisonStatus={showComparisonStatus}
       workflow={workflow}
     />
   );
@@ -417,6 +423,7 @@ function StackedJourneyContent({
   refs,
   resultsLayout,
   showMobileSupplierPanel,
+  showComparisonStatus,
   includeResultBottomSpacer,
   workflow,
 }: ClauseIqJourneyContentProps) {
@@ -489,6 +496,7 @@ function StackedJourneyContent({
             onViewResult={onViewResult}
             rerunUploadRef={refs?.rerunUpload}
             resultsLayout={resultsLayout}
+            showComparisonStatus={showComparisonStatus}
             workflow={workflow}
           />
         </div>
@@ -502,6 +510,7 @@ function StackedJourneyContent({
             onRunAgain={workflow.actions.showRunAgainUpload}
             onDownload={workflow.actions.handleDownload}
             onViewResult={onViewResult}
+            showComparisonStatus={showComparisonStatus}
           />
         </div>
       )}
@@ -521,6 +530,7 @@ interface ClauseIqJourneyContentProps {
   refs?: ClauseIqJourneyRefs;
   renderSelectedFileRow?: (file: File, onRemove: () => void) => ReactNode;
   resultsLayout?: ResultsLayout;
+  showComparisonStatus?: boolean;
   showMobileSupplierPanel?: boolean;
   workflow: ClauseIqWorkflow;
 }

@@ -325,7 +325,7 @@ function CategoryFiltersSection({ children }: { children: ReactNode }) {
   return (
     <div className="mt-orbit-base pt-orbit-base">
       <div className="mb-orbit-s">
-        <Text as="p" size="Small" variant="Secondary">CLAUSES</Text>
+        <Text as="p" size="Small" variant="Secondary">Clause Name</Text>
       </div>
       <SidebarFiltersPanel>{children}</SidebarFiltersPanel>
     </div>
@@ -559,7 +559,7 @@ function ScoreHero({
           <Text as="p" size="Small" variant="Secondary">Score</Text>
         </div>
         <div className="mt-orbit-s grid grid-cols-[minmax(0,1fr)_40px_minmax(0,1fr)] items-stretch gap-orbit-s">
-          <ScoreSnapshot label={leftLabel} score={previous.score} band={previous.band} />
+          <ScoreSnapshot label={leftLabel} score={previous.score} />
           <div className="flex min-w-0 flex-col items-center justify-center gap-orbit-xs text-muted-foreground">
             <ArrowRight className="h-4 w-4" />
             <span className={cn("rounded-full px-orbit-s py-orbit-xxs text-[10px] v6-orbit-weight-medium whitespace-nowrap", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
@@ -567,7 +567,7 @@ function ScoreHero({
               {panel.delta} pts
             </span>
           </div>
-          <ScoreSnapshot label={rightLabel} score={panel.current.score} band={panel.current.band} current />
+          <ScoreSnapshot label={rightLabel} score={panel.current.score} current />
         </div>
         {comparisonControl && (
           <div className="-mx-orbit-s mt-orbit-s">
@@ -582,12 +582,10 @@ function ScoreHero({
 function ScoreSnapshot({
   label,
   score,
-  band,
   current = false,
 }: {
   label: string;
   score: number;
-  band: string;
   current?: boolean;
 }) {
   return (
@@ -595,9 +593,8 @@ function ScoreSnapshot({
       <div className="flex items-center gap-orbit-xs">
         <span className="truncate text-[10px] v6-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
       </div>
-      <div className="mt-orbit-xs flex items-end gap-orbit-xs">
+      <div className="mt-orbit-xs flex items-end">
         <span className="text-2xl v6-orbit-weight-semibold leading-none text-foreground">{score}</span>
-        <span className="pb-orbit-xxs text-xs v6-orbit-weight-medium text-muted-foreground">{band}</span>
       </div>
     </Card>
   );
@@ -835,7 +832,7 @@ const metricDefinitions: Array<{
   group: "changes" | "risk";
 }> = [
   { key: "met", label: "Met", value: "met", tone: "success", group: "changes" },
-  { key: "not-met", label: "Not met", value: "notMet", tone: "destructive", group: "changes" },
+  { key: "not-met", label: "Not Met", value: "notMet", tone: "destructive", group: "changes" },
   { key: "worsened", label: "Regressed", value: "worsened", tone: "destructive", group: "changes" },
   { key: "unexpected", label: "New supplier change", value: "unexpected", tone: "warning", group: "changes" },
   { key: "manual-review", label: "Needs decision", value: "manualReview", tone: "destructive", group: "changes" },
@@ -872,9 +869,10 @@ const filterToggleCardStyle: CSSProperties = { boxShadow: "var(--orbit-shadow-no
 type V6aToggleCardStatus = "Default" | "Hover" | "Selected" | "Disabled" | "Subtle";
 const v6aDisabledToggleCardClassName = "clauseiq-v6a-togglecard-disabled";
 
-function getV6aToggleCardStatus({ disabled }: { disabled: boolean }): V6aToggleCardStatus {
+function getV6aToggleCardStatus({ active, disabled }: { active: boolean; disabled: boolean }): V6aToggleCardStatus {
   if (disabled) return "Disabled";
-  return "Subtle";
+  if (active) return "Selected";
+  return "Default";
 }
 
 function FirstAnalysisMetricGrid({
@@ -896,7 +894,7 @@ function FirstAnalysisMetricGrid({
     const value = metrics[definition.value];
     const dotColor = FIRST_ANALYSIS_STATUS_THEME[definition.v6Status].indicatorColor;
     const disabled = value === 0;
-    const toggleCardStatus = getV6aToggleCardStatus({ disabled });
+    const toggleCardStatus = getV6aToggleCardStatus({ active, disabled });
 
     return (
       <ToggleCard
@@ -905,7 +903,7 @@ function FirstAnalysisMetricGrid({
         aria-pressed={active}
         aria-label={`${active ? "Remove" : "Add"} ${definition.label} filter, ${value} clauses`}
         onClick={onMetricSelect ? () => onMetricSelect(definition.key) : undefined}
-        className={cn("overflow-hidden", disabled ? v6aDisabledToggleCardClassName : "clauseiq-v6a-togglecard-subtle")}
+        className={cn("overflow-hidden", disabled ? v6aDisabledToggleCardClassName : !active && "clauseiq-v6a-togglecard-subtle")}
         style={filterToggleCardStyle}
       >
         <span className="flex min-h-8 w-full items-center gap-orbit-s px-orbit-s py-orbit-xs">
@@ -1024,7 +1022,7 @@ function MetricGrid({
     const value = metrics[definition.value];
     const active = activeMetric === definition.key;
     const disabled = value === 0;
-    const toggleCardStatus = getV6aToggleCardStatus({ disabled });
+    const toggleCardStatus = getV6aToggleCardStatus({ active, disabled });
 
     return (
       <ToggleCard
@@ -1033,7 +1031,7 @@ function MetricGrid({
         aria-pressed={active}
         aria-label={`${active ? "Remove" : "Add"} ${definition.label} outcome filter, ${value} clauses`}
         onClick={onMetricSelect && !disabled ? () => onMetricSelect(definition.key) : undefined}
-        className={cn("overflow-hidden", disabled ? v6aDisabledToggleCardClassName : "clauseiq-v6a-togglecard-subtle")}
+        className={cn("overflow-hidden", disabled ? v6aDisabledToggleCardClassName : !active && "clauseiq-v6a-togglecard-subtle")}
         style={filterToggleCardStyle}
       >
         <span className="flex w-full items-center gap-orbit-s px-orbit-s py-orbit-xs">
@@ -1059,14 +1057,14 @@ function MetricGrid({
   );
 
   const groupedMetricSections: Array<{ title: string; keys: EvidenceMetricKey[] }> = [
-    { title: "Verdict", keys: ["met", "not-met"] },
-    { title: "Deviation", keys: ["missing", "high", "medium", "low", "none"] },
+    { title: "Clause Target Status", keys: ["met", "not-met", "missing"] },
+    { title: "Deviations Level", keys: ["high", "medium", "low", "none"] },
   ];
   const fullGroupedMetricSections: Array<{ title: string; keys: EvidenceMetricKey[] }> = [
-    { title: "Verdict", keys: ["met", "not-met"] },
+    { title: "Clause Target Status", keys: ["met", "not-met", "missing"] },
     { title: "Work needed", keys: ["manual-review"] },
     { title: "System detection", keys: ["unexpected", "worsened"] },
-    { title: "Deviation", keys: ["missing", "high", "medium", "low", "none"] },
+    { title: "Deviations Level", keys: ["high", "medium", "low", "none"] },
   ];
   const sections = simplifyStatusMetrics ? groupedMetricSections : fullGroupedMetricSections;
   const metricByKey = new Map(visibleMetricDefinitions.map((definition) => [definition.key, definition]));

@@ -152,7 +152,7 @@ export function VersionVerdictBanner({
             {/* Three quick stats — clickable to jump */}
             <div className="flex flex-wrap gap-orbit-s mt-orbit-base">
               <Stat label="Met" value={met.length} tone="success" />
-              <Stat label="Not met" value={notMet.length} tone="warning" onClick={notMet.length ? onJumpToOpen : undefined} />
+              <Stat label="Not Met" value={notMet.length} tone="warning" onClick={notMet.length ? onJumpToOpen : undefined} />
               <Stat label="Changes" value={supplierChanges.length} tone="destructive" onClick={supplierChanges.length ? onJumpToChanges : undefined} />
             </div>
           </div>

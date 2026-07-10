@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Info } from "lucide-react";
-import { Tooltip } from "@orbit";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/clauseiq-v6a/orbit-ui/tooltip";
 
 export type ResultsOption = "accordion" | "master-detail" | "filtered-list";
 
@@ -56,14 +56,17 @@ export function OptionSwitcher({ value, onChange }: Props) {
           );
         })}
       </div>
-      <Tooltip content={RATIONALE[value]} direction="top">
-        <button
-          type="button"
-          aria-label="Design rationale"
-          className="grid h-8 w-8 place-items-center rounded-full border border-border/80 bg-muted/50 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
-        >
-          <Info className="h-4 w-4" />
-        </button>
+      <Tooltip>
+        <TooltipTrigger>
+          <button
+            type="button"
+            aria-label="Design rationale"
+            className="grid h-8 w-8 place-items-center rounded-full border border-border/80 bg-muted/50 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+          >
+            <Info className="h-4 w-4" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top">{RATIONALE[value]}</TooltipContent>
       </Tooltip>
     </div>
   );

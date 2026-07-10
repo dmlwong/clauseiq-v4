@@ -343,6 +343,7 @@ describe("ClauseIQ V6A flow", () => {
     expect(screen.queryByText("Kira Systems")).not.toBeInTheDocument();
     expect(screen.queryByText("API_Kira_v3.pdf")).not.toBeInTheDocument();
     expect(screen.getAllByText("Score 56").length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId("output-score-summary-card").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("View Results").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("Download").length).toBeGreaterThan(0);
     expect(screen.queryByText("No outputs yet")).not.toBeInTheDocument();
@@ -352,11 +353,20 @@ describe("ClauseIQ V6A flow", () => {
     expect(screen.queryByText("Summary shown below. View the result for full details.")).not.toBeInTheDocument();
     expect(screen.queryByText("Missing Clauses and deviation levels")).not.toBeInTheDocument();
     expect(screen.getAllByText("Clause Target Status").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Deviations Level").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Deviation Level").length).toBeGreaterThan(0);
     expect(screen.queryByText(/^Not Met \d+$/)).not.toBeInTheDocument();
     expect(screen.queryByText(/^Met \d+$/)).not.toBeInTheDocument();
     expect(screen.getAllByText(/^Missing \d+$/).length).toBeGreaterThan(0);
     expect(screen.queryByLabelText("Deviation level definitions")).not.toBeInTheDocument();
+  });
+
+  it("frames the supplier output score summary in an Orbit card on the output-panel route", () => {
+    renderClauseIQ("/clauseiq-v6a/output-panel", { forceResults: true, resultsLayout: "output-panel" });
+
+    expect(screen.getAllByTestId("output-score-summary-card").length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId("output-score-donut").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Score 56").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Clause Target Status").length).toBeGreaterThan(0);
   });
 
   it("renders historical score deltas when multiple supplier outputs are visible", () => {
@@ -384,6 +394,21 @@ describe("ClauseIQ V6A flow", () => {
 
     expect(screen.getAllByText(/^Not Met \d+$/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/^Met \d+$/).length).toBeGreaterThan(0);
+  });
+
+  it("does not show Met and Not Met metadata on a first output card in history view", () => {
+    renderClauseIQ("/clauseiq-v6a/output-panel?resultScenario=history", {
+      forceResults: true,
+      resultsLayout: "output-panel",
+    });
+
+    const luminanceCard = screen.getByText("ELA_Luminance_2025.pdf").closest("article");
+    expect(luminanceCard).toBeTruthy();
+
+    expect(within(luminanceCard!).getByText("first output")).toBeInTheDocument();
+    expect(within(luminanceCard!).queryByText(/^Not Met \d+$/)).not.toBeInTheDocument();
+    expect(within(luminanceCard!).queryByText(/^Met \d+$/)).not.toBeInTheDocument();
+    expect(within(luminanceCard!).getByText(/^Missing \d+$/)).toBeInTheDocument();
   });
 
   it("passes the clicked supplier output and immediate previous output to View Result", () => {
@@ -454,6 +479,45 @@ describe("ClauseIQ V6A flow", () => {
     expect(route).toContain("previousAnalysisId=a-002");
     expect(route).toContain("from=v2");
     expect(route).toContain("to=v3");
+    expect(route).toContain("dashboardView=comparison");
+  });
+
+  it("opens the initial-analysis dashboard when an output has no previous analysis", () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={["/clauseiq-v6a/output-panel?resultScenario=history"]}>
+        <TooltipProvider>
+          <Routes>
+            <Route
+              path="/clauseiq-v6a/output-panel"
+              element={<ClauseIQV6A forceResults resultsLayout="output-panel" />}
+            />
+            <Route path="/initiatives-v6a" element={<LocationEcho />} />
+          </Routes>
+        </TooltipProvider>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Team" })[0]);
+    screen.queryAllByLabelText("Expand Luminance AI outputs").forEach((button) => {
+      fireEvent.click(button);
+    });
+
+    const luminanceButton = container.querySelector<HTMLButtonElement>(
+      "#supplier-output-sup-003 button[aria-label='View Results']",
+    );
+    expect(luminanceButton).toBeTruthy();
+
+    fireEvent.click(luminanceButton!);
+
+    const route = screen.getByTestId("location").textContent ?? "";
+    expect(route).toContain("/initiatives-v6a?");
+    expect(route).toContain("scenario=first-analysis");
+    expect(route).toContain("dashboardView=initial-analysis");
+    expect(route).toContain("analysisId=a-006");
+    expect(route).toContain("outputSupplierId=sup-003");
+    expect(route).toContain("to=v1");
+    expect(route).not.toContain("previousAnalysisId=");
+    expect(route).not.toContain("resultMode=outcome");
   });
 
   it("opens the dashboard from the completed output-panel analysis card", () => {
@@ -478,6 +542,7 @@ describe("ClauseIQ V6A flow", () => {
     expect(route).toContain("resultMode=outcome");
     expect(route).toContain("analysisId=a-001");
     expect(route).toContain("previousAnalysisId=a-002");
+    expect(route).toContain("dashboardView=comparison");
   });
 
   it("shows next actions below the completed output-panel analysis", () => {
@@ -637,7 +702,7 @@ describe("ClauseIQ V6A flow", () => {
     expect(screen.getAllByText("Here is your Analysis Result").length).toBeGreaterThanOrEqual(2);
   });
 
-  it("uses the confirmed rerun benchmark on the completed output card", async () => {
+  it("shows only selected category and governing law on a no-playbook completed output card", async () => {
     vi.useFakeTimers();
     const { container } = renderClauseIQ("/clauseiq-v6a/output-panel", {
       forceResults: true,
@@ -667,10 +732,8 @@ describe("ClauseIQ V6A flow", () => {
     const latestCardText = analysisCards[analysisCards.length - 1]?.textContent ?? "";
 
     expect(latestCardText).toContain("Services_Germany_contract.pdf");
-    expect(latestCardText).toContain(
-      "Benchmark · Benchmarked against Germany · Services standards. The more you specify, the sharper the findings.",
-    );
-    expect(latestCardText).toContain("Precision · 3-of-3");
+    expect(latestCardText).not.toContain("Benchmark ·");
+    expect(latestCardText).not.toContain("Precision ·");
     expect(latestCardText).toContain("Category · Services");
     expect(latestCardText).toContain("Governing Law · Germany");
     expect(latestCardText).not.toContain("United States · Professional Services");

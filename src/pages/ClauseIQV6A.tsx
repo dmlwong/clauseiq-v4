@@ -157,15 +157,19 @@ export default function ClauseIQV6A({ forceResults = false, resultsLayout = "acc
   const handleViewResult = (selection?: SupplierOutputSelection) => {
     const selectedOutput = selection && "analysis" in selection ? selection : undefined;
     const analysisId = selectedOutput?.analysis.id ?? "a-001";
-    const previousAnalysisId = selectedOutput?.previousAnalysis?.id ?? "a-002";
+    const previousAnalysisId = selectedOutput?.previousAnalysis?.id;
     const context = getSupplierOutputComparisonContext(
       mockInitiative,
       analysisId,
       previousAnalysisId,
     );
 
-    if (!context?.previousAnalysis || !context.previousVersionLabel) {
-      navigate(LATEST_V6_RESULTS_ROUTE.replace("/initiatives-v6?", "/initiatives-v6a?"));
+    if (!context) {
+      const fallbackParams = new URLSearchParams(
+        LATEST_V6_RESULTS_ROUTE.split("?")[1] ?? "",
+      );
+      fallbackParams.set("dashboardView", "initial-analysis");
+      navigate(`/initiatives-v6a?${fallbackParams.toString()}`);
       return;
     }
 
@@ -179,14 +183,21 @@ export default function ClauseIQV6A({ forceResults = false, resultsLayout = "acc
       mode: "comparison",
       tab: "changes",
       design: "row-scale",
-      scenario: "negotiated-reanalysis",
-      resultMode: "outcome",
       analysisId: context.analysis.id,
-      previousAnalysisId: context.previousAnalysis.id,
       outputSupplierId: context.supplier.id,
-      from: context.previousVersionLabel,
       to: context.selectedVersionLabel,
     });
+
+    if (context.previousAnalysis && context.previousVersionLabel) {
+      params.set("scenario", "negotiated-reanalysis");
+      params.set("resultMode", "outcome");
+      params.set("previousAnalysisId", context.previousAnalysis.id);
+      params.set("from", context.previousVersionLabel);
+      params.set("dashboardView", "comparison");
+    } else {
+      params.set("scenario", "first-analysis");
+      params.set("dashboardView", "initial-analysis");
+    }
 
     navigate(`/initiatives-v6a?${params.toString()}`);
   };

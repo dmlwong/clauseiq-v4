@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { ArrowRight, Columns3, List } from "lucide-react";
+import { ArrowRight, ArrowUp, Columns3, List } from "lucide-react";
 import {
   Badge,
   Card,
@@ -20,8 +20,10 @@ import {
 
 export type ComparisonDesignOption = "evolved" | "side-by-side" | "row-scale";
 export type EvidenceMetricKey =
+  | "selected-for-review"
   | "not-met"
   | "met"
+  | "no-action"
   | "worsened"
   | "unexpected"
   | "manual-review"
@@ -33,8 +35,10 @@ export type EvidenceMetricKey =
 export type FirstAnalysisMetricKey = "high" | "medium" | "low" | "missing" | "none";
 
 export interface EvidenceMetricCounts {
+  selectedForReview: number;
   notMet: number;
   met: number;
+  noAction: number;
   worsened: number;
   unexpected: number;
   manualReview: number;
@@ -132,6 +136,7 @@ export function ComparisonDesignOptions({
   openItems,
   newChanges,
   closedItems,
+  noActionItems,
   unmarkedClauses,
   categoryRail,
   categoryPanel,
@@ -153,6 +158,7 @@ export function ComparisonDesignOptions({
   openItems: ReactNode;
   newChanges: ReactNode;
   closedItems: ReactNode;
+  noActionItems: ReactNode;
   unmarkedClauses: ReactNode;
   categoryRail: ReactNode;
   categoryPanel: ReactNode;
@@ -171,30 +177,33 @@ export function ComparisonDesignOptions({
   if (option === "side-by-side" || option === "row-scale") {
     return (
       <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-base py-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
-        <aside className="xl:sticky xl:top-[100px] xl:max-h-[calc(100vh-180px)] xl:self-start xl:overflow-y-auto">
-          <section className="overflow-hidden rounded-lg border border-border bg-card p-orbit-base">
-            <ComparisonSummaryRail
-              panel={panel}
-              stripStats={stripStats}
-              contractName={contractName}
-              supplierName={supplierName}
-              leftLabel={leftLabel}
-              rightLabel={rightLabel}
-              comparisonControl={comparisonControl}
-              activeMetric={activeEvidenceMetric}
-              onMetricSelect={onEvidenceMetricSelect}
-              metrics={evidenceMetrics}
-              simplifyStatusMetrics={simplifyStatusMetrics}
-            />
-            <CategoryFiltersSection>{categoryPanel}</CategoryFiltersSection>
+        {banner ? <div className="min-w-0 xl:col-span-2">{banner}</div> : null}
+        <aside className="xl:sticky xl:top-[100px] xl:self-start">
+          <section className="flex overflow-hidden rounded-lg border border-border bg-card xl:h-[calc(100vh-180px)] xl:flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto p-orbit-base">
+              <ComparisonSummaryRail
+                panel={panel}
+                stripStats={stripStats}
+                contractName={contractName}
+                supplierName={supplierName}
+                leftLabel={leftLabel}
+                rightLabel={rightLabel}
+                comparisonControl={comparisonControl}
+                activeMetric={activeEvidenceMetric}
+                onMetricSelect={onEvidenceMetricSelect}
+                metrics={evidenceMetrics}
+                simplifyStatusMetrics={simplifyStatusMetrics}
+              />
+              <CategoryFiltersSection>{categoryPanel}</CategoryFiltersSection>
+            </div>
           </section>
         </aside>
         <div id="comparison-work-column" className="min-w-0 space-y-orbit-base">
-          {banner}
           <WorkflowStack
             openItems={openItems}
             newChanges={newChanges}
             closedItems={closedItems}
+            noActionItems={noActionItems}
             unmarkedClauses={unmarkedClauses}
           />
         </div>
@@ -232,6 +241,7 @@ export function ComparisonDesignOptions({
             openItems={openItems}
             newChanges={newChanges}
             closedItems={closedItems}
+            noActionItems={noActionItems}
             unmarkedClauses={unmarkedClauses}
           />
         </div>
@@ -273,20 +283,22 @@ export function FirstAnalysisDesignOptions({
   if (option === "side-by-side" || option === "row-scale") {
     return (
       <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-base py-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
-        <aside className="xl:sticky xl:top-[100px] xl:max-h-[calc(100vh-180px)] xl:self-start xl:overflow-y-auto">
-          <section className="overflow-hidden rounded-lg border border-border bg-card p-orbit-base">
-            <FirstAnalysisReviewCountPanel visibleCount={visibleCount} />
-            <FirstAnalysisSummaryPanel
-              metrics={metrics}
-              activeMetrics={activeMetrics}
-              onMetricSelect={onMetricSelect}
-              compact
-            />
-            <CategoryFiltersSection>{categoryPanel}</CategoryFiltersSection>
+        {banner ? <div className="min-w-0 xl:col-span-2">{banner}</div> : null}
+        <aside className="xl:sticky xl:top-[100px] xl:self-start">
+          <section className="flex overflow-hidden rounded-lg border border-border bg-card xl:h-[calc(100vh-180px)] xl:flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto p-orbit-base">
+              <FirstAnalysisReviewCountPanel visibleCount={visibleCount} />
+              <FirstAnalysisSummaryPanel
+                metrics={metrics}
+                activeMetrics={activeMetrics}
+                onMetricSelect={onMetricSelect}
+                compact
+              />
+              <CategoryFiltersSection>{categoryPanel}</CategoryFiltersSection>
+            </div>
           </section>
         </aside>
         <div id="comparison-work-column" className="min-w-0 space-y-orbit-base">
-          {banner}
           <FirstAnalysisReviewShell>{clausesToReview}</FirstAnalysisReviewShell>
         </div>
       </div>
@@ -457,17 +469,20 @@ function WorkflowStack({
   openItems,
   newChanges,
   closedItems,
+  noActionItems,
   unmarkedClauses,
 }: {
   openItems: ReactNode;
   newChanges: ReactNode;
   closedItems: ReactNode;
+  noActionItems: ReactNode;
   unmarkedClauses: ReactNode;
 }) {
   return (
     <div className="grid gap-orbit-base">
       {openItems}
       {closedItems}
+      {noActionItems}
       {newChanges}
       {unmarkedClauses}
     </div>
@@ -501,8 +516,10 @@ export function ComparisonSummaryRail({
 }) {
   const { contract, comparison, actions } = stripStats;
   const metricCounts = metrics ?? {
+    selectedForReview: comparison.requestedTotal + comparison.supplierChanges,
     notMet: comparison.notMet,
     met: comparison.met,
+    noAction: 0,
     worsened: comparison.regressed,
     unexpected: comparison.new,
     manualReview: actions.pendingReview,
@@ -554,57 +571,58 @@ function ScoreHero({
   className?: string;
   showSentence?: boolean;
 }) {
-  const { comparison } = stripStats;
   const previous = panel.previous ?? {
     version: leftLabel,
     score: panel.current.score - panel.delta,
     band: panel.current.band,
   };
+  const deltaPrefix = panel.delta > 0 ? "+" : "";
+  const scoreDirectionLabel =
+    panel.delta > 0 ? "Improved" : panel.delta < 0 ? "Declined" : "Unchanged";
+  const currentVersionLabel = rightLabel.toUpperCase();
+  const previousVersionLabel = leftLabel.toUpperCase();
   return (
     <div className={cn("clauseiq-v6a-score-hero", className)}>
       <Card type="Static" padding={compact ? "Small" : "Base"} state="Accent">
-        <div className="flex items-center justify-between gap-orbit-s">
-          <Text as="p" size="Small" variant="Secondary">Score</Text>
-        </div>
-        <div className="mt-orbit-s grid grid-cols-[minmax(0,1fr)_40px_minmax(0,1fr)] items-stretch gap-orbit-s">
-          <ScoreSnapshot label={leftLabel} score={previous.score} />
-          <div className="flex min-w-0 flex-col items-center justify-center gap-orbit-xs text-muted-foreground">
-            <ArrowRight className="h-4 w-4" />
-            <span className={cn("rounded-full px-orbit-s py-orbit-xxs text-[10px] v6-orbit-weight-medium whitespace-nowrap", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
-              {panel.delta >= 0 ? "+" : ""}
-              {panel.delta} pts
+        <div className="space-y-orbit-base px-orbit-xs py-orbit-xs">
+          <div className="flex min-w-0 items-center justify-between gap-orbit-base">
+            <Text as="p" size="Paragraph" variant="Secondary">
+              Score
+            </Text>
+            <div className="flex shrink-0 justify-end text-right">
+              <Chip
+                label={`Latest analysis · ${currentVersionLabel}`}
+                size="Mini"
+                variant="Outline"
+              />
+            </div>
+          </div>
+          <div className="flex min-w-0 items-baseline gap-orbit-base">
+            <span className="v6-orbit-heading-1 text-foreground">
+              {panel.current.score}
+            </span>
+            <span
+              className={cn(
+                "v6-orbit-heading-4 inline-flex shrink-0 items-center gap-orbit-xs",
+                panel.delta >= 0
+                  ? "text-[var(--orbit-color-status-high-bg-success)]"
+                  : "text-[var(--orbit-color-text-error)]",
+              )}
+            >
+              <ArrowUp className={cn("h-6 w-6", panel.delta < 0 && "rotate-180")} strokeWidth={3} />
+              {deltaPrefix}
+              {panel.delta}
             </span>
           </div>
-          <ScoreSnapshot label={rightLabel} score={panel.current.score} current />
+          <Text as="p" size="Paragraph" variant="Secondary">
+            {scoreDirectionLabel} from{" "}
+            <span className="v6-orbit-weight-bold text-foreground">{previous.score}</span>
+            <span aria-hidden="true"> · </span>
+            was {previousVersionLabel}
+          </Text>
         </div>
-        {comparisonControl && (
-          <div className="-mx-orbit-s mt-orbit-s">
-            {comparisonControl}
-          </div>
-        )}
       </Card>
     </div>
-  );
-}
-
-function ScoreSnapshot({
-  label,
-  score,
-  current = false,
-}: {
-  label: string;
-  score: number;
-  current?: boolean;
-}) {
-  return (
-    <Card type="Static" padding="Small" state={current ? "Accent" : "Default"}>
-      <div className="flex items-center gap-orbit-xs">
-        <span className="truncate text-[10px] v6-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
-      </div>
-      <div className="mt-orbit-xs flex items-end">
-        <span className="text-2xl v6-orbit-weight-semibold leading-none text-foreground">{score}</span>
-      </div>
-    </Card>
   );
 }
 
@@ -839,16 +857,18 @@ const metricDefinitions: Array<{
   tone?: "success" | "warning" | "destructive";
   group: "changes" | "risk";
 }> = [
+  { key: "selected-for-review", label: "Selected for Review", value: "selectedForReview", group: "changes" },
   { key: "met", label: "Met", value: "met", tone: "success", group: "changes" },
   { key: "not-met", label: "Not Met", value: "notMet", tone: "destructive", group: "changes" },
+  { key: "missing", label: "Missing", value: "missingClauses", group: "changes" },
+  { key: "no-action", label: "Not Selected for Review", value: "noAction", group: "changes" },
   { key: "worsened", label: "Regressed", value: "worsened", tone: "destructive", group: "changes" },
   { key: "unexpected", label: "New supplier change", value: "unexpected", tone: "warning", group: "changes" },
   { key: "manual-review", label: "Needs decision", value: "manualReview", tone: "destructive", group: "changes" },
-  { key: "missing", label: "Missing Clauses", value: "missingClauses", group: "changes" },
-  { key: "high", label: "High Deviation", value: "high", tone: "destructive", group: "risk" },
-  { key: "medium", label: "Medium Deviation", value: "medium", tone: "warning", group: "risk" },
-  { key: "low", label: "Low Deviation", value: "low", group: "risk" },
-  { key: "none", label: "None Deviation", value: "noneDeviation", tone: "success", group: "risk" },
+  { key: "high", label: "High", value: "high", tone: "destructive", group: "risk" },
+  { key: "medium", label: "Medium", value: "medium", tone: "warning", group: "risk" },
+  { key: "low", label: "Low", value: "low", group: "risk" },
+  { key: "none", label: "None", value: "noneDeviation", tone: "success", group: "risk" },
 ];
 
 const firstAnalysisMetricDefinitions: Array<{
@@ -1065,11 +1085,11 @@ function MetricGrid({
   );
 
   const groupedMetricSections: Array<{ title: string; keys: EvidenceMetricKey[] }> = [
-    { title: "Clause Target Status", keys: ["met", "not-met", "missing"] },
+    { title: "Round Action", keys: ["selected-for-review", "met", "not-met", "missing", "no-action"] },
     { title: "Deviation Level", keys: ["high", "medium", "low", "none"] },
   ];
   const fullGroupedMetricSections: Array<{ title: string; keys: EvidenceMetricKey[] }> = [
-    { title: "Clause Target Status", keys: ["met", "not-met", "missing"] },
+    { title: "Round Action", keys: ["selected-for-review", "met", "not-met", "missing", "no-action"] },
     { title: "Work needed", keys: ["manual-review"] },
     { title: "System detection", keys: ["unexpected", "worsened"] },
     { title: "Deviation Level", keys: ["high", "medium", "low", "none"] },

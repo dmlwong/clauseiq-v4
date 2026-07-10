@@ -1,4 +1,5 @@
 import * as React from "react";
+import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
 
@@ -49,6 +50,9 @@ export function TooltipContent({ children }: TooltipContentProps) {
 export function Tooltip({ children }: TooltipProps) {
   const [visible, setVisible] = React.useState(false);
   const tooltipId = React.useId();
+  const triggerWrapperRef = React.useRef<HTMLSpanElement | null>(null);
+  const tooltipRef = React.useRef<HTMLSpanElement | null>(null);
+  const [position, setPosition] = React.useState<{ top: number; left: number; transform: string } | null>(null);
   const parts = React.Children.toArray(children);
   const triggerPart = parts.find(
     (part) => React.isValidElement(part) && part.type === TooltipTrigger,
@@ -65,6 +69,58 @@ export function Tooltip({ children }: TooltipProps) {
 
   const show = () => setVisible(true);
   const hide = () => setVisible(false);
+
+  React.useLayoutEffect(() => {
+    if (!visible || !triggerWrapperRef.current || !tooltipRef.current) return;
+
+    const updatePosition = () => {
+      const triggerRect = triggerWrapperRef.current?.getBoundingClientRect();
+      const tooltipRect = tooltipRef.current?.getBoundingClientRect();
+      if (!triggerRect || !tooltipRect) return;
+
+      const gap = 8;
+      if (side === "bottom") {
+        setPosition({
+          top: triggerRect.bottom + gap,
+          left: triggerRect.left + triggerRect.width / 2,
+          transform: "translateX(-50%)",
+        });
+        return;
+      }
+
+      if (side === "left") {
+        setPosition({
+          top: triggerRect.top + triggerRect.height / 2,
+          left: triggerRect.left - gap,
+          transform: "translate(-100%, -50%)",
+        });
+        return;
+      }
+
+      if (side === "right") {
+        setPosition({
+          top: triggerRect.top + triggerRect.height / 2,
+          left: triggerRect.right + gap,
+          transform: "translateY(-50%)",
+        });
+        return;
+      }
+
+      setPosition({
+        top: triggerRect.top - gap,
+        left: triggerRect.left + triggerRect.width / 2,
+        transform: "translate(-50%, -100%)",
+      });
+    };
+
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [side, visible]);
 
   const triggerProps = {
     onMouseEnter: show,
@@ -105,18 +161,27 @@ export function Tooltip({ children }: TooltipProps) {
   if (!content && !contentText) return <>{triggerNode}</>;
 
   return (
-    <span className="relative inline-flex">
-      {triggerNode}
-      {visible && (
+    <>
+      <span ref={triggerWrapperRef} className="inline-flex">
+        {triggerNode}
+      </span>
+      {visible && typeof document !== "undefined" && createPortal(
         <span
+          ref={tooltipRef}
           id={tooltipId}
           role="tooltip"
+          style={
+            position
+              ? {
+                  top: position.top,
+                  left: position.left,
+                  transform: position.transform,
+                }
+              : undefined
+          }
           className={cn(
-            "pointer-events-none absolute z-[var(--orbit-z-tooltip)] inline-flex min-w-[220px] max-w-[280px] rounded-[var(--orbit-radius-sm)] border border-white/10 bg-[var(--orbit-color-black-pearl)] px-orbit-s py-orbit-xs text-left text-[var(--orbit-text-small-size)] font-[var(--orbit-text-small-weight)] leading-[var(--orbit-text-small-leading)] text-[var(--orbit-color-text-inverse)] shadow-lg whitespace-pre-line",
-            side === "top" && "bottom-full left-1/2 mb-orbit-xs -translate-x-1/2",
-            side === "bottom" && "left-1/2 top-full mt-orbit-xs -translate-x-1/2",
-            side === "left" && "right-full top-1/2 mr-orbit-xs -translate-y-1/2",
-            side === "right" && "left-full top-1/2 ml-orbit-xs -translate-y-1/2",
+            "pointer-events-none fixed z-[9999] inline-flex min-w-[220px] max-w-[280px] rounded-[var(--orbit-radius-sm)] border border-white/10 bg-[var(--orbit-color-black-pearl)] p-orbit-base text-left text-[var(--orbit-text-small-size)] font-[var(--orbit-text-small-weight)] leading-[var(--orbit-text-small-leading)] text-[var(--orbit-color-text-inverse)] shadow-lg whitespace-pre-line",
+            !position && "opacity-0",
             className,
           )}
         >
@@ -131,9 +196,10 @@ export function Tooltip({ children }: TooltipProps) {
             )}
           />
           {typeof content === "string" || typeof content === "number" ? <span>{content}</span> : content}
-        </span>
+        </span>,
+        document.body,
       )}
-    </span>
+    </>
   );
 }
 

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   ChevronLeft, AlertTriangle, CheckCircle2, Search, MapPin, Lightbulb,
@@ -18,12 +18,12 @@ import {
   QuickFilterGroup,
   QuickFilterItem,
   Searchbox,
+  MultiSelectDropdown,
   TabButton,
   Table as OrbitTable,
   Button as OrbitButton,
   Text,
   ToggleCard,
-  MultiSelectDropdown,
 } from "@orbit";
 import { showV6OrbitToast as toast } from "@/components/clauseiq-v6a/V6OrbitToast";
 import { V6OrbitConfirmOverlay, V6OrbitOverlay } from "@/components/clauseiq-v6a/V6OrbitOverlay";
@@ -31,6 +31,7 @@ import { Input } from "@/components/clauseiq-v6a/orbit-ui/input";
 import { Textarea } from "@/components/clauseiq-v6a/orbit-ui/textarea";
 import { Badge } from "@/components/clauseiq-v6a/orbit-ui/badge";
 import { Button } from "@/components/clauseiq-v6a/orbit-ui/button";
+import { Checkbox } from "@/components/clauseiq-v6a/orbit-ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/clauseiq-v6a/orbit-ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/clauseiq-v6a/orbit-ui/select";
 import { ChevronDown } from "lucide-react";
@@ -93,7 +94,6 @@ import {
   deriveHistoryModel,
   normalizeVersionComparisonPair,
   summariseComparisonRows,
-  versionOrder,
   type ComparisonBucketStats,
   type ComparisonRow,
   type DeviationDistribution,
@@ -134,15 +134,19 @@ interface Props {
 }
 
 type TabKey = "review" | ComparisonTab;
-type FilterKey = "all" | "open" | "new-issues" | "closed" | "unmarked";
-type QuickFilterKey = "not-met" | "met" | "worsened" | "unexpected" | "manual-review" | "high" | "medium" | "low" | "missing" | "none";
-interface FirstAnalysisReviewProgress {
+type FilterKey = "all" | "open" | "new-issues" | "closed" | "no-action" | "unmarked";
+type QuickFilterKey = "selected-for-review" | "not-met" | "met" | "no-action" | "worsened" | "unexpected" | "manual-review" | "high" | "medium" | "low" | "missing" | "none";
+interface ReviewGenerateProgress {
+  displayMode?: "comparison" | "first-analysis";
   total: number;
   usedRecommendations: number;
   noAction: number;
   unreviewed: number;
   submitted: number;
   readyForCsv: number;
+  notMet?: number;
+  met?: number;
+  missingClauses?: number;
   breakdown: Array<{
     label: string;
     reviewed: number;
@@ -625,6 +629,10 @@ function countsTowardDeviationMetric(clause: ClauseResult) {
   return !isPureMissingClause(clause);
 }
 
+type OutcomeReviewBucket = "met" | "not-met" | "missing" | "no-action" | "unmarked";
+
+const V6A_OUTCOME_REVIEW_DEMO_REQUEST_IDS = ["c3", "c31", "c35", "c48", "c58"];
+
 function deriveScoreBand(score: number, open: Record<"high" | "medium" | "low", number>, dealBreakerPresent: boolean): ScoreBand {
   if (dealBreakerPresent || open.high >= 3) return "F";
   if (open.high === 2) return "D";
@@ -873,6 +881,12 @@ function wasRequestedByVersion(
 
 // ---- main component ---------------------------------------------------------
 
+type DashboardViewMode = "initial-analysis" | "comparison";
+
+function normalizeDashboardView(value: string | null): DashboardViewMode | null {
+  return value === "initial-analysis" || value === "comparison" ? value : null;
+}
+
 export function ContractResults({
   initiativeId,
   supplierId,
@@ -886,20 +900,30 @@ export function ContractResults({
   const supplier = getSupplier(initiativeId, supplierId);
   const contract = getContract(initiativeId, supplierId, contractId);
   const decisions = useClauseDecisions({});
-  const firstAnalysisDemo = searchParams.get("scenario") === "first-analysis";
+  const selectedOutputContext = useMemo(
+    () =>
+      getSupplierOutputComparisonContext(
+        clauseIqV6MockInitiative,
+        searchParams.get("analysisId"),
+        searchParams.get("previousAnalysisId"),
+      ),
+    [searchParams],
+  );
+  const selectedOutputHasComparison = Boolean(
+    selectedOutputContext?.previousAnalysis && selectedOutputContext.previousVersionLabel,
+  );
+  const requestedDashboardView = normalizeDashboardView(searchParams.get("dashboardView"));
+  const dashboardView: DashboardViewMode =
+    requestedDashboardView ??
+    (searchParams.get("scenario") === "first-analysis" ? "initial-analysis" : "comparison");
+  const firstAnalysisDemo = dashboardView === "initial-analysis";
   const outcomeReviewMode =
+    dashboardView === "comparison" &&
     searchParams.get("resultMode") === "outcome" &&
     searchParams.get("scenario") === "negotiated-reanalysis";
   const outcomeContext = useMemo(
-    () =>
-      outcomeReviewMode
-        ? getSupplierOutputComparisonContext(
-            clauseIqV6MockInitiative,
-            searchParams.get("analysisId"),
-            searchParams.get("previousAnalysisId"),
-          )
-        : null,
-    [outcomeReviewMode, searchParams],
+    () => (outcomeReviewMode ? selectedOutputContext : null),
+    [outcomeReviewMode, selectedOutputContext],
   );
   const isResponsiveTestingRoute =
     typeof window !== "undefined" && window.location.pathname.startsWith("/initiatives-responsive-testing");
@@ -908,6 +932,19 @@ export function ContractResults({
   const decisionContractId = firstAnalysisDemo ? `${contractId}:first-analysis-demo` : contractId;
   const generatedCsvStoragePrefix = `ciq-v6a-generated-csv:${supplierId}:${decisionContractId}:`;
   const firstAnalysisResetKeyRef = useRef<string | null>(null);
+  const seededNoActionScenarioRef = useRef<string | null>(null);
+  const seededOutcomeReviewRequestsRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (dashboardView !== "comparison" || selectedOutputHasComparison || !searchParams.get("analysisId")) return;
+    const params = new URLSearchParams(searchParams);
+    params.set("dashboardView", "initial-analysis");
+    params.set("scenario", "first-analysis");
+    params.delete("resultMode");
+    params.delete("previousAnalysisId");
+    params.delete("from");
+    setSearchParams(params, { replace: true });
+  }, [dashboardView, searchParams, selectedOutputHasComparison, setSearchParams]);
 
   // Local mutable copy of versions so the user can simulate uploading a new
   // round or deleting an existing one without touching shared seed data.
@@ -1349,17 +1386,140 @@ export function ContractResults({
     [activeCategories, allDecisions, historyFilter, historySort, versions],
   );
 
+  useEffect(() => {
+    if (!outcomeReviewMode || !leftVersion || !rightVersion) return;
+    const seedKey = `${supplierId}:${decisionContractId}:${leftVersion.version}:${rightVersion.version}`;
+    if (seededOutcomeReviewRequestsRef.current === seedKey) return;
+
+    const alreadySeeded = V6A_OUTCOME_REVIEW_DEMO_REQUEST_IDS.every((clauseId) => {
+      const decision = allDecisions[clauseId]?.roundDecisions?.[leftVersion.version];
+      return decision === "request-update";
+    });
+    if (alreadySeeded) {
+      seededOutcomeReviewRequestsRef.current = seedKey;
+      return;
+    }
+
+    V6A_OUTCOME_REVIEW_DEMO_REQUEST_IDS.forEach((clauseId) => {
+      const existingDecision = allDecisions[clauseId]?.roundDecisions?.[leftVersion.version];
+      if (!existingDecision) {
+        decisions.setRoundDecision(
+          supplierId,
+          decisionContractId,
+          clauseId,
+          leftVersion.version,
+          "request-update",
+        );
+      }
+    });
+
+    seededOutcomeReviewRequestsRef.current = seedKey;
+  }, [
+    allDecisions,
+    decisionContractId,
+    decisions,
+    leftVersion,
+    outcomeReviewMode,
+    rightVersion,
+    supplierId,
+  ]);
+
+  useEffect(() => {
+    if (!outcomeReviewMode || !leftVersion || !rightVersion) return;
+    const seedKey = `${supplierId}:${decisionContractId}:${leftVersion.version}:${rightVersion.version}`;
+    if (seededNoActionScenarioRef.current === seedKey) return;
+
+    const hasExistingNoAction = Object.values(allDecisions).some(
+      (state) => state.roundDecisions[leftVersion.version] === "no-action",
+    );
+    if (hasExistingNoAction) {
+      seededNoActionScenarioRef.current = seedKey;
+      return;
+    }
+
+    const seedRow = comparisonModel.buckets.unmarked[0];
+    if (!seedRow) return;
+
+    decisions.setRoundDecision(
+      supplierId,
+      decisionContractId,
+      seedRow.id,
+      leftVersion.version,
+      "no-action",
+    );
+    seededNoActionScenarioRef.current = seedKey;
+  }, [
+    allDecisions,
+    comparisonModel.buckets.unmarked,
+    decisionContractId,
+    decisions,
+    leftVersion,
+    outcomeReviewMode,
+    rightVersion,
+    supplierId,
+  ]);
+
+  const classifyOutcomeReviewBucket = useCallback(
+    (row: Pick<ComparisonRow, "id" | "prev" | "curr">): OutcomeReviewBucket => {
+      const clause = row.curr ?? row.prev;
+      if (!clause) return "unmarked";
+      if (isPureMissingClause(clause)) return "missing";
+
+      const previousRoundDecision = leftVersion ? stateOf(row.id).roundDecisions[leftVersion.version] : undefined;
+      if (previousRoundDecision === "request-update") {
+        const strictPill = determineChangePill({
+          clause: row.curr,
+          previousClause: row.prev,
+          wasRequestedInPreviousRound: true,
+        });
+        return strictPill.status === "met" ? "met" : "not-met";
+      }
+      if (previousRoundDecision === "no-action") return "no-action";
+
+      return "no-action";
+    },
+    [leftVersion, stateOf],
+  );
+
   // Open Items = previously requested clauses; New Changes = supplier-initiated
   // movement; Closed = explicitly closed for the target version; Unmarked = no
   // change/no prior request.
   const comparisonSections = useMemo(
     () => {
+      if (outcomeReviewMode && leftVersion && rightVersion) {
+        const rows = Object.values(comparisonModel.buckets).flat();
+        const remapped = {
+          open: [] as ComparisonRow[],
+          newIssues: [] as ComparisonRow[],
+          closed: [] as ComparisonRow[],
+          noAction: [] as ComparisonRow[],
+          unmarked: [] as ComparisonRow[],
+        };
+
+        rows.forEach((row) => {
+          const bucket = classifyOutcomeReviewBucket(row);
+          if (bucket === "met") remapped.closed.push(row);
+          else if (bucket === "not-met") remapped.open.push(row);
+          else if (bucket === "missing") remapped.newIssues.push(row);
+          else if (bucket === "no-action") remapped.noAction.push(row);
+          else remapped.unmarked.push(row);
+        });
+
+        return remapped;
+      }
+
+      const isNoActionCarryForward = (row: { id: string; actionState?: string }) => {
+        const previousDecision = leftVersion ? stateOf(row.id).roundDecisions[leftVersion.version] : undefined;
+        return row.actionState === "no_action" || previousDecision === "no-action";
+      };
+
       if (!simplifyComparisonStatus) {
         return {
           open: comparisonModel.buckets.open_items,
           newIssues: comparisonModel.buckets.new_changes,
           closed: comparisonModel.buckets.closed,
-          unmarked: comparisonModel.buckets.unmarked,
+          noAction: comparisonModel.buckets.unmarked.filter(isNoActionCarryForward),
+          unmarked: comparisonModel.buckets.unmarked.filter((row) => !isNoActionCarryForward(row)),
         };
       }
 
@@ -1368,16 +1528,18 @@ export function ContractResults({
         open: rows.filter((row) => !row.closed && row.pill.status !== "met"),
         newIssues: [],
         closed: rows.filter((row) => row.closed || row.pill.status === "met"),
+        noAction: rows.filter((row) => row.bucket === "unmarked" && isNoActionCarryForward(row)),
         unmarked: [],
       };
     },
-    [comparisonModel, simplifyComparisonStatus],
+    [classifyOutcomeReviewBucket, comparisonModel, leftVersion, outcomeReviewMode, rightVersion, simplifyComparisonStatus],
   );
   const comparisonSectionStats = useMemo(
     () => ({
       open: summariseComparisonRows(comparisonSections.open),
       newIssues: summariseComparisonRows(comparisonSections.newIssues),
       closed: summariseComparisonRows(comparisonSections.closed),
+      noAction: summariseComparisonRows(comparisonSections.noAction),
       unmarked: summariseComparisonRows(comparisonSections.unmarked),
     }),
     [comparisonSections],
@@ -1691,7 +1853,9 @@ export function ContractResults({
       setFilter("all");
     }
     if (
+      next === "selected-for-review" ||
       next === "met" ||
+      next === "no-action" ||
       next === "not-met" ||
       next === "worsened" ||
       next === "unexpected"
@@ -1717,20 +1881,45 @@ export function ContractResults({
   const filterRowsByQuickState = <T extends { id: string; prev?: ClauseResult; curr?: ClauseResult; pill?: ChangePillResult; actionState?: string }>(rows: T[]) =>
     rows.filter((row) => {
       const clause = row.curr ?? row.prev;
+      const outcomeBucket = outcomeReviewMode ? classifyOutcomeReviewBucket(row) : null;
       if (severityQuickFilter && !matchesQuickSeverity(clause)) return false;
-      if (quickMissingClauseFilter && !(clause && isMissingClause(clause))) return false;
+      if (quickMissingClauseFilter) {
+        if (outcomeReviewMode) {
+          if (outcomeBucket !== "missing") return false;
+        } else if (!(clause && isMissingClause(clause))) return false;
+      }
       if (quickNoneDeviationFilter && !(clause && isNoneDeviationClause(clause))) return false;
       if (quickFilter === "met") {
-        if (simplifyComparisonStatus) {
+        if (outcomeReviewMode) {
+          if (outcomeBucket !== "met") return false;
+        } else if (simplifyComparisonStatus) {
           const treatedAsMet = "closed" in row ? Boolean(row.closed) || row.pill?.status === "met" : row.pill?.status === "met";
           if (!treatedAsMet) return false;
         } else if (row.pill?.status !== "met") return false;
       }
+      if (quickFilter === "selected-for-review") {
+        if (outcomeReviewMode) {
+          if (outcomeBucket === "no-action") return false;
+        } else {
+          const previousDecision = leftVersion ? stateOf(row.id).roundDecisions[leftVersion.version] : undefined;
+          if (row.actionState === "no_action" || previousDecision === "no-action") return false;
+        }
+      }
       if (quickFilter === "not-met") {
-        if (simplifyComparisonStatus) {
+        if (outcomeReviewMode) {
+          if (outcomeBucket !== "not-met") return false;
+        } else if (simplifyComparisonStatus) {
           const treatedAsNotMet = !("closed" in row && row.closed) && row.pill?.status !== "met";
           if (!treatedAsNotMet) return false;
         } else if (row.pill?.status !== "not_met" && row.pill?.status !== "improved") return false;
+      }
+      if (quickFilter === "no-action") {
+        if (outcomeReviewMode) {
+          if (outcomeBucket !== "no-action") return false;
+        } else {
+          const previousDecision = leftVersion ? stateOf(row.id).roundDecisions[leftVersion.version] : undefined;
+          if (row.actionState !== "no_action" && previousDecision !== "no-action") return false;
+        }
       }
       if (quickFilter === "worsened" && row.pill?.status !== "regressed") return false;
       if (quickFilter === "unexpected" && row.pill?.status !== "new") return false;
@@ -1747,29 +1936,44 @@ export function ContractResults({
   const closedRows = sortOutcomeComparisonRows(filterRowsByQuickState(
     comparisonSections.closed.filter((r) => matchesSearch(r.id) && matchesCategory(r.id)),
   ));
+  const noActionRows = sortOutcomeComparisonRows(filterRowsByQuickState(
+    comparisonSections.noAction.filter((r) => matchesSearch(r.id) && matchesCategory(r.id)),
+  ));
   const unmarkedRows = sortOutcomeComparisonRows(filterRowsByQuickState(
     comparisonSections.unmarked.filter((r) => matchesSearch(r.id) && matchesCategory(r.id)),
   ));
-  const showOpenSection =
-    (filter === "all" || filter === "open") &&
-    quickFilter !== "changes" &&
-    quickFilter !== "met";
-  const showNewIssueSection =
-    !simplifyComparisonStatus &&
-    (filter === "all" || filter === "new-issues") &&
-    (quickFilter === null || quickFilter === "need-action" || quickFilter === "changes" || !!severityQuickFilter);
-  const showClosedSection =
-    (filter === "all" || filter === "closed") &&
-    quickFilter !== "need-action" &&
-    quickFilter !== "changes" &&
-    quickFilter !== "open-items";
+  const showOpenSection = outcomeReviewMode
+    ? (filter === "all" || filter === "open") && openRows.length > 0
+    : (filter === "all" || filter === "open") &&
+      quickFilter !== "changes" &&
+      quickFilter !== "met";
+  const showNewIssueSection = outcomeReviewMode
+    ? (filter === "all" || filter === "new-issues") && newIssueRows.length > 0
+    : !simplifyComparisonStatus &&
+      (filter === "all" || filter === "new-issues") &&
+      (quickFilter === null || quickFilter === "need-action" || quickFilter === "changes" || !!severityQuickFilter);
+  const showClosedSection = outcomeReviewMode
+    ? (filter === "all" || filter === "closed") && closedRows.length > 0
+    : (filter === "all" || filter === "closed") &&
+      quickFilter !== "need-action" &&
+      quickFilter !== "changes" &&
+      quickFilter !== "open-items";
+  const showNoActionSection = outcomeReviewMode
+    ? (filter === "all" || filter === "no-action") && noActionRows.length > 0
+    : (filter === "all" || filter === "no-action") &&
+      quickFilter !== "need-action" &&
+      quickFilter !== "changes" &&
+      quickFilter !== "open-items" &&
+      quickFilter !== "met" &&
+      quickFilter !== "not-met";
   const showUnmarkedSection =
     !simplifyComparisonStatus &&
     (filter === "all" || filter === "unmarked") &&
     quickFilter !== "need-action" &&
     quickFilter !== "changes" &&
     quickFilter !== "open-items" &&
-    quickFilter !== "met";
+    quickFilter !== "met" &&
+    quickFilter !== "no-action";
   const compactBackLabel = backLabel ?? `Back to ${supplier.name}`;
   const dashboardSupplierName = searchParams.get("source") === "clauseiq" ? "Thomson Reuters" : supplier.name;
   const dashboardReferenceLine = `Supplier: ${dashboardSupplierName}`;
@@ -1793,31 +1997,46 @@ export function ContractResults({
     params.set("design", nextDesignOption);
     setSearchParams(params, { replace: false });
   };
-  const toggleFirstAnalysisDemo = (enabled: boolean) => {
+  const setDashboardView = (nextDashboardView: DashboardViewMode) => {
+    if (nextDashboardView === "comparison" && !selectedOutputHasComparison && selectedOutputContext) return;
+
     const params = new URLSearchParams(searchParams);
-    if (enabled) {
+    params.set("dashboardView", nextDashboardView);
+    params.set("mode", "comparison");
+    params.set("tab", normalizeComparisonTab(params.get("tab") ?? storedComparisonTab));
+    params.set("design", normalizeComparisonDesignOption(params.get("design")));
+
+    if (nextDashboardView === "initial-analysis") {
       params.set("scenario", "first-analysis");
-      params.set("mode", "comparison");
-      params.delete("from");
-      params.delete("to");
+      params.delete("resultMode");
       params.delete("filter");
       setFilter("all");
       setQuickFilter(null);
       setFirstAnalysisMetricFilters(new Set());
     } else {
-      params.delete("scenario");
-      if (availableVersions.length >= 2) {
+      params.set("scenario", "negotiated-reanalysis");
+      params.set("resultMode", "outcome");
+      if (selectedOutputContext?.previousAnalysis && selectedOutputContext.previousVersionLabel) {
+        params.set("analysisId", selectedOutputContext.analysis.id);
+        params.set("previousAnalysisId", selectedOutputContext.previousAnalysis.id);
+        params.set("outputSupplierId", selectedOutputContext.supplier.id);
+        params.set("from", selectedOutputContext.previousVersionLabel);
+        params.set("to", selectedOutputContext.selectedVersionLabel);
+      } else if (availableVersions.length >= 2) {
         const normalized = normalizeVersionComparisonPair(availableVersions, null);
-        params.set("mode", "comparison");
         params.set("from", normalized.from);
         params.set("to", normalized.to);
-        params.set("filter", "all");
       }
+      params.set("filter", "all");
       setFilter("all");
       setQuickFilter("open-items");
       setFirstAnalysisMetricFilters(new Set());
     }
+
     setSearchParams(params, { replace: false });
+  };
+  const toggleFirstAnalysisDemo = (enabled: boolean) => {
+    setDashboardView(enabled ? "initial-analysis" : "comparison");
   };
   const hasVersionComparison = comparisonModel.hasComparison;
   const comparisonCategoryTotal = comparisonCategoryItems.reduce((sum, category) => sum + category.count, 0);
@@ -1933,7 +2152,7 @@ export function ContractResults({
     distribution: firstAnalysisDistribution,
     versionLabel: firstAnalysisVersionLabel,
   };
-  const firstAnalysisReviewProgress = useMemo<FirstAnalysisReviewProgress>(() => {
+  const firstAnalysisReviewProgress = useMemo<ReviewGenerateProgress>(() => {
     const reviewClauses = firstAnalysisAllClauses.filter(isFirstAnalysisReviewClause);
     const clauseStatus = (clause: ClauseResult) => {
       const state = stateOf(clause.id);
@@ -1982,6 +2201,7 @@ export function ContractResults({
     });
 
     return {
+      displayMode: "first-analysis",
       total: reviewClauses.length,
       unreviewed: Math.max(0, reviewClauses.length - reviewed),
       usedRecommendations: reviewClauses.filter((clause) => clauseStatus(clause).usedRecommendation).length,
@@ -1991,6 +2211,116 @@ export function ContractResults({
       breakdown,
     };
   }, [firstAnalysisAllClauses, firstAnalysisMissingClauseIds, firstAnalysisVersionLabel, stateOf]);
+  const comparisonReviewProgress = useMemo<ReviewGenerateProgress | undefined>(() => {
+    if (mode !== "comparison" || firstAnalysisDemo || !activeRequestVersion) return undefined;
+
+    const reviewRows = Array.from(
+      new Map(
+        [
+          ...comparisonSections.open,
+          ...comparisonSections.newIssues,
+          ...comparisonSections.closed,
+          ...comparisonSections.unmarked,
+        ].map((row) => [row.id, { id: row.id, clause: row.curr ?? row.prev, pill: row.pill, closed: "closed" in row ? row.closed : false }]),
+      ).values(),
+    ).filter((row): row is { id: string; clause: ClauseResult; pill?: ChangePillResult; closed?: boolean } => Boolean(row.clause));
+
+    const currentReviewItemIdSet = new Set(currentReviewItems.map((item) => item.clauseId));
+
+    const clauseStatus = (row: { id: string; clause: ClauseResult }) => {
+      const state = stateOf(row.id);
+      const decision = state.roundDecisions[activeRequestVersion.version];
+      const closure = state.closures[activeRequestVersion.version];
+      const request = state.requests[activeRequestVersion.version];
+      const requestedChange = request?.requestedChange?.trim();
+      const previousRequest = leftVersion ? getLatestRequest(state, leftVersion.version)?.request : undefined;
+      const recommendedChange = row.clause.actionability?.trim() || previousRequest?.requestedChange?.trim();
+
+      return {
+        reviewed:
+          closure === "closed" ||
+          closure === "keep-open" ||
+          closure === "follow-up" ||
+          decision === "no-action" ||
+          decision === "request-update" ||
+          Boolean(requestedChange),
+        usedRecommendation: Boolean(
+          requestedChange &&
+            recommendedChange &&
+            decision === "request-update" &&
+            requestedChange === recommendedChange,
+        ),
+        noAction: decision === "no-action",
+        submitted: request?.state === "submitted",
+        readyForCsv: currentReviewItemIdSet.has(row.id),
+      };
+    };
+
+    const clauseTargetStatus = (row: { id: string; clause: ClauseResult; pill?: ChangePillResult; closed?: boolean }) => {
+      if (isMissingClause(row.clause)) return "missing" as const;
+      const explicitlyMet =
+        stateOf(row.id).closures[activeRequestVersion.version] === "closed" ||
+        row.closed ||
+        row.pill?.status === "met";
+      return explicitlyMet ? ("met" as const) : ("not-met" as const);
+    };
+
+    const reviewed = reviewRows.filter((row) => clauseStatus(row).reviewed).length;
+    const metCount = reviewRows.filter((row) => clauseTargetStatus(row) === "met").length;
+    const missingCount = reviewRows.filter((row) => clauseTargetStatus(row) === "missing").length;
+    const notMetCount = Math.max(0, reviewRows.length - metCount - missingCount);
+    const breakdown = [
+      {
+        label: "High",
+        clauses: reviewRows.filter((row) => row.clause.severity === "high" && countsTowardDeviationMetric(row.clause)),
+      },
+      {
+        label: "Medium",
+        clauses: reviewRows.filter((row) => row.clause.severity === "medium" && countsTowardDeviationMetric(row.clause)),
+      },
+      {
+        label: "Low",
+        clauses: reviewRows.filter((row) => row.clause.severity === "low" && countsTowardDeviationMetric(row.clause)),
+      },
+      {
+        label: "None Deviation",
+        clauses: reviewRows.filter((row) => isNoneDeviationClause(row.clause)),
+      },
+    ].map((item) => {
+      const itemReviewed = item.clauses.filter((row) => clauseStatus(row).reviewed).length;
+      return {
+        label: item.label,
+        reviewed: itemReviewed,
+        unreviewed: Math.max(0, item.clauses.length - itemReviewed),
+        total: item.clauses.length,
+      };
+    });
+
+    return {
+      displayMode: "comparison",
+      total: reviewRows.length,
+      unreviewed: Math.max(0, reviewRows.length - reviewed),
+      usedRecommendations: reviewRows.filter((row) => clauseStatus(row).usedRecommendation).length,
+      noAction: reviewRows.filter((row) => clauseStatus(row).noAction).length,
+      submitted: reviewRows.filter((row) => clauseStatus(row).submitted).length,
+      readyForCsv: reviewRows.filter((row) => clauseStatus(row).readyForCsv).length,
+      notMet: notMetCount,
+      met: metCount,
+      missingClauses: missingCount,
+      breakdown,
+    };
+  }, [
+    activeRequestVersion,
+    comparisonSections.closed,
+    comparisonSections.newIssues,
+    comparisonSections.open,
+    comparisonSections.unmarked,
+    currentReviewItems,
+    firstAnalysisDemo,
+    leftVersion,
+    mode,
+    stateOf,
+  ]);
   const historyCategoryTotal = historyCategoryItems.reduce((sum, category) => sum + category.count, 0);
   const historyCategoryPanel = (
     <CategorySidebar
@@ -2050,45 +2380,79 @@ export function ContractResults({
   const categoryOpenRows = comparisonSections.open.filter((row) => matchesCategory(row.id));
   const categoryNewIssueRows = comparisonSections.newIssues.filter((row) => matchesCategory(row.id));
   const categoryClosedRows = comparisonSections.closed.filter((row) => matchesCategory(row.id));
+  const categoryNoActionRows = comparisonSections.noAction.filter((row) => matchesCategory(row.id));
   const categoryUnmarkedRows = comparisonSections.unmarked.filter((row) => matchesCategory(row.id));
   const categoryAllRows = [
     ...categoryOpenRows,
     ...categoryNewIssueRows,
     ...categoryClosedRows,
+    ...categoryNoActionRows,
     ...categoryUnmarkedRows,
   ];
   const categoryOpenStats = summariseComparisonRows(categoryOpenRows);
   const categoryNewIssueStats = summariseComparisonRows(categoryNewIssueRows);
+  const selectedOutcomeReviewCount = categoryOpenRows.length + categoryNewIssueRows.length + categoryClosedRows.length;
+  const displayedSelectedForReviewCount = outcomeReviewMode
+    ? Math.max(
+        0,
+        selectedOutcomeReviewCount -
+          categoryClosedRows.length -
+          categoryOpenRows.length -
+          categoryNewIssueRows.length,
+      )
+    : Math.max(
+        0,
+        categoryAllRows.length -
+          categoryNoActionRows.length -
+          categoryAllRows.filter((row) => row.pill.status === "met").length -
+          categoryAllRows.filter((row) => row.pill.status === "not_met" || row.pill.status === "improved").length -
+          categoryAllRows.filter((row) => {
+            const clause = row.curr ?? row.prev;
+            return clause ? isMissingClause(clause) : false;
+          }).length,
+      );
+  const notSelectedForReviewCount = outcomeReviewMode
+    ? Math.max(0, categoryAllRows.length - selectedOutcomeReviewCount)
+    : categoryNoActionRows.length;
+  const deviationCounts = categoryAllRows.reduce(
+    (counts, row) => {
+      const clause = row.curr ?? row.prev;
+      if (!clause) return counts;
+      if (clause.sourceDeviationLevel === "High") counts.high += 1;
+      else if (clause.sourceDeviationLevel === "Medium") counts.medium += 1;
+      else if (clause.sourceDeviationLevel === "Low") counts.low += 1;
+      else if (clause.sourceDeviationLevel === "None" || clause.resolved) counts.none += 1;
+      else counts[clause.severity] += 1;
+      return counts;
+    },
+    { high: 0, medium: 0, low: 0, none: 0 },
+  );
   const evidenceMetrics: EvidenceMetricCounts = {
-    notMet: simplifyComparisonStatus
+    selectedForReview: displayedSelectedForReviewCount,
+    notMet: outcomeReviewMode
+      ? categoryOpenRows.length
+      : simplifyComparisonStatus
       ? categoryOpenRows.length
       : categoryAllRows.filter((row) => row.pill.status === "not_met" || row.pill.status === "improved").length,
-    met: simplifyComparisonStatus
+    met: outcomeReviewMode
+      ? categoryClosedRows.length
+      : simplifyComparisonStatus
       ? categoryClosedRows.length
       : categoryAllRows.filter((row) => row.pill.status === "met").length,
-    worsened: simplifyComparisonStatus ? 0 : categoryAllRows.filter((row) => row.pill.status === "regressed").length,
-    unexpected: simplifyComparisonStatus ? 0 : categoryAllRows.filter((row) => row.pill.status === "new").length,
-    manualReview: simplifyComparisonStatus ? 0 : categoryAllRows.filter((row) => row.actionState === "unreviewed").length,
-    high: categoryAllRows.filter((row) => {
-      const clause = row.curr ?? row.prev;
-      return clause?.severity === "high" && !clause.resolved;
-    }).length,
-    medium: categoryAllRows.filter((row) => {
-      const clause = row.curr ?? row.prev;
-      return clause?.severity === "medium" && !clause.resolved;
-    }).length,
-    low: categoryAllRows.filter((row) => {
-      const clause = row.curr ?? row.prev;
-      return clause?.severity === "low" && !clause.resolved;
-    }).length,
-    missingClauses: categoryAllRows.filter((row) => {
-      const clause = row.curr ?? row.prev;
-      return clause ? isMissingClause(clause) : false;
-    }).length,
-    noneDeviation: categoryAllRows.filter((row) => {
-      const clause = row.curr ?? row.prev;
-      return clause ? isNoneDeviationClause(clause) : false;
-    }).length,
+    noAction: notSelectedForReviewCount,
+    worsened: simplifyComparisonStatus || outcomeReviewMode ? 0 : categoryAllRows.filter((row) => row.pill.status === "regressed").length,
+    unexpected: simplifyComparisonStatus || outcomeReviewMode ? 0 : categoryAllRows.filter((row) => row.pill.status === "new").length,
+    manualReview: simplifyComparisonStatus || outcomeReviewMode ? 0 : categoryAllRows.filter((row) => row.actionState === "unreviewed").length,
+    high: deviationCounts.high,
+    medium: deviationCounts.medium,
+    low: deviationCounts.low,
+    missingClauses: outcomeReviewMode
+      ? categoryNewIssueRows.length
+      : categoryAllRows.filter((row) => {
+        const clause = row.curr ?? row.prev;
+        return clause ? isMissingClause(clause) : false;
+      }).length,
+    noneDeviation: deviationCounts.none,
   };
   const designOpenRows = sortOutcomeComparisonRows(filterRowsByQuickState(
     categoryOpenRows,
@@ -2099,12 +2463,17 @@ export function ContractResults({
   const designClosedRows = sortOutcomeComparisonRows(filterRowsByQuickState(
     categoryClosedRows,
   ));
+  const designNoActionRows = sortOutcomeComparisonRows(filterRowsByQuickState(
+    categoryNoActionRows,
+  ));
   const designUnmarkedRows = sortOutcomeComparisonRows(filterRowsByQuickState(
     categoryUnmarkedRows,
   ));
   const activeEvidenceMetric: EvidenceMetricKey | null =
+    quickFilter === "selected-for-review" ||
     quickFilter === "not-met" ||
     quickFilter === "met" ||
+    quickFilter === "no-action" ||
     quickFilter === "worsened" ||
     quickFilter === "unexpected" ||
     quickFilter === "manual-review" ||
@@ -2118,16 +2487,18 @@ export function ContractResults({
   const activeMetricLabel =
     activeEvidenceMetric
       ? ({
+          "selected-for-review": "Selected for Review",
           "not-met": "Not Met",
           met: "Met",
+          "no-action": "Not Selected for Review",
           worsened: "Regressed",
           unexpected: "New supplier change",
           "manual-review": "Needs decision",
           high: "High",
           medium: "Medium",
           low: "Low",
-          missing: "Missing Clauses",
-          none: "None Deviation",
+          missing: "Missing",
+          none: "None",
         } satisfies Record<EvidenceMetricKey, string>)[activeEvidenceMetric]
       : null;
   const clearEvidenceMetric = () => {
@@ -2136,17 +2507,54 @@ export function ContractResults({
     setTab("changes");
   };
   const showDesignOpenSection = quickFilter === null || designOpenRows.length > 0;
-  const showDesignNewIssueSection = !simplifyComparisonStatus && (quickFilter === null || designNewIssueRows.length > 0);
+  const showDesignNewIssueSection = outcomeReviewMode
+    ? quickFilter === null || designNewIssueRows.length > 0
+    : !simplifyComparisonStatus && (quickFilter === null || designNewIssueRows.length > 0);
   const showDesignClosedSection = quickFilter === null || designClosedRows.length > 0;
+  const showDesignNoActionSection = quickFilter === null || designNoActionRows.length > 0;
   const showDesignUnmarkedSection = !simplifyComparisonStatus && (quickFilter === null || designUnmarkedRows.length > 0);
+  const reviewSectionStateCopy = outcomeReviewMode
+    ? ({
+        "selected-for-review": {
+          title: "Selected for Review",
+          description: "Clauses selected for review in this round across Met, Not Met, and Missing.",
+        },
+        "not-met": {
+          title: "Not Met",
+          description: "Clauses you asked to change in the last analysis that the supplier still has not met in this contract.",
+        },
+        met: {
+          title: "Met",
+          description: "Clauses you asked to change in the last analysis that the supplier now meets in this contract.",
+        },
+        missing: {
+          title: "Missing",
+          description: "Clauses from the expected best-practice 66 that are missing from the current supplier contract.",
+        },
+        "no-action": {
+          title: "Not Selected for Review",
+          description: "Clauses that were not selected for review in the last analysis and are carried forward here in case you want to review them now.",
+        },
+      } satisfies Partial<Record<QuickFilterKey, { title: string; description: string }>>)[quickFilter ?? "selected-for-review"] ?? null
+    : null;
   const outcomeSectionCopy = outcomeReviewMode
     ? {
         openTitle: "Not Met",
-        openDescription: "Clauses where the supplier has not met the target and the user needs to revise, accept, or hold position.",
-        newTitle: "New supplier changes",
-        newDescription: "Supplier-introduced changes that were not part of the previous target.",
-        closedTitle: "Met",
-        closedDescription: "Clauses where the supplier wording now meets the target or has been accepted.",
+        openDescription: "Clauses you asked to change in the last analysis that the supplier still has not met in this contract.",
+        newTitle: "Missing",
+        newDescription: "Clauses from the expected best-practice 66 that are missing from the current supplier contract.",
+        closedTitle: quickFilter === "met"
+          ? reviewSectionStateCopy?.title ?? "Met"
+          : "Met",
+        closedDescription: quickFilter === "met"
+          ? reviewSectionStateCopy?.description ?? "Clauses you asked to change in the last analysis that the supplier now meets in this contract."
+          : "Clauses you asked to change in the last analysis that the supplier now meets in this contract.",
+        noActionTitle: quickFilter === "no-action"
+          ? reviewSectionStateCopy?.title ?? "Not Selected for Review"
+          : "Not Selected for Review",
+        noActionDescription: quickFilter === "no-action"
+          ? reviewSectionStateCopy?.description ?? "Clauses that were not selected for review in the last analysis and are carried forward here in case you want to review them now."
+          : "Clauses that were not selected for review in the last analysis and are carried forward here in case you want to review them now.",
         unmarkedTitle: "Needs decision",
       }
     : {
@@ -2156,6 +2564,8 @@ export function ContractResults({
         newDescription: "Supplier-introduced changes that were not part of the previous target.",
         closedTitle: "Met",
         closedDescription: "Clauses where the supplier wording now meets the target or has been accepted.",
+        noActionTitle: "No action",
+        noActionDescription: "Clauses carried forward from the previous round where the user explicitly chose no action.",
         unmarkedTitle: "Needs decision",
       };
   const firstAnalysisActiveMetrics = Array.from(firstAnalysisMetricFilters);
@@ -2243,48 +2653,70 @@ export function ContractResults({
       : firstAnalysisRecommendationsQueued
       ? "Recommendations added to review"
       : "All recommendations reviewed";
-  const firstAnalysisRecommendationApplyOptions = buildRecommendationApplyOptions(firstAnalysisRecommendationTargets);
+  const recommendationMetadataCategories = sortCategorySidebarItems(comparisonCategoryItems, categorySort).map(
+    (category) => category.name,
+  );
+  const firstAnalysisRecommendationApplyOptions = buildRecommendationApplyOptions(
+    firstAnalysisRecommendationTargets,
+    recommendationMetadataCategories,
+  );
   const firstAnalysisAvailableRecommendationApplyOptions = firstAnalysisRecommendationApplyOptions.filter((option) => option.count > 0);
   useEffect(() => {
     if (firstAnalysisAvailableRecommendationApplyOptions.length === 0 || canUndoFirstAnalysisRecommendations) {
       setNonCompactBulkBannerOpen(false);
     }
   }, [canUndoFirstAnalysisRecommendations, firstAnalysisAvailableRecommendationApplyOptions.length]);
-  const outcomeRecommendationTargets =
-    outcomeReviewMode && rightVersion
-      ? comparisonSections.open
-          .map((row): RecommendationTargetItem | null => {
-            const display = row.curr ?? row.prev;
-            if (!display) return null;
+  const outcomeRecommendationTargets = useMemo(() => {
+    if (!(outcomeReviewMode && rightVersion)) return [];
 
-            const state = stateOf(row.id);
-            const existingRequest = state.requests[rightVersion.version];
-            if (existingRequest?.requestedChange?.trim()) return null;
-            if (state.closures[rightVersion.version] === "closed") return null;
+    const candidateRows = [
+      ...comparisonSections.open,
+      ...comparisonSections.closed,
+      ...comparisonSections.newIssues,
+      ...comparisonSections.noAction,
+    ];
+    const seenTargetIds = new Set<string>();
 
-            const latestRequest = leftVersion ? getLatestRequest(state, leftVersion.version)?.request : undefined;
-            const requestedChange =
-              display.actionability?.trim() ||
-              latestRequest?.requestedChange?.trim();
-            if (!requestedChange) return null;
+    return candidateRows
+      .map((row): RecommendationTargetItem | null => {
+        if (seenTargetIds.has(row.id)) return null;
 
-            return {
-              id: row.id,
-              clauseTitle: display.title,
-              category: display.category,
-              severity: display.severity,
-              verdict: effectiveVerdict(state, rightVersion.version, row.pill.status) ?? undefined,
-              missingClause: display.missingClause,
-              sourceDeviationLevel: display.sourceDeviationLevel,
-              request: {
-                requestedChange,
-                rationale: latestRequest?.rationale?.trim() || undefined,
-              },
-            };
-          })
-          .filter((target): target is RecommendationTargetItem => Boolean(target))
-      : [];
-  const outcomeRecommendationApplyOptions = buildRecommendationApplyOptions(outcomeRecommendationTargets);
+        const display = row.curr ?? row.prev;
+        if (!display) return null;
+
+        const state = stateOf(row.id);
+        const existingRequest = state.requests[rightVersion.version];
+        if (existingRequest?.requestedChange?.trim()) return null;
+        if (state.closures[rightVersion.version] === "closed") return null;
+
+        const latestRequest = leftVersion ? getLatestRequest(state, leftVersion.version)?.request : undefined;
+        const requestedChange =
+          display.actionability?.trim() ||
+          latestRequest?.requestedChange?.trim();
+        if (!requestedChange) return null;
+
+        seenTargetIds.add(row.id);
+
+        return {
+          id: row.id,
+          clauseTitle: display.title,
+          category: display.category,
+          severity: display.severity,
+          verdict: effectiveVerdict(state, rightVersion.version, row.pill.status) ?? undefined,
+          missingClause: display.missingClause,
+          sourceDeviationLevel: display.sourceDeviationLevel,
+          request: {
+            requestedChange,
+            rationale: latestRequest?.rationale?.trim() || undefined,
+          },
+        };
+      })
+      .filter((target): target is RecommendationTargetItem => Boolean(target));
+  }, [comparisonSections, leftVersion, outcomeReviewMode, rightVersion, stateOf]);
+  const outcomeRecommendationApplyOptions = buildRecommendationApplyOptions(
+    outcomeRecommendationTargets,
+    recommendationMetadataCategories,
+  );
   const applyOutcomeRecommendations = (targets: RecommendationTargetItem[], scope?: RecommendationApplyScopeMeta) => {
     if (!outcomeReviewMode || targets.length === 0) return;
     targets.forEach((target) => continueWithActionability(target.id, target.request));
@@ -2310,6 +2742,7 @@ export function ContractResults({
     ? outcomeRecommendationTargets.length === 0
     : firstAnalysisRecommendationsReviewed;
   const [compactBulkBannerOpen, setCompactBulkBannerOpen] = useState(false);
+  const [bulkBannerSelectedClauseIds, setBulkBannerSelectedClauseIds] = useState<Set<string>>(new Set());
   const compactBulkCanUndoAppliedRecommendations = Boolean(
     !outcomeReviewMode && firstAnalysisDemo && canUndoFirstAnalysisRecommendations,
   );
@@ -2326,6 +2759,12 @@ export function ContractResults({
       setCompactBulkBannerOpen(false);
     }
   }, [compactBulkCanChooseRecommendationScope, compactHeader]);
+  const bulkSelectionEnabled = compactBulkBannerOpen || nonCompactBulkBannerOpen;
+  useEffect(() => {
+    if (!bulkSelectionEnabled) {
+      setBulkBannerSelectedClauseIds(new Set());
+    }
+  }, [bulkSelectionEnabled]);
   const applyAllRecommendations = (targets: RecommendationTargetItem[], scope?: RecommendationApplyScopeMeta) => {
     if (!firstAnalysisVersion || targets.length === 0) return;
     const bulkClauseIds = new Set(pendingRequestItems.map((item) => item.clauseId));
@@ -2353,7 +2792,8 @@ export function ContractResults({
   const compactBulkBanner =
     compactHeader && compactBulkCanChooseRecommendationScope && compactBulkBannerOpen ? (
       <RecommendationBulkApplyBanner
-        options={availableBulkRecommendationApplyOptions}
+        options={bulkRecommendationApplyOptions}
+        onSelectedTargetsChange={setBulkBannerSelectedClauseIds}
         onApply={(options) => {
           if (outcomeReviewMode) {
             applyOutcomeRecommendationOptions(options);
@@ -2461,57 +2901,60 @@ export function ContractResults({
       evidenceMetrics={evidenceMetrics}
       simplifyStatusMetrics={simplifyComparisonStatus}
       openItems={
-        <ComparisonSection
-          title={outcomeSectionCopy.openTitle}
-          description={outcomeSectionCopy.openDescription}
-          accent="destructive"
-          rows={designOpenRows}
-          leftLabel={leftVersion.version}
-          rightLabel={rightVersion.version}
-          visible={showDesignOpenSection}
-          bucket="open"
-          stats={comparisonSectionStats.open}
-          closureOf={(id) => stateOf(id).closures[rightVersion.version]}
-          requestOf={(id) => {
-            const latest = getLatestRequest(stateOf(id), leftVersion.version);
-            return latest ? { ...latest.request, fromVersion: latest.version } : {};
-          }}
-          basketRequestOf={(id) => stateOf(id).requests[rightVersion.version]}
-          draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
-          onClose={(id) => {
-            const display = leftVersion.clauses.find((c) => c.id === id) ?? rightVersion.clauses.find((c) => c.id === id);
-            const prev = stateOf(id).closures[rightVersion.version];
-            closeWithUndo(id, display?.title ?? id.toUpperCase(), prev);
-          }}
-          onKeepOpen={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open")}
-          onContinueWithActionability={continueWithActionability}
-          onReopenAcceptedDecision={(id) => {
-            clearClosureDecision(id, rightVersion.version);
-            decisions.patchClauseState(supplierId, decisionContractId, id, { acceptedClosed: false });
-          }}
-          onFollowUp={(id) =>
-            decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version, {
-              requestedChange: "",
-              rationale: "",
-            })
-          }
-          onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
-          onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-          onSubmitDraft={(id) => {
-            decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version);
-            decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "follow-up");
-          }}
-          onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
-          onOpenDetail={setDetailClauseId}
-          onConfirmVerdictFromAction={confirmVerdictFromAction}
-          stateOf={stateOf}
-          pinnedIds={pinnedClauseIds}
-          onTogglePin={togglePin}
-          recentlyClosed={recentlyClosed}
-          onUndoClose={undoClose}
-          layout="plain"
-          overrideVerdict={simplifyComparisonStatus ? "notmet" : undefined}
-        />
+        <>
+          <InlineRecommendationReviewBanner />
+          <ComparisonSection
+            title={outcomeSectionCopy.openTitle}
+            description={outcomeSectionCopy.openDescription}
+            accent="destructive"
+            rows={designOpenRows}
+            leftLabel={leftVersion.version}
+            rightLabel={rightVersion.version}
+            visible={showDesignOpenSection}
+            bucket="open"
+            stats={comparisonSectionStats.open}
+            closureOf={(id) => stateOf(id).closures[rightVersion.version]}
+            requestOf={(id) => {
+              const latest = getLatestRequest(stateOf(id), leftVersion.version);
+              return latest ? { ...latest.request, fromVersion: latest.version } : {};
+            }}
+            basketRequestOf={(id) => stateOf(id).requests[rightVersion.version]}
+            draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
+            onClose={(id) => {
+              const display = leftVersion.clauses.find((c) => c.id === id) ?? rightVersion.clauses.find((c) => c.id === id);
+              const prev = stateOf(id).closures[rightVersion.version];
+              closeWithUndo(id, display?.title ?? id.toUpperCase(), prev);
+            }}
+            onKeepOpen={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open")}
+            onContinueWithActionability={continueWithActionability}
+            onReopenAcceptedDecision={(id) => {
+              clearClosureDecision(id, rightVersion.version);
+              decisions.patchClauseState(supplierId, decisionContractId, id, { acceptedClosed: false });
+            }}
+            onFollowUp={(id) =>
+              decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version, {
+                requestedChange: "",
+                rationale: "",
+              })
+            }
+            onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
+            onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+            onSubmitDraft={(id) => {
+              decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version);
+              decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "follow-up");
+            }}
+            onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
+            onOpenDetail={setDetailClauseId}
+            onConfirmVerdictFromAction={confirmVerdictFromAction}
+            stateOf={stateOf}
+            pinnedIds={pinnedClauseIds}
+            onTogglePin={togglePin}
+            recentlyClosed={recentlyClosed}
+            onUndoClose={undoClose}
+            layout="plain"
+            overrideVerdict={simplifyComparisonStatus ? "notmet" : undefined}
+          />
+        </>
       }
       newChanges={
         <ComparisonSection
@@ -2585,6 +3028,45 @@ export function ContractResults({
           overrideVerdict={simplifyComparisonStatus ? "met" : undefined}
         />
       }
+      noActionItems={
+        <ComparisonSection
+          title={outcomeSectionCopy.noActionTitle}
+          description={outcomeSectionCopy.noActionDescription}
+          accent="warning"
+          rows={designNoActionRows}
+          leftLabel={leftVersion.version}
+          rightLabel={rightVersion.version}
+          visible={showDesignNoActionSection}
+          bucket="no-action"
+          stats={comparisonSectionStats.noAction}
+          closureOf={(id) => stateOf(id).closures[rightVersion.version]}
+          requestOf={(id) => {
+            const latest = getLatestRequest(stateOf(id), leftVersion.version);
+            return latest ? { ...latest.request, fromVersion: latest.version } : {};
+          }}
+          basketRequestOf={(id) => stateOf(id).requests[rightVersion.version]}
+          draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
+          onClose={(id) => decisions.setRoundDecision(supplierId, decisionContractId, id, rightVersion.version, "no-action")}
+          onKeepOpen={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open")}
+          onFollowUp={(id) =>
+            decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version, {
+              requestedChange: "",
+              rationale: "",
+            })
+          }
+          onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
+          onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+          onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+          onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
+          onOpenDetail={setDetailClauseId}
+          onConfirmVerdictFromAction={confirmVerdictFromAction}
+          stateOf={stateOf}
+          pinnedIds={pinnedClauseIds}
+          onTogglePin={togglePin}
+          layout="plain"
+          overrideVerdict={simplifyComparisonStatus ? "notmet" : undefined}
+        />
+      }
       unmarkedClauses={
         <UnmarkedSection
           rows={designUnmarkedRows}
@@ -2625,6 +3107,13 @@ export function ContractResults({
     };
   });
   const outstandingSignoffItems = signoffItems.filter((item) => !item.resolved);
+  const dashboardViewControl = (
+    <DashboardViewToggle
+      value={dashboardView}
+      comparisonAvailable={!selectedOutputContext || selectedOutputHasComparison}
+      onChange={setDashboardView}
+    />
+  );
 
   return (
     <div className="min-h-screen">
@@ -2647,7 +3136,13 @@ export function ContractResults({
                 ? applyOutcomeRecommendations(outcomeRecommendationTargets)
                 : applyAllRecommendations(firstAnalysisRecommendationTargets)
             }
-            onApplyRecommendationOptions={outcomeReviewMode ? applyOutcomeRecommendationOptions : applyRecommendationOptions}
+            onApplyRecommendationOptions={(options) => {
+              if (outcomeReviewMode) {
+                applyOutcomeRecommendationOptions(options);
+              } else {
+                applyRecommendationOptions(options);
+              }
+            }}
             onUndoAllRecommendations={outcomeReviewMode ? undefined : undoAppliedRecommendations}
             applyAllRecommendationsDisabled={bulkRecommendationsDisabled}
             applyAllRecommendationsQueued={!outcomeReviewMode && firstAnalysisDemo && firstAnalysisRecommendationsQueued}
@@ -2661,6 +3156,7 @@ export function ContractResults({
             requestCount={reviewGenerateItems.length}
             bulkBannerOpen={compactBulkBannerOpen}
             onBulkBannerOpenChange={setCompactBulkBannerOpen}
+            onBulkSelectionChange={setBulkBannerSelectedClauseIds}
             suppressBulkBannerRender={compactHeader}
           />
         </div>
@@ -2694,19 +3190,19 @@ export function ContractResults({
                       </Button>
                     ) : firstAnalysisAvailableRecommendationApplyOptions.length > 0 ? (
                       <Button
-                        variant="outline"
+                        variant={nonCompactBulkBannerOpen ? "default" : "outline"}
                         className={cn(
-                          "h-9 gap-orbit-xs bg-white clauseiq-v6-recommendation-bulk-trigger",
+                          "h-9 gap-orbit-xs clauseiq-v6-recommendation-bulk-trigger",
+                          !nonCompactBulkBannerOpen && "bg-white",
                           isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger",
                         )}
-                        aria-label="Bulk Apply Recommendation"
+                        aria-label="Bulk Action"
                         aria-expanded={nonCompactBulkBannerOpen}
                         aria-controls="clauseiq-v6-recommendation-bulk-banner"
                         onClick={() => setNonCompactBulkBannerOpen((current) => !current)}
                       >
                         <Sparkles className="w-3.5 h-3.5" />
-                        <span>Bulk Apply Recommendation</span>
-                        <ChevronDown className="w-3.5 h-3.5" />
+                        <span>Bulk Action</span>
                       </Button>
                     ) : (
                       <Button
@@ -2743,8 +3239,9 @@ export function ContractResults({
               {firstAnalysisDemo && mode === "comparison" && firstAnalysisAvailableRecommendationApplyOptions.length > 0 && nonCompactBulkBannerOpen && (
                 <div className="mt-orbit-s overflow-hidden rounded-md">
                   <RecommendationBulkApplyBanner
-                    options={firstAnalysisAvailableRecommendationApplyOptions}
+                    options={firstAnalysisRecommendationApplyOptions}
                     onApply={applyRecommendationOptions}
+                    onSelectedTargetsChange={setBulkBannerSelectedClauseIds}
                     onClose={() => setNonCompactBulkBannerOpen(false)}
                   />
                 </div>
@@ -2795,6 +3292,7 @@ export function ContractResults({
         </>
       )}
 
+      {dashboardViewControl}
       {compactHeader && firstAnalysisDemo && <FirstAnalysisContextBanner />}
       {outcomeReviewContent}
       {signoffOpen && (
@@ -2956,6 +3454,8 @@ export function ContractResults({
                   decisions.submitDraftRequest(supplierId, decisionContractId, id, (rightVersion ?? reviewVersion ?? v1).version)
                 }
                 onOpenDetail={(id) => setDetailClauseId(id)}
+                bulkSelectionEnabled={bulkSelectionEnabled}
+                bulkSelectedClauseIds={bulkBannerSelectedClauseIds}
                 highlightedId={highlightClauseId}
               />
             ) : leftVersion && rightVersion && leftVersion.version !== rightVersion.version ? (
@@ -3002,6 +3502,8 @@ export function ContractResults({
                   }}
                   onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
                   onOpenDetail={setDetailClauseId}
+                  bulkSelectionEnabled={bulkSelectionEnabled}
+                  bulkSelectedClauseIds={bulkBannerSelectedClauseIds}
                   onConfirmVerdictFromAction={confirmVerdictFromAction}
                   pinnedIds={pinnedClauseIds}
                   onTogglePin={togglePin}
@@ -3030,6 +3532,8 @@ export function ContractResults({
                   onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
                   onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
                   onOpenDetail={setDetailClauseId}
+                  bulkSelectionEnabled={bulkSelectionEnabled}
+                  bulkSelectedClauseIds={bulkBannerSelectedClauseIds}
                   onConfirmVerdictFromAction={confirmVerdictFromAction}
                   pinnedIds={pinnedClauseIds}
                   onTogglePin={togglePin}
@@ -3068,10 +3572,49 @@ export function ContractResults({
                   }}
                   onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
                   onOpenDetail={setDetailClauseId}
+                  bulkSelectionEnabled={bulkSelectionEnabled}
+                  bulkSelectedClauseIds={bulkBannerSelectedClauseIds}
                   onConfirmVerdictFromAction={confirmVerdictFromAction}
                   pinnedIds={pinnedClauseIds}
                   onTogglePin={togglePin}
                   overrideVerdict={simplifyComparisonStatus ? "met" : undefined}
+                />
+                <ComparisonSection
+                  title={outcomeSectionCopy.noActionTitle}
+                  description={outcomeSectionCopy.noActionDescription}
+                  accent="warning"
+                  rows={noActionRows}
+                  leftLabel={leftVersion.version}
+                  rightLabel={rightVersion.version}
+                  visible={showNoActionSection}
+                  bucket="no-action"
+                  stats={comparisonSectionStats.noAction}
+                  closureOf={(id) => stateOf(id).closures[rightVersion.version]}
+                  requestOf={(id) => {
+                    const latest = getLatestRequest(stateOf(id), leftVersion.version);
+                    return latest ? { ...latest.request, fromVersion: latest.version } : {};
+                  }}
+                  basketRequestOf={(id) => stateOf(id).requests[rightVersion.version]}
+                  draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
+                  onClose={(id) => decisions.setRoundDecision(supplierId, decisionContractId, id, rightVersion.version, "no-action")}
+                  onKeepOpen={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open")}
+                  onFollowUp={(id) =>
+                    decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version, {
+                      requestedChange: "",
+                      rationale: "",
+                    })
+                  }
+                  onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
+                  onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+                  onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+                  onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
+                  onOpenDetail={setDetailClauseId}
+                  bulkSelectionEnabled={bulkSelectionEnabled}
+                  bulkSelectedClauseIds={bulkBannerSelectedClauseIds}
+                  onConfirmVerdictFromAction={confirmVerdictFromAction}
+                  pinnedIds={pinnedClauseIds}
+                  onTogglePin={togglePin}
+                  overrideVerdict={simplifyComparisonStatus ? "notmet" : undefined}
                 />
                 <UnmarkedSection
                   rows={unmarkedRows}
@@ -3091,6 +3634,8 @@ export function ContractResults({
                   onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
                   onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
                   onOpenDetail={setDetailClauseId}
+                  bulkSelectionEnabled={bulkSelectionEnabled}
+                  bulkSelectedClauseIds={bulkBannerSelectedClauseIds}
                 />
               </div>
             ) : (
@@ -3154,7 +3699,7 @@ export function ContractResults({
         supplierName={supplier.name}
         csvNeedsUpdate={csvNeedsUpdate}
         bulkSummaryMode={firstAnalysisDemo && bulkReviewSummaryMode}
-        reviewProgress={firstAnalysisDemo ? firstAnalysisReviewProgress : undefined}
+        reviewProgress={firstAnalysisDemo ? firstAnalysisReviewProgress : comparisonReviewProgress}
         onSubmit={() => {
           generateRequestedChangesCsv();
         }}
@@ -3358,21 +3903,86 @@ function FirstAnalysisDemoToggle({
   );
 }
 
+function DashboardViewToggle({
+  value,
+  comparisonAvailable,
+  onChange,
+}: {
+  value: DashboardViewMode;
+  comparisonAvailable: boolean;
+  onChange: (value: DashboardViewMode) => void;
+}) {
+  const options: Array<{ value: DashboardViewMode; label: string; disabled?: boolean; title?: string }> = [
+    { value: "initial-analysis", label: "Initial Analysis" },
+    {
+      value: "comparison",
+      label: "Comparison View",
+      disabled: !comparisonAvailable,
+      title: comparisonAvailable ? undefined : "No previous analysis available",
+    },
+  ];
+
+  return (
+    <div
+      className="fixed bottom-[76px] right-orbit-base z-40 flex shrink-0 items-center rounded-md border border-border bg-muted/50 p-orbit-xxs shadow-lg"
+      role="group"
+      aria-label="Dashboard view"
+    >
+      {options.map((option) => {
+        const active = value === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={active}
+            disabled={option.disabled}
+            title={option.title}
+            onClick={() => onChange(option.value)}
+            className={cn(
+              "inline-flex h-7 items-center justify-center rounded px-orbit-s text-xs v6-orbit-weight-medium transition-colors",
+              active
+                ? "bg-white text-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-white/70 hover:text-foreground",
+              option.disabled && "cursor-not-allowed opacity-50 hover:bg-transparent hover:text-muted-foreground",
+            )}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function RecommendationReviewIntro() {
+  return (
+    <div className="min-w-0">
+      <div className="flex flex-wrap items-center gap-orbit-s">
+        <h2 className="v6-orbit-heading-5">
+          Selected for Review
+        </h2>
+      </div>
+      <p className="mt-orbit-xs text-xs leading-5 text-muted-foreground">
+        These clauses were selected in the previous round for follow-up in this round. For each clause, choose whether to use the recommended position or set a custom position. If no action is taken, the clause will remain unchanged and be treated as accepted for this round.
+      </p>
+    </div>
+  );
+}
+
+function InlineRecommendationReviewBanner() {
+  return (
+    <section className="rounded-lg border border-border bg-card px-orbit-base py-orbit-base shadow-sm">
+      <RecommendationReviewIntro />
+    </section>
+  );
+}
+
 function FirstAnalysisContextBanner() {
   return (
     <section>
       <div className="mx-auto w-full max-w-[1500px] px-orbit-base pt-orbit-base pb-orbit-none">
         <div className="rounded-lg border border-border bg-card px-orbit-base py-orbit-base shadow-sm">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-orbit-s">
-              <h2 className="v6-orbit-heading-5">
-                Validate ClauseIQ recommendations before supplier negotiation
-              </h2>
-            </div>
-            <p className="mt-orbit-xs max-w-none whitespace-nowrap text-xs leading-5 text-muted-foreground">
-              Review each clause, decide whether to use the recommended actionability, edit your own requested change, or mark no action. Requested changes are collected for review and generated as a CSV negotiation log.
-            </p>
-          </div>
+          <RecommendationReviewIntro />
         </div>
       </div>
     </section>
@@ -3449,6 +4059,7 @@ function ModeSwitcher({
   requestCount,
   bulkBannerOpen: controlledBulkBannerOpen,
   onBulkBannerOpenChange,
+  onBulkSelectionChange,
   suppressBulkBannerRender = false,
 }: {
   mode: ClauseIqMode;
@@ -3469,6 +4080,7 @@ function ModeSwitcher({
   requestCount: number;
   bulkBannerOpen?: boolean;
   onBulkBannerOpenChange?: (open: boolean) => void;
+  onBulkSelectionChange?: (selectedClauseIds: Set<string>) => void;
   suppressBulkBannerRender?: boolean;
 }) {
   const canUndoAppliedRecommendations = Boolean(
@@ -3483,7 +4095,7 @@ function ModeSwitcher({
     ? `${undoRecommendationScopeLabel ? `Undo ${undoRecommendationScopeLabel} recommendations` : "Undo recommendations"}${undoRecommendationCount > 0 ? ` (${undoRecommendationCount})` : ""}`
     : applyAllRecommendationsQueued
     ? "Recommendations added to review"
-    : "Bulk Apply Recommendation";
+    : "Bulk Action";
   const availableRecommendationApplyOptions = recommendationApplyOptions.filter((option) => option.count > 0);
   const canChooseRecommendationScope =
     Boolean(onApplyRecommendationOptions) &&
@@ -3529,19 +4141,19 @@ function ModeSwitcher({
             {onApplyAllRecommendations && (
               canChooseRecommendationScope ? (
                 <Button
-                  variant="outline"
+                  variant={bulkBannerOpen ? "default" : "outline"}
                   className={cn(
                     "clauseiq-v6-recommendation-bulk-trigger",
+                    !bulkBannerOpen && "bg-white",
                     isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger",
                   )}
-                  aria-label="Bulk Apply Recommendation"
+                  aria-label="Bulk Action"
                   aria-expanded={bulkBannerOpen}
                   aria-controls="clauseiq-v6-recommendation-bulk-banner"
                   onClick={() => setBulkBannerOpen((current) => !current)}
                 >
                   <Sparkles className="h-3.5 w-3.5" />
-                  <span>Bulk Apply Recommendation</span>
-                  <ChevronDown className="h-3.5 w-3.5" />
+                  <span>Bulk Action</span>
                 </Button>
               ) : (
                 <Button
@@ -3576,39 +4188,32 @@ function ModeSwitcher({
       </div>
       {mode === "comparison" && canChooseRecommendationScope && bulkBannerOpen && !suppressBulkBannerRender && (
         <RecommendationBulkApplyBanner
-          options={availableRecommendationApplyOptions}
+          options={recommendationApplyOptions}
           onApply={(options) => onApplyRecommendationOptions?.(options)}
           onClose={() => setBulkBannerOpen(false)}
+          onSelectedTargetsChange={onBulkSelectionChange}
         />
       )}
     </>
   );
 }
 
-interface RecommendationBulkBannerSelection {
-  status: RecommendationApplyScope[];
-  deviation: RecommendationApplyScope[];
-  category: RecommendationApplyScope[];
-}
-
-const EMPTY_RECOMMENDATION_BULK_BANNER_SELECTION: RecommendationBulkBannerSelection = {
-  status: [],
-  deviation: [],
-  category: [],
-};
+type RecommendationBulkBannerGroup = "status" | "deviation" | "category";
 
 function RecommendationBulkApplyBanner({
   options,
   onApply,
   onClose,
+  onSelectedTargetsChange,
 }: {
   options: RecommendationApplyOption[];
   onApply: (options: RecommendationApplyOption[]) => void;
   onClose: () => void;
+  onSelectedTargetsChange?: (selectedClauseIds: Set<string>) => void;
 }) {
-  const [selection, setSelection] = useState<RecommendationBulkBannerSelection>(
-    EMPTY_RECOMMENDATION_BULK_BANNER_SELECTION,
-  );
+  const [activeGroup, setActiveGroup] = useState<RecommendationBulkBannerGroup>("status");
+  const [selection, setSelection] = useState<RecommendationApplyScope[]>([]);
+  const metadataToggleCardStyle: CSSProperties = { boxShadow: "var(--orbit-shadow-none)" };
   const optionById = useMemo(() => new Map(options.map((option) => [option.id, option])), [options]);
   const allTargets = useMemo(() => mergeRecommendationApplyTargets(options), [options]);
   const statusOptions = useMemo(() => buildRecommendationBulkBannerDropdownOptions(options, "status"), [options]);
@@ -3622,44 +4227,56 @@ function RecommendationBulkApplyBanner({
   const addSelectedDisabled = selectedCount === 0;
 
   useEffect(() => {
-    setSelection((current) => ({
-      status: current.status.filter((id) => optionById.has(id)),
-      deviation: current.deviation.filter((id) => optionById.has(id)),
-      category: current.category.filter((id) => optionById.has(id)),
-    }));
-  }, [optionById]);
+    setSelection((current) => {
+      return current.filter((value) => {
+        const option = optionById.get(value);
+        return option ? recommendationOptionBelongsToBannerGroup(option, activeGroup) : false;
+      });
+    });
+  }, [activeGroup, optionById]);
 
-  const setSelectionGroup = (group: keyof RecommendationBulkBannerSelection, values: string[]) => {
-    const validValues = values.filter((value): value is RecommendationApplyScope =>
-      optionById.has(value as RecommendationApplyScope),
-    );
-    setSelection((current) => ({ ...current, [group]: validValues }));
+  useEffect(() => {
+    onSelectedTargetsChange?.(new Set(selectedTargets.map((target) => target.id)));
+  }, [onSelectedTargetsChange, selectedTargets]);
+
+  const activeOptions = activeGroup === "status"
+    ? statusOptions
+    : activeGroup === "deviation"
+      ? deviationOptions
+      : categoryOptions;
+
+  const setSelectedValues = (values: string[]) => {
+    const scopedValues = values.filter((value): value is RecommendationApplyScope => {
+      const option = optionById.get(value as RecommendationApplyScope);
+      return option ? recommendationOptionBelongsToBannerGroup(option, activeGroup) : false;
+    });
+    setSelection(scopedValues);
   };
 
   const handleClose = () => {
-    setSelection(EMPTY_RECOMMENDATION_BULK_BANNER_SELECTION);
+    setActiveGroup("status");
+    setSelection([]);
     onClose();
   };
 
   const handleApply = () => {
     if (addSelectedDisabled) return;
-    const selectedOptionIds = [
-      ...selection.status,
-      ...selection.deviation,
-      ...selection.category,
-    ];
-    const selectedOption = selectedOptionIds.length === 1 ? optionById.get(selectedOptionIds[0]) : null;
+    const selectedOptions = selection
+      .map((value) => optionById.get(value))
+      .filter((option): option is RecommendationApplyOption => Boolean(option));
+    const scopeMeta = buildRecommendationApplyScopeMeta(selectedOptions);
     onApply([
       {
         id: "all",
-        label: selectedOption?.label ?? "Selected recommendations",
-        toastLabel: selectedOption?.toastLabel ?? "selected recommendation",
-        undoLabel: selectedOption?.undoLabel ?? "selected",
+        label: selectedOptions.length === 1 ? selectedOptions[0].label : "Selected recommendations",
+        toastLabel: scopeMeta?.toastLabel ?? "selected recommendation",
+        undoLabel: scopeMeta?.undoLabel ?? "selected",
         count: selectedCount,
         targets: selectedTargets,
       },
     ]);
-    setSelection(EMPTY_RECOMMENDATION_BULK_BANNER_SELECTION);
+    setActiveGroup("status");
+    setSelection([]);
     onClose();
   };
 
@@ -3671,34 +4288,58 @@ function RecommendationBulkApplyBanner({
       aria-label="Bulk recommendation filters"
     >
       <div className="clauseiq-v6-recommendation-bulk-banner-count">{selectedCount} Selected</div>
+      <div
+        role="tablist"
+        aria-label="Bulk metadata type"
+        className="clauseiq-v6-recommendation-bulk-banner-groups"
+      >
+        {[
+          { id: "status", label: "Change Target Status" },
+          { id: "deviation", label: "Deviation Level" },
+          { id: "category", label: "Clause Type" },
+        ].map((group) => (
+          <ToggleCard
+            key={group.id}
+            status={(activeGroup === group.id ? "Selected" : "Default") as React.ComponentProps<typeof ToggleCard>["status"]}
+            aria-pressed={activeGroup === group.id}
+            onClick={() => {
+              setActiveGroup(group.id as RecommendationBulkBannerGroup);
+              setSelection([]);
+            }}
+            className={cn(
+              "clauseiq-v6-recommendation-bulk-group-card w-auto overflow-hidden",
+              activeGroup !== group.id && "clauseiq-v6a-togglecard-subtle",
+            )}
+            style={metadataToggleCardStyle}
+          >
+            <span className="inline-flex min-h-8 items-center justify-start px-orbit-s py-orbit-xs text-left">
+              <Text as="span" size="Small" variant={activeGroup === group.id ? "Default" : "Secondary"}>
+                {group.label}
+              </Text>
+            </span>
+          </ToggleCard>
+        ))}
+      </div>
       <div className="clauseiq-v6-recommendation-bulk-banner-controls">
-        <div className="clauseiq-v6-recommendation-bulk-banner-control">
-          <MultiSelectDropdown
-            ariaLabel="Clause Target Status"
-            placeholder="Clause Target Status"
-            options={statusOptions}
-            value={selection.status}
-            onChange={(values) => setSelectionGroup("status", values)}
-          />
-        </div>
-        <div className="clauseiq-v6-recommendation-bulk-banner-control">
-          <MultiSelectDropdown
-            ariaLabel="Deviation Level"
-            placeholder="Deviation Level"
-            options={deviationOptions}
-            value={selection.deviation}
-            onChange={(values) => setSelectionGroup("deviation", values)}
-          />
-        </div>
-        <div className="clauseiq-v6-recommendation-bulk-banner-control">
-          <MultiSelectDropdown
-            ariaLabel="Clause Name"
-            placeholder="Clause Name"
-            options={categoryOptions}
-            value={selection.category}
-            onChange={(values) => setSelectionGroup("category", values)}
-          />
-        </div>
+        <MultiSelectDropdown
+          ariaLabel={
+            activeGroup === "status"
+              ? "Clause Target Status"
+              : activeGroup === "deviation"
+                ? "Deviation Level"
+                : "Clause Type"
+          }
+          placeholder={
+            activeGroup === "status"
+              ? "Clause Target Status"
+              : activeGroup === "deviation"
+                ? "Deviation Level"
+                : "Clause Type"
+          }
+          options={activeOptions}
+          value={selection}
+          onChange={setSelectedValues}
+        />
       </div>
       <div className="clauseiq-v6-recommendation-bulk-banner-actions">
         <Button
@@ -3707,7 +4348,7 @@ function RecommendationBulkApplyBanner({
           disabled={addSelectedDisabled}
           onClick={handleApply}
         >
-          Add Selected
+          Bulk Apply Recommended Position
         </Button>
         <button
           type="button"
@@ -3724,7 +4365,7 @@ function RecommendationBulkApplyBanner({
 
 function buildRecommendationBulkBannerDropdownOptions(
   options: RecommendationApplyOption[],
-  group: keyof RecommendationBulkBannerSelection,
+  group: RecommendationBulkBannerGroup,
 ) {
   return options
     .filter((option) => recommendationOptionBelongsToBannerGroup(option, group))
@@ -3736,11 +4377,12 @@ function buildRecommendationBulkBannerDropdownOptions(
 
 function recommendationOptionBelongsToBannerGroup(
   option: RecommendationApplyOption,
-  group: keyof RecommendationBulkBannerSelection,
+  group: RecommendationBulkBannerGroup,
 ) {
   if (group === "status") {
     return (
-      (typeof option.id === "string" && option.id.startsWith("verdict:")) ||
+      option.id === "verdict:notmet" ||
+      option.id === "verdict:met" ||
       option.id === "missing"
     );
   }
@@ -3752,26 +4394,32 @@ function recommendationOptionBelongsToBannerGroup(
 
 function recommendationBulkBannerOptionLabel(option: RecommendationApplyOption) {
   if (typeof option.id === "string" && option.id.startsWith("verdict:")) {
-    return option.label.replace(/^Verdict:\s*/, "");
+    const verdictLabel = option.label.replace(/^Verdict:\s*/, "");
+    return verdictLabel.toLowerCase() === "not met" || verdictLabel.toLowerCase() === "notmet"
+      ? "Not Met"
+      : verdictLabel;
+  }
+  if (option.id === "missing") {
+    return "Missing";
+  }
+  if (option.id === "high" || option.id === "medium" || option.id === "low" || option.id === "none") {
+    return option.label.replace(/\s+Deviation$/i, "");
   }
   return option.label;
 }
 
 function filterRecommendationTargetsForBanner(
   targets: RecommendationTargetItem[],
-  selection: RecommendationBulkBannerSelection,
+  selection: RecommendationApplyScope[],
 ) {
-  const activeGroups = [selection.status, selection.deviation, selection.category].filter((group) => group.length > 0);
-  if (activeGroups.length === 0) return [];
+  if (selection.length === 0) return [];
 
   const seenTargetIds = new Set<string>();
   const selectedTargets: RecommendationTargetItem[] = [];
 
   targets.forEach((target) => {
-    const matchesEverySelectedGroup = activeGroups.every((group) =>
-      group.some((scope) => targetMatchesRecommendationScope(target, scope)),
-    );
-    if (!matchesEverySelectedGroup || seenTargetIds.has(target.id)) return;
+    const matchesAnySelectedScope = selection.some((scope) => targetMatchesRecommendationScope(target, scope));
+    if (!matchesAnySelectedScope || seenTargetIds.has(target.id)) return;
     seenTargetIds.add(target.id);
     selectedTargets.push(target);
   });
@@ -4010,6 +4658,7 @@ function ComparisonToolbarControls({
               <SelectItem value="all">All buckets</SelectItem>
               <SelectItem value="open">Not Met</SelectItem>
               <SelectItem value="closed">Met</SelectItem>
+              <SelectItem value="no-action">No action</SelectItem>
               {!simplifyOutcomeStatus && <SelectItem value="new-issues">New supplier changes</SelectItem>}
               {!simplifyOutcomeStatus && <SelectItem value="unmarked">Needs decision</SelectItem>}
             </SelectContent>
@@ -4119,6 +4768,28 @@ function VerdictPill({ verdict, superseded = false }: { verdict: ClauseVerdict; 
 
 function verdictLabel(verdict: ClauseVerdict) {
   return verdict === "met" ? "Met" : "Not Met";
+}
+
+function VerdictTooltipContent() {
+  return (
+    <div className="space-y-1 text-xs">
+      <p className="v6-orbit-weight-semibold">Target Status - Whether the contract meets the best practice.</p>
+      <p>Met - Aligns with best practice.</p>
+      <p>Not Met - Does not align with best practice.</p>
+    </div>
+  );
+}
+
+function DeviationTooltipContent() {
+  return (
+    <div className="space-y-1 text-xs">
+      <p className="v6-orbit-weight-semibold">Deviation Level - How far the contract differs from best practice.</p>
+      <p>None - Matches best practice. No change needed.</p>
+      <p>Low - Minor difference. Small improvement recommended.</p>
+      <p>Medium - Meaningful difference. Creates a notable legal, commercial, or operational issue.</p>
+      <p>High - Major difference. Creates significant buyer risk or loss of protection.</p>
+    </div>
+  );
 }
 
 function DecisionBadge({ decision }: { decision: RoundDecision }) {
@@ -5073,13 +5744,19 @@ function PairSelector({
 }) {
   const leftVersion = versions.find((version) => version.version === pair.left);
   const rightVersion = versions.find((version) => version.version === pair.right);
-  const staticOnly = versions.length <= 2;
+  const staticOnly = compact || versions.length <= 2;
   const selectorClass = compact
     ? "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-orbit-xs text-[11px]"
     : "inline-flex items-center gap-orbit-xs text-sm";
-  const triggerClass = compact ? "h-6 w-full min-w-0 rounded-md bg-white px-orbit-s text-[11px]" : "h-9 w-[164px] text-sm";
+  const dropdownClass = compact
+    ? "clauseiq-v6a-pair-dropdown clauseiq-v6a-pair-dropdown-compact"
+    : "clauseiq-v6a-pair-dropdown";
   const formatVersion = (version?: ContractVersion) =>
     version ? version.version : "Version";
+  const versionOptions = versions.map((version) => ({
+    label: formatVersion(version),
+    value: version.version,
+  }));
 
   if (staticOnly) {
     return (
@@ -5103,39 +5780,23 @@ function PairSelector({
 
   return (
     <div className={selectorClass}>
-      <Select value={pair.left} onValueChange={updateLeft}>
-        <SelectTrigger className={triggerClass} aria-label="Compare from version">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {versions.map((version) => (
-            <SelectItem
-              key={version.version}
-              value={version.version}
-              disabled={versionOrder(version.version) >= versionOrder(pair.right)}
-            >
-              {formatVersion(version)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className={dropdownClass}>
+        <Dropdown
+          ariaLabel="Compare from version"
+          options={versionOptions}
+          value={pair.left}
+          onChange={updateLeft}
+        />
+      </div>
       <ArrowRight className={compact ? "h-3.5 w-3.5 text-muted-foreground" : "h-4 w-4 text-muted-foreground"} />
-      <Select value={pair.right} onValueChange={updateRight}>
-        <SelectTrigger className={triggerClass} aria-label="Compare to version">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {versions.map((version) => (
-            <SelectItem
-              key={version.version}
-              value={version.version}
-              disabled={versionOrder(version.version) <= versionOrder(pair.left)}
-            >
-              {formatVersion(version)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className={dropdownClass}>
+        <Dropdown
+          ariaLabel="Compare to version"
+          options={versionOptions}
+          value={pair.right}
+          onChange={updateRight}
+        />
+      </div>
     </div>
   );
 }
@@ -5197,7 +5858,7 @@ function CategorySidebar({
           tabIndex={0}
           className="mb-orbit-xs rounded-md px-orbit-s py-orbit-xs outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]"
         >
-          <Text as="p" size="Small" variant="Secondary">CLAUSES</Text>
+          <Text as="p" size="Small" variant="Secondary">CLAUSE TYPE</Text>
         </div>
       )}
 
@@ -5219,7 +5880,7 @@ function CategorySidebar({
         >
           <span className="flex w-full items-center justify-between gap-orbit-s px-orbit-s py-orbit-xs">
             <Text as="span" size="Small" variant="Secondary">
-              All
+              All Clause Name
             </Text>
             <Chip label={String(total)} size="Mini" variant="No Status" contrast="Low" />
           </span>
@@ -5368,6 +6029,7 @@ function ClauseRequestForm({
   inherited,
   submitLabel = "Add to Requests",
   requestPlaceholder = "Describe the change you want from the supplier",
+  embedded = false,
   compact = false,
   onUpdate,
   onCancel,
@@ -5379,6 +6041,7 @@ function ClauseRequestForm({
   inherited?: { request: ClauseRequest; version: string };
   submitLabel?: string;
   requestPlaceholder?: string;
+  embedded?: boolean;
   compact?: boolean;
   onUpdate: (patch: { requestedChange?: string; rationale?: string }) => void;
   onCancel: () => void;
@@ -5388,7 +6051,10 @@ function ClauseRequestForm({
 
   return (
     <div
-      className={cn("mt-orbit-base border-t border-border pt-orbit-base", compact ? "space-y-orbit-s" : "space-y-orbit-base")}
+      className={cn(
+        embedded ? "" : "mt-orbit-base border-t border-border pt-orbit-base",
+        compact ? "space-y-orbit-s" : "space-y-orbit-base",
+      )}
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
@@ -5407,7 +6073,7 @@ function ClauseRequestForm({
       <div className="grid w-full gap-orbit-base">
         <div className="space-y-orbit-xs">
           <label className="text-[11px] v6-orbit-weight-semibold text-muted-foreground">
-            Target <span className="text-destructive">*</span>
+            Set Custom Position
           </label>
           <Textarea
             value={requestValue}
@@ -5417,10 +6083,7 @@ function ClauseRequestForm({
           />
         </div>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-orbit-base">
-        <p className="text-[11px] text-muted-foreground">
-          Target will stay editable in review until submitted to the supplier.
-        </p>
+      <div className="flex flex-wrap items-center justify-end gap-orbit-base">
         <div className="flex items-center gap-orbit-s">
           <Button variant="outline" className={cn("h-8 text-xs", compact && "h-7 text-[11px]")} onClick={onCancel}>
             Cancel
@@ -5430,10 +6093,9 @@ function ClauseRequestForm({
             size="Medium"
             state={!requestValue.trim() ? "Disabled" : "Default"}
             disabled={!requestValue.trim()}
-            className="gap-orbit-xs"
             onClick={onSubmit}
           >
-            <Sparkles className="h-3.5 w-3.5" /> {submitLabel}
+            {submitLabel}
           </OrbitButton>
         </div>
       </div>
@@ -5483,6 +6145,10 @@ function ClauseDecisionCard({
   onSubmitDraft,
   onRemoveRequest,
   onOpenDetail,
+  bulkSelectionEnabled = false,
+  bulkSelectedClauseIds,
+  hideStandaloneDraftForm = false,
+  suppressRequestActions = false,
   neutralActions = false,
 }: {
   id: string;
@@ -5525,6 +6191,10 @@ function ClauseDecisionCard({
   onSubmitDraft?: () => void;
   onRemoveRequest?: () => void;
   onOpenDetail: () => void;
+  bulkSelectionEnabled?: boolean;
+  bulkSelectedClauseIds?: Set<string>;
+  hideStandaloneDraftForm?: boolean;
+  suppressRequestActions?: boolean;
   neutralActions?: boolean;
   selectedComparisonAction?: "accepted";
 }) {
@@ -5539,7 +6209,9 @@ function ClauseDecisionCard({
   const settled = decision === "request-update" || decision === "no-action";
   const noActionIsPrimary = !neutralActions && clause.severity === "low";
   const noneDeviationClause = isNoneDeviationClause(clause);
-  const showRequestActions = !noneDeviationClause && !settled && !actions && !showHandledCompact;
+  const showRequestActions = !suppressRequestActions && !noneDeviationClause && !settled && !actions && !showHandledCompact;
+  const showBulkSelectionCheckbox = bulkSelectionEnabled && useDefaultComparisonCard;
+  const bulkClauseSelected = bulkSelectedClauseIds?.has(id) ?? false;
   const useV6StatusTags = isInitiativesV6Route();
   const useV6DeviationCard = isInitiativesV6Route() && neutralActions;
   const useFirstAnalysisDeviationStyle = neutralActions && hideSubclauseReference && clause.severity === "high";
@@ -5609,17 +6281,46 @@ function ClauseDecisionCard({
       className={cn("rounded-lg transition-colors", highlighted && "ring-2 ring-primary/40")}
     >
       <Card type="Static" padding="Base" state={reviewCardState} indicator={showReviewCardIndicator} style={reviewCardStyle}>
-          <div className="flex min-w-0 items-center gap-orbit-s">
+        <div className="flex min-w-0 items-center gap-orbit-s">
           <div className="min-w-0 flex-1">
-            <h3 className="v6-orbit-heading-label truncate text-foreground">
+            <div className="flex min-w-0 items-center gap-orbit-xs">
+              {showBulkSelectionCheckbox && (
+                <Checkbox
+                  checked={bulkClauseSelected}
+                  aria-label={`Bulk selected ${id.toUpperCase()}`}
+                  className="shrink-0 pointer-events-none"
+                />
+              )}
+              <h3 className="v6-orbit-heading-label truncate text-foreground">
               <ClauseTitleInline clauseId={id} fallback={clause.title} />
-            </h3>
+              </h3>
+            </div>
           </div>
           {alteredAfterAgreement && <Chip label="Altered after agreement" size="Mini" variant="Error" contrast="Low" />}
-          {verdict ? <VerdictPill verdict={verdict} superseded={verdictSuperseded} /> : changePill?.status && <ChangePillBadge result={changePill} />}
+          {verdict ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex cursor-help">
+                  <VerdictPill verdict={verdict} superseded={verdictSuperseded} />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <VerdictTooltipContent />
+              </TooltipContent>
+            </Tooltip>
+          ) : changePill?.status && !stateBadge && <ChangePillBadge result={changePill} />}
           {showSeverityBadge && (
             useV6StatusTags ? (
-              <FirstAnalysisStatusTag status={severityStatusKey} />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex cursor-help">
+                    <FirstAnalysisStatusTag status={severityStatusKey} />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <DeviationTooltipContent />
+                </TooltipContent>
+              </Tooltip>
             ) : (
               <Badge variant="outline" className={severityBadgeClass}>
                 {severityBadgeLabel}
@@ -5702,19 +6403,17 @@ function ClauseDecisionCard({
                   )
                 ) : (
                   <>
-                    <Button
-                      variant="ghost"
-                      className={cn(
-                        "h-7 gap-orbit-xs px-orbit-s text-[10px] hover:bg-white/70",
-                        showHandledCompact ? "text-[#27500A]" : "text-primary",
-                      )}
+                    <OrbitButton
+                      variant="Tertiary"
+                      size="Medium"
+                      state="Default"
+                      iconRight={<ChevronDown className={cn("h-3 w-3 transition-transform", queuedExpanded && "rotate-180")} />}
                       onClick={() => setQueuedExpanded((current) => !current)}
                     >
                       {queuedExpanded ? "Hide Detail" : "View Detail"}
-                      <ChevronDown className={cn("h-3 w-3 transition-transform", queuedExpanded && "rotate-180")} />
-                    </Button>
+                    </OrbitButton>
                     <Button variant="outline" className="h-7 px-orbit-s text-[10px]" onClick={onEditRequest}>
-                      Edit Request
+                      Edit Position
                     </Button>
                     {onRemoveRequest && (
                       <Button variant="outline" className="h-7 px-orbit-s text-[10px] text-muted-foreground" onClick={onRemoveRequest}>
@@ -5724,17 +6423,15 @@ function ClauseDecisionCard({
                   </>
                 )}
                 {showAcceptedCompact && (
-                  <Button
-                    variant="ghost"
-                    className={cn(
-                      "h-7 gap-orbit-xs px-orbit-s text-[10px] hover:bg-white/70",
-                      "text-[#27500A]",
-                    )}
+                  <OrbitButton
+                    variant="Tertiary"
+                    size="Medium"
+                    state="Default"
+                    iconRight={<ChevronDown className={cn("h-3 w-3 transition-transform", queuedExpanded && "rotate-180")} />}
                     onClick={() => setQueuedExpanded((current) => !current)}
                   >
                     {queuedExpanded ? "Hide Detail" : "View Detail"}
-                    <ChevronDown className={cn("h-3 w-3 transition-transform", queuedExpanded && "rotate-180")} />
-                  </Button>
+                  </OrbitButton>
                 )}
               </div>
             </div>
@@ -5808,7 +6505,7 @@ function ClauseDecisionCard({
           </div>
         )}
 
-        {isDrafting && onUpdateDraft && onCancelDraft && onSubmitDraft && (
+        {isDrafting && !hideStandaloneDraftForm && onUpdateDraft && onCancelDraft && onSubmitDraft && (
           <div>
             <ClauseRequestForm
               versionLabel={versionLabel}
@@ -6082,10 +6779,14 @@ function ResultCardPanel({
   label,
   text,
   tone = "default",
+  content,
+  footer,
 }: {
   label: string;
   text: string;
   tone?: ResultCardPanelTone;
+  content?: ReactNode;
+  footer?: ReactNode;
 }) {
   const surfaceToken = tone === "accent" ? "accent" : "default";
   const labelVariant = tone === "default" ? "Secondary" : "Information";
@@ -6104,6 +6805,8 @@ function ResultCardPanel({
         {label}
       </Text>
       <p className="mt-orbit-xs leading-snug text-foreground">{text}</p>
+      {content ? <div className="mt-orbit-s">{content}</div> : null}
+      {footer ? <div className="mt-orbit-s flex flex-wrap items-center gap-orbit-xs">{footer}</div> : null}
     </div>
   );
 }
@@ -6114,12 +6817,16 @@ function SimplifiedComparisonContent({
   previousText,
   currentLabel,
   currentText,
+  targetContent,
+  targetFooter,
 }: {
   target?: string;
   previousLabel?: string;
   previousText?: string;
   currentLabel: string;
   currentText: string;
+  targetContent?: ReactNode;
+  targetFooter?: ReactNode;
 }) {
   const targetText = target?.trim();
   const hasPrevious = Boolean(previousLabel && previousText);
@@ -6130,7 +6837,7 @@ function SimplifiedComparisonContent({
         {hasPrevious && <ResultCardPanel label={previousLabel!} text={previousText!} />}
         <ResultCardPanel label={currentLabel} text={currentText} tone="accent" />
       </div>
-      {targetText && <ResultCardPanel label="Recommended Best Practice" text={targetText} tone="primary" />}
+      {targetText && <ResultCardPanel label="Recommend Position" text={targetText} tone="primary" content={targetContent} footer={targetFooter} />}
     </div>
   );
 }
@@ -6233,7 +6940,6 @@ type RecommendationApplyScope =
   | BuiltInRecommendationApplyScope
   | VerdictRecommendationApplyScope
   | CategoryRecommendationApplyScope;
-
 interface RecommendationApplyScopeMeta {
   toastLabel: string;
   undoLabel: string;
@@ -6265,7 +6971,10 @@ function buildRecommendationApplyOption(
   };
 }
 
-function buildRecommendationApplyOptions(targets: RecommendationTargetItem[]): RecommendationApplyOption[] {
+function buildRecommendationApplyOptions(
+  targets: RecommendationTargetItem[],
+  metadataCategories: string[] = [],
+): RecommendationApplyOption[] {
   const byScope = (scope: RecommendationApplyScope) => targets.filter((target) => targetMatchesRecommendationScope(target, scope));
   const verdictOptions = (["notmet", "met"] as ClauseVerdict[]).map((verdict) => {
     const label = verdictLabel(verdict);
@@ -6279,21 +6988,22 @@ function buildRecommendationApplyOptions(targets: RecommendationTargetItem[]): R
   });
   const categoryOptions = Array.from(
     new Set(
-      targets
-        .map((target) => target.category?.trim())
-        .filter((category): category is string => Boolean(category)),
+      [
+        ...metadataCategories,
+        ...targets
+          .map((target) => target.category?.trim())
+          .filter((category): category is string => Boolean(category)),
+      ],
     ),
-    )
-    .sort((a, b) => a.localeCompare(b))
-    .map((category) =>
-      buildRecommendationApplyOption(
-        `category:${category}`,
-        category,
-        `${category} recommendation`,
-        category,
-        byScope(`category:${category}`),
-      ),
-    );
+  ).map((category) =>
+    buildRecommendationApplyOption(
+      `category:${category}`,
+      category,
+      `${category} recommendation`,
+      category,
+      byScope(`category:${category}`),
+    ),
+  );
 
   return [
     buildRecommendationApplyOption("all", "All recommendations", "recommendation", "all", targets),
@@ -6662,7 +7372,7 @@ function RequestReviewDialog({
   requests: BasketRequestItem[];
   supplierName: string;
   bulkSummaryMode?: boolean;
-  reviewProgress?: FirstAnalysisReviewProgress;
+  reviewProgress?: ReviewGenerateProgress;
   csvNeedsUpdate?: boolean;
   onSubmit: () => void;
 }) {
@@ -6730,9 +7440,26 @@ function RequestReviewDialog({
   );
 }
 
-function ReviewGenerateProgressDashboard({ progress }: { progress: FirstAnalysisReviewProgress }) {
+function ReviewGenerateProgressDashboard({ progress }: { progress: ReviewGenerateProgress }) {
   const reviewed = Math.max(0, progress.total - progress.unreviewed);
   const percentage = progress.total > 0 ? Math.round((reviewed / progress.total) * 100) : 0;
+  const comparisonSummary = progress.displayMode === "comparison";
+  const summaryDescription = comparisonSummary
+    ? "Check the current clause target status and deviation level before generating the CSV."
+    : "Check what has been accepted, marked no action, and what is still left unreviewed before generating the CSV.";
+  const metricCards = comparisonSummary
+    ? [
+        { label: "Not Met", value: progress.notMet ?? 0, muted: false },
+        { label: "Met", value: progress.met ?? 0, muted: false },
+        { label: "Missing Clauses", value: progress.missingClauses ?? 0, muted: false },
+        { label: "Ready for CSV", value: progress.readyForCsv, muted: false },
+      ]
+    : [
+        { label: "Used recommendations", value: progress.usedRecommendations, muted: false },
+        { label: "No action", value: progress.noAction, muted: false },
+        { label: "Left unreviewed", value: progress.unreviewed, muted: true },
+        { label: "Ready for CSV", value: progress.readyForCsv, muted: false },
+      ];
 
   return (
     <section className="rounded-lg border border-border bg-white p-orbit-base">
@@ -6742,7 +7469,7 @@ function ReviewGenerateProgressDashboard({ progress }: { progress: FirstAnalysis
             Summary
           </p>
           <p className="mt-orbit-xs text-xs leading-5 text-muted-foreground">
-            Check what has been accepted, marked no action, and what is still left unreviewed before generating the CSV.
+            {summaryDescription}
           </p>
         </div>
       </div>
@@ -6755,22 +7482,27 @@ function ReviewGenerateProgressDashboard({ progress }: { progress: FirstAnalysis
       </div>
 
       <div className="mt-orbit-base grid gap-orbit-s sm:grid-cols-4">
-        <ReviewGenerateMetric label="Used recommendations" value={progress.usedRecommendations} />
-        <ReviewGenerateMetric label="No action" value={progress.noAction} />
-        <ReviewGenerateMetric label="Left unreviewed" value={progress.unreviewed} muted />
-        <ReviewGenerateMetric label="Ready for CSV" value={progress.readyForCsv} />
+        {metricCards.map((metric) => (
+          <ReviewGenerateMetric
+            key={metric.label}
+            label={metric.label}
+            value={metric.value}
+            muted={metric.muted}
+          />
+        ))}
       </div>
 
       <div className="mt-orbit-base grid gap-orbit-s sm:grid-cols-2">
         {progress.breakdown.map((item) => {
           const itemReviewed = item.reviewed;
           const itemPercentage = item.total > 0 ? Math.round((itemReviewed / item.total) * 100) : 0;
+          const itemCaption = comparisonSummary ? `${item.total} clauses` : `${item.unreviewed} left`;
           return (
             <div key={item.label} className="rounded-md border border-border bg-muted/20 px-orbit-s py-orbit-s">
               <div className="flex items-center justify-between gap-orbit-s">
                 <span className="text-[10px] v6-orbit-weight-medium text-muted-foreground">{item.label}</span>
                 <span className="text-[10px] text-muted-foreground">
-                  {item.unreviewed} left
+                  {itemCaption}
                 </span>
               </div>
               <div className="mt-orbit-s h-1.5 overflow-hidden rounded-full bg-muted">
@@ -6834,6 +7566,8 @@ function ReviewScreen({
   onCancelDraft,
   onSubmitDraft,
   onOpenDetail,
+  bulkSelectionEnabled = false,
+  bulkSelectedClauseIds,
   highlightedId,
 }: {
   version: ContractVersion;
@@ -6857,6 +7591,8 @@ function ReviewScreen({
   onCancelDraft: (id: string) => void;
   onSubmitDraft: (id: string) => void;
   onOpenDetail: (id: string) => void;
+  bulkSelectionEnabled?: boolean;
+  bulkSelectedClauseIds?: Set<string>;
   highlightedId?: string | null;
 }) {
   const [pendingDraftCancelId, setPendingDraftCancelId] = useState<string | null>(null);
@@ -6960,6 +7696,8 @@ function ReviewScreen({
             onCancelDraft={cancelDraft}
             onSubmitDraft={() => onSubmitDraft(c.id)}
             onOpenDetail={() => onOpenDetail(c.id)}
+            bulkSelectionEnabled={bulkSelectionEnabled}
+            bulkSelectedClauseIds={bulkSelectedClauseIds}
             neutralActions={neutralActions}
           />
         );
@@ -6999,7 +7737,7 @@ function ComparisonSection(props: {
   leftLabel: string;
   rightLabel: string;
   visible: boolean;
-  bucket: "open" | "new" | "closed";
+  bucket: "open" | "new" | "closed" | "no-action";
   stats: ComparisonBucketStats;
   closureOf: (id: string) => ClosureDecision | undefined;
   requestOf: (id: string) => { requestedChange?: string; rationale?: string; fromVersion?: string };
@@ -7023,6 +7761,8 @@ function ComparisonSection(props: {
   stateOf?: (id: string) => ClauseDecisionState;
   layout?: "collapsible" | "plain";
   overrideVerdict?: ClauseVerdict | null;
+  bulkSelectionEnabled?: boolean;
+  bulkSelectedClauseIds?: Set<string>;
 }) {
   const {
     title, description, accent, rows, leftLabel, rightLabel, visible, bucket, stats,
@@ -7031,6 +7771,7 @@ function ComparisonSection(props: {
     onReopenAcceptedDecision,
     pinnedIds, onTogglePin, recentlyClosed, onUndoClose, draftOf,
     onUpdateText, onCancelDraft, onSubmitDraft, onConfirmVerdictFromAction, stateOf, layout = "collapsible", overrideVerdict,
+    bulkSelectionEnabled = false, bulkSelectedClauseIds,
   } = props;
   const [open, setOpen] = useState(false);
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
@@ -7058,13 +7799,13 @@ function ComparisonSection(props: {
       : "border-destructive/30";
   const emptyMsg =
     bucket === "open" ? "No open requests for this round."
+      : bucket === "no-action" ? "No clauses are currently marked as no action from the previous round."
       : bucket === "closed" ? "No clauses have been closed for this round yet."
       : "No new material changes identified.";
   const resolvedOverrideVerdict = typeof overrideVerdict === "undefined" ? null : overrideVerdict;
   const visibleStats = summariseComparisonRows(rows);
   const displayedStats = layout === "plain" ? visibleStats : stats;
   const bucketSummary = [
-    displayedStats.pendingReview > 0 ? `${displayedStats.pendingReview} need review` : null,
     displayedStats.actioned > 0 ? `${displayedStats.actioned} actioned` : null,
     rows.length !== displayedStats.total ? `${visibleStats.visible} shown` : null,
   ].filter(Boolean).join(" · ");
@@ -7108,9 +7849,9 @@ function ComparisonSection(props: {
         const isPinned = pinnedIds?.has(r.id) ?? false;
         const undoExpiresAt = recentlyClosed?.[r.id];
         const showRowUndo = !!undoExpiresAt && undoExpiresAt > Date.now();
-        const requested = bucket === "new" && (r.actionState === "requested" || r.actionState === "submitted_request");
+        const requested = (bucket === "new" || bucket === "no-action") && (r.actionState === "requested" || r.actionState === "submitted_request");
         const pendingBasketRequest = basketRequest?.state === "pending" && Boolean(basketRequest.requestedChange?.trim());
-        const noAction = bucket === "new" && r.actionState === "no_action";
+        const noAction = (bucket === "new" || bucket === "no-action") && r.actionState === "no_action";
         const supportsInlineRequest = Boolean(draftOf && onUpdateText && onCancelDraft && onSubmitDraft);
         const drafting =
           supportsInlineRequest &&
@@ -7148,64 +7889,71 @@ function ComparisonSection(props: {
           setExpandedRequestId(null);
         };
         const comparisonBestPractice = display.actionability?.trim() || req.requestedChange;
+        const canShowOutcomeFooter =
+          !drafting &&
+          !requested &&
+          !noAction &&
+          !pendingBasketRequest &&
+          closure !== "closed" &&
+          !rowState?.acceptedClosed;
         const comparisonDetails = (
           <SimplifiedComparisonContent
             target={comparisonBestPractice}
-            previousLabel={`Previous Analysis · ${leftLabel}`}
+            previousLabel={`Previous Summary · ${leftLabel}`}
             previousText={r.prev?.deviation ?? "Clause did not exist."}
-            currentLabel={`Current Analysis · ${rightLabel}`}
+            currentLabel={`Current Summary · ${rightLabel}`}
             currentText={r.curr?.deviation ?? "Clause no longer present."}
-          />
-        );
-        const rowActions =
-          bucket === "new" ? undefined :
-            bucket === "closed" ? (
-              <div className="flex w-full flex-wrap items-center gap-orbit-xs sm:flex-nowrap">
-                <Button variant="outline" className="h-8 text-[11px]" onClick={() => openReviseTargetEditor()}>
-                  {CLAUSE_ACTION_LABELS.reviseTarget}
-                </Button>
-                <div className="ml-auto flex flex-wrap items-center gap-orbit-xs">
-                  <Button variant="outline" className="h-8 text-[11px]" onClick={() => onClose(r.id)}>
-                    {CLAUSE_ACTION_LABELS.acceptSupplierPosition}
-                  </Button>
-                  <Button
-                    variant="default"
-                    className="h-8 text-[11px]"
-                    onClick={() => {
-                      if (actionabilityRequest && onContinueWithActionability) {
-                        onContinueWithActionability(r.id, actionabilityRequest);
-                        return;
-                      }
-                      onKeepOpen(r.id);
-                    }}
-                  >
-                    {CLAUSE_ACTION_LABELS.holdPosition}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex w-full flex-wrap items-center gap-orbit-xs sm:flex-nowrap">
-                <Button
-                  variant={closure === "follow-up" ? "secondary" : "outline"}
-                  className="h-8 text-[11px]"
-                  onClick={() => openReviseTargetEditor()}
-                >
-                  {CLAUSE_ACTION_LABELS.reviseTarget}
-                </Button>
-                <div className="ml-auto flex flex-wrap items-center gap-orbit-xs">
+            targetContent={
+              drafting && onUpdateText && onCancelDraft && onSubmitDraft ? (
+                <ClauseRequestForm
+                  versionLabel={rightLabel}
+                  draft={draft}
+                  request={basketRequest}
+                  requestPlaceholder="Write the target you want to send in the next round"
+                  submitLabel="Confirm Custom Position"
+                  embedded
+                  onUpdate={(patch) => onUpdateText(r.id, patch)}
+                  onCancel={cancelDraft}
+                  onSubmit={() => {
+                    onSubmitDraft(r.id);
+                    setExpandedRequestId(null);
+                  }}
+                />
+              ) : undefined
+            }
+            targetFooter={
+              canShowOutcomeFooter && bucket === "closed" ? (
+                <>
                   <Button
                     variant="outline"
                     className="h-8 text-[11px]"
-                    onClick={() => {
-                      onConfirmVerdictFromAction?.(r.id, rowVerdict, "Accepted supplier wording");
-                      onClose(r.id);
-                    }}
+                    onClick={() => openReviseTargetEditor()}
                   >
-                    {CLAUSE_ACTION_LABELS.acceptSupplierPosition}
+                    {CLAUSE_ACTION_LABELS.reviseTarget}
                   </Button>
                   <Button
                     variant="default"
+                    className="ml-auto h-8 text-[11px]"
+                    onClick={() => {
+                      onConfirmVerdictFromAction?.(r.id, rowVerdict, "Confirmed position");
+                      onClose(r.id);
+                    }}
+                  >
+                    Confirm Position
+                  </Button>
+                </>
+              ) : canShowOutcomeFooter && rowVerdict !== "met" ? (
+                <>
+                  <Button
+                    variant={closure === "follow-up" ? "secondary" : "outline"}
                     className="h-8 text-[11px]"
+                    onClick={() => openReviseTargetEditor()}
+                  >
+                    {CLAUSE_ACTION_LABELS.reviseTarget}
+                  </Button>
+                  <Button
+                    variant="default"
+                    className="ml-auto h-8 text-[11px]"
                     onClick={() => {
                       if (actionabilityRequest && onContinueWithActionability) {
                         onContinueWithActionability(r.id, actionabilityRequest);
@@ -7217,9 +7965,12 @@ function ComparisonSection(props: {
                   >
                     {CLAUSE_ACTION_LABELS.holdPosition}
                   </Button>
-                </div>
-              </div>
-            );
+                </>
+              ) : undefined
+            }
+          />
+        );
+        const rowActions = undefined;
 
         return (
           <ClauseDecisionCard
@@ -7228,12 +7979,16 @@ function ComparisonSection(props: {
             clause={display}
             versionLabel={rightLabel}
             description={undefined}
-            decision={bucket === "new" ? (requested ? "request-update" : noAction ? "no-action" : undefined) : undefined}
+            decision={
+              bucket === "new"
+                ? (requested ? "request-update" : noAction ? "no-action" : undefined)
+                : undefined
+            }
             request={basketRequest}
             draft={draft}
             isDrafting={drafting}
             changePill={r.pill}
-            verdict={rowVerdict}
+            verdict={bucket === "no-action" ? undefined : rowVerdict}
             verdictSuperseded={Boolean(rowConfirmation?.overrideComment)}
             deviationDelta={rowDeviationDelta}
             alteredAfterAgreement={Boolean(rowState?.alteredAfterAgreement)}
@@ -7262,7 +8017,7 @@ function ComparisonSection(props: {
             onTogglePin={onTogglePin ? () => onTogglePin(r.id) : undefined}
             primaryActionLabel="Request Change"
             requestPlaceholder="Write the target you want to send in the next round"
-            requestSubmitLabel="Save Target"
+            requestSubmitLabel="Confirm Custom Position"
             onRequest={() => openReviseTargetEditor()}
             onNoAction={() => onClose(r.id)}
             onEditRequest={() => openReviseTargetEditor()}
@@ -7281,8 +8036,12 @@ function ComparisonSection(props: {
               onSubmitDraft(r.id);
               setExpandedRequestId(null);
             } : undefined}
+            hideStandaloneDraftForm
             onRemoveRequest={onRemoveRequest ? () => onRemoveRequest(r.id) : undefined}
             onOpenDetail={() => onOpenDetail(r.id)}
+            bulkSelectionEnabled={bulkSelectionEnabled}
+            bulkSelectedClauseIds={bulkSelectedClauseIds}
+            suppressRequestActions
           />
         );
       })}
@@ -7367,6 +8126,7 @@ function ComparisonSection(props: {
 function UnmarkedSection({
   rows, leftLabel, rightLabel, visible, defaultOpen,
   requestOf, draftOf, isRequested, decisionOf, isDrafting, onRequestChange, onSetNoAction, onUpdateText, onCancelDraft, onSubmitDraft, onRemoveRequest, onOpenDetail,
+  bulkSelectionEnabled = false, bulkSelectedClauseIds,
 }: {
   rows: { id: string; prev?: ClauseResult; curr?: ClauseResult }[];
   leftLabel: string;
@@ -7385,6 +8145,8 @@ function UnmarkedSection({
   onSubmitDraft: (id: string) => void;
   onRemoveRequest?: (id: string) => void;
   onOpenDetail: (id: string) => void;
+  bulkSelectionEnabled?: boolean;
+  bulkSelectedClauseIds?: Set<string>;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -7497,13 +8259,15 @@ function UnmarkedSection({
                         }}
                         onUpdateDraft={(patch) => onUpdateText(r.id, patch)}
                         onCancelDraft={cancelDraft}
-                        onSubmitDraft={() => {
-                          onSubmitDraft(r.id);
-                          setExpandedId(null);
-                        }}
-                        onRemoveRequest={onRemoveRequest ? () => onRemoveRequest(r.id) : undefined}
-                        onOpenDetail={() => onOpenDetail(r.id)}
-                      />
+            onSubmitDraft={() => {
+              onSubmitDraft(r.id);
+              setExpandedId(null);
+            }}
+            onRemoveRequest={onRemoveRequest ? () => onRemoveRequest(r.id) : undefined}
+            onOpenDetail={() => onOpenDetail(r.id)}
+            bulkSelectionEnabled={bulkSelectionEnabled}
+            bulkSelectedClauseIds={bulkSelectedClauseIds}
+          />
                     );
                   })}
                 </div>
@@ -7867,6 +8631,7 @@ function ClauseSlideOver({
             </div>
           ) : verdict === "met" ? (
             <ClauseJourneyActions
+              showRevise={false}
               canSimulateRegression={clauseId === DEMO_REGRESSION_CLAUSE_ID || state.acceptedClosed}
               onRevise={() => {
                 confirmVerdictFromAction(clauseId, verdict, "Chose to revise target");
@@ -8088,12 +8853,14 @@ function ReviseTargetPanel({
 }
 
 function ClauseJourneyActions({
+  showRevise = true,
   canSimulateRegression,
   onRevise,
   onAccept,
   onHold,
   onSimulateRegression,
 }: {
+  showRevise?: boolean;
   canSimulateRegression: boolean;
   onRevise: () => void;
   onAccept: () => void;
@@ -8102,7 +8869,9 @@ function ClauseJourneyActions({
 }) {
   return (
     <div className="ml-auto flex flex-wrap items-center justify-end gap-orbit-xs">
-      <Button className="h-8 bg-[#1a2744] px-orbit-base text-xs text-white hover:bg-[#243454]" onClick={onRevise}>{CLAUSE_ACTION_LABELS.reviseTarget}</Button>
+      {showRevise ? (
+        <Button className="h-8 bg-[#1a2744] px-orbit-base text-xs text-white hover:bg-[#243454]" onClick={onRevise}>{CLAUSE_ACTION_LABELS.reviseTarget}</Button>
+      ) : null}
       <Button variant="outline" className="h-8 text-xs" onClick={onHold}>{CLAUSE_ACTION_LABELS.holdPosition}</Button>
       <Button variant="default" className="h-8 text-xs" onClick={onAccept}>{CLAUSE_ACTION_LABELS.acceptSupplierPosition}</Button>
       {canSimulateRegression && (

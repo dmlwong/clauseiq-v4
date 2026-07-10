@@ -1,9 +1,8 @@
 import type { CSSProperties } from "react";
 import { Info } from "lucide-react";
-import { Chip, Text } from "@orbit";
+import { Chip, RadialIndicator, Text } from "@orbit";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/clauseiq-v6a/orbit-ui/tooltip";
-import { Separator } from "@/components/clauseiq-v6a/orbit-ui/separator";
 import type { ClauseAnalysis, DeviationCounts } from "@/data/mock-clauseiq-v6";
 import { cn } from "@/lib/utils";
 
@@ -34,47 +33,77 @@ export function OutputScoreLine({
   deviations,
   higherIsBetter,
   showComparisonStatus = score.hasPreviousOutput,
+  scoreTextClassName = "v6-orbit-text-body v6-orbit-weight-medium",
+  showScoreDonut = false,
+  showMetadataTooltip = true,
+  usePrimaryScoreColor = false,
+  textAlignment = "end",
 }: {
   score: OutputScorePresentation;
   deviations: DeviationCounts;
   higherIsBetter: boolean;
   showComparisonStatus?: boolean;
+  scoreTextClassName?: string;
+  showScoreDonut?: boolean;
+  showMetadataTooltip?: boolean;
+  usePrimaryScoreColor?: boolean;
+  textAlignment?: "end" | "center";
 }) {
   const delta = score.deltaFromPrevious;
+  const rowAlignmentClass = textAlignment === "center" ? "items-center" : "items-end";
 
   return (
-    <div className="flex min-w-0 items-center gap-orbit-s whitespace-nowrap">
-      <span
-        className="v6-orbit-text-body v6-orbit-weight-medium"
-        style={scoreBandTextStyle(score.score)}
-      >
-        Score {score.score}
-      </span>
-      {!score.hasPreviousOutput || typeof delta !== "number" ? (
-        <span className="inline-flex items-center gap-orbit-xs v6-orbit-text-small text-[var(--orbit-color-text-secondary)]">
-          <span>first output</span>
-          <OutputMetadataTooltip deviations={deviations} showComparisonStatus={showComparisonStatus} />
-        </span>
-      ) : delta === 0 ? (
-        <span className="inline-flex items-center gap-orbit-xs v6-orbit-text-small text-[var(--orbit-color-text-secondary)]">
-          <span>no change</span>
-          <OutputMetadataTooltip deviations={deviations} showComparisonStatus={showComparisonStatus} />
-        </span>
-      ) : (
-        <span className="inline-flex items-center gap-orbit-xs">
-          <span
-            className={cn(
-              "inline-flex items-center gap-orbit-xxs v6-orbit-text-small v6-orbit-weight-medium",
-              scoreDeltaValenceTextClass(scoreDeltaValence(delta, higherIsBetter)),
-            )}
-            aria-label={`${score.trend === "up" ? "Increased" : "Decreased"} by ${Math.abs(delta)} versus previous`}
-          >
-            <span aria-hidden="true">{score.trend === "up" ? "↗" : "↘"}</span>
-            <span>{formatDelta(delta)} vs previous</span>
-          </span>
-          <OutputMetadataTooltip deviations={deviations} showComparisonStatus={showComparisonStatus} />
+    <div className="flex min-w-0 items-center gap-orbit-xxs">
+      {showScoreDonut && (
+        <span data-testid="output-score-donut" className="shrink-0">
+          <RadialIndicator
+            status={scoreBandIndicatorStatus(score.score)}
+            progress={score.score}
+            size={32}
+            ariaLabel={`Score ${score.score}`}
+          />
         </span>
       )}
+      <div className={cn("flex min-w-0 gap-orbit-s whitespace-nowrap", rowAlignmentClass)}>
+        <span
+          className={scoreTextClassName}
+          style={usePrimaryScoreColor ? primaryScoreTextStyle : scoreBandTextStyle(score.score)}
+        >
+          Score {score.score}
+        </span>
+        {!score.hasPreviousOutput || typeof delta !== "number" ? (
+          <span className={cn("inline-flex gap-orbit-xs v6-orbit-text-small text-[var(--orbit-color-text-secondary)]", rowAlignmentClass)}>
+            <span>first output</span>
+            {showMetadataTooltip ? (
+              <OutputMetadataTooltip deviations={deviations} showComparisonStatus={showComparisonStatus} />
+            ) : null}
+          </span>
+        ) : delta === 0 ? (
+          <span className={cn("inline-flex gap-orbit-xs v6-orbit-text-small text-[var(--orbit-color-text-secondary)]", rowAlignmentClass)}>
+            <span>no change</span>
+            {showMetadataTooltip ? (
+              <OutputMetadataTooltip deviations={deviations} showComparisonStatus={showComparisonStatus} />
+            ) : null}
+          </span>
+        ) : (
+          <span className={cn("inline-flex gap-orbit-xs", rowAlignmentClass)}>
+            <span
+              className={cn(
+                "inline-flex gap-orbit-xxs v6-orbit-text-small v6-orbit-weight-medium",
+                rowAlignmentClass,
+                scoreDeltaValenceTextClass(scoreDeltaValence(delta, higherIsBetter)),
+              )}
+              aria-label={`${score.trend === "up" ? "Increased" : "Decreased"} by ${Math.abs(delta)} versus previous`}
+            >
+              <span aria-hidden="true">{score.trend === "up" ? "↗" : "↘"}</span>
+              <span>{formatDelta(delta)} vs previous</span>
+            </span>
+            {showMetadataTooltip ? (
+              <OutputMetadataTooltip deviations={deviations} showComparisonStatus={showComparisonStatus} />
+            ) : null}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -87,8 +116,8 @@ export function OutputFindingsSummary({
   showComparisonStatus: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-start gap-orbit-s">
-      <div className="space-y-orbit-xs">
+    <div className="flex flex-col gap-orbit-base">
+      <div className="flex flex-col gap-orbit-s">
         <Text as="span" size="Small" variant="Secondary">
           Clause Target Status
         </Text>
@@ -110,21 +139,15 @@ export function OutputFindingsSummary({
         </div>
       </div>
 
-      <Separator
-        orientation="vertical"
-        className="hidden self-stretch bg-[var(--orbit-color-border-muted)] sm:block"
-        style={outputFindingsDividerStyle}
-      />
-
-      <div className="space-y-orbit-xs">
+      <div className="flex flex-col gap-orbit-s">
         <Text as="span" size="Small" variant="Secondary">
-          Deviations Level
+          Deviation Level
         </Text>
         <div className="min-w-0 flex flex-wrap items-center gap-orbit-xs">
-          <OutputSummaryPill label={`High ${deviations.high}`} variant="Error" />
-          <OutputSummaryPill label={`Medium ${deviations.medium}`} variant="Warning" />
-          <OutputSummaryPill label={`Low ${deviations.low}`} variant="Style 2" style={lowDeviationPillStyle} />
-          <OutputSummaryPill label={`None ${deviations.none}`} variant="Success" />
+          <OutputSummaryPill label={`High Deviation ${deviations.high}`} variant="Error" />
+          <OutputSummaryPill label={`Medium Deviation ${deviations.medium}`} variant="Warning" />
+          <OutputSummaryPill label={`Low Deviation ${deviations.low}`} variant="Style 2" style={lowDeviationPillStyle} />
+          <OutputSummaryPill label={`None Deviation ${deviations.none}`} variant="Success" />
         </div>
       </div>
     </div>
@@ -183,6 +206,15 @@ function OutputMetadataTooltip({
   showComparisonStatus: boolean;
 }) {
   const notMet = Math.max(0, deviations.high + deviations.medium + deviations.low + deviations.missing);
+  const clauseTargetItems = showComparisonStatus
+    ? [`Not Met ${notMet}`, `Met ${deviations.none}`, `Missing ${deviations.missing}`]
+    : [`Missing ${deviations.missing}`];
+  const deviationItems = [
+    `High Deviation ${deviations.high}`,
+    `Medium Deviation ${deviations.medium}`,
+    `Low Deviation ${deviations.low}`,
+    `None Deviation ${deviations.none}`,
+  ];
 
   return (
     <Tooltip>
@@ -195,25 +227,34 @@ function OutputMetadataTooltip({
           <Info className="h-3.5 w-3.5" />
         </button>
       </TooltipTrigger>
-      <TooltipContent side="top" className="min-w-[232px] max-w-[256px]">
-        <span className="block space-y-orbit-xs">
-          <span className="block">
-            <span className="block v6-orbit-text-small v6-orbit-weight-medium text-[var(--orbit-color-text-inverse)]">
+      <TooltipContent
+        side="top"
+        className="min-w-[232px] max-w-[256px] border-[var(--orbit-color-border-default)] bg-[var(--orbit-color-bg-default)] text-[var(--orbit-color-text-primary)] [&>span[aria-hidden='true']]:border-[var(--orbit-color-border-default)] [&>span[aria-hidden='true']]:bg-[var(--orbit-color-bg-default)]"
+      >
+        <span className="flex flex-col gap-orbit-s">
+          <span className="flex flex-col gap-orbit-xs">
+            <span className="block v6-orbit-text-small v6-orbit-weight-medium text-[var(--orbit-color-text-primary)]">
               Clause Target Status
             </span>
-            <span className="block v6-orbit-text-small text-[var(--orbit-color-text-inverse)] opacity-90">
-              {showComparisonStatus
-                ? `Not Met ${notMet} | Met ${deviations.none} | Missing ${deviations.missing}`
-                : `Missing ${deviations.missing}`}
+            <span className="flex flex-col gap-orbit-xxs">
+              {clauseTargetItems.map((item) => (
+                <span key={item} className="block v6-orbit-text-small text-[var(--orbit-color-text-secondary)]">
+                  {item}
+                </span>
+              ))}
             </span>
           </span>
-          <span className="block h-px bg-white/10" aria-hidden="true" />
-          <span className="block">
-            <span className="block v6-orbit-text-small v6-orbit-weight-medium text-[var(--orbit-color-text-inverse)]">
-              Deviations Level
+          <span className="block h-px bg-[var(--orbit-color-border-default)]" aria-hidden="true" />
+          <span className="flex flex-col gap-orbit-xs">
+            <span className="block v6-orbit-text-small v6-orbit-weight-medium text-[var(--orbit-color-text-primary)]">
+              Deviation Level
             </span>
-            <span className="block v6-orbit-text-small text-[var(--orbit-color-text-inverse)] opacity-90">
-              High {deviations.high} | Medium {deviations.medium} | Low {deviations.low} | None {deviations.none}
+            <span className="flex flex-col gap-orbit-xxs">
+              {deviationItems.map((item) => (
+                <span key={item} className="block v6-orbit-text-small text-[var(--orbit-color-text-secondary)]">
+                  {item}
+                </span>
+              ))}
             </span>
           </span>
         </span>
@@ -263,6 +304,12 @@ function scoreBandTextStyle(score: number): CSSProperties {
   return { color: "var(--orbit-color-text-success)" };
 }
 
+function scoreBandIndicatorStatus(score: number): "Error" | "Warning" | "Success" {
+  if (score <= 39) return "Error";
+  if (score <= 74) return "Warning";
+  return "Success";
+}
+
 
 const lowDeviationPillStyle = {
   "--orbit-color-chip-style-2-bg": "#E5EDEE",
@@ -274,7 +321,6 @@ const missingClausesPillStyle = {
   color: "#5F5E5A",
 } as CSSProperties;
 
-const outputFindingsDividerStyle = {
-  width: "var(--orbit-space-micro)",
-  minHeight: "var(--orbit-space-xl)",
+const primaryScoreTextStyle = {
+  color: "var(--orbit-color-text-primary)",
 } as CSSProperties;

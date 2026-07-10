@@ -197,11 +197,7 @@ export const buildAnalysisParameters = (
     parameter.playbookChoice ??
     (parameter.basis?.kind === "Governing Law" || parameter.category ? "no" : "yes");
 
-  if (playbookChoice === "no") {
-    const { score } = benchmarkPrecision(parameter);
-    rows.push({ label: "Benchmark", value: benchmarkReadout(parameter) });
-    rows.push({ label: "Precision", value: `${score}-of-3` });
-  } else if (parameter.basis) {
+  if (playbookChoice === "yes" && parameter.basis) {
     rows.push({ label: parameter.basis.kind, value: parameter.basis.label });
   }
 

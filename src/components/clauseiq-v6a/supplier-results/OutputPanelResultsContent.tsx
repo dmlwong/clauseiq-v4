@@ -379,7 +379,7 @@ function SupplierOutputGroup({
               <div className="border-t border-border/70 pt-orbit-base">
                 {analyses.map((analysis, index) => (
                   <div key={analysis.id}>
-                    {index > 0 && <div className="my-orbit-m h-px bg-border/70" aria-hidden="true" />}
+                    {index > 0 && <div className="my-orbit-base h-px bg-border/70" aria-hidden="true" />}
                     <CompactOutputRow
                       analysis={analysis}
                       displayFileName={displayFileNameForSupplierAnalysis(supplier, analysis)}
@@ -445,6 +445,7 @@ function CompactOutputRow({
             deviations={analysis.deviations}
             higherIsBetter={higherIsBetter}
             showComparisonStatus={showComparisonStatus}
+            textAlignment="center"
           />
         </div>
       )}

@@ -62,6 +62,7 @@ export function AnalysisCard({
   const deviationSummaryId = useId();
   const status = statusCopy[analysis.status];
   const resolvedShowComparisonStatus = showComparisonStatus ?? outputScore?.hasPreviousOutput ?? false;
+  const showComparisonFindings = resolvedShowComparisonStatus && (outputScore?.hasPreviousOutput ?? false);
 
   return (
     <motion.article
@@ -86,8 +87,8 @@ export function AnalysisCard({
           <div className="space-y-orbit-base">
             <div className="flex flex-wrap items-center justify-between gap-orbit-s">
               <div className="flex min-w-0 flex-wrap items-center gap-orbit-s">
-                <Chip label="Analysis Result" size="Mini" variant="No Status" contrast="Low" />
-                {isLatestOutput && <Chip label="Latest output" size="Mini" variant="No Status" contrast="Low" />}
+                <Chip label="Analysis Result" size="Mini" variant="Outline" contrast="Low" />
+                {isLatestOutput && <Chip label="Latest output" size="Mini" variant="Outline" contrast="Low" />}
               </div>
               <span className="shrink-0 text-sm text-muted-foreground">
                 {formatAnalysisTimestamp(analysis.analysedAt)}
@@ -120,17 +121,25 @@ export function AnalysisCard({
 
           <div className="space-y-orbit-base">
             {outputScore ? (
-              <div className="space-y-orbit-s" role="group" aria-label="Output score and findings summary">
-                <OutputScoreLine
-                  score={outputScore}
-                  deviations={analysis.deviations}
-                  higherIsBetter={higherIsBetter}
-                  showComparisonStatus={resolvedShowComparisonStatus}
-                />
-                <OutputFindingsSummary
-                  deviations={analysis.deviations}
-                  showComparisonStatus={resolvedShowComparisonStatus}
-                />
+              <div data-testid="output-score-summary-card">
+                <Card type="Static" state="Accent" padding="Base" indicator={false}>
+                  <div className="flex flex-col gap-orbit-base" role="group" aria-label="Output score and findings summary">
+                    <OutputScoreLine
+                      score={outputScore}
+                      deviations={analysis.deviations}
+                      higherIsBetter={higherIsBetter}
+                      showComparisonStatus={resolvedShowComparisonStatus}
+                      scoreTextClassName="v6-orbit-heading-4"
+                      showScoreDonut
+                      showMetadataTooltip={false}
+                      usePrimaryScoreColor
+                    />
+                    <OutputFindingsSummary
+                      deviations={analysis.deviations}
+                      showComparisonStatus={showComparisonFindings}
+                    />
+                  </div>
+                </Card>
               </div>
             ) : (
               <div className="space-y-orbit-base">

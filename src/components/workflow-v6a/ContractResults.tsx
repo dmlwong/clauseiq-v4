@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, useCallback, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { createContext, useContext, useState, useMemo, useEffect, useRef, useCallback, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   ChevronLeft, AlertTriangle, CheckCircle2, Search, MapPin, Lightbulb,
@@ -10,9 +10,11 @@ import {
 import {
   Alert,
   Card,
+  Checkbox as OrbitCheckbox,
   type CardState as OrbitCardState,
   FA,
   FaIcon,
+  IconButton,
   Chip,
   Dropzone,
   FileItem,
@@ -20,7 +22,6 @@ import {
   QuickFilterGroup,
   QuickFilterItem,
   Searchbox,
-  MultiSelectDropdown,
   TabButton,
   Table as OrbitTable,
   Button as OrbitButton,
@@ -125,6 +126,16 @@ import {
 } from "./firstAnalysisStatusTags";
 
 const BULK_ACTION_FA_ICON = "\uf0ae";
+
+const BulkClauseSelectionContext = createContext<{
+  enabled: boolean;
+  selectedClauseIds: Set<string>;
+  onSelectionChange: (clauseId: string, selected: boolean) => void;
+}>({
+  enabled: false,
+  selectedClauseIds: new Set(),
+  onSelectionChange: () => undefined,
+});
 
 interface Props {
   initiativeId: string;
@@ -808,6 +819,16 @@ const V6A_OUTCOME_DEMO_OVERRIDES: Record<string, Record<string, Partial<ClauseRe
       deviation: "Audit rights align with the benchmark playbook.",
       excerpt: "Supplier grants Buyer annual audit rights on reasonable notice.",
     },
+    c51: {
+      severity: "low",
+      resolved: false,
+      change: "unchanged",
+      missingClause: true,
+      sourceDeviationLevel: "None",
+      deviation: "No governance and escalation framework clause is present in the supplier draft.",
+      excerpt: "The draft does not set out any governance cadence, issue escalation path, or named operational contacts.",
+      actionability: "Add a governance schedule with service review cadence, escalation tiers, and named stakeholder contacts.",
+    },
     c50: {
       severity: "high",
       resolved: false,
@@ -817,6 +838,26 @@ const V6A_OUTCOME_DEMO_OVERRIDES: Record<string, Record<string, Partial<ClauseRe
       deviation: "No standalone data breach notification clause is present in the supplier draft.",
       excerpt: "The draft does not include an express obligation to notify Buyer of a personal data breach within a defined timeframe.",
       actionability: "Insert a 24-hour breach notification obligation with named escalation contacts.",
+    },
+    c54: {
+      severity: "low",
+      resolved: false,
+      change: "unchanged",
+      missingClause: true,
+      sourceDeviationLevel: "None",
+      deviation: "No key personnel protections clause is present in the supplier draft.",
+      excerpt: "The draft does not identify key supplier personnel or require notice and approval for role changes.",
+      actionability: "Introduce key personnel commitments with notice, replacement standards, and Buyer approval rights.",
+    },
+    c62: {
+      severity: "low",
+      resolved: false,
+      change: "unchanged",
+      missingClause: true,
+      sourceDeviationLevel: "None",
+      deviation: "No uptime and downtime commitments clause is present in the supplier draft.",
+      excerpt: "The draft does not include explicit uptime targets, maintenance windows, or downtime reporting obligations.",
+      actionability: "Add uptime commitments, maintenance window controls, and downtime reporting obligations.",
     },
   },
 };
@@ -1723,7 +1764,11 @@ export function ContractResults({
     });
   };
 
-  const continueWithActionability = (clauseId: string, request: ClauseRequest) => {
+  const continueWithActionability = (
+    clauseId: string,
+    request: ClauseRequest,
+    options?: { suppressToast?: boolean },
+  ) => {
     const version = rightVersion?.version ?? "v1";
     const requestedChange = request.requestedChange?.trim();
     if (!requestedChange) return;
@@ -1743,6 +1788,62 @@ export function ContractResults({
       requestedChange,
       rationale: request.rationale?.trim() || undefined,
     });
+    const fallbackTitle =
+      rightVersion?.clauses.find((clause) => clause.id === clauseId)?.title ??
+      leftVersion?.clauses.find((clause) => clause.id === clauseId)?.title ??
+      v1?.clauses.find((clause) => clause.id === clauseId)?.title ??
+      clauseId.toUpperCase();
+    if (!options?.suppressToast) {
+      toast.success(
+        "Recommended position added to review",
+        `${displayTitleForClause(clauseId, fallbackTitle)} is ready for Review & Generate.`,
+      );
+    }
+  };
+
+  const acceptRecommendedRequestWithToast = (
+    clauseId: string,
+    versionLabel: string,
+    request: ClauseRequest,
+  ) => {
+    const requestedChange = request.requestedChange?.trim();
+    if (!requestedChange) return;
+    const fallbackTitle =
+      versions.find((version) => version.version === versionLabel)?.clauses.find((clause) => clause.id === clauseId)?.title ??
+      rightVersion?.clauses.find((clause) => clause.id === clauseId)?.title ??
+      leftVersion?.clauses.find((clause) => clause.id === clauseId)?.title ??
+      v1?.clauses.find((clause) => clause.id === clauseId)?.title ??
+      clauseId.toUpperCase();
+
+    decisions.acceptRequest(supplierId, decisionContractId, clauseId, versionLabel, request);
+    toast.success(
+      "Recommended position added to review",
+      `${displayTitleForClause(clauseId, fallbackTitle)} is ready for Review & Generate.`,
+    );
+  };
+
+  const submitDraftRequestWithToast = (
+    clauseId: string,
+    versionLabel: string,
+    options?: { followUp?: boolean },
+  ) => {
+    const draft = stateOf(clauseId).draftRequests?.[versionLabel];
+    const fallbackTitle =
+      versions.find((version) => version.version === versionLabel)?.clauses.find((clause) => clause.id === clauseId)?.title ??
+      rightVersion?.clauses.find((clause) => clause.id === clauseId)?.title ??
+      leftVersion?.clauses.find((clause) => clause.id === clauseId)?.title ??
+      v1?.clauses.find((clause) => clause.id === clauseId)?.title ??
+      clauseId.toUpperCase();
+
+    decisions.submitDraftRequest(supplierId, decisionContractId, clauseId, versionLabel);
+    if (options?.followUp) {
+      decisions.setClosure(supplierId, decisionContractId, clauseId, versionLabel, "follow-up");
+    }
+
+    toast.success(
+      "Custom position added to review",
+      `${displayTitleForClause(clauseId, fallbackTitle)} is ready for Review & Generate${draft?.requestedChange?.trim() ? "." : ""}`,
+    );
   };
 
   const acceptAndClose = (clauseId: string) => {
@@ -2525,7 +2626,7 @@ export function ContractResults({
         },
         "no-action": {
           title: "Not Selected for Review",
-          description: "Clauses that were not selected for review in the last analysis and are carried forward here in case you want to review them now.",
+          description: "Clauses that were not selected for review in the last analysis and are carried forward here in case you want to review them now. Clauses where you use the Recommended Position or set a custom position will be added to the next round of analysis for review.",
         },
       } satisfies Partial<Record<QuickFilterKey, { title: string; description: string }>>)[quickFilter ?? "selected-for-review"] ?? null
     : null;
@@ -2545,8 +2646,8 @@ export function ContractResults({
           ? reviewSectionStateCopy?.title ?? "Not Selected for Review"
           : "Not Selected for Review",
         noActionDescription: quickFilter === "no-action"
-          ? reviewSectionStateCopy?.description ?? "Clauses that were not selected for review in the last analysis and are carried forward here in case you want to review them now."
-          : "Clauses that were not selected for review in the last analysis and are carried forward here in case you want to review them now.",
+          ? reviewSectionStateCopy?.description ?? "Clauses that were not selected for review in the last analysis and are carried forward here in case you want to review them now. Clauses where you use the Recommended Position or set a custom position will be added to the next round of analysis for review."
+          : "Clauses that were not selected for review in the last analysis and are carried forward here in case you want to review them now. Clauses where you use the Recommended Position or set a custom position will be added to the next round of analysis for review.",
         unmarkedTitle: "Needs decision",
       }
     : {
@@ -2711,7 +2812,7 @@ export function ContractResults({
   );
   const applyOutcomeRecommendations = (targets: RecommendationTargetItem[], scope?: RecommendationApplyScopeMeta) => {
     if (!outcomeReviewMode || targets.length === 0) return;
-    targets.forEach((target) => continueWithActionability(target.id, target.request));
+    targets.forEach((target) => continueWithActionability(target.id, target.request, { suppressToast: true }));
     toast({
       title: "Best practices added to review",
       description: `${targets.length} ${scope?.toastLabel ?? "recommendation"}${targets.length === 1 ? "" : "s"} added from the outcome review. Review and generate when ready.`,
@@ -2733,6 +2834,8 @@ export function ContractResults({
   const bulkRecommendationsReviewed = outcomeReviewMode
     ? outcomeRecommendationTargets.length === 0
     : firstAnalysisRecommendationsReviewed;
+  const bulkActionAvailable = availableBulkRecommendationApplyOptions.length > 0;
+  const canShowBulkActionControls = mode === "comparison" && (firstAnalysisDemo || outcomeReviewMode);
   const [compactBulkBannerOpen, setCompactBulkBannerOpen] = useState(false);
   const [bulkBannerSelectedClauseIds, setBulkBannerSelectedClauseIds] = useState<Set<string>>(new Set());
   const compactBulkCanUndoAppliedRecommendations = Boolean(
@@ -2752,6 +2855,14 @@ export function ContractResults({
     }
   }, [compactBulkCanChooseRecommendationScope, compactHeader]);
   const bulkSelectionEnabled = compactBulkBannerOpen || nonCompactBulkBannerOpen;
+  const toggleBulkClauseSelection = useCallback((clauseId: string, selected: boolean) => {
+    setBulkBannerSelectedClauseIds((current) => {
+      const next = new Set(current);
+      if (selected) next.add(clauseId);
+      else next.delete(clauseId);
+      return next;
+    });
+  }, []);
   useEffect(() => {
     if (!bulkSelectionEnabled) {
       setBulkBannerSelectedClauseIds(new Set());
@@ -2781,23 +2892,7 @@ export function ContractResults({
       buildRecommendationApplyScopeMeta(options),
     );
   };
-  const compactBulkBanner =
-    compactHeader && compactBulkCanChooseRecommendationScope && compactBulkBannerOpen ? (
-      <RecommendationBulkApplyBanner
-        options={bulkRecommendationApplyOptions}
-        onSelectedTargetsChange={setBulkBannerSelectedClauseIds}
-        onApply={(options) => {
-          if (outcomeReviewMode) {
-            applyOutcomeRecommendationOptions(options);
-          } else {
-            applyRecommendationOptions(options);
-          }
-          setCompactBulkBannerOpen(false);
-        }}
-        onClose={() => setCompactBulkBannerOpen(false)}
-      />
-    ) : null;
-  const undoAppliedRecommendations = () => {
+  function undoAppliedRecommendations() {
     if (!firstAnalysisVersion || firstAnalysisUndoableRecommendationIds.length === 0) return;
     firstAnalysisUndoableRecommendationIds.forEach((id) => {
       decisions.removePendingRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version);
@@ -2809,7 +2904,24 @@ export function ContractResults({
       title: "Recommendations removed from review",
       description: `${firstAnalysisUndoableRecommendationIds.length} recommendation${firstAnalysisUndoableRecommendationIds.length === 1 ? "" : "s"} removed. Existing custom requests and Hold my position choices were left unchanged.`,
     });
-  };
+  }
+  const compactBulkBanner =
+    compactHeader && compactBulkCanChooseRecommendationScope && compactBulkBannerOpen ? (
+      <RecommendationBulkApplyBanner
+        options={bulkRecommendationApplyOptions}
+        onSelectedTargetsChange={setBulkBannerSelectedClauseIds}
+        onApply={(targets) => {
+          if (outcomeReviewMode) {
+            applyOutcomeRecommendations(targets);
+          } else {
+            applyAllRecommendations(targets);
+          }
+          setCompactBulkBannerOpen(false);
+        }}
+        onUndoApply={!outcomeReviewMode ? undoAppliedRecommendations : undefined}
+        onClose={() => setCompactBulkBannerOpen(false)}
+      />
+    ) : null;
   const firstAnalysisReviewList = firstAnalysisVersion ? (
     <ReviewScreen
       version={firstAnalysisVersion}
@@ -2831,7 +2943,7 @@ export function ContractResults({
         decisions.startDraftRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version, initialDraft)
       }
       onUseRecommendation={(id, request) =>
-        decisions.acceptRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version, request)
+        acceptRecommendedRequestWithToast(id, firstAnalysisVersion.version, request)
       }
       onUndoDecision={(id) =>
         decisions.clearRoundDecision(supplierId, decisionContractId, id, firstAnalysisVersion.version)
@@ -2843,9 +2955,12 @@ export function ContractResults({
         decisions.cancelDraftRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version)
       }
       onSubmitDraft={(id) =>
-        decisions.submitDraftRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version)
+        submitDraftRequestWithToast(id, firstAnalysisVersion.version)
       }
       onOpenDetail={(id) => setDetailClauseId(id)}
+      bulkSelectionEnabled={bulkSelectionEnabled}
+      bulkSelectedClauseIds={bulkBannerSelectedClauseIds}
+      onBulkClauseSelectionChange={toggleBulkClauseSelection}
       highlightedId={highlightClauseId}
     />
   ) : null;
@@ -2873,6 +2988,7 @@ export function ContractResults({
     <ComparisonDesignOptions
       option={designOption}
       banner={compactBulkBanner}
+      introBanner={<InlineRecommendationReviewBanner />}
       comparisonControl={<PairSelector versions={versions} pair={pair} onChange={setPair} compact />}
       stripStats={stripStats}
       panel={comparisonModel.panel}
@@ -2894,7 +3010,6 @@ export function ContractResults({
       simplifyStatusMetrics={simplifyComparisonStatus}
       openItems={
         <>
-          <InlineRecommendationReviewBanner />
           <ComparisonSection
             title={outcomeSectionCopy.openTitle}
             description={outcomeSectionCopy.openDescription}
@@ -2932,8 +3047,7 @@ export function ContractResults({
             onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
             onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
             onSubmitDraft={(id) => {
-              decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version);
-              decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "follow-up");
+              submitDraftRequestWithToast(id, rightVersion.version, { followUp: true });
             }}
             onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
             onOpenDetail={setDetailClauseId}
@@ -2967,7 +3081,7 @@ export function ContractResults({
           onKeepOpen={(id) => decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
           onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
           onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-          onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+          onSubmitDraft={(id) => submitDraftRequestWithToast(id, rightVersion.version)}
           onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
           onOpenDetail={setDetailClauseId}
           onConfirmVerdictFromAction={confirmVerdictFromAction}
@@ -3007,8 +3121,7 @@ export function ContractResults({
           onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
           onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
           onSubmitDraft={(id) => {
-            decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version);
-            decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "follow-up");
+            submitDraftRequestWithToast(id, rightVersion.version, { followUp: true });
           }}
           onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
           onOpenDetail={setDetailClauseId}
@@ -3048,7 +3161,7 @@ export function ContractResults({
           }
           onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
           onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-          onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+          onSubmitDraft={(id) => submitDraftRequestWithToast(id, rightVersion.version)}
           onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
           onOpenDetail={setDetailClauseId}
           onConfirmVerdictFromAction={confirmVerdictFromAction}
@@ -3075,7 +3188,7 @@ export function ContractResults({
           onSetNoAction={(id) => decisions.changeDecision(supplierId, decisionContractId, id, rightVersion.version, "no-action")}
           onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
           onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-          onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+          onSubmitDraft={(id) => submitDraftRequestWithToast(id, rightVersion.version)}
           onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
           onOpenDetail={setDetailClauseId}
         />
@@ -3106,8 +3219,67 @@ export function ContractResults({
       onChange={setDashboardView}
     />
   );
+  const compactHeaderActions =
+    mode === "comparison" ? (
+      <div className="ml-auto flex shrink-0 items-center gap-orbit-s">
+        {canShowBulkActionControls && (
+          !outcomeReviewMode && canUndoFirstAnalysisRecommendations ? (
+            <Button
+              variant="outline"
+              className="h-7 gap-orbit-xs bg-white px-orbit-base text-xs"
+              onClick={undoAppliedRecommendations}
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              {bulkAppliedRecommendationScopeLabel
+                ? `Undo ${bulkAppliedRecommendationScopeLabel} (${firstAnalysisUndoRecommendationCount})`
+                : firstAnalysisApplyAllLabel}
+            </Button>
+          ) : bulkActionAvailable ? (
+            <Button
+              variant={compactBulkBannerOpen ? "default" : "outline"}
+              className={cn(
+                "h-7 gap-orbit-xs bg-white px-orbit-base text-xs clauseiq-v6-recommendation-bulk-trigger",
+                compactBulkBannerOpen && "bg-primary text-primary-foreground",
+              )}
+              aria-label="Bulk Action"
+              aria-expanded={compactBulkBannerOpen}
+              aria-controls="clauseiq-v6-recommendation-bulk-banner"
+              onClick={() => setCompactBulkBannerOpen((current) => !current)}
+            >
+              <FaIcon icon={BULK_ACTION_FA_ICON} size={14} color="currentColor" />
+              <span>Bulk Action</span>
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              className="h-7 gap-orbit-xs px-orbit-base text-xs"
+              disabled
+            >
+              <FaIcon icon={BULK_ACTION_FA_ICON} size={14} color="currentColor" />
+              Bulk Action
+            </Button>
+          )
+        )}
+        <Button
+          variant={reviewGenerateDisabled ? "outline" : "default"}
+          className="h-7 gap-orbit-xs px-orbit-base text-xs"
+          disabled={reviewGenerateDisabled}
+          onClick={() => setRequestReviewOpen(true)}
+        >
+          <Download className="h-3.5 w-3.5" />
+          Review &amp; Generate{reviewGenerateItems.length > 0 ? ` (${reviewGenerateItems.length})` : ""}
+        </Button>
+      </div>
+    ) : null;
 
   return (
+    <BulkClauseSelectionContext.Provider
+      value={{
+        enabled: bulkSelectionEnabled,
+        selectedClauseIds: bulkBannerSelectedClauseIds,
+        onSelectionChange: toggleBulkClauseSelection,
+      }}
+    >
     <div className="min-h-screen">
       {compactHeader ? (
         <div className="sticky top-0 z-30 border-b border-[rgba(0,0,0,0.08)] bg-white">
@@ -3115,41 +3287,10 @@ export function ContractResults({
             backLabel={compactBackLabel}
             onBack={onBack}
             referenceLine={dashboardReferenceLine}
+            actions={compactHeaderActions}
             firstAnalysisDemo={firstAnalysisDemo}
             demoAvailable={availableVersions.length >= 2}
             onFirstAnalysisDemoChange={toggleFirstAnalysisDemo}
-          />
-          <ModeSwitcher
-            mode={mode}
-            onChange={switchMode}
-            comparisonLabel="Review"
-            onApplyAllRecommendations={() =>
-              outcomeReviewMode
-                ? applyOutcomeRecommendations(outcomeRecommendationTargets)
-                : applyAllRecommendations(firstAnalysisRecommendationTargets)
-            }
-            onApplyRecommendationOptions={(options) => {
-              if (outcomeReviewMode) {
-                applyOutcomeRecommendationOptions(options);
-              } else {
-                applyRecommendationOptions(options);
-              }
-            }}
-            onUndoAllRecommendations={outcomeReviewMode ? undefined : undoAppliedRecommendations}
-            applyAllRecommendationsDisabled={bulkRecommendationsDisabled}
-            applyAllRecommendationsQueued={!outcomeReviewMode && firstAnalysisDemo && firstAnalysisRecommendationsQueued}
-            applyAllRecommendationsReviewed={bulkRecommendationsReviewed}
-            applyAllRecommendationsUndoable={!outcomeReviewMode && firstAnalysisDemo && canUndoFirstAnalysisRecommendations}
-            recommendationApplyOptions={bulkRecommendationApplyOptions}
-            undoRecommendationCount={firstAnalysisUndoRecommendationCount}
-            undoRecommendationScopeLabel={bulkAppliedRecommendationScopeLabel}
-            onReviewGenerate={() => setRequestReviewOpen(true)}
-            reviewGenerateDisabled={reviewGenerateDisabled}
-            requestCount={reviewGenerateItems.length}
-            bulkBannerOpen={compactBulkBannerOpen}
-            onBulkBannerOpenChange={setCompactBulkBannerOpen}
-            onBulkSelectionChange={setBulkBannerSelectedClauseIds}
-            suppressBulkBannerRender={compactHeader}
           />
         </div>
       ) : (
@@ -3168,8 +3309,8 @@ export function ContractResults({
                   )}
                 >
                   <SupplierGroupingPopover supplierId={supplierId} supplierName={supplier.name} />
-                  {firstAnalysisDemo && mode === "comparison" && (
-                    canUndoFirstAnalysisRecommendations ? (
+                  {canShowBulkActionControls && (
+                    !outcomeReviewMode && canUndoFirstAnalysisRecommendations ? (
                       <Button
                         variant="outline"
                         className="h-9 gap-orbit-xs bg-white"
@@ -3180,7 +3321,7 @@ export function ContractResults({
                           ? `Undo ${bulkAppliedRecommendationScopeLabel} recommendations (${firstAnalysisUndoRecommendationCount})`
                           : firstAnalysisApplyAllLabel}
                       </Button>
-                    ) : firstAnalysisAvailableRecommendationApplyOptions.length > 0 ? (
+                    ) : bulkActionAvailable ? (
                       <Button
                         variant={nonCompactBulkBannerOpen ? "default" : "outline"}
                         className={cn(
@@ -3201,8 +3342,8 @@ export function ContractResults({
                         variant="outline"
                         disabled
                       >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        {firstAnalysisApplyAllLabel}
+                        <FaIcon icon={BULK_ACTION_FA_ICON} size={14} color="currentColor" />
+                        Bulk Action
                       </Button>
                     )
                   )}
@@ -3228,11 +3369,18 @@ export function ContractResults({
                   </Button>
                 </div>
               </div>
-              {firstAnalysisDemo && mode === "comparison" && firstAnalysisAvailableRecommendationApplyOptions.length > 0 && nonCompactBulkBannerOpen && (
+              {canShowBulkActionControls && bulkActionAvailable && nonCompactBulkBannerOpen && (
                 <div className="mt-orbit-s overflow-hidden rounded-md">
                   <RecommendationBulkApplyBanner
-                    options={firstAnalysisRecommendationApplyOptions}
-                    onApply={applyRecommendationOptions}
+                    options={bulkRecommendationApplyOptions}
+                    onApply={(targets) => {
+                      if (outcomeReviewMode) {
+                        applyOutcomeRecommendations(targets);
+                      } else {
+                        applyAllRecommendations(targets);
+                      }
+                    }}
+                    onUndoApply={!outcomeReviewMode ? undoAppliedRecommendations : undefined}
                     onSelectedTargetsChange={setBulkBannerSelectedClauseIds}
                     onClose={() => setNonCompactBulkBannerOpen(false)}
                   />
@@ -3443,7 +3591,7 @@ export function ContractResults({
                   decisions.cancelDraftRequest(supplierId, decisionContractId, id, (rightVersion ?? reviewVersion ?? v1).version)
                 }
                 onSubmitDraft={(id) =>
-                  decisions.submitDraftRequest(supplierId, decisionContractId, id, (rightVersion ?? reviewVersion ?? v1).version)
+                  submitDraftRequestWithToast(id, (rightVersion ?? reviewVersion ?? v1).version)
                 }
                 onOpenDetail={(id) => setDetailClauseId(id)}
                 bulkSelectionEnabled={bulkSelectionEnabled}
@@ -3489,8 +3637,7 @@ export function ContractResults({
                   onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
                   onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
                   onSubmitDraft={(id) => {
-                    decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version);
-                    decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "follow-up");
+                    submitDraftRequestWithToast(id, rightVersion.version, { followUp: true });
                   }}
                   onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
                   onOpenDetail={setDetailClauseId}
@@ -3521,7 +3668,7 @@ export function ContractResults({
                   onKeepOpen={(id) => decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
                   onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
                   onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-                  onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+                  onSubmitDraft={(id) => submitDraftRequestWithToast(id, rightVersion.version)}
                   onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
                   onOpenDetail={setDetailClauseId}
                   bulkSelectionEnabled={bulkSelectionEnabled}
@@ -3559,8 +3706,7 @@ export function ContractResults({
                   onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
                   onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
                   onSubmitDraft={(id) => {
-                    decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version);
-                    decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "follow-up");
+                    submitDraftRequestWithToast(id, rightVersion.version, { followUp: true });
                   }}
                   onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
                   onOpenDetail={setDetailClauseId}
@@ -3598,7 +3744,7 @@ export function ContractResults({
                   }
                   onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
                   onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-                  onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+                  onSubmitDraft={(id) => submitDraftRequestWithToast(id, rightVersion.version)}
                   onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
                   onOpenDetail={setDetailClauseId}
                   bulkSelectionEnabled={bulkSelectionEnabled}
@@ -3623,7 +3769,7 @@ export function ContractResults({
                   onSetNoAction={(id) => decisions.changeDecision(supplierId, decisionContractId, id, rightVersion.version, "no-action")}
                   onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
                   onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-                  onSubmitDraft={(id) => decisions.submitDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+                  onSubmitDraft={(id) => submitDraftRequestWithToast(id, rightVersion.version)}
                   onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
                   onOpenDetail={setDetailClauseId}
                   bulkSelectionEnabled={bulkSelectionEnabled}
@@ -3733,6 +3879,7 @@ export function ContractResults({
         onConfirm={() => deleteTarget && onDeleteVersion(deleteTarget)}
       />
     </div>
+    </BulkClauseSelectionContext.Provider>
   );
 }
 
@@ -3831,6 +3978,7 @@ function CompactContractTopbar({
   backLabel,
   onBack,
   referenceLine,
+  actions,
   firstAnalysisDemo,
   demoAvailable,
   onFirstAnalysisDemoChange,
@@ -3838,12 +3986,13 @@ function CompactContractTopbar({
   backLabel: string;
   onBack: () => void;
   referenceLine: string;
+  actions?: ReactNode;
   firstAnalysisDemo: boolean;
   demoAvailable: boolean;
   onFirstAnalysisDemoChange: (enabled: boolean) => void;
 }) {
   return (
-    <div className="flex h-10 items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] px-orbit-base">
+    <div className="flex min-h-10 items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] px-orbit-base py-orbit-s">
       <button
         onClick={onBack}
         className="inline-flex shrink-0 items-center gap-orbit-xs text-[13px] v6-orbit-weight-medium text-primary hover:underline"
@@ -3854,6 +4003,7 @@ function CompactContractTopbar({
       <div className="flex min-w-0 flex-1 items-center gap-orbit-s">
         <h1 className="v6-orbit-heading-label min-w-0 truncate text-foreground">{referenceLine}</h1>
       </div>
+      {actions}
       {demoAvailable && !isInitiativesV6Route() && (
         <FirstAnalysisDemoToggle
           active={firstAnalysisDemo}
@@ -3951,11 +4101,14 @@ function RecommendationReviewIntro() {
     <div className="min-w-0">
       <div className="flex flex-wrap items-center gap-orbit-s">
         <h2 className="v6-orbit-heading-5">
-          Selected for Review
+          Review ClauseIQ Recommendations
         </h2>
       </div>
-      <p className="mt-orbit-xs v6-orbit-text-small text-muted-foreground">
-        These clauses were selected in the previous round for follow-up in this round. For each clause, choose whether to use the recommended position or set a custom position. If no action is taken, the clause will remain unchanged and be treated as accepted for this round.
+      <p
+        className="mt-orbit-xs v6-orbit-text-small text-muted-foreground"
+        style={{ "--orbit-text-small-leading": "1.5" } as CSSProperties}
+      >
+        Review ClauseIQ&apos;s findings before supplier negotiation. Use the filters to focus on clauses by deviation level or category, then choose whether to use the recommended position, set a custom position, or mark a clause as no action required. Once reviewed, generate the output for the next negotiation step.
       </p>
     </div>
   );
@@ -4052,7 +4205,9 @@ function ModeSwitcher({
   bulkBannerOpen: controlledBulkBannerOpen,
   onBulkBannerOpenChange,
   onBulkSelectionChange,
+  bulkSelectedClauseIds,
   suppressBulkBannerRender = false,
+  hideActions = false,
 }: {
   mode: ClauseIqMode;
   onChange: (mode: ClauseIqMode) => void;
@@ -4073,7 +4228,9 @@ function ModeSwitcher({
   bulkBannerOpen?: boolean;
   onBulkBannerOpenChange?: (open: boolean) => void;
   onBulkSelectionChange?: (selectedClauseIds: Set<string>) => void;
+  bulkSelectedClauseIds?: Set<string>;
   suppressBulkBannerRender?: boolean;
+  hideActions?: boolean;
 }) {
   const canUndoAppliedRecommendations = Boolean(
     applyAllRecommendationsUndoable && onUndoAllRecommendations,
@@ -4123,7 +4280,7 @@ function ModeSwitcher({
             {comparisonLabel}
           </TabButton>
         </div>
-        {mode === "comparison" && (
+        {mode === "comparison" && !hideActions && (
           <div
             className={cn(
               "ml-auto flex shrink-0 items-center gap-orbit-s",
@@ -4181,7 +4338,17 @@ function ModeSwitcher({
       {mode === "comparison" && canChooseRecommendationScope && bulkBannerOpen && !suppressBulkBannerRender && (
         <RecommendationBulkApplyBanner
           options={recommendationApplyOptions}
-          onApply={(options) => onApplyRecommendationOptions?.(options)}
+          onApply={(targets) => onApplyRecommendationOptions?.([
+            {
+              id: "manual-selection",
+              label: "Selected recommendations",
+              toastLabel: "selected recommendation",
+              undoLabel: "selected",
+              count: targets.length,
+              targets,
+            },
+          ])}
+          onUndoApply={onUndoAllRecommendations}
           onClose={() => setBulkBannerOpen(false)}
           onSelectedTargetsChange={onBulkSelectionChange}
         />
@@ -4190,85 +4357,170 @@ function ModeSwitcher({
   );
 }
 
-type RecommendationBulkBannerGroup = "status" | "deviation" | "category";
+type RecommendationBulkBannerAxis = "deviation" | "status" | "type";
 
 function RecommendationBulkApplyBanner({
   options,
   onApply,
   onClose,
   onSelectedTargetsChange,
+  onUndoApply,
 }: {
   options: RecommendationApplyOption[];
-  onApply: (options: RecommendationApplyOption[]) => void;
+  onApply: (targets: RecommendationTargetItem[]) => void;
   onClose: () => void;
   onSelectedTargetsChange?: (selectedClauseIds: Set<string>) => void;
+  onUndoApply?: () => void;
 }) {
-  const [activeGroup, setActiveGroup] = useState<RecommendationBulkBannerGroup>("status");
+  const [activeAxis, setActiveAxis] = useState<RecommendationBulkBannerAxis>("deviation");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [selectionMode, setSelectionMode] = useState<"all" | "scoped">("all");
   const [selection, setSelection] = useState<RecommendationApplyScope[]>([]);
-  const metadataToggleCardStyle: CSSProperties = { boxShadow: "var(--orbit-shadow-none)" };
+  const [pendingAxisSwitch, setPendingAxisSwitch] = useState<RecommendationBulkBannerAxis | null>(null);
+  const [applyConfirmOpen, setApplyConfirmOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
   const optionById = useMemo(() => new Map(options.map((option) => [option.id, option])), [options]);
   const allTargets = useMemo(() => mergeRecommendationApplyTargets(options), [options]);
-  const statusOptions = useMemo(() => buildRecommendationBulkBannerDropdownOptions(options, "status"), [options]);
-  const deviationOptions = useMemo(() => buildRecommendationBulkBannerDropdownOptions(options, "deviation"), [options]);
-  const categoryOptions = useMemo(() => buildRecommendationBulkBannerDropdownOptions(options, "category"), [options]);
-  const selectedTargets = useMemo(
-    () => filterRecommendationTargetsForBanner(allTargets, selection),
-    [allTargets, selection],
+  const totalTargetCount = allTargets.length;
+  const eligibleTargets = useMemo(
+    () => allTargets.filter((target) => recommendationTargetIsEligible(target)),
+    [allTargets],
   );
+  const selectedTargets = useMemo(() => {
+    if (selectionMode === "all" || selection.length === 0) return eligibleTargets;
+    return filterRecommendationTargetsForBanner(eligibleTargets, selection);
+  }, [eligibleTargets, selection, selectionMode]);
+  const selectedTargetIds = useMemo(() => new Set(selectedTargets.map((target) => target.id)), [selectedTargets]);
+  const deviationOptions = useMemo(
+    () => buildRecommendationBulkBannerAxisOptions(options, "deviation", eligibleTargets),
+    [eligibleTargets, options],
+  );
+  const statusOptions = useMemo(
+    () => buildRecommendationBulkBannerAxisOptions(options, "status", eligibleTargets),
+    [eligibleTargets, options],
+  );
+  const typeOptions = useMemo(
+    () => buildRecommendationBulkBannerAxisOptions(options, "type", eligibleTargets),
+    [eligibleTargets, options],
+  );
+  const activeOptions = activeAxis === "deviation" ? deviationOptions : activeAxis === "status" ? statusOptions : typeOptions;
   const selectedCount = selectedTargets.length;
   const addSelectedDisabled = selectedCount === 0;
+  const selectableActiveOptions = activeOptions.filter((option) => option.count > 0);
+  const readySummaryLabel = `${eligibleTargets.length} of ${totalTargetCount} ready`;
+  const scopeSummaryLabel = selectionMode === "all"
+    ? "All eligible clauses"
+    : summarizeBulkBannerScopeLabel(activeAxis, selection, optionById);
+  const highDeviationSelectedCount = useMemo(
+    () =>
+      selectedTargets.filter((target) => {
+        const deviationLevel = target.sourceDeviationLevel ?? severityToDeviationLevel(target.severity);
+        return deviationLevel === "High";
+      }).length,
+    [selectedTargets],
+  );
 
   useEffect(() => {
-    setSelection((current) => {
-      return current.filter((value) => {
-        const option = optionById.get(value);
-        return option ? recommendationOptionBelongsToBannerGroup(option, activeGroup) : false;
-      });
-    });
-  }, [activeGroup, optionById]);
+    onSelectedTargetsChange?.(selectedTargetIds);
+  }, [onSelectedTargetsChange, selectedTargetIds]);
 
   useEffect(() => {
-    onSelectedTargetsChange?.(new Set(selectedTargets.map((target) => target.id)));
-  }, [onSelectedTargetsChange, selectedTargets]);
+    if (!dropdownOpen) {
+      setPendingAxisSwitch(null);
+      return;
+    }
 
-  const activeOptions = activeGroup === "status"
-    ? statusOptions
-    : activeGroup === "deviation"
-      ? deviationOptions
-      : categoryOptions;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!dropdownRef.current) return;
+      if (dropdownRef.current.contains(event.target as Node)) return;
+      setDropdownOpen(false);
+      setPendingAxisSwitch(null);
+    };
 
-  const setSelectedValues = (values: string[]) => {
-    const scopedValues = values.filter((value): value is RecommendationApplyScope => {
-      const option = optionById.get(value as RecommendationApplyScope);
-      return option ? recommendationOptionBelongsToBannerGroup(option, activeGroup) : false;
-    });
-    setSelection(scopedValues);
-  };
+    const handleEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setDropdownOpen(false);
+      setPendingAxisSwitch(null);
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [dropdownOpen]);
+
+  const selectAllEligible = useCallback(() => {
+    setSelectionMode("all");
+    setSelection([]);
+    setPendingAxisSwitch(null);
+  }, []);
+
+  const setAxisScopedValues = useCallback((values: RecommendationApplyScope[]) => {
+    if (values.length === 0) {
+      selectAllEligible();
+      return;
+    }
+    setSelectionMode("scoped");
+    setSelection(values);
+  }, [selectAllEligible]);
+
+  const toggleScopeValue = useCallback((value: RecommendationApplyScope, checked: boolean) => {
+    setPendingAxisSwitch(null);
+    if (checked) {
+      const nextValues = Array.from(new Set([...selection.filter((scope) => {
+        const option = optionById.get(scope);
+        return option ? recommendationOptionBelongsToBannerAxis(option, activeAxis) : false;
+      }), value]));
+      setAxisScopedValues(nextValues);
+      return;
+    }
+    setAxisScopedValues(selection.filter((scope) => scope !== value));
+  }, [activeAxis, optionById, selection, setAxisScopedValues]);
+
+  const handleSelectAllAxisValues = useCallback(() => {
+    const values = selectableActiveOptions.map((option) => option.id);
+    setAxisScopedValues(values);
+  }, [selectableActiveOptions, setAxisScopedValues]);
+
+  const commitAxisSwitch = useCallback((axis: RecommendationBulkBannerAxis) => {
+    setActiveAxis(axis);
+    selectAllEligible();
+  }, [selectAllEligible]);
+
+  const handleAxisChange = useCallback((nextAxis: RecommendationBulkBannerAxis) => {
+    if (nextAxis === activeAxis) return;
+    if (selectionMode === "scoped" && selection.length > 0) {
+      setPendingAxisSwitch(nextAxis);
+      return;
+    }
+    commitAxisSwitch(nextAxis);
+  }, [activeAxis, commitAxisSwitch, selection.length, selectionMode]);
 
   const handleClose = () => {
-    setActiveGroup("status");
-    setSelection([]);
+    setActiveAxis("deviation");
+    setDropdownOpen(false);
+    selectAllEligible();
     onClose();
   };
 
-  const handleApply = () => {
+  const handleApplyConfirmed = () => {
     if (addSelectedDisabled) return;
-    const selectedOptions = selection
-      .map((value) => optionById.get(value))
-      .filter((option): option is RecommendationApplyOption => Boolean(option));
-    const scopeMeta = buildRecommendationApplyScopeMeta(selectedOptions);
-    onApply([
-      {
-        id: "all",
-        label: selectedOptions.length === 1 ? selectedOptions[0].label : "Selected recommendations",
-        toastLabel: scopeMeta?.toastLabel ?? "selected recommendation",
-        undoLabel: scopeMeta?.undoLabel ?? "selected",
-        count: selectedCount,
-        targets: selectedTargets,
-      },
-    ]);
-    setActiveGroup("status");
-    setSelection([]);
+    onApply(selectedTargets);
+    toast({
+      title: `${selectedCount} positions accepted`,
+      action: onUndoApply
+        ? {
+          label: "Undo",
+          onClick: onUndoApply,
+        }
+        : undefined,
+    });
+    setApplyConfirmOpen(false);
+    setDropdownOpen(false);
+    setActiveAxis("deviation");
+    selectAllEligible();
     onClose();
   };
 
@@ -4279,109 +4531,222 @@ function RecommendationBulkApplyBanner({
       role="region"
       aria-label="Bulk recommendation filters"
     >
-      <div className="clauseiq-v6-recommendation-bulk-banner-count">{selectedCount} Selected</div>
-      <div
-        role="tablist"
-        aria-label="Bulk metadata type"
-        className="clauseiq-v6-recommendation-bulk-banner-groups"
-      >
-        {[
-          { id: "status", label: "Change Target Status" },
-          { id: "deviation", label: "Deviation Level" },
-          { id: "category", label: "Clause Type" },
-        ].map((group) => (
-          <ToggleCard
-            key={group.id}
-            status={(activeGroup === group.id ? "Selected" : "Default") as React.ComponentProps<typeof ToggleCard>["status"]}
-            aria-pressed={activeGroup === group.id}
-            onClick={() => {
-              setActiveGroup(group.id as RecommendationBulkBannerGroup);
-              setSelection([]);
-            }}
-            className={cn(
-              "clauseiq-v6-recommendation-bulk-group-card w-auto overflow-hidden",
-              activeGroup !== group.id && "clauseiq-v6a-togglecard-subtle",
-            )}
-            style={metadataToggleCardStyle}
-          >
-            <span className="inline-flex min-h-8 items-center justify-start px-orbit-s py-orbit-xs text-left">
-              <Text as="span" size="Small" variant={activeGroup === group.id ? "Default" : "Secondary"}>
-                {group.label}
-              </Text>
-            </span>
-          </ToggleCard>
-        ))}
+      <div className="clauseiq-v6-recommendation-bulk-banner-count">
+        <span className="clauseiq-v6-recommendation-bulk-banner-checkmark" aria-hidden="true">
+          <CheckCircle2 className="h-4 w-4" />
+        </span>
+        <span>{selectedCount} selected</span>
       </div>
-      <div className="clauseiq-v6-recommendation-bulk-banner-controls">
-        <MultiSelectDropdown
-          ariaLabel={
-            activeGroup === "status"
-              ? "Clause Target Status"
-              : activeGroup === "deviation"
-                ? "Deviation Level"
-                : "Clause Type"
-          }
-          placeholder={
-            activeGroup === "status"
-              ? "Clause Target Status"
-              : activeGroup === "deviation"
-                ? "Deviation Level"
-                : "Clause Type"
-          }
-          options={activeOptions}
-          value={selection}
-          onChange={setSelectedValues}
-        />
+      <div className="clauseiq-v6-recommendation-bulk-banner-divider" aria-hidden="true" />
+      <div className="clauseiq-v6-recommendation-bulk-banner-label">Apply to</div>
+      <div className="clauseiq-v6-recommendation-bulk-banner-controls" ref={dropdownRef}>
+        <OrbitButton
+          variant="Secondary"
+          size="Medium"
+          state="Default"
+          className="clauseiq-v6-recommendation-bulk-banner-trigger"
+          aria-haspopup="dialog"
+          aria-expanded={dropdownOpen}
+          aria-controls="clauseiq-v6-recommendation-bulk-dropdown"
+          onClick={() => setDropdownOpen((current) => !current)}
+          iconRight={<ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", dropdownOpen && "rotate-180")} />}
+        >
+          <span className="clauseiq-v6-recommendation-bulk-banner-trigger-label">{scopeSummaryLabel}</span>
+        </OrbitButton>
+        {dropdownOpen && (
+          <div className="clauseiq-v6-recommendation-bulk-dropdown-shell">
+            <Card type="Static" padding="Base" state="Default" indicator={false}>
+              <div
+                id="clauseiq-v6-recommendation-bulk-dropdown"
+                className="clauseiq-v6-recommendation-bulk-dropdown"
+                role="dialog"
+                aria-label="Apply recommendation scope"
+              >
+                <div className="clauseiq-v6-recommendation-bulk-dropdown-tabs" role="tablist" aria-label="Recommendation filters">
+                  <TabButton active={activeAxis === "deviation"} onClick={() => handleAxisChange("deviation")} className="clauseiq-v6-recommendation-bulk-dropdown-tab">Deviation</TabButton>
+                  <TabButton active={activeAxis === "status"} onClick={() => handleAxisChange("status")} className="clauseiq-v6-recommendation-bulk-dropdown-tab">Status</TabButton>
+                  <TabButton active={activeAxis === "type"} onClick={() => handleAxisChange("type")} className="clauseiq-v6-recommendation-bulk-dropdown-tab">Type</TabButton>
+                </div>
+                {pendingAxisSwitch ? (
+                  <div className="clauseiq-v6-recommendation-bulk-switch-confirm" role="alert">
+                    <p>
+                      Switch to {recommendationBulkBannerAxisLabel(pendingAxisSwitch)}? This clears your {selection.length}{" "}
+                      {activeAxis === "deviation" ? "deviation levels" : activeAxis === "status" ? "statuses" : "types"}.
+                    </p>
+                    <div className="clauseiq-v6-recommendation-bulk-switch-confirm-actions">
+                      <OrbitButton variant="Secondary" size="Small" state="Default" onClick={() => setPendingAxisSwitch(null)}>
+                        Cancel
+                      </OrbitButton>
+                      <OrbitButton
+                        variant="Primary"
+                        size="Small"
+                        state="Default"
+                        onClick={() => pendingAxisSwitch && commitAxisSwitch(pendingAxisSwitch)}
+                      >
+                        Switch
+                      </OrbitButton>
+                    </div>
+                  </div>
+                ) : null}
+                <div className="clauseiq-v6-recommendation-bulk-dropdown-header">
+                  <Text as="span" size="Small" weight="semi-bold">
+                    {selectionMode === "all"
+                      ? "All eligible clauses"
+                      : activeAxis === "deviation"
+                        ? "Select deviation levels"
+                        : activeAxis === "status"
+                          ? "Select statuses"
+                          : "Select clause types"}
+                  </Text>
+                  <OrbitButton
+                    variant="Tertiary"
+                    size="Small"
+                    state="Default"
+                    className="clauseiq-v6-recommendation-bulk-dropdown-link"
+                    onClick={selectionMode === "all" ? handleSelectAllAxisValues : selectAllEligible}
+                  >
+                    {selectionMode === "all" ? "Select all" : "Reset"}
+                  </OrbitButton>
+                </div>
+                <div className="clauseiq-v6-recommendation-bulk-dropdown-row clauseiq-v6-recommendation-bulk-dropdown-row-all clauseiq-v6-recommendation-bulk-dropdown-row-orbit">
+                  <OrbitCheckbox
+                    checked={selectionMode === "all"}
+                    ariaLabel="All eligible clauses"
+                    label="All eligible clauses"
+                    onChange={(checked) => {
+                      if (checked) selectAllEligible();
+                    }}
+                  />
+                  <span className="clauseiq-v6-recommendation-bulk-dropdown-row-count">
+                    {readySummaryLabel}
+                  </span>
+                </div>
+                <div className="clauseiq-v6-recommendation-bulk-dropdown-options">
+                  {activeOptions.map((option) => {
+                    const disabled = option.count === 0;
+                    const checked = selectionMode === "scoped" && selection.includes(option.id);
+                    return (
+                      <div
+                        key={option.id}
+                        className={cn(
+                          "clauseiq-v6-recommendation-bulk-dropdown-row",
+                          "clauseiq-v6-recommendation-bulk-dropdown-row-orbit",
+                          checked && "is-selected",
+                          disabled && "is-disabled",
+                        )}
+                      >
+                        <OrbitCheckbox
+                          checked={checked}
+                          state={disabled ? "Disabled" : "Active"}
+                          ariaLabel={option.label}
+                          label={option.label}
+                          onChange={(nextChecked) => toggleScopeValue(option.id, nextChecked)}
+                        />
+                        <span className="clauseiq-v6-recommendation-bulk-dropdown-row-count">{disabled ? "—" : option.count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="clauseiq-v6-recommendation-bulk-dropdown-footer">
+                  <Text as="span" size="Small" weight="semi-bold" aria-live="polite">
+                    {selectedCount} selected
+                  </Text>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
       <div className="clauseiq-v6-recommendation-bulk-banner-actions">
-        <Button
-          variant="default"
-          className="h-8 shrink-0 px-orbit-base text-xs"
+        <OrbitButton
+          variant="Primary"
+          size="Medium"
+          state={addSelectedDisabled ? "Disabled" : "Default"}
+          className="shrink-0"
           disabled={addSelectedDisabled}
-          onClick={handleApply}
+          onClick={() => setApplyConfirmOpen(true)}
         >
-          Bulk Apply Recommended Position
-        </Button>
-        <button
-          type="button"
+          Accept recommended positions
+        </OrbitButton>
+        <IconButton
+          variant="Tertiary"
+          size="Small"
+          state="Default"
           className="clauseiq-v6-recommendation-bulk-banner-close"
-          aria-label="Close bulk recommendation banner"
+          ariaLabel="Close bulk recommendation banner"
           onClick={handleClose}
-        >
-          <X className="h-4 w-4" />
-        </button>
+          icon={<FaIcon icon={FA.xmark} size={12} color="currentColor" />}
+        />
       </div>
+      <V6OrbitConfirmOverlay
+        open={applyConfirmOpen}
+        onOpenChange={setApplyConfirmOpen}
+        title={`Accept ${selectedCount} position${selectedCount === 1 ? "" : "s"}?`}
+        description={`${highDeviationSelectedCount} ${highDeviationSelectedCount === 1 ? "is" : "are"} high deviation.`}
+        confirmLabel={`Accept ${selectedCount}`}
+        onConfirm={handleApplyConfirmed}
+      />
     </div>
   );
 }
 
-function buildRecommendationBulkBannerDropdownOptions(
+function buildRecommendationBulkBannerAxisOptions(
   options: RecommendationApplyOption[],
-  group: RecommendationBulkBannerGroup,
+  axis: RecommendationBulkBannerAxis,
+  eligibleTargets: RecommendationTargetItem[],
 ) {
   return options
-    .filter((option) => recommendationOptionBelongsToBannerGroup(option, group))
-    .map((option) => ({
-      label: recommendationBulkBannerOptionLabel(option),
-      value: option.id,
-    }));
+    .filter((option) => recommendationOptionBelongsToBannerAxis(option, axis))
+    .map((option) => {
+      const label = recommendationBulkBannerOptionLabel(option);
+      const count = filterRecommendationTargetsForBanner(eligibleTargets, [option.id]).length;
+      return {
+        id: option.id,
+        label,
+        count,
+      };
+    });
 }
 
-function recommendationOptionBelongsToBannerGroup(
+function recommendationTargetIsEligible(target: RecommendationTargetItem) {
+  const hasRecommendation = Boolean(target.request.requestedChange?.trim());
+  if (!hasRecommendation) return false;
+  if (target.missingClause) return false;
+  if (target.verdict === "met") return false;
+  return true;
+}
+
+function recommendationOptionBelongsToBannerAxis(
   option: RecommendationApplyOption,
-  group: RecommendationBulkBannerGroup,
+  axis: RecommendationBulkBannerAxis,
 ) {
-  if (group === "status") {
-    return (
-      option.id === "verdict:notmet" ||
-      option.id === "verdict:met" ||
-      option.id === "missing"
-    );
+  if (axis === "status") {
+    return option.id === "verdict:notmet" || option.id === "verdict:met" || option.id === "missing";
   }
-  if (group === "deviation") {
+  if (axis === "deviation") {
     return option.id === "high" || option.id === "medium" || option.id === "low" || option.id === "none";
   }
   return typeof option.id === "string" && option.id.startsWith("category:");
+}
+
+function recommendationBulkBannerAxisLabel(axis: RecommendationBulkBannerAxis) {
+  if (axis === "status") return "Status";
+  if (axis === "type") return "Type";
+  return "Deviation";
+}
+
+function summarizeBulkBannerScopeLabel(
+  axis: RecommendationBulkBannerAxis,
+  values: RecommendationApplyScope[],
+  optionById: Map<RecommendationApplyScope, RecommendationApplyOption>,
+) {
+  const labels = values
+    .map((value) => optionById.get(value))
+    .filter((option): option is RecommendationApplyOption => Boolean(option))
+    .map((option) => recommendationBulkBannerOptionLabel(option));
+  if (labels.length === 0) return "All eligible clauses";
+  if (labels.length <= 2) return `${recommendationBulkBannerAxisLabel(axis)}: ${labels.join(", ")}`;
+  return `${recommendationBulkBannerAxisLabel(axis)}: ${labels[0]} +${labels.length - 1}`;
 }
 
 function recommendationBulkBannerOptionLabel(option: RecommendationApplyOption) {
@@ -5031,7 +5396,7 @@ function IssueWeightedScoreOption({
 }) {
   const current = model.current;
   return (
-    <div className="space-y-orbit-base">
+    <div className="space-y-orbit-xs">
       <OverviewSectionLabel>What's driving the score</OverviewSectionLabel>
       <BulletScoreBar score={current.score} previousScore={model.previous?.score} />
       <HybridRiskDriverRows drivers={current.topDrivers} onClauseSelect={onClauseSelect} />
@@ -6045,7 +6410,7 @@ function ClauseRequestForm({
     <div
       className={cn(
         embedded ? "" : "mt-orbit-base border-t border-border pt-orbit-base",
-        compact ? "space-y-orbit-s" : "space-y-orbit-base",
+        compact ? "space-y-orbit-s" : "space-y-orbit-xs",
       )}
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
@@ -6064,7 +6429,7 @@ function ClauseRequestForm({
       )}
       <div className="grid w-full gap-orbit-base">
         <div className="space-y-orbit-xs">
-          <label className="text-[11px] v6-orbit-weight-semibold text-muted-foreground">
+          <label className="v6-orbit-text-small v6-orbit-weight-semibold text-muted-foreground">
             Set Custom Position
           </label>
           <Textarea
@@ -6139,6 +6504,7 @@ function ClauseDecisionCard({
   onOpenDetail,
   bulkSelectionEnabled = false,
   bulkSelectedClauseIds,
+  onBulkClauseSelectionChange,
   hideStandaloneDraftForm = false,
   suppressRequestActions = false,
   neutralActions = false,
@@ -6185,11 +6551,13 @@ function ClauseDecisionCard({
   onOpenDetail: () => void;
   bulkSelectionEnabled?: boolean;
   bulkSelectedClauseIds?: Set<string>;
+  onBulkClauseSelectionChange?: (clauseId: string, selected: boolean) => void;
   hideStandaloneDraftForm?: boolean;
   suppressRequestActions?: boolean;
   neutralActions?: boolean;
   selectedComparisonAction?: "accepted";
 }) {
+  const bulkSelectionContext = useContext(BulkClauseSelectionContext);
   const [queuedExpanded, setQueuedExpanded] = useState(false);
   const useDefaultComparisonCard = Boolean(extraContent && !neutralActions);
   const pendingBasketRequest = request?.state === "pending" && Boolean(request.requestedChange?.trim());
@@ -6202,8 +6570,8 @@ function ClauseDecisionCard({
   const noActionIsPrimary = !neutralActions && clause.severity === "low";
   const noneDeviationClause = isNoneDeviationClause(clause);
   const showRequestActions = !suppressRequestActions && !noneDeviationClause && !settled && !actions && !showHandledCompact;
-  const showBulkSelectionCheckbox = bulkSelectionEnabled && useDefaultComparisonCard;
-  const bulkClauseSelected = bulkSelectedClauseIds?.has(id) ?? false;
+  const showBulkSelectionCheckbox = (bulkSelectionEnabled || bulkSelectionContext.enabled) && useDefaultComparisonCard;
+  const bulkClauseSelected = bulkSelectedClauseIds?.has(id) ?? bulkSelectionContext.selectedClauseIds.has(id);
   const useV6StatusTags = isInitiativesV6Route();
   const useV6DeviationCard = isInitiativesV6Route() && neutralActions;
   const useFirstAnalysisDeviationStyle = neutralActions && hideSubclauseReference && clause.severity === "high";
@@ -6281,10 +6649,11 @@ function ClauseDecisionCard({
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-orbit-xs">
               {showBulkSelectionCheckbox && (
-                <Checkbox
+              <Checkbox
                   checked={bulkClauseSelected}
                   aria-label={`Bulk selected ${id.toUpperCase()}`}
-                  className="shrink-0 pointer-events-none"
+                  className="shrink-0 self-center"
+                  onCheckedChange={(checked) => (onBulkClauseSelectionChange ?? bulkSelectionContext.onSelectionChange)(id, checked === true)}
                 />
               )}
               <h3 className="v6-orbit-heading-label truncate text-foreground">
@@ -6800,7 +7169,12 @@ function ResultCardPanel({
       <Text as="p" size="Small" variant={labelVariant}>
         {label}
       </Text>
-      <p className="mt-orbit-xs v6-orbit-text-small leading-snug text-foreground">{text}</p>
+      <p
+        className="mt-orbit-xs v6-orbit-text-small text-foreground"
+        style={{ "--orbit-text-small-leading": "1.5" } as CSSProperties}
+      >
+        {text}
+      </p>
       {content ? <div className="mt-orbit-s">{content}</div> : null}
       {footer ? <div className="mt-orbit-s flex flex-wrap items-center gap-orbit-xs">{footer}</div> : null}
     </div>
@@ -6809,6 +7183,7 @@ function ResultCardPanel({
 
 function SimplifiedComparisonContent({
   target,
+  rationale,
   previousLabel,
   previousText,
   currentLabel,
@@ -6817,6 +7192,7 @@ function SimplifiedComparisonContent({
   targetFooter,
 }: {
   target?: string;
+  rationale?: RecommendationRationale;
   previousLabel?: string;
   previousText?: string;
   currentLabel: string;
@@ -6826,6 +7202,8 @@ function SimplifiedComparisonContent({
 }) {
   const targetText = target?.trim();
   const hasPrevious = Boolean(previousLabel && previousText);
+  const [rationaleOpen, setRationaleOpen] = useState(false);
+  const recommendationRationale = rationale ?? (targetText ? getRecommendationRationale(undefined, targetText) : undefined);
 
   return (
     <div className="space-y-orbit-s v6-orbit-text-small">
@@ -6844,10 +7222,114 @@ function SimplifiedComparisonContent({
           text={targetText}
           tone="primary"
           content={targetContent}
-          footer={targetFooter}
+          footer={
+            <>
+              {recommendationRationale && (
+                <Button
+                  variant="outline"
+                  className="h-8 v6-orbit-text-small"
+                  onClick={() => setRationaleOpen(true)}
+                >
+                  View Rationale
+                </Button>
+              )}
+              {targetFooter}
+            </>
+          }
+        />
+      )}
+      {recommendationRationale && (
+        <RecommendationRationaleDialog
+          open={rationaleOpen}
+          onOpenChange={setRationaleOpen}
+          rationale={recommendationRationale}
         />
       )}
     </div>
+  );
+}
+
+interface RecommendationRationale {
+  title: string;
+  explanation: string[];
+  playbookWording?: string;
+  guidance: string;
+}
+
+function getRecommendationRationale(clauseId: string | undefined, recommendation: string): RecommendationRationale {
+  if (clauseId === "c42") {
+    return {
+      title: "Scope of Indemnity in Favour of Buyer",
+      explanation: [
+        "The contract contains detailed data breach notification obligations on the Supplier, including a 72-hour notification period, prompt written notice, and immediate notification of security incidents. Those provisions align with GDPR Article 33 and protect the Buyer's regulatory position. However, the best practices require specific procedural wording for infringement claims that addresses notice, control of defence, and assistance obligations; that wording is not present in the contract's data breach provisions.",
+        "The contract addresses data privacy breaches and security incidents, but the best practices concern intellectual property infringement claims and the procedural framework for indemnification defence. These are distinct legal issues: data breach notification is covered, whereas IP infringement claim procedures are missing. The absence of the required wording creates a material gap in the indemnification framework, particularly around the Buyer's obligations to notify, grant control, and assist the Supplier in defending IP claims.",
+        "This is a High deviation because the missing procedural wording affects the enforceability and practical operation of the indemnification clause. Without clear procedural terms, disputes may arise over whether the Buyer has properly triggered the Supplier's indemnification obligations, potentially leaving the Buyer exposed to IP claims without recourse.",
+      ],
+      playbookWording: "Provided that Buyer:\n1. notifies Supplier in writing of the Infringement Claim immediately on becoming aware of it; and\n2. grants sole control of the defence of the Infringement Claim to Supplier; and\n3. gives Supplier complete and accurate information and full assistance to enable Supplier to settle or defend the Infringement Claim.\n(...) ",
+      guidance: "Insert the required wording in the indemnification section, not the data breach section. Resist additional Buyer obligations that would create barriers to claiming indemnification.",
+    };
+  }
+
+  if (clauseId === "c31") {
+    return {
+      title: "Payment Terms",
+      explanation: [
+        "The latest analysis shows payment terms at Net 45. That is closer to the benchmark but remains short of the Net 60 position used by the group treasury policy.",
+        "Moving to Net 60 improves working-capital protection and gives the Buyer a consistent payment position across comparable supplier arrangements.",
+      ],
+      guidance: "Use the recommended position as the starting point for negotiation and retain the benchmark reference PT-01 if the Supplier proposes a shorter period.",
+    };
+  }
+
+  return {
+    title: "Recommended position rationale",
+    explanation: [
+      `The recommendation is based on the gap identified in the current clause analysis: ${recommendation}`,
+      "It is intended to align the supplier wording with the relevant benchmark while keeping the requested change specific and practical to negotiate.",
+    ],
+    guidance: "Use this as negotiation guidance and confirm the final wording against the applicable playbook before accepting the supplier position.",
+  };
+}
+
+function RecommendationRationaleDialog({
+  open,
+  onOpenChange,
+  rationale,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  rationale: RecommendationRationale;
+}) {
+  return (
+    <V6OrbitOverlay
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Rationale"
+      description={rationale.title}
+      size="Large"
+      modalKey="recommendation-rationale"
+      footer={
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+        </div>
+      }
+    >
+      <div className="space-y-orbit-base">
+        {rationale.explanation.map((paragraph) => (
+          <p key={paragraph} className="v6-orbit-text-body text-foreground">{paragraph}</p>
+        ))}
+        {rationale.playbookWording && (
+          <div className="rounded-md border border-border bg-muted/20 p-orbit-base">
+            <p className="v6-orbit-text-small v6-orbit-weight-semibold text-foreground">Exact wording from playbook</p>
+            <p className="mt-orbit-s whitespace-pre-line v6-orbit-text-small text-foreground">{rationale.playbookWording}</p>
+          </div>
+        )}
+        <div className="rounded-md border-l-2 border-primary bg-primary/5 px-orbit-base py-orbit-s">
+          <p className="v6-orbit-text-small v6-orbit-weight-semibold text-primary">Guidance</p>
+          <p className="mt-orbit-xs v6-orbit-text-small text-foreground">{rationale.guidance}</p>
+        </div>
+      </div>
+    </V6OrbitOverlay>
   );
 }
 
@@ -7577,6 +8059,7 @@ function ReviewScreen({
   onOpenDetail,
   bulkSelectionEnabled = false,
   bulkSelectedClauseIds,
+  onBulkClauseSelectionChange,
   highlightedId,
 }: {
   version: ContractVersion;
@@ -7602,6 +8085,7 @@ function ReviewScreen({
   onOpenDetail: (id: string) => void;
   bulkSelectionEnabled?: boolean;
   bulkSelectedClauseIds?: Set<string>;
+  onBulkClauseSelectionChange?: (clauseId: string, selected: boolean) => void;
   highlightedId?: string | null;
 }) {
   const [pendingDraftCancelId, setPendingDraftCancelId] = useState<string | null>(null);
@@ -7707,6 +8191,7 @@ function ReviewScreen({
             onOpenDetail={() => onOpenDetail(c.id)}
             bulkSelectionEnabled={bulkSelectionEnabled}
             bulkSelectedClauseIds={bulkSelectedClauseIds}
+            onBulkClauseSelectionChange={onBulkClauseSelectionChange}
             neutralActions={neutralActions}
           />
         );
@@ -7772,6 +8257,7 @@ function ComparisonSection(props: {
   overrideVerdict?: ClauseVerdict | null;
   bulkSelectionEnabled?: boolean;
   bulkSelectedClauseIds?: Set<string>;
+  onBulkClauseSelectionChange?: (clauseId: string, selected: boolean) => void;
 }) {
   const {
     title, description, accent, rows, leftLabel, rightLabel, visible, bucket, stats,
@@ -7780,7 +8266,7 @@ function ComparisonSection(props: {
     onReopenAcceptedDecision,
     pinnedIds, onTogglePin, recentlyClosed, onUndoClose, draftOf,
     onUpdateText, onCancelDraft, onSubmitDraft, onConfirmVerdictFromAction, stateOf, layout = "collapsible", overrideVerdict,
-    bulkSelectionEnabled = false, bulkSelectedClauseIds,
+    bulkSelectionEnabled = false, bulkSelectedClauseIds, onBulkClauseSelectionChange,
   } = props;
   const [open, setOpen] = useState(false);
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
@@ -7908,6 +8394,7 @@ function ComparisonSection(props: {
         const comparisonDetails = (
           <SimplifiedComparisonContent
             target={comparisonBestPractice}
+            rationale={getRecommendationRationale(r.id, comparisonBestPractice ?? "")}
             previousLabel={`Previous Summary · ${leftLabel}`}
             previousText={r.prev?.deviation ?? "Clause did not exist."}
             currentLabel={`Current Summary · ${rightLabel}`}
@@ -7931,7 +8418,15 @@ function ComparisonSection(props: {
               ) : undefined
             }
             targetFooter={
-              canShowOutcomeFooter && bucket === "closed" ? (
+              canShowOutcomeFooter && isNoneDeviationClause(display) ? (
+                <Button
+                  variant="outline"
+                  className="h-8 v6-orbit-text-small"
+                  onClick={() => openReviseTargetEditor()}
+                >
+                  {CLAUSE_ACTION_LABELS.reviseTarget}
+                </Button>
+              ) : canShowOutcomeFooter && bucket === "closed" ? (
                 <>
                   <Button
                     variant="outline"
@@ -8050,6 +8545,7 @@ function ComparisonSection(props: {
             onOpenDetail={() => onOpenDetail(r.id)}
             bulkSelectionEnabled={bulkSelectionEnabled}
             bulkSelectedClauseIds={bulkSelectedClauseIds}
+            onBulkClauseSelectionChange={onBulkClauseSelectionChange}
             suppressRequestActions
           />
         );
@@ -8090,7 +8586,7 @@ function ComparisonSection(props: {
                   <span className="text-[11px] v6-orbit-weight-medium text-muted-foreground">{bucketSummary}</span>
                 )}
               </div>
-              <p className="mt-orbit-xs v6-orbit-text-small text-muted-foreground">{description}</p>
+              <p className="mt-orbit-xs v6-orbit-text-small text-muted-foreground" style={{ lineHeight: 1.5 }}>{description}</p>
             </div>
           </div>
           {rowsContent}
@@ -8119,7 +8615,7 @@ function ComparisonSection(props: {
                 <span className="text-[11px] v6-orbit-weight-medium text-muted-foreground">{bucketSummary}</span>
               )}
             </div>
-            <p className="mt-orbit-xs v6-orbit-text-small text-muted-foreground">{description}</p>
+            <p className="mt-orbit-xs v6-orbit-text-small text-muted-foreground" style={{ lineHeight: 1.5 }}>{description}</p>
           </div>
           <ChevronDown className={`mt-orbit-xs h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
@@ -8135,7 +8631,7 @@ function ComparisonSection(props: {
 function UnmarkedSection({
   rows, leftLabel, rightLabel, visible, defaultOpen,
   requestOf, draftOf, isRequested, decisionOf, isDrafting, onRequestChange, onSetNoAction, onUpdateText, onCancelDraft, onSubmitDraft, onRemoveRequest, onOpenDetail,
-  bulkSelectionEnabled = false, bulkSelectedClauseIds,
+  bulkSelectionEnabled = false, bulkSelectedClauseIds, onBulkClauseSelectionChange,
 }: {
   rows: { id: string; prev?: ClauseResult; curr?: ClauseResult }[];
   leftLabel: string;
@@ -8156,6 +8652,7 @@ function UnmarkedSection({
   onOpenDetail: (id: string) => void;
   bulkSelectionEnabled?: boolean;
   bulkSelectedClauseIds?: Set<string>;
+  onBulkClauseSelectionChange?: (clauseId: string, selected: boolean) => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -8276,6 +8773,7 @@ function UnmarkedSection({
             onOpenDetail={() => onOpenDetail(r.id)}
             bulkSelectionEnabled={bulkSelectionEnabled}
             bulkSelectedClauseIds={bulkSelectedClauseIds}
+            onBulkClauseSelectionChange={onBulkClauseSelectionChange}
           />
                     );
                   })}

@@ -124,6 +124,7 @@ export function DesignOptionSwitcher({
 export function ComparisonDesignOptions({
   option,
   banner,
+  introBanner,
   comparisonControl,
   stripStats,
   panel,
@@ -146,6 +147,7 @@ export function ComparisonDesignOptions({
 }: {
   option: ComparisonDesignOption;
   banner?: ReactNode;
+  introBanner?: ReactNode;
   comparisonControl: ReactNode;
   stripStats: ComparisonStripStats;
   panel: VersionPanelData;
@@ -174,36 +176,39 @@ export function ComparisonDesignOptions({
 }) {
   if (option === "side-by-side" || option === "row-scale") {
     return (
-      <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-base py-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
-        <aside className="xl:sticky xl:top-[100px] xl:self-start">
-          <section className="flex overflow-hidden rounded-lg border border-border bg-card xl:h-[calc(100vh-180px)] xl:flex-col">
-            <div className="min-h-0 flex-1 overflow-y-auto p-orbit-base">
-              <ComparisonSummaryRail
-                panel={panel}
-                stripStats={stripStats}
-                contractName={contractName}
-                supplierName={supplierName}
-                leftLabel={leftLabel}
-                rightLabel={rightLabel}
-                comparisonControl={comparisonControl}
-                activeMetric={activeEvidenceMetric}
-                onMetricSelect={onEvidenceMetricSelect}
-                metrics={evidenceMetrics}
-                simplifyStatusMetrics={simplifyStatusMetrics}
-              />
-              <CategoryFiltersSection>{categoryPanel}</CategoryFiltersSection>
-            </div>
-          </section>
-        </aside>
-        <div id="comparison-work-column" className="min-w-0 space-y-orbit-base">
-          {banner}
-          <WorkflowStack
-            openItems={openItems}
-            newChanges={newChanges}
-            closedItems={closedItems}
-            noActionItems={noActionItems}
-            unmarkedClauses={unmarkedClauses}
-          />
+      <div className="mx-auto w-full max-w-[1500px] space-y-orbit-base px-orbit-base py-orbit-base">
+        {introBanner}
+        <div className="grid gap-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
+          <aside className="xl:sticky xl:top-[100px] xl:self-start">
+            <section className="flex overflow-hidden rounded-lg border border-border bg-card xl:h-[calc(100vh-180px)] xl:flex-col">
+              <div className="min-h-0 flex-1 overflow-y-auto p-orbit-base">
+                <ComparisonSummaryRail
+                  panel={panel}
+                  stripStats={stripStats}
+                  contractName={contractName}
+                  supplierName={supplierName}
+                  leftLabel={leftLabel}
+                  rightLabel={rightLabel}
+                  comparisonControl={comparisonControl}
+                  activeMetric={activeEvidenceMetric}
+                  onMetricSelect={onEvidenceMetricSelect}
+                  metrics={evidenceMetrics}
+                  simplifyStatusMetrics={simplifyStatusMetrics}
+                />
+                <CategoryFiltersSection>{categoryPanel}</CategoryFiltersSection>
+              </div>
+            </section>
+          </aside>
+          <div id="comparison-work-column" className="min-w-0 space-y-orbit-base">
+            {banner}
+            <WorkflowStack
+              openItems={openItems}
+              newChanges={newChanges}
+              closedItems={closedItems}
+              noActionItems={noActionItems}
+              unmarkedClauses={unmarkedClauses}
+            />
+          </div>
         </div>
       </div>
     );
@@ -211,6 +216,7 @@ export function ComparisonDesignOptions({
 
   return (
     <div className="mx-auto w-full max-w-[1500px] space-y-orbit-base px-orbit-base py-orbit-base">
+      {introBanner}
       <section className="grid items-stretch gap-orbit-base xl:grid-cols-2">
         <NarrativeSummary
           stripStats={stripStats}
@@ -343,7 +349,7 @@ function CategoryFiltersSection({ children }: { children: ReactNode }) {
   return (
     <div className="mt-orbit-base pt-orbit-base">
       <div className="mb-orbit-s">
-        <p className="v6-orbit-text-small v6-orbit-weight-semibold text-[var(--orbit-color-text-secondary)]">Clause Name</p>
+        <p className="v6-orbit-text-small v6-orbit-weight-semibold text-[var(--orbit-color-text-secondary)]">Clause</p>
       </div>
       <SidebarFiltersPanel>{children}</SidebarFiltersPanel>
     </div>

@@ -47,26 +47,36 @@ function openRecommendationMenu() {
 
 function selectedBannerCount() {
   const banner = screen.getByRole("region", { name: /bulk recommendation filters/i });
-  const match = banner.textContent?.match(/(\d+) Selected/);
+  const match = banner.textContent?.match(/(\d+)\s+selected/i);
   return match ? Number(match[1]) : 0;
 }
 
-function getBulkDropdownTrigger(name: RegExp) {
+function getBulkDropdownTrigger() {
   const banner = screen.getByRole("region", { name: /bulk recommendation filters/i });
-  return within(banner).getByRole("combobox", { name });
+  return within(banner).getByRole("button", { name: /all eligible clauses|deviation:|status:|type:/i });
 }
 
-function openBulkDropdown(name: RegExp) {
-  fireEvent.click(getBulkDropdownTrigger(name));
+function openBulkDropdown() {
+  fireEvent.click(getBulkDropdownTrigger());
 }
 
-function applyRecommendationOptions(...names: RegExp[]) {
+function selectBulkAxis(name: "Deviation" | "Status" | "Type") {
+  fireEvent.click(screen.getByRole("tab", { name }));
+}
+
+function toggleBulkCheckbox(name: RegExp) {
+  fireEvent.click(screen.getByRole("checkbox", { name }));
+}
+
+function applyRecommendationOptions(axis: "Deviation" | "Status" | "Type", ...names: RegExp[]) {
   openRecommendationMenu();
-  openBulkDropdown(/Deviation Level/i);
+  openBulkDropdown();
+  selectBulkAxis(axis);
   names.forEach((name) => {
-    fireEvent.click(screen.getByRole("option", { name }));
+    toggleBulkCheckbox(name);
   });
-  fireEvent.click(screen.getByRole("button", { name: /Bulk Apply Recommended Position/i }));
+  fireEvent.click(screen.getByRole("button", { name: /Accept recommended positions/i }));
+  fireEvent.click(screen.getByRole("button", { name: /Accept \d+/i }));
 }
 
 function generateCsv() {
@@ -174,7 +184,7 @@ describe("ContractResults V6A review controls", () => {
     const bulkApplyButton = screen.getByRole("button", { name: /bulk action/i });
     expect(bulkApplyButton).toBeEnabled();
 
-    applyRecommendationOptions(/High Deviation/i);
+    applyRecommendationOptions("Deviation", /High/i);
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /review & generate/i })).toBeEnabled();
@@ -331,7 +341,7 @@ describe("ContractResults V6A review controls", () => {
     expect(acceptScope.queryByRole("button", { name: "Accept Supplier Position" })).not.toBeInTheDocument();
   });
 
-  it("opens the bulk recommendation banner with empty selected state and scoped dropdowns", () => {
+  it("opens the bulk recommendation banner with all eligible clauses selected by default", () => {
     renderContractResults();
 
     expect(screen.getByText("Bulk Action")).toBeInTheDocument();
@@ -341,69 +351,59 @@ describe("ContractResults V6A review controls", () => {
 
     expect(screen.queryByRole("menu", { name: /bulk action options/i })).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: /bulk recommendation filters/i })).toBeInTheDocument();
-    expect(screen.getByText("0 Selected")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Bulk Apply Recommended Position" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Clause Target Status" })).toHaveAttribute("aria-pressed", "true");
-    expect(getBulkDropdownTrigger(/Clause Target Status/i)).toBeInTheDocument();
+    expect(selectedBannerCount()).toBeGreaterThan(0);
+    expect(screen.queryByText(/^0 selected$/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Accept recommended positions/i })).toBeEnabled();
 
-    openBulkDropdown(/Clause Target Status/i);
-    expect(screen.getByRole("option", { name: "Not Met" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Met" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Missing" })).toBeInTheDocument();
+    openBulkDropdown();
+    expect(screen.getByRole("tab", { name: "Deviation" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("checkbox", { name: "All eligible clauses" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "High" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Medium" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Low" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "None" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Deviation Level" }));
+    selectBulkAxis("Status");
+    expect(screen.getByRole("checkbox", { name: "Not Met" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Met" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Missing" })).toBeInTheDocument();
 
-    expect(getBulkDropdownTrigger(/Deviation Level/i)).toBeInTheDocument();
-    openBulkDropdown(/Deviation Level/i);
-
-    expect(screen.getByRole("option", { name: "High" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Medium" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Low" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "None" })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Clause Type" }));
-    openBulkDropdown(/Clause Type/i);
-    expect(screen.getByRole("option", { name: "Commercial Mechanics" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Miscellaneous" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Warranties and Liability" })).toBeInTheDocument();
+    selectBulkAxis("Type");
+    expect(screen.getByRole("checkbox", { name: "Commercial Mechanics" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Miscellaneous" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Warranties and Liability" })).toBeInTheDocument();
   });
 
-  it("adds selected values within the active metadata type and clears draft selection when switching types", async () => {
+  it("switches axis with a clear-selection confirm and reapplies scoped values cleanly", async () => {
     renderContractResults(outcomeReviewDraftRoute);
 
     openRecommendationMenu();
 
-    openBulkDropdown(/Clause Target Status/i);
-    fireEvent.click(screen.getByRole("option", { name: "Not Met" }));
-    const statusCount = selectedBannerCount();
-    expect(statusCount).toBeGreaterThan(0);
-
-    fireEvent.click(screen.getByRole("button", { name: "Deviation Level" }));
-    expect(selectedBannerCount()).toBe(0);
-
-    openBulkDropdown(/Deviation Level/i);
-    fireEvent.click(screen.getByRole("option", { name: "High" }));
-    fireEvent.click(screen.getByRole("option", { name: "Medium" }));
+    openBulkDropdown();
+    fireEvent.click(screen.getByRole("checkbox", { name: "All eligible clauses" }));
+    selectBulkAxis("Deviation");
+    toggleBulkCheckbox(/High/i);
+    toggleBulkCheckbox(/Medium/i);
     const deviationCount = selectedBannerCount();
     expect(deviationCount).toBeGreaterThan(0);
-    expect(getBulkDropdownTrigger(/Deviation Level/i)).toHaveTextContent("High");
-    expect(getBulkDropdownTrigger(/Deviation Level/i)).toHaveTextContent("Medium");
+    expect(getBulkDropdownTrigger()).toHaveTextContent(/Deviation:\s*High,\s*Medium/i);
 
-    fireEvent.click(screen.getByRole("button", { name: "Clause Type" }));
-    expect(selectedBannerCount()).toBe(0);
+    selectBulkAxis("Type");
+    expect(screen.getByText(/Switch to Type\? This clears your 2 deviation levels\./i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Switch" }));
 
-    openBulkDropdown(/Clause Type/i);
-    const categoryListbox = screen.getByRole("listbox");
-    const categoryOptions = within(categoryListbox).getAllByRole("option");
-    let scopedCount = 0;
-    for (const categoryOption of categoryOptions) {
-      fireEvent.click(categoryOption);
-      scopedCount = selectedBannerCount();
-      if (scopedCount > 0) break;
-    }
+    const categoryCheckboxes = within(screen.getByRole("dialog", { name: /apply recommendation scope/i }))
+      .getAllByRole("checkbox")
+      .filter((checkbox) => {
+        const label = checkbox.getAttribute("aria-label") ?? "";
+        return !["All eligible clauses"].includes(label);
+      });
+    fireEvent.click(categoryCheckboxes[0]);
+    const scopedCount = selectedBannerCount();
     expect(scopedCount).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole("button", { name: "Bulk Apply Recommended Position" }));
+    fireEvent.click(screen.getByRole("button", { name: /Accept recommended positions/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Accept \d+/i }));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /review & generate/i })).toBeEnabled();
@@ -412,35 +412,43 @@ describe("ContractResults V6A review controls", () => {
     expect(screen.queryByRole("region", { name: /bulk recommendation filters/i })).not.toBeInTheDocument();
   });
 
-  it("counts selected outcome recommendations across met and missing review buckets", () => {
+  it("keeps status scope limited to Met, Not Met, and Missing while only counting eligible clauses", () => {
     renderContractResults(outcomeReviewRoute);
 
     openRecommendationMenu();
-    openBulkDropdown(/Clause Target Status/i);
+    openBulkDropdown();
+    fireEvent.click(screen.getByRole("checkbox", { name: "All eligible clauses" }));
+    selectBulkAxis("Status");
 
-    fireEvent.click(screen.getByRole("option", { name: "Met" }));
-    expect(selectedBannerCount()).toBe(2);
+    const notMetCheckbox = screen.getByRole("checkbox", { name: "Not Met" });
+    const metCheckbox = screen.getByRole("checkbox", { name: "Met" });
+    const missingCheckbox = screen.getByRole("checkbox", { name: "Missing" });
 
-    fireEvent.click(screen.getByRole("option", { name: "Met" }));
-    fireEvent.click(screen.getByRole("option", { name: "Missing" }));
-    expect(selectedBannerCount()).toBe(1);
+    expect(notMetCheckbox).toBeEnabled();
+    expect(metCheckbox).toBeDisabled();
+    expect(missingCheckbox).toBeDisabled();
+
+    fireEvent.click(notMetCheckbox);
+    expect(selectedBannerCount()).toBeGreaterThan(0);
   });
 
-  it("clears draft banner selections when closing the bulk recommendation banner", () => {
+  it("resets draft banner selections back to all eligible when closing the bulk recommendation banner", () => {
     renderContractResults(outcomeReviewDraftRoute);
 
     openRecommendationMenu();
-    openBulkDropdown(/Clause Target Status/i);
-    fireEvent.click(screen.getByRole("option", { name: "Not Met" }));
-    expect(selectedBannerCount()).toBeGreaterThan(0);
+    openBulkDropdown();
+    fireEvent.click(screen.getByRole("checkbox", { name: "All eligible clauses" }));
+    selectBulkAxis("Deviation");
+    toggleBulkCheckbox(/High/i);
+    expect(getBulkDropdownTrigger()).toHaveTextContent(/Deviation:/i);
 
     fireEvent.click(screen.getByRole("button", { name: /Close bulk recommendation banner/i }));
     expect(screen.queryByRole("region", { name: /bulk recommendation filters/i })).not.toBeInTheDocument();
 
     openRecommendationMenu();
-    expect(screen.getByText("0 Selected")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Clause Target Status" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Bulk Apply Recommended Position" })).toBeDisabled();
+    expect(selectedBannerCount()).toBeGreaterThan(0);
+    expect(getBulkDropdownTrigger()).toHaveTextContent("All eligible clauses");
+    expect(screen.getByRole("button", { name: /Accept recommended positions/i })).toBeEnabled();
   });
 
   it("shows the selected state on active outcome filter toggle cards", () => {
@@ -486,7 +494,7 @@ describe("ContractResults V6A review controls", () => {
   it("applies scoped recommendations and undoes only that applied scope", async () => {
     renderContractResults();
 
-    applyRecommendationOptions(/High/i);
+    applyRecommendationOptions("Deviation", /High/i);
 
     expect(await screen.findByRole("button", { name: /undo high deviation recommendations/i })).toBeInTheDocument();
     expect(localStorage.getItem("ciq-v6a-clause-decisions")).toBeNull();
@@ -503,13 +511,13 @@ describe("ContractResults V6A review controls", () => {
   it("regenerates a stale CSV with current request items after review changes", async () => {
     renderContractResults();
 
-    applyRecommendationOptions(/High/i);
+    applyRecommendationOptions("Deviation", /High/i);
     generateCsv();
 
     expect(mocks.downloadCsv).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem("ciq-v6a-generated-csv:sup-1:ct-1:first-analysis-demo:v1")).toBeTruthy();
 
-    applyRecommendationOptions(/Medium/i);
+    applyRecommendationOptions("Deviation", /Medium/i);
 
     fireEvent.click(screen.getByRole("button", { name: /review & generate/i }));
 

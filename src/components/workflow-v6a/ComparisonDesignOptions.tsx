@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { ArrowRight, ArrowUp, Columns3, List } from "lucide-react";
+import { ArrowRight, Columns3, List } from "lucide-react";
 import {
   Badge,
   Card,
@@ -20,7 +20,6 @@ import {
 
 export type ComparisonDesignOption = "evolved" | "side-by-side" | "row-scale";
 export type EvidenceMetricKey =
-  | "selected-for-review"
   | "not-met"
   | "met"
   | "no-action"
@@ -35,7 +34,6 @@ export type EvidenceMetricKey =
 export type FirstAnalysisMetricKey = "high" | "medium" | "low" | "missing" | "none";
 
 export interface EvidenceMetricCounts {
-  selectedForReview: number;
   notMet: number;
   met: number;
   noAction: number;
@@ -177,7 +175,6 @@ export function ComparisonDesignOptions({
   if (option === "side-by-side" || option === "row-scale") {
     return (
       <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-base py-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
-        {banner ? <div className="min-w-0 xl:col-span-2">{banner}</div> : null}
         <aside className="xl:sticky xl:top-[100px] xl:self-start">
           <section className="flex overflow-hidden rounded-lg border border-border bg-card xl:h-[calc(100vh-180px)] xl:flex-col">
             <div className="min-h-0 flex-1 overflow-y-auto p-orbit-base">
@@ -199,6 +196,7 @@ export function ComparisonDesignOptions({
           </section>
         </aside>
         <div id="comparison-work-column" className="min-w-0 space-y-orbit-base">
+          {banner}
           <WorkflowStack
             openItems={openItems}
             newChanges={newChanges}
@@ -345,7 +343,7 @@ function CategoryFiltersSection({ children }: { children: ReactNode }) {
   return (
     <div className="mt-orbit-base pt-orbit-base">
       <div className="mb-orbit-s">
-        <Text as="p" size="Small" variant="Secondary">Clause Name</Text>
+        <p className="v6-orbit-text-small v6-orbit-weight-semibold text-[var(--orbit-color-text-secondary)]">Clause Name</p>
       </div>
       <SidebarFiltersPanel>{children}</SidebarFiltersPanel>
     </div>
@@ -516,7 +514,6 @@ export function ComparisonSummaryRail({
 }) {
   const { contract, comparison, actions } = stripStats;
   const metricCounts = metrics ?? {
-    selectedForReview: comparison.requestedTotal + comparison.supplierChanges,
     notMet: comparison.notMet,
     met: comparison.met,
     noAction: 0,
@@ -581,10 +578,18 @@ function ScoreHero({
     panel.delta > 0 ? "Improved" : panel.delta < 0 ? "Declined" : "Unchanged";
   const currentVersionLabel = rightLabel.toUpperCase();
   const previousVersionLabel = leftLabel.toUpperCase();
+  const deltaToneClass =
+    panel.delta > 0
+      ? "text-[var(--orbit-color-text-success)]"
+      : panel.delta < 0
+        ? "text-[var(--orbit-color-text-error)]"
+        : "text-[var(--orbit-color-text-secondary)]";
+  const deltaTrendGlyph = panel.delta > 0 ? "↗" : panel.delta < 0 ? "↘" : null;
+  const deltaLabel = panel.delta === 0 ? "no change" : `${deltaPrefix}${panel.delta} vs previous`;
   return (
     <div className={cn("clauseiq-v6a-score-hero", className)}>
       <Card type="Static" padding={compact ? "Small" : "Base"} state="Accent">
-        <div className="space-y-orbit-base px-orbit-xs py-orbit-xs">
+        <div className="space-y-orbit-s px-orbit-xs py-orbit-xs">
           <div className="flex min-w-0 items-center justify-between gap-orbit-base">
             <Text as="p" size="Paragraph" variant="Secondary">
               Score
@@ -593,25 +598,30 @@ function ScoreHero({
               <Chip
                 label={`Latest analysis · ${currentVersionLabel}`}
                 size="Mini"
-                variant="Outline"
+                variant="Information"
+                contrast="Low"
               />
             </div>
           </div>
-          <div className="flex min-w-0 items-baseline gap-orbit-base">
+          <div className="flex min-w-0 items-baseline gap-orbit-s">
             <span className="v6-orbit-heading-1 text-foreground">
               {panel.current.score}
             </span>
             <span
               className={cn(
-                "v6-orbit-heading-4 inline-flex shrink-0 items-center gap-orbit-xs",
-                panel.delta >= 0
-                  ? "text-[var(--orbit-color-status-high-bg-success)]"
-                  : "text-[var(--orbit-color-text-error)]",
+                "inline-flex shrink-0 items-center gap-orbit-xxs v6-orbit-text-small v6-orbit-weight-medium",
+                deltaToneClass,
               )}
+              aria-label={
+                panel.delta > 0
+                  ? `Increased by ${Math.abs(panel.delta)} versus previous`
+                  : panel.delta < 0
+                    ? `Decreased by ${Math.abs(panel.delta)} versus previous`
+                    : "No change versus previous"
+              }
             >
-              <ArrowUp className={cn("h-6 w-6", panel.delta < 0 && "rotate-180")} strokeWidth={3} />
-              {deltaPrefix}
-              {panel.delta}
+              {deltaTrendGlyph ? <span aria-hidden="true">{deltaTrendGlyph}</span> : null}
+              <span>{deltaLabel}</span>
             </span>
           </div>
           <Text as="p" size="Paragraph" variant="Secondary">
@@ -857,7 +867,6 @@ const metricDefinitions: Array<{
   tone?: "success" | "warning" | "destructive";
   group: "changes" | "risk";
 }> = [
-  { key: "selected-for-review", label: "Selected for Review", value: "selectedForReview", group: "changes" },
   { key: "met", label: "Met", value: "met", tone: "success", group: "changes" },
   { key: "not-met", label: "Not Met", value: "notMet", tone: "destructive", group: "changes" },
   { key: "missing", label: "Missing", value: "missingClauses", group: "changes" },
@@ -1085,11 +1094,11 @@ function MetricGrid({
   );
 
   const groupedMetricSections: Array<{ title: string; keys: EvidenceMetricKey[] }> = [
-    { title: "Round Action", keys: ["selected-for-review", "met", "not-met", "missing", "no-action"] },
+    { title: "Round Action", keys: ["met", "not-met", "missing", "no-action"] },
     { title: "Deviation Level", keys: ["high", "medium", "low", "none"] },
   ];
   const fullGroupedMetricSections: Array<{ title: string; keys: EvidenceMetricKey[] }> = [
-    { title: "Round Action", keys: ["selected-for-review", "met", "not-met", "missing", "no-action"] },
+    { title: "Round Action", keys: ["met", "not-met", "missing", "no-action"] },
     { title: "Work needed", keys: ["manual-review"] },
     { title: "System detection", keys: ["unexpected", "worsened"] },
     { title: "Deviation Level", keys: ["high", "medium", "low", "none"] },
@@ -1102,7 +1111,7 @@ function MetricGrid({
       <div className="mt-orbit-base grid gap-orbit-base lg:grid-cols-2">
         {sections.map((section) => (
           <div key={section.title} className="rounded-lg border border-border/70 bg-white/60 p-orbit-s">
-            <Text as="p" size="Small" variant="Secondary">{section.title}</Text>
+            <p className="v6-orbit-text-small v6-orbit-weight-semibold text-[var(--orbit-color-text-secondary)]">{section.title}</p>
             <div className="grid grid-cols-2 gap-orbit-s">
               {section.keys.map((key) => metricByKey.get(key)).filter((definition): definition is (typeof metricDefinitions)[number] => Boolean(definition)).map(renderMetric)}
             </div>
@@ -1119,7 +1128,7 @@ function MetricGrid({
           {sections.map((section) => (
           <div key={section.title}>
             <div className="mb-orbit-xs rounded-md py-orbit-xs">
-              <Text as="p" size="Small" variant="Secondary">{section.title}</Text>
+              <p className="v6-orbit-text-small v6-orbit-weight-semibold text-[var(--orbit-color-text-secondary)]">{section.title}</p>
             </div>
             <div className="space-y-orbit-xs">
               {section.keys

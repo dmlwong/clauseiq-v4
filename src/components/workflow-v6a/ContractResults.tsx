@@ -11,6 +11,8 @@ import {
   Alert,
   Card,
   type CardState as OrbitCardState,
+  FA,
+  FaIcon,
   Chip,
   Dropzone,
   FileItem,
@@ -121,6 +123,8 @@ import {
   FirstAnalysisStatusTag,
   type FirstAnalysisStatusKey,
 } from "./firstAnalysisStatusTags";
+
+const BULK_ACTION_FA_ICON = "\uf0ae";
 
 interface Props {
   initiativeId: string;
@@ -301,6 +305,16 @@ function severityToDeviationLevel(clause?: ClauseResult): DeviationLevel {
   return "Low";
 }
 
+function deviationMetricKeyForClause(clause?: ClauseResult): "high" | "medium" | "low" | "none" | null {
+  if (!clause) return null;
+  if (isNoneDeviationClause(clause)) return "none";
+  const deviationLevel = severityToDeviationLevel(clause);
+  if (deviationLevel === "High") return "high";
+  if (deviationLevel === "Medium") return "medium";
+  if (deviationLevel === "Low") return "low";
+  return null;
+}
+
 function getDeviationDelta(prev?: ClauseResult, curr?: ClauseResult, fallback?: DeviationDelta): DeviationDelta | undefined {
   if (fallback) return fallback;
   if (!prev || !curr) return undefined;
@@ -372,7 +386,7 @@ function ClauseTitleInline({
 }) {
   return (
     <span className="inline-flex min-w-0 max-w-full items-center gap-[4px]">
-      <span className="shrink-0 text-[0.92em] v6-orbit-weight-regular text-muted-foreground">{clauseId}</span>
+      <span className="shrink-0 v6-orbit-text-small v6-orbit-weight-regular text-muted-foreground">{clauseId}</span>
       <span aria-hidden="true" className="h-[1em] w-px shrink-0 bg-border" />
       <span className="min-w-0 truncate">{displayTitleForClause(clauseId, fallback)}</span>
     </span>
@@ -781,7 +795,7 @@ const V6A_OUTCOME_DEMO_OVERRIDES: Record<string, Record<string, Partial<ClauseRe
       severity: "high",
       resolved: false,
       change: "worsened",
-      sourceDeviationLevel: "None",
+      sourceDeviationLevel: "High",
       deviation: "Availability target dropped to 99.0% and service credits have been removed.",
       excerpt: "Supplier shall use reasonable endeavours to meet 99.0% availability. Service credits no longer apply.",
       improvementReason: undefined,
@@ -799,7 +813,7 @@ const V6A_OUTCOME_DEMO_OVERRIDES: Record<string, Record<string, Partial<ClauseRe
       resolved: false,
       change: "new",
       missingClause: true,
-      sourceDeviationLevel: "None",
+      sourceDeviationLevel: "High",
       deviation: "No standalone data breach notification clause is present in the supplier draft.",
       excerpt: "The draft does not include an express obligation to notify Buyer of a personal data breach within a defined timeframe.",
       actionability: "Insert a 24-hour breach notification obligation with named escalation contacts.",
@@ -1877,7 +1891,7 @@ export function ContractResults({
   };
 
   const matchesQuickSeverity = (clause?: ClauseResult) =>
-    !severityQuickFilter || clause?.severity === severityQuickFilter;
+    !severityQuickFilter || deviationMetricKeyForClause(clause) === severityQuickFilter;
   const filterRowsByQuickState = <T extends { id: string; prev?: ClauseResult; curr?: ClauseResult; pill?: ChangePillResult; actionState?: string }>(rows: T[]) =>
     rows.filter((row) => {
       const clause = row.curr ?? row.prev;
@@ -2392,25 +2406,6 @@ export function ContractResults({
   const categoryOpenStats = summariseComparisonRows(categoryOpenRows);
   const categoryNewIssueStats = summariseComparisonRows(categoryNewIssueRows);
   const selectedOutcomeReviewCount = categoryOpenRows.length + categoryNewIssueRows.length + categoryClosedRows.length;
-  const displayedSelectedForReviewCount = outcomeReviewMode
-    ? Math.max(
-        0,
-        selectedOutcomeReviewCount -
-          categoryClosedRows.length -
-          categoryOpenRows.length -
-          categoryNewIssueRows.length,
-      )
-    : Math.max(
-        0,
-        categoryAllRows.length -
-          categoryNoActionRows.length -
-          categoryAllRows.filter((row) => row.pill.status === "met").length -
-          categoryAllRows.filter((row) => row.pill.status === "not_met" || row.pill.status === "improved").length -
-          categoryAllRows.filter((row) => {
-            const clause = row.curr ?? row.prev;
-            return clause ? isMissingClause(clause) : false;
-          }).length,
-      );
   const notSelectedForReviewCount = outcomeReviewMode
     ? Math.max(0, categoryAllRows.length - selectedOutcomeReviewCount)
     : categoryNoActionRows.length;
@@ -2428,7 +2423,6 @@ export function ContractResults({
     { high: 0, medium: 0, low: 0, none: 0 },
   );
   const evidenceMetrics: EvidenceMetricCounts = {
-    selectedForReview: displayedSelectedForReviewCount,
     notMet: outcomeReviewMode
       ? categoryOpenRows.length
       : simplifyComparisonStatus
@@ -2470,7 +2464,6 @@ export function ContractResults({
     categoryUnmarkedRows,
   ));
   const activeEvidenceMetric: EvidenceMetricKey | null =
-    quickFilter === "selected-for-review" ||
     quickFilter === "not-met" ||
     quickFilter === "met" ||
     quickFilter === "no-action" ||
@@ -2487,7 +2480,6 @@ export function ContractResults({
   const activeMetricLabel =
     activeEvidenceMetric
       ? ({
-          "selected-for-review": "Selected for Review",
           "not-met": "Not Met",
           met: "Met",
           "no-action": "Not Selected for Review",
@@ -3201,7 +3193,7 @@ export function ContractResults({
                         aria-controls="clauseiq-v6-recommendation-bulk-banner"
                         onClick={() => setNonCompactBulkBannerOpen((current) => !current)}
                       >
-                        <Sparkles className="w-3.5 h-3.5" />
+                        <FaIcon icon={BULK_ACTION_FA_ICON} size={14} color="currentColor" />
                         <span>Bulk Action</span>
                       </Button>
                     ) : (
@@ -3962,7 +3954,7 @@ function RecommendationReviewIntro() {
           Selected for Review
         </h2>
       </div>
-      <p className="mt-orbit-xs text-xs leading-5 text-muted-foreground">
+      <p className="mt-orbit-xs v6-orbit-text-small text-muted-foreground">
         These clauses were selected in the previous round for follow-up in this round. For each clause, choose whether to use the recommended position or set a custom position. If no action is taken, the clause will remain unchanged and be treated as accepted for this round.
       </p>
     </div>
@@ -4152,7 +4144,7 @@ function ModeSwitcher({
                   aria-controls="clauseiq-v6-recommendation-bulk-banner"
                   onClick={() => setBulkBannerOpen((current) => !current)}
                 >
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <FaIcon icon={BULK_ACTION_FA_ICON} size={14} color="currentColor" />
                   <span>Bulk Action</span>
                 </Button>
               ) : (
@@ -6215,6 +6207,10 @@ function ClauseDecisionCard({
   const useV6StatusTags = isInitiativesV6Route();
   const useV6DeviationCard = isInitiativesV6Route() && neutralActions;
   const useFirstAnalysisDeviationStyle = neutralActions && hideSubclauseReference && clause.severity === "high";
+  const showChangePill =
+    Boolean(changePill?.status) &&
+    !stateBadge &&
+    !(useV6StatusTags && changePill?.status === "regressed");
   const severityStatusKey = noneDeviationClause ? "none" : firstAnalysisSeverityStatus[clause.severity];
   const severityBadgeLabel = useV6StatusTags
     ? FIRST_ANALYSIS_STATUS_THEME[severityStatusKey].label
@@ -6308,7 +6304,7 @@ function ClauseDecisionCard({
                 <VerdictTooltipContent />
               </TooltipContent>
             </Tooltip>
-          ) : changePill?.status && !stateBadge && <ChangePillBadge result={changePill} />}
+          ) : showChangePill && changePill ? <ChangePillBadge result={changePill} /> : null}
           {showSeverityBadge && (
             useV6StatusTags ? (
               <Tooltip>
@@ -6439,12 +6435,12 @@ function ClauseDecisionCard({
         )}
 
         {showDecisionBody && description && (
-          <p className="mt-orbit-xs text-[11px] leading-5 text-muted-foreground">
+          <p className="mt-orbit-xs v6-orbit-text-small text-muted-foreground">
             {description}
           </p>
         )}
         {showDecisionBody && actionability && (
-          <p className="mt-orbit-xs text-[11px] leading-5 text-muted-foreground">
+          <p className="mt-orbit-xs v6-orbit-text-small text-muted-foreground">
             <Lightbulb className="mr-orbit-xs inline h-3 w-3 text-primary" />
             <span className="v6-orbit-weight-semibold text-foreground">Actionability:</span> {actionability}
           </p>
@@ -6782,7 +6778,7 @@ function ResultCardPanel({
   content,
   footer,
 }: {
-  label: string;
+  label: ReactNode;
   text: string;
   tone?: ResultCardPanelTone;
   content?: ReactNode;
@@ -6804,7 +6800,7 @@ function ResultCardPanel({
       <Text as="p" size="Small" variant={labelVariant}>
         {label}
       </Text>
-      <p className="mt-orbit-xs leading-snug text-foreground">{text}</p>
+      <p className="mt-orbit-xs v6-orbit-text-small leading-snug text-foreground">{text}</p>
       {content ? <div className="mt-orbit-s">{content}</div> : null}
       {footer ? <div className="mt-orbit-s flex flex-wrap items-center gap-orbit-xs">{footer}</div> : null}
     </div>
@@ -6832,12 +6828,25 @@ function SimplifiedComparisonContent({
   const hasPrevious = Boolean(previousLabel && previousText);
 
   return (
-    <div className="space-y-orbit-s text-[11px]">
+    <div className="space-y-orbit-s v6-orbit-text-small">
       <div className={cn("grid gap-orbit-s", hasPrevious && "md:grid-cols-2")}>
         {hasPrevious && <ResultCardPanel label={previousLabel!} text={previousText!} />}
         <ResultCardPanel label={currentLabel} text={currentText} tone="accent" />
       </div>
-      {targetText && <ResultCardPanel label="Recommend Position" text={targetText} tone="primary" content={targetContent} footer={targetFooter} />}
+      {targetText && (
+        <ResultCardPanel
+          label={(
+            <span className="inline-flex items-center gap-orbit-xs">
+              <Sparkles className="h-3 w-3 shrink-0" aria-hidden="true" />
+              <span>Recommend Position</span>
+            </span>
+          )}
+          text={targetText}
+          tone="primary"
+          content={targetContent}
+          footer={targetFooter}
+        />
+      )}
     </div>
   );
 }
@@ -7926,14 +7935,14 @@ function ComparisonSection(props: {
                 <>
                   <Button
                     variant="outline"
-                    className="h-8 text-[11px]"
+                    className="h-8 v6-orbit-text-small"
                     onClick={() => openReviseTargetEditor()}
                   >
                     {CLAUSE_ACTION_LABELS.reviseTarget}
                   </Button>
                   <Button
                     variant="default"
-                    className="ml-auto h-8 text-[11px]"
+                    className="ml-auto h-8 v6-orbit-text-small"
                     onClick={() => {
                       onConfirmVerdictFromAction?.(r.id, rowVerdict, "Confirmed position");
                       onClose(r.id);
@@ -7946,14 +7955,14 @@ function ComparisonSection(props: {
                 <>
                   <Button
                     variant={closure === "follow-up" ? "secondary" : "outline"}
-                    className="h-8 text-[11px]"
+                    className="h-8 v6-orbit-text-small"
                     onClick={() => openReviseTargetEditor()}
                   >
                     {CLAUSE_ACTION_LABELS.reviseTarget}
                   </Button>
                   <Button
                     variant="default"
-                    className="ml-auto h-8 text-[11px]"
+                    className="ml-auto h-8 v6-orbit-text-small"
                     onClick={() => {
                       if (actionabilityRequest && onContinueWithActionability) {
                         onContinueWithActionability(r.id, actionabilityRequest);
@@ -8081,7 +8090,7 @@ function ComparisonSection(props: {
                   <span className="text-[11px] v6-orbit-weight-medium text-muted-foreground">{bucketSummary}</span>
                 )}
               </div>
-              <p className="mt-orbit-xxs text-xs text-muted-foreground">{description}</p>
+              <p className="mt-orbit-xs v6-orbit-text-small text-muted-foreground">{description}</p>
             </div>
           </div>
           {rowsContent}
@@ -8110,7 +8119,7 @@ function ComparisonSection(props: {
                 <span className="text-[11px] v6-orbit-weight-medium text-muted-foreground">{bucketSummary}</span>
               )}
             </div>
-            <p className="mt-orbit-xxs text-xs text-muted-foreground">{description}</p>
+            <p className="mt-orbit-xs v6-orbit-text-small text-muted-foreground">{description}</p>
           </div>
           <ChevronDown className={`mt-orbit-xs h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
         </button>

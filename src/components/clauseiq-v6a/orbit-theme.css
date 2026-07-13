@@ -324,6 +324,7 @@ body
 }
 
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-banner {
+  align-self: start;
   align-items: center;
   background: color-mix(in srgb, var(--orbit-color-btn-primary-bg) 78%, white);
   border-radius: 8px;
@@ -335,7 +336,10 @@ body
   margin: 0;
   min-height: 44px;
   padding: var(--orbit-space-xs) var(--orbit-space-base);
+  position: sticky;
+  top: 100px;
   width: 100%;
+  z-index: 18;
 }
 
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-banner-count {

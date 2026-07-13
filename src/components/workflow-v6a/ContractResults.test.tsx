@@ -190,7 +190,7 @@ describe("ContractResults V6A review controls", () => {
     expect(screen.queryByText("Added to Review")).not.toBeInTheDocument();
   });
 
-  it("maps stakeholder demo examples into simplified Met and Not Met verdict states", () => {
+  it("maps stakeholder demo examples into the corrected outcome metadata states", () => {
     renderContractResults(outcomeReviewRoute);
 
     const regressedRow = screen.getByText("Service Levels").closest('[id^="clause-row-"]');
@@ -199,12 +199,12 @@ describe("ContractResults V6A review controls", () => {
     expect(regressedRow).toBeTruthy();
     expect(newMissingRow).toBeTruthy();
 
-    expect(within(regressedRow as HTMLElement).getByText("Not Met")).toBeInTheDocument();
     expect(within(regressedRow as HTMLElement).queryByText("Regressed")).not.toBeInTheDocument();
-    expect(within(regressedRow as HTMLElement).getByText("None Deviation")).toBeInTheDocument();
-    expect(within(newMissingRow as HTMLElement).getByText("Not Met")).toBeInTheDocument();
+    expect(within(regressedRow as HTMLElement).getByText("High Deviation")).toBeInTheDocument();
+    expect(within(newMissingRow as HTMLElement).getByText("New")).toBeInTheDocument();
     expect(within(newMissingRow as HTMLElement).queryByText("New supplier change")).not.toBeInTheDocument();
     expect(within(newMissingRow as HTMLElement).getByText("Missing Clause")).toBeInTheDocument();
+    expect(within(newMissingRow as HTMLElement).getByText("High Deviation")).toBeInTheDocument();
     expect(screen.queryByText("New supplier changes")).not.toBeInTheDocument();
     expect(screen.queryByText("Needs decision")).not.toBeInTheDocument();
   });
@@ -455,6 +455,19 @@ describe("ContractResults V6A review controls", () => {
     expect(mediumDeviationFilter).toHaveAttribute("aria-pressed", "true");
     expect(mediumDeviationFilter.className).not.toContain("clauseiq-v6a-togglecard-subtle");
     expect(mediumDeviationFilter).toHaveAccessibleName("Remove Medium Deviation outcome filter, 19 clauses");
+  });
+
+  it("filters low deviation cards by displayed deviation metadata rather than base severity", () => {
+    renderContractResults(outcomeReviewRoute);
+
+    const lowDeviationFilter = screen.getByRole("button", {
+      name: /Add Low outcome filter, 18 clauses/i,
+    });
+
+    fireEvent.click(lowDeviationFilter);
+
+    expect(screen.queryByText("Audit")).not.toBeInTheDocument();
+    expect(screen.getByText("Business Continuity and Disaster Recovery")).toBeInTheDocument();
   });
 
   it("renders first-analysis clause cards with only the current analysis in the simplified hierarchy", () => {

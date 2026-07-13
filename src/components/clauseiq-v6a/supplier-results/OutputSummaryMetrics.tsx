@@ -75,14 +75,14 @@ export function OutputScoreLine({
           <span className={cn("inline-flex gap-orbit-xs v6-orbit-text-small text-[var(--orbit-color-text-secondary)]", rowAlignmentClass)}>
             <span>first output</span>
             {showMetadataTooltip ? (
-              <OutputMetadataTooltip deviations={deviations} showComparisonStatus={showComparisonStatus} />
+              <OutputMetadataTooltip score={score} deviations={deviations} showComparisonStatus={showComparisonStatus} />
             ) : null}
           </span>
         ) : delta === 0 ? (
           <span className={cn("inline-flex gap-orbit-xs v6-orbit-text-small text-[var(--orbit-color-text-secondary)]", rowAlignmentClass)}>
             <span>no change</span>
             {showMetadataTooltip ? (
-              <OutputMetadataTooltip deviations={deviations} showComparisonStatus={showComparisonStatus} />
+              <OutputMetadataTooltip score={score} deviations={deviations} showComparisonStatus={showComparisonStatus} />
             ) : null}
           </span>
         ) : (
@@ -99,7 +99,7 @@ export function OutputScoreLine({
               <span>{formatDelta(delta)} vs previous</span>
             </span>
             {showMetadataTooltip ? (
-              <OutputMetadataTooltip deviations={deviations} showComparisonStatus={showComparisonStatus} />
+              <OutputMetadataTooltip score={score} deviations={deviations} showComparisonStatus={showComparisonStatus} />
             ) : null}
           </span>
         )}
@@ -118,7 +118,7 @@ export function OutputFindingsSummary({
   return (
     <div className="flex flex-col gap-orbit-base">
       <div className="flex flex-col gap-orbit-s">
-        <Text as="span" size="Small" variant="Secondary">
+        <Text as="span" className="v6-orbit-heading-strong text-[var(--orbit-color-text-primary)]">
           Clause Target Status
         </Text>
         <div className="flex flex-wrap items-center gap-orbit-xs">
@@ -140,7 +140,7 @@ export function OutputFindingsSummary({
       </div>
 
       <div className="flex flex-col gap-orbit-s">
-        <Text as="span" size="Small" variant="Secondary">
+        <Text as="span" className="v6-orbit-heading-strong text-[var(--orbit-color-text-primary)]">
           Deviation Level
         </Text>
         <div className="min-w-0 flex flex-wrap items-center gap-orbit-xs">
@@ -199,13 +199,21 @@ function OutputSummaryPill({
 }
 
 function OutputMetadataTooltip({
+  score,
   deviations,
   showComparisonStatus,
 }: {
+  score: OutputScorePresentation;
   deviations: DeviationCounts;
   showComparisonStatus: boolean;
 }) {
   const notMet = Math.max(0, deviations.high + deviations.medium + deviations.low + deviations.missing);
+  const scoreContext =
+    !score.hasPreviousOutput || typeof score.deltaFromPrevious !== "number"
+      ? "First output means this supplier does not have an earlier analysis in this workspace yet."
+      : score.deltaFromPrevious === 0
+      ? "No change means the latest analysis score matches the previous supplier output."
+      : `${formatDelta(score.deltaFromPrevious)} vs previous compares this output against the last analysis for the same supplier.`;
   const clauseTargetItems = showComparisonStatus
     ? [`Not Met ${notMet}`, `Met ${deviations.none}`, `Missing ${deviations.missing}`]
     : [`Missing ${deviations.missing}`];
@@ -229,9 +237,18 @@ function OutputMetadataTooltip({
       </TooltipTrigger>
       <TooltipContent
         side="top"
-        className="min-w-[232px] max-w-[256px] border-[var(--orbit-color-border-default)] bg-[var(--orbit-color-bg-default)] text-[var(--orbit-color-text-primary)] [&>span[aria-hidden='true']]:border-[var(--orbit-color-border-default)] [&>span[aria-hidden='true']]:bg-[var(--orbit-color-bg-default)]"
+        className="min-w-[248px] max-w-[288px] border-[var(--orbit-color-border-default)] bg-[var(--orbit-color-bg-default)] text-[var(--orbit-color-text-primary)] [&>span[aria-hidden='true']]:border-[var(--orbit-color-border-default)] [&>span[aria-hidden='true']]:bg-[var(--orbit-color-bg-default)]"
       >
         <span className="flex flex-col gap-orbit-s">
+          <span className="flex flex-col gap-orbit-xs">
+            <span className="block v6-orbit-text-small v6-orbit-weight-medium text-[var(--orbit-color-text-primary)]">
+              Score context
+            </span>
+            <span className="block v6-orbit-text-small text-[var(--orbit-color-text-secondary)]">
+              {scoreContext}
+            </span>
+          </span>
+          <span className="block h-px bg-[var(--orbit-color-border-default)]" aria-hidden="true" />
           <span className="flex flex-col gap-orbit-xs">
             <span className="block v6-orbit-text-small v6-orbit-weight-medium text-[var(--orbit-color-text-primary)]">
               Clause Target Status

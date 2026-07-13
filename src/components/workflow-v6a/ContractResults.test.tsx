@@ -61,7 +61,7 @@ function openBulkDropdown() {
 }
 
 function selectBulkAxis(name: "Deviation" | "Status" | "Type") {
-  fireEvent.click(screen.getByRole("tab", { name }));
+  fireEvent.click(screen.getByRole("button", { name }));
 }
 
 function toggleBulkCheckbox(name: RegExp) {
@@ -356,7 +356,7 @@ describe("ContractResults V6A review controls", () => {
     expect(screen.getByRole("button", { name: /Accept recommended positions/i })).toBeEnabled();
 
     openBulkDropdown();
-    expect(screen.getByRole("tab", { name: "Deviation" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: "Deviation" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("checkbox", { name: "All eligible clauses" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "High" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Medium" })).toBeInTheDocument();

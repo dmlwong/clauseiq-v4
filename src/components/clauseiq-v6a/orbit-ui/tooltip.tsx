@@ -180,7 +180,7 @@ export function Tooltip({ children }: TooltipProps) {
               : undefined
           }
           className={cn(
-            "pointer-events-none fixed z-[9999] inline-flex min-w-[220px] max-w-[280px] rounded-[var(--orbit-radius-sm)] border border-white/10 bg-[var(--orbit-color-black-pearl)] p-orbit-base text-left text-[var(--orbit-text-small-size)] font-[var(--orbit-text-small-weight)] leading-[var(--orbit-text-small-leading)] text-[var(--orbit-color-text-inverse)] shadow-lg whitespace-pre-line",
+            "pointer-events-none fixed z-[9999] inline-flex max-w-[288px] rounded-[var(--orbit-radius-sm)] border border-[var(--orbit-color-border-default)] bg-[var(--orbit-color-bg-default)] p-orbit-base text-left text-[var(--orbit-text-small-size)] font-[var(--orbit-text-small-weight)] leading-[var(--orbit-text-small-leading)] text-[var(--orbit-color-text-primary)] shadow-lg whitespace-pre-line",
             !position && "opacity-0",
             className,
           )}
@@ -188,7 +188,7 @@ export function Tooltip({ children }: TooltipProps) {
           <span
             aria-hidden="true"
             className={cn(
-              "absolute h-2.5 w-2.5 rotate-45 border-white/10 bg-[var(--orbit-color-black-pearl)]",
+              "absolute h-2.5 w-2.5 rotate-45 border-[var(--orbit-color-border-default)] bg-[var(--orbit-color-bg-default)]",
               side === "top" && "left-1/2 top-full -translate-x-1/2 -translate-y-1/2 border-b border-r",
               side === "bottom" && "bottom-full left-1/2 -translate-x-1/2 translate-y-1/2 border-l border-t",
               side === "left" && "left-full top-1/2 -translate-x-1/2 -translate-y-1/2 border-r border-t",

@@ -97,6 +97,9 @@ interface V6OrbitConfirmOverlayProps {
   confirmLabel: string;
   onConfirm: () => void;
   destructive?: boolean;
+  modalKey?: string;
+  cancelAlignment?: "left" | "right";
+  descriptionPlacement?: "header" | "body";
 }
 
 export function V6OrbitConfirmOverlay({
@@ -107,29 +110,58 @@ export function V6OrbitConfirmOverlay({
   confirmLabel,
   onConfirm,
   destructive = false,
+  modalKey,
+  cancelAlignment = "right",
+  descriptionPlacement = "header",
 }: V6OrbitConfirmOverlayProps) {
   return (
     <V6OrbitOverlay
       open={open}
       onOpenChange={onOpenChange}
       title={title}
-      description={description}
+      description={descriptionPlacement === "header" ? description : undefined}
+      modalKey={modalKey}
+      children={
+        descriptionPlacement === "body" ? (
+          <Text size="Small" variant="Secondary" as="p">
+            {description}
+          </Text>
+        ) : undefined
+      }
       footer={
-        <div className="flex justify-end gap-orbit-s">
-          <Button variant="Secondary" size="Medium" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            variant={destructive ? "Destructive" : "Primary"}
-            size="Medium"
-            onClick={() => {
-              onConfirm();
-              onOpenChange(false);
-            }}
-          >
-            {confirmLabel}
-          </Button>
-        </div>
+        cancelAlignment === "left" ? (
+          <div className="flex items-center justify-between gap-orbit-s">
+            <Button variant="Secondary" size="Medium" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant={destructive ? "Destructive" : "Primary"}
+              size="Medium"
+              onClick={() => {
+                onConfirm();
+                onOpenChange(false);
+              }}
+            >
+              {confirmLabel}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex justify-end gap-orbit-s">
+            <Button variant="Secondary" size="Medium" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant={destructive ? "Destructive" : "Primary"}
+              size="Medium"
+              onClick={() => {
+                onConfirm();
+                onOpenChange(false);
+              }}
+            >
+              {confirmLabel}
+            </Button>
+          </div>
+        )
       }
     />
   );

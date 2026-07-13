@@ -19,6 +19,8 @@ import {
   Dropzone,
   FileItem,
   Headings,
+  MultiStateButton,
+  MultiStateGroup,
   QuickFilterGroup,
   QuickFilterItem,
   Searchbox,
@@ -4116,9 +4118,9 @@ function RecommendationReviewIntro() {
 
 function InlineRecommendationReviewBanner() {
   return (
-    <section className="rounded-lg border border-border bg-card px-orbit-base py-orbit-base shadow-sm">
+    <Card type="Static" padding="Base" state="Highlight" indicator>
       <RecommendationReviewIntro />
-    </section>
+    </Card>
   );
 }
 
@@ -4562,10 +4564,17 @@ function RecommendationBulkApplyBanner({
                 role="dialog"
                 aria-label="Apply recommendation scope"
               >
-                <div className="clauseiq-v6-recommendation-bulk-dropdown-tabs" role="tablist" aria-label="Recommendation filters">
-                  <TabButton active={activeAxis === "deviation"} onClick={() => handleAxisChange("deviation")} className="clauseiq-v6-recommendation-bulk-dropdown-tab">Deviation</TabButton>
-                  <TabButton active={activeAxis === "status"} onClick={() => handleAxisChange("status")} className="clauseiq-v6-recommendation-bulk-dropdown-tab">Status</TabButton>
-                  <TabButton active={activeAxis === "type"} onClick={() => handleAxisChange("type")} className="clauseiq-v6-recommendation-bulk-dropdown-tab">Type</TabButton>
+                <div className="clauseiq-v6-recommendation-bulk-dropdown-tabs">
+                  <MultiStateGroup
+                    ariaLabel="Recommendation filters"
+                    value={activeAxis}
+                    fullWidth
+                    onValueChange={(value) => handleAxisChange(value as RecommendationBulkBannerAxis)}
+                  >
+                    <MultiStateButton value="deviation" label="Deviation" />
+                    <MultiStateButton value="status" label="Status" />
+                    <MultiStateButton value="type" label="Type" />
+                  </MultiStateGroup>
                 </div>
                 {pendingAxisSwitch ? (
                   <div className="clauseiq-v6-recommendation-bulk-switch-confirm" role="alert">
@@ -6440,21 +6449,19 @@ function ClauseRequestForm({
           />
         </div>
       </div>
-      <div className="flex flex-wrap items-center justify-end gap-orbit-base">
-        <div className="flex items-center gap-orbit-s">
-          <Button variant="outline" className={cn("h-8 text-xs", compact && "h-7 text-[11px]")} onClick={onCancel}>
-            Cancel
-          </Button>
-          <OrbitButton
-            variant="Primary"
-            size="Medium"
-            state={!requestValue.trim() ? "Disabled" : "Default"}
-            disabled={!requestValue.trim()}
-            onClick={onSubmit}
-          >
-            {submitLabel}
-          </OrbitButton>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-orbit-base">
+        <Button variant="outline" className={cn("h-8 text-xs", compact && "h-7 text-[11px]")} onClick={onCancel}>
+          Cancel
+        </Button>
+        <OrbitButton
+          variant="Primary"
+          size="Medium"
+          state={!requestValue.trim() ? "Disabled" : "Default"}
+          disabled={!requestValue.trim()}
+          onClick={onSubmit}
+        >
+          {submitLabel}
+        </OrbitButton>
       </div>
     </div>
   );
@@ -7190,6 +7197,7 @@ function SimplifiedComparisonContent({
   currentText,
   targetContent,
   targetFooter,
+  hideRationaleAction = false,
 }: {
   target?: string;
   rationale?: RecommendationRationale;
@@ -7199,6 +7207,7 @@ function SimplifiedComparisonContent({
   currentText: string;
   targetContent?: ReactNode;
   targetFooter?: ReactNode;
+  hideRationaleAction?: boolean;
 }) {
   const targetText = target?.trim();
   const hasPrevious = Boolean(previousLabel && previousText);
@@ -7224,7 +7233,7 @@ function SimplifiedComparisonContent({
           content={targetContent}
           footer={
             <>
-              {recommendationRationale && (
+              {!hideRationaleAction && recommendationRationale && (
                 <Button
                   variant="outline"
                   className="h-8 v6-orbit-text-small"
@@ -8206,10 +8215,13 @@ function ReviewScreen({
         onOpenChange={(open) => {
           if (!open) setPendingDraftCancelId(null);
         }}
-        title="Discard draft request?"
+        modalKey="discard-draft-request"
+        title="Discard Draft Request"
         description="This will remove the request text you have drafted for this clause."
         confirmLabel="Discard draft"
         destructive
+        cancelAlignment="left"
+        descriptionPlacement="body"
         onConfirm={() => {
           if (pendingDraftCancelId) onCancelDraft(pendingDraftCancelId);
           setPendingDraftCancelId(null);
@@ -8417,6 +8429,7 @@ function ComparisonSection(props: {
                 />
               ) : undefined
             }
+            hideRationaleAction={drafting}
             targetFooter={
               canShowOutcomeFooter && isNoneDeviationClause(display) ? (
                 <Button
@@ -8559,10 +8572,13 @@ function ComparisonSection(props: {
       onOpenChange={(nextOpen) => {
         if (!nextOpen) setPendingDraftCancelId(null);
       }}
-      title="Discard draft request?"
+      modalKey="discard-draft-request"
+      title="Discard Draft Request"
       description="This will remove the request text you have drafted for this clause."
       confirmLabel="Discard draft"
       destructive
+      cancelAlignment="left"
+      descriptionPlacement="body"
       onConfirm={() => {
         if (pendingDraftCancelId) onCancelDraft?.(pendingDraftCancelId);
         setExpandedRequestId(null);
@@ -8788,10 +8804,13 @@ function UnmarkedSection({
         onOpenChange={(nextOpen) => {
           if (!nextOpen) setPendingDraftCancelId(null);
         }}
-        title="Discard draft request?"
+        modalKey="discard-draft-request"
+        title="Discard Draft Request"
         description="This will remove the request text you have drafted for this clause."
         confirmLabel="Discard draft"
         destructive
+        cancelAlignment="left"
+        descriptionPlacement="body"
         onConfirm={() => {
           if (pendingDraftCancelId) onCancelDraft(pendingDraftCancelId);
           setExpandedId(null);

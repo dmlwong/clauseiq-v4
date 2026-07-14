@@ -144,10 +144,10 @@ export function OutputFindingsSummary({
           Deviation Level
         </Text>
         <div className="min-w-0 flex flex-wrap items-center gap-orbit-xs">
-          <OutputSummaryPill label={`High Deviation ${deviations.high}`} variant="Error" />
-          <OutputSummaryPill label={`Medium Deviation ${deviations.medium}`} variant="Warning" />
-          <OutputSummaryPill label={`Low Deviation ${deviations.low}`} variant="Style 2" style={lowDeviationPillStyle} />
-          <OutputSummaryPill label={`None Deviation ${deviations.none}`} variant="Success" />
+          <OutputSummaryPill label={`High ${deviations.high}`} variant="Error" />
+          <OutputSummaryPill label={`Medium ${deviations.medium}`} variant="Warning" />
+          <OutputSummaryPill label={`Low ${deviations.low}`} variant="Style 2" style={lowDeviationPillStyle} />
+          <OutputSummaryPill label={`None ${deviations.none}`} variant="Success" />
         </div>
       </div>
     </div>
@@ -218,10 +218,10 @@ function OutputMetadataTooltip({
     ? [`Not Met ${notMet}`, `Met ${deviations.none}`, `Missing ${deviations.missing}`]
     : [`Missing ${deviations.missing}`];
   const deviationItems = [
-    `High Deviation ${deviations.high}`,
-    `Medium Deviation ${deviations.medium}`,
-    `Low Deviation ${deviations.low}`,
-    `None Deviation ${deviations.none}`,
+    `High ${deviations.high}`,
+    `Medium ${deviations.medium}`,
+    `Low ${deviations.low}`,
+    `None ${deviations.none}`,
   ];
 
   return (

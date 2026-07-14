@@ -213,10 +213,35 @@ describe("ContractResults V6A review controls", () => {
     expect(within(regressedRow as HTMLElement).getByText("High Deviation")).toBeInTheDocument();
     expect(within(newMissingRow as HTMLElement).getByText("New")).toBeInTheDocument();
     expect(within(newMissingRow as HTMLElement).queryByText("New supplier change")).not.toBeInTheDocument();
-    expect(within(newMissingRow as HTMLElement).getByText("Missing Clause")).toBeInTheDocument();
+    expect(within(newMissingRow as HTMLElement).getByText("Missing")).toBeInTheDocument();
     expect(within(newMissingRow as HTMLElement).getByText("High Deviation")).toBeInTheDocument();
     expect(screen.queryByText("New supplier changes")).not.toBeInTheDocument();
     expect(screen.queryByText("Needs decision")).not.toBeInTheDocument();
+  });
+
+  it("shows a deviation level, rather than a round action, for missing clauses", () => {
+    renderContractResults(outcomeReviewRoute);
+
+    const missingRow = screen.getByText("Uptime and Downtime Commitments").closest('[id^="clause-row-"]');
+    expect(missingRow).toBeTruthy();
+
+    const scope = within(missingRow as HTMLElement);
+    expect(scope.getByText("Low Deviation")).toBeInTheDocument();
+    expect(scope.getByText("Missing")).toBeInTheDocument();
+    expect(scope.getByText("Round Action")).toBeInTheDocument();
+    expect(scope.queryByText("Not Met")).not.toBeInTheDocument();
+  });
+
+  it("shows No Further Action as round-action metadata before the deviation on carried-forward clauses", () => {
+    renderContractResults(outcomeReviewRoute);
+
+    const noActionRow = screen.getByText("Confidentiality").closest('[id^="clause-row-"]');
+    expect(noActionRow).toBeTruthy();
+
+    const scope = within(noActionRow as HTMLElement);
+    expect(scope.getByText("Round Action")).toBeInTheDocument();
+    expect(scope.getByText("No Further Action")).toBeInTheDocument();
+    expect(scope.getByText("High Deviation")).toBeInTheDocument();
   });
 
   it("uses the simplified target, previous, and current hierarchy on negotiated outcome cards", () => {
@@ -258,7 +283,7 @@ describe("ContractResults V6A review controls", () => {
     expect(scope.getByText("Current Analysis · v3")).toBeInTheDocument();
   });
 
-  it("places Set Custom Position and Use Recommended Position inside the Recommend Position card", () => {
+  it("places Set Custom Position and Apply Recommended Position inside the Recommend Position card", () => {
     renderContractResults(outcomeReviewRoute);
 
     const clauseRow = screen.getByText("Data Processing").closest('[id^="clause-row-"]');
@@ -270,7 +295,7 @@ describe("ContractResults V6A review controls", () => {
 
     const recommendScope = within(recommendCard as HTMLElement);
     expect(recommendScope.getByRole("button", { name: "Set Custom Position" })).toBeInTheDocument();
-    expect(recommendScope.getByRole("button", { name: "Use Recommended Position" })).toBeInTheDocument();
+    expect(recommendScope.getByRole("button", { name: "Apply Recommended Position" })).toBeInTheDocument();
 
     const acceptButton = scope.getByRole("button", { name: "Accept Supplier Position" });
     expect(acceptButton).toBeInTheDocument();
@@ -291,7 +316,7 @@ describe("ContractResults V6A review controls", () => {
     const holdRow = screen.getByText("Data Processing").closest('[id^="clause-row-"]');
     expect(holdRow).toBeTruthy();
 
-    fireEvent.click(within(holdRow as HTMLElement).getByRole("button", { name: "Use Recommended Position" }));
+    fireEvent.click(within(holdRow as HTMLElement).getByRole("button", { name: "Apply Recommended Position" }));
 
     const updatedHoldRow = screen.getByText("Data Processing").closest('[id^="clause-row-"]');
     expect(updatedHoldRow).toBeTruthy();
@@ -315,7 +340,7 @@ describe("ContractResults V6A review controls", () => {
     expect(holdScope.getByText("Recommend Position")).toBeInTheDocument();
     expect(holdScope.getByText("Previous Analysis · v2")).toBeInTheDocument();
     expect(holdScope.getByText("Current Analysis · v3")).toBeInTheDocument();
-    expect(holdScope.queryByRole("button", { name: "Use Recommended Position" })).not.toBeInTheDocument();
+    expect(holdScope.queryByRole("button", { name: "Apply Recommended Position" })).not.toBeInTheDocument();
     expect(holdScope.queryByRole("button", { name: "Accept Supplier Position" })).not.toBeInTheDocument();
 
     const acceptRow = screen.getByText("Payment Terms").closest('[id^="clause-row-"]');
@@ -337,7 +362,7 @@ describe("ContractResults V6A review controls", () => {
     expect(acceptScope.getByText("Recommend Position")).toBeInTheDocument();
     expect(acceptScope.getByText("Previous Analysis · v2")).toBeInTheDocument();
     expect(acceptScope.getByText("Current Analysis · v3")).toBeInTheDocument();
-    expect(acceptScope.queryByRole("button", { name: "Use Recommended Position" })).not.toBeInTheDocument();
+    expect(acceptScope.queryByRole("button", { name: "Apply Recommended Position" })).not.toBeInTheDocument();
     expect(acceptScope.queryByRole("button", { name: "Accept Supplier Position" })).not.toBeInTheDocument();
   });
 
@@ -538,7 +563,7 @@ describe("ContractResults V6A review controls", () => {
 
     const holdRow = screen.getByText("Data Processing").closest('[id^="clause-row-"]');
     expect(holdRow).toBeTruthy();
-    fireEvent.click(within(holdRow as HTMLElement).getByRole("button", { name: "Use Recommended Position" }));
+    fireEvent.click(within(holdRow as HTMLElement).getByRole("button", { name: "Apply Recommended Position" }));
 
     expect(reviewGenerateCount()).toBe(baselineCount + 1);
 

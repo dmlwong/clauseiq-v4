@@ -18,6 +18,7 @@ import {
   Chip,
   Dropzone,
   FileItem,
+  InlineBanner,
   Headings,
   MultiStateButton,
   MultiStateGroup,
@@ -177,7 +178,7 @@ type ScoreBand = "A" | "B" | "C" | "D" | "F";
 
 const CLAUSE_ACTION_LABELS = {
   reviseTarget: "Set Custom Position",
-  holdPosition: "Use Recommended Position",
+  holdPosition: "Apply Recommended Position",
   acceptSupplierPosition: "Accept Supplier Position",
 } as const;
 
@@ -264,7 +265,10 @@ const severityTone = (s: ClauseResult["severity"] | undefined) =>
     : "bg-muted text-muted-foreground border-border";
 
 function isInitiativesV6Route() {
-  return typeof window !== "undefined" && window.location.pathname.startsWith("/initiatives-v6a");
+  if (typeof window === "undefined") return false;
+  return /(?:^|\/)initiatives-v6a(?:\/|$)/.test(
+    `${window.location.pathname}${window.location.hash}`,
+  );
 }
 
 const firstAnalysisDeviationBadgeClass =
@@ -2400,7 +2404,7 @@ export function ContractResults({
         clauses: reviewRows.filter((row) => row.clause.severity === "low" && countsTowardDeviationMetric(row.clause)),
       },
       {
-        label: "None Deviation",
+        label: "None",
         clauses: reviewRows.filter((row) => isNoneDeviationClause(row.clause)),
       },
     ].map((item) => {
@@ -2585,7 +2589,7 @@ export function ContractResults({
       ? ({
           "not-met": "Not Met",
           met: "Met",
-          "no-action": "Not Selected for Review",
+          "no-action": "No Further Action",
           worsened: "Regressed",
           unexpected: "New supplier change",
           "manual-review": "Needs decision",
@@ -2627,7 +2631,7 @@ export function ContractResults({
           description: "Clauses from the expected best-practice 66 that are missing from the current supplier contract.",
         },
         "no-action": {
-          title: "Not Selected for Review",
+          title: "No Further Action",
           description: "Clauses that were not selected for review in the last analysis and are carried forward here in case you want to review them now. Clauses where you use the Recommended Position or set a custom position will be added to the next round of analysis for review.",
         },
       } satisfies Partial<Record<QuickFilterKey, { title: string; description: string }>>)[quickFilter ?? "selected-for-review"] ?? null
@@ -2645,8 +2649,8 @@ export function ContractResults({
           ? reviewSectionStateCopy?.description ?? "Clauses you asked to change in the last analysis that the supplier now meets in this contract."
           : "Clauses you asked to change in the last analysis that the supplier now meets in this contract.",
         noActionTitle: quickFilter === "no-action"
-          ? reviewSectionStateCopy?.title ?? "Not Selected for Review"
-          : "Not Selected for Review",
+          ? reviewSectionStateCopy?.title ?? "No Further Action"
+          : "No Further Action",
         noActionDescription: quickFilter === "no-action"
           ? reviewSectionStateCopy?.description ?? "Clauses that were not selected for review in the last analysis and are carried forward here in case you want to review them now. Clauses where you use the Recommended Position or set a custom position will be added to the next round of analysis for review."
           : "Clauses that were not selected for review in the last analysis and are carried forward here in case you want to review them now. Clauses where you use the Recommended Position or set a custom position will be added to the next round of analysis for review.",
@@ -2675,11 +2679,11 @@ export function ContractResults({
   const firstAnalysisMetricLabels = firstAnalysisActiveMetrics.map((metric) => ({
     key: metric,
     label: ({
-      high: "High Deviation",
-      medium: "Medium Deviation",
-      low: "Low Deviation",
+      high: "High",
+      medium: "Medium",
+      low: "Low",
       missing: "Missing Clauses",
-      none: "None Deviation",
+      none: "None",
     } satisfies Record<FirstAnalysisMetricKey, string>)[metric],
   }));
   const clearFirstAnalysisMetric = (metric: FirstAnalysisMetricKey) => {
@@ -3068,7 +3072,7 @@ export function ContractResults({
         <ComparisonSection
           title={outcomeSectionCopy.newTitle}
           description={outcomeSectionCopy.newDescription}
-          accent="primary"
+          accent="missing"
           rows={designNewIssueRows}
           leftLabel={leftVersion.version}
           rightLabel={rightVersion.version}
@@ -3081,6 +3085,7 @@ export function ContractResults({
           draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
           onClose={(id) => decisions.setRoundDecision(supplierId, decisionContractId, id, rightVersion.version, "no-action")}
           onKeepOpen={(id) => decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
+          onContinueWithActionability={continueWithActionability}
           onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
           onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
           onSubmitDraft={(id) => submitDraftRequestWithToast(id, rightVersion.version)}
@@ -3139,7 +3144,7 @@ export function ContractResults({
         <ComparisonSection
           title={outcomeSectionCopy.noActionTitle}
           description={outcomeSectionCopy.noActionDescription}
-          accent="warning"
+          accent="neutral"
           rows={designNoActionRows}
           leftLabel={leftVersion.version}
           rightLabel={rightVersion.version}
@@ -3269,7 +3274,7 @@ export function ContractResults({
           onClick={() => setRequestReviewOpen(true)}
         >
           <Download className="h-3.5 w-3.5" />
-          Review &amp; Generate{reviewGenerateItems.length > 0 ? ` (${reviewGenerateItems.length})` : ""}
+          Review &amp; Generate
         </Button>
       </div>
     ) : null;
@@ -3356,7 +3361,7 @@ export function ContractResults({
                     onClick={() => setRequestReviewOpen(true)}
                   >
                     <Download className="w-3.5 h-3.5" />
-                    Review &amp; Generate{reviewGenerateItems.length > 0 ? ` (${reviewGenerateItems.length})` : ""}
+                    Review &amp; Generate
                   </Button>
                   <Button variant="default" className="h-9 gap-orbit-xs" onClick={() => setUploadOpen(true)}>
                     <Upload className="w-3.5 h-3.5" /> Upload New Version
@@ -3655,7 +3660,7 @@ export function ContractResults({
                 <ComparisonSection
                   title={outcomeSectionCopy.newTitle}
                   description={outcomeSectionCopy.newDescription}
-                  accent="primary"
+                  accent="missing"
                   rows={newIssueRows}
                   leftLabel={leftVersion.version}
                   rightLabel={rightVersion.version}
@@ -3722,7 +3727,7 @@ export function ContractResults({
                 <ComparisonSection
                   title={outcomeSectionCopy.noActionTitle}
                   description={outcomeSectionCopy.noActionDescription}
-                  accent="warning"
+                  accent="neutral"
                   rows={noActionRows}
                   leftLabel={leftVersion.version}
                   rightLabel={rightVersion.version}
@@ -4332,7 +4337,7 @@ function ModeSwitcher({
               onClick={onReviewGenerate}
             >
               <Download className="h-3.5 w-3.5" />
-              Review &amp; Generate{requestCount > 0 ? ` (${requestCount})` : ""}
+              Review &amp; Generate
             </Button>
           </div>
         )}
@@ -4376,7 +4381,7 @@ function RecommendationBulkApplyBanner({
 }) {
   const [activeAxis, setActiveAxis] = useState<RecommendationBulkBannerAxis>("deviation");
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [selectionMode, setSelectionMode] = useState<"all" | "scoped">("all");
+  const [selectionMode, setSelectionMode] = useState<"all" | "scoped">("scoped");
   const [selection, setSelection] = useState<RecommendationApplyScope[]>([]);
   const [pendingAxisSwitch, setPendingAxisSwitch] = useState<RecommendationBulkBannerAxis | null>(null);
   const [applyConfirmOpen, setApplyConfirmOpen] = useState(false);
@@ -4389,10 +4394,9 @@ function RecommendationBulkApplyBanner({
     [allTargets],
   );
   const selectedTargets = useMemo(() => {
-    if (selectionMode === "all" || selection.length === 0) return eligibleTargets;
+    if (selectionMode === "all") return eligibleTargets;
     return filterRecommendationTargetsForBanner(eligibleTargets, selection);
   }, [eligibleTargets, selection, selectionMode]);
-  const selectedTargetIds = useMemo(() => new Set(selectedTargets.map((target) => target.id)), [selectedTargets]);
   const deviationOptions = useMemo(
     () => buildRecommendationBulkBannerAxisOptions(options, "deviation", eligibleTargets),
     [eligibleTargets, options],
@@ -4408,6 +4412,7 @@ function RecommendationBulkApplyBanner({
   const activeOptions = activeAxis === "deviation" ? deviationOptions : activeAxis === "status" ? statusOptions : typeOptions;
   const selectedCount = selectedTargets.length;
   const addSelectedDisabled = selectedCount === 0;
+  const selectedTargetIds = useMemo(() => new Set(selectedTargets.map((target) => target.id)), [selectedTargets]);
   const selectableActiveOptions = activeOptions.filter((option) => option.count > 0);
   const readySummaryLabel = `${eligibleTargets.length} of ${totalTargetCount} ready`;
   const scopeSummaryLabel = selectionMode === "all"
@@ -4460,13 +4465,9 @@ function RecommendationBulkApplyBanner({
   }, []);
 
   const setAxisScopedValues = useCallback((values: RecommendationApplyScope[]) => {
-    if (values.length === 0) {
-      selectAllEligible();
-      return;
-    }
     setSelectionMode("scoped");
     setSelection(values);
-  }, [selectAllEligible]);
+  }, []);
 
   const toggleScopeValue = useCallback((value: RecommendationApplyScope, checked: boolean) => {
     setPendingAxisSwitch(null);
@@ -4533,13 +4534,23 @@ function RecommendationBulkApplyBanner({
       role="region"
       aria-label="Bulk recommendation filters"
     >
-      <div className="clauseiq-v6-recommendation-bulk-banner-count">
-        <span className="clauseiq-v6-recommendation-bulk-banner-checkmark" aria-hidden="true">
-          <CheckCircle2 className="h-4 w-4" />
-        </span>
-        <span>{selectedCount} selected</span>
+      <div className="clauseiq-v6-recommendation-bulk-banner-context">
+        <InlineBanner
+          variant="Information"
+          contrast="Low"
+          label=""
+          description="This will apply the recommended position to clauses without an existing decision. Any individual selections you have already made will not be overwritten."
+        />
       </div>
-      <div className="clauseiq-v6-recommendation-bulk-banner-divider" aria-hidden="true" />
+      <div className="clauseiq-v6-recommendation-bulk-banner-selection">
+        <div className="clauseiq-v6-recommendation-bulk-banner-count">
+          <span className="clauseiq-v6-recommendation-bulk-banner-checkmark" aria-hidden="true">
+            <CheckCircle2 className="h-4 w-4" />
+          </span>
+          <span>{selectedCount} selected</span>
+        </div>
+        <div className="clauseiq-v6-recommendation-bulk-banner-divider" aria-hidden="true" />
+      </div>
       <div className="clauseiq-v6-recommendation-bulk-banner-label">Apply to</div>
       <div className="clauseiq-v6-recommendation-bulk-banner-controls" ref={dropdownRef}>
         <OrbitButton
@@ -4656,11 +4667,6 @@ function RecommendationBulkApplyBanner({
                     );
                   })}
                 </div>
-                <div className="clauseiq-v6-recommendation-bulk-dropdown-footer">
-                  <Text as="span" size="Small" weight="semi-bold" aria-live="polite">
-                    {selectedCount} selected
-                  </Text>
-                </div>
               </div>
             </Card>
           </div>
@@ -4675,7 +4681,7 @@ function RecommendationBulkApplyBanner({
           disabled={addSelectedDisabled}
           onClick={() => setApplyConfirmOpen(true)}
         >
-          Accept recommended positions
+          Bulk Apply Recommended Position
         </OrbitButton>
         <IconButton
           variant="Tertiary"
@@ -4753,7 +4759,7 @@ function summarizeBulkBannerScopeLabel(
     .map((value) => optionById.get(value))
     .filter((option): option is RecommendationApplyOption => Boolean(option))
     .map((option) => recommendationBulkBannerOptionLabel(option));
-  if (labels.length === 0) return "All eligible clauses";
+  if (labels.length === 0) return "No clauses selected";
   if (labels.length <= 2) return `${recommendationBulkBannerAxisLabel(axis)}: ${labels.join(", ")}`;
   return `${recommendationBulkBannerAxisLabel(axis)}: ${labels[0]} +${labels.length - 1}`;
 }
@@ -6579,10 +6585,31 @@ function ClauseDecisionCard({
   const showRequestActions = !suppressRequestActions && !noneDeviationClause && !settled && !actions && !showHandledCompact;
   const showBulkSelectionCheckbox = (bulkSelectionEnabled || bulkSelectionContext.enabled) && useDefaultComparisonCard;
   const bulkClauseSelected = bulkSelectedClauseIds?.has(id) ?? bulkSelectionContext.selectedClauseIds.has(id);
+  const CompactHandledCard = ({ children }: { children: ReactNode }) =>
+    showAcceptedCompact ? (
+      <Card type="Static" state="Success" padding="Small" indicator={false}>
+        <div className="flex flex-wrap items-center gap-orbit-s">
+          {children}
+        </div>
+      </Card>
+    ) : (
+      <div
+        className={cn(
+          "flex flex-wrap items-center gap-orbit-s rounded-md px-orbit-base py-orbit-s",
+          useDefaultComparisonCard
+            ? "border border-border bg-muted/20"
+            : "border border-[#BFD6AB] bg-[#EAF3DE]",
+        )}
+      >
+        {children}
+      </div>
+    );
   const useV6StatusTags = isInitiativesV6Route();
+  const isMissingClauseCard = Boolean(missingClause || clause.missingClause);
   const useV6DeviationCard = isInitiativesV6Route() && neutralActions;
   const useFirstAnalysisDeviationStyle = neutralActions && hideSubclauseReference && clause.severity === "high";
   const showChangePill =
+    !useV6StatusTags &&
     Boolean(changePill?.status) &&
     !stateBadge &&
     !(useV6StatusTags && changePill?.status === "regressed");
@@ -6590,16 +6617,16 @@ function ClauseDecisionCard({
   const severityBadgeLabel = useV6StatusTags
     ? FIRST_ANALYSIS_STATUS_THEME[severityStatusKey].label
     : noneDeviationClause
-    ? "None Deviation"
+    ? "None"
     : useFirstAnalysisDeviationStyle
-    ? "High Deviation"
+    ? "High"
     : clause.severity;
   const severityBadgeClass = noneDeviationClause
     ? firstAnalysisNoneDeviationBadgeClass
     : useFirstAnalysisDeviationStyle
     ? firstAnalysisDeviationBadgeClass
     : `${severityTone(clause.severity)} shrink-0 rounded-full px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium`;
-  const showSeverityBadge = !isPureMissingClause(clause);
+  const showSeverityBadge = true;
   const reviewCardState: OrbitCardState = useV6DeviationCard
     ? firstAnalysisCardStateForClause(clause)
     : useDefaultComparisonCard
@@ -6669,49 +6696,58 @@ function ClauseDecisionCard({
             </div>
           </div>
           {alteredAfterAgreement && <Chip label="Altered after agreement" size="Mini" variant="Error" contrast="Low" />}
-          {verdict ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex cursor-help">
-                  <VerdictPill verdict={verdict} superseded={verdictSuperseded} />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                <VerdictTooltipContent />
-              </TooltipContent>
-            </Tooltip>
-          ) : showChangePill && changePill ? <ChangePillBadge result={changePill} /> : null}
-          {showSeverityBadge && (
-            useV6StatusTags ? (
+          {verdict && !isMissingClauseCard ? (
+            <span className="inline-flex items-center gap-orbit-xs">
+              <span className="text-[11px] text-muted-foreground">Round Action</span>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="inline-flex cursor-help">
-                    <FirstAnalysisStatusTag status={severityStatusKey} />
+                    <VerdictPill verdict={verdict} superseded={verdictSuperseded} />
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <DeviationTooltipContent />
+                  <VerdictTooltipContent />
                 </TooltipContent>
               </Tooltip>
-            ) : (
-              <Badge variant="outline" className={severityBadgeClass}>
-                {severityBadgeLabel}
-              </Badge>
-            )
-          )}
-          {missingClause && (
-            useV6StatusTags ? (
-              <FirstAnalysisStatusTag status="missing" />
-            ) : (
-              <Badge
-                variant="outline"
-                className={getFirstAnalysisMissingClauseBadgeClass()}
-              >
-                Missing Clause
-              </Badge>
-            )
+            </span>
+          ) : showChangePill && changePill ? <ChangePillBadge result={changePill} /> : null}
+          {isMissingClauseCard && (
+            <span className="inline-flex items-center gap-orbit-xs">
+              <span className="text-[11px] text-muted-foreground">Round Action</span>
+              {useV6StatusTags ? (
+                <FirstAnalysisStatusTag status="missing" label="Missing" />
+              ) : (
+                <Badge
+                  variant="outline"
+                  className={getFirstAnalysisMissingClauseBadgeClass()}
+                >
+                  Missing Clause
+                </Badge>
+              )}
+            </span>
           )}
           {stateBadge}
+          {showSeverityBadge && (
+            <span className="inline-flex items-center gap-orbit-xs">
+              <span className="text-[11px] text-muted-foreground">Deviation</span>
+              {useV6StatusTags ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex cursor-help">
+                      <FirstAnalysisStatusTag status={severityStatusKey} />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="w-[320px]">
+                    <DeviationTooltipContent />
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Badge variant="outline" className={severityBadgeClass}>
+                  {severityBadgeLabel}
+                </Badge>
+              )}
+            </span>
+          )}
           {settled && !pendingBasketRequest && (
             <>
               <Tooltip>
@@ -6741,16 +6777,7 @@ function ClauseDecisionCard({
 
         {showHandledCompact && (
           <div className="mt-orbit-s space-y-orbit-s" onClick={(event) => event.stopPropagation()}>
-            <div
-              className={cn(
-                "flex flex-wrap items-center gap-orbit-s rounded-md px-orbit-base py-orbit-s",
-                showAcceptedCompact
-                  ? "border border-[#BFD6AB] bg-[#EAF3DE]"
-                  : useDefaultComparisonCard
-                  ? "border border-border bg-muted/20"
-                  : "border border-[#BFD6AB] bg-[#EAF3DE]",
-              )}
-            >
+            <CompactHandledCard>
               <p
                 className={cn(
                   "min-w-[180px] flex-1 truncate text-[11px]",
@@ -6806,7 +6833,7 @@ function ClauseDecisionCard({
                   </OrbitButton>
                 )}
               </div>
-            </div>
+            </CompactHandledCard>
           </div>
         )}
 
@@ -6963,15 +6990,15 @@ function ClauseRowScaleCard({
     cardStyle["--orbit-color-card-indicator-default"] = cardIndicatorToken;
   }
   const severityLabel = noneDeviationClause
-    ? "None Deviation"
-    : `${titleCaseSeverity(tier)} Deviation`;
+    ? "None"
+    : titleCaseSeverity(tier);
   const severityStatusKey = noneDeviationClause ? "none" : firstAnalysisSeverityStatus[tier];
   const severityBadgeClass = noneDeviationClause
     ? firstAnalysisNoneDeviationBadgeClass
     : useV6StatusColours
     ? theme.badgeClass
     : theme.legacyBadgeClass;
-  const showSeverityBadge = !isPureMissingClause(clause);
+  const showSeverityBadge = true;
   const metadata = hideSubclauseReference ? clause.category : `${clause.subclause} · ${clause.category}`;
   const actionabilityText = actionability?.trim() ?? "";
   const requestText = request?.requestedChange?.trim() ?? "";
@@ -7314,7 +7341,6 @@ function RecommendationRationaleDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Rationale"
-      description={rationale.title}
       size="Large"
       modalKey="recommendation-rationale"
       footer={
@@ -7324,6 +7350,7 @@ function RecommendationRationaleDialog({
       }
     >
       <div className="space-y-orbit-base">
+        <Headings size="Heading 4">Recommend Position&apos;s Rationale</Headings>
         {rationale.explanation.map((paragraph) => (
           <p key={paragraph} className="v6-orbit-text-body text-foreground">{paragraph}</p>
         ))}
@@ -7333,10 +7360,6 @@ function RecommendationRationaleDialog({
             <p className="mt-orbit-s whitespace-pre-line v6-orbit-text-small text-foreground">{rationale.playbookWording}</p>
           </div>
         )}
-        <div className="rounded-md border-l-2 border-primary bg-primary/5 px-orbit-base py-orbit-s">
-          <p className="v6-orbit-text-small v6-orbit-weight-semibold text-primary">Guidance</p>
-          <p className="mt-orbit-xs v6-orbit-text-small text-foreground">{rationale.guidance}</p>
-        </div>
       </div>
     </V6OrbitOverlay>
   );
@@ -7510,23 +7533,23 @@ function buildRecommendationApplyOptions(
     ...verdictOptions,
     buildRecommendationApplyOption(
       "high",
-      "High Deviation",
-      "High Deviation recommendation",
-      "High Deviation",
+      "High",
+      "High recommendation",
+      "High",
       byScope("high"),
     ),
     buildRecommendationApplyOption(
       "medium",
-      "Medium Deviation",
-      "Medium Deviation recommendation",
-      "Medium Deviation",
+      "Medium",
+      "Medium recommendation",
+      "Medium",
       byScope("medium"),
     ),
     buildRecommendationApplyOption(
       "low",
-      "Low Deviation",
-      "Low Deviation recommendation",
-      "Low Deviation",
+      "Low",
+      "Low recommendation",
+      "Low",
       byScope("low"),
     ),
     buildRecommendationApplyOption(
@@ -7538,9 +7561,9 @@ function buildRecommendationApplyOptions(
     ),
     buildRecommendationApplyOption(
       "none",
-      "None Deviation",
-      "None Deviation recommendation",
-      "None Deviation",
+      "None",
+      "None recommendation",
+      "None",
       byScope("none"),
     ),
     ...categoryOptions,
@@ -7676,15 +7699,15 @@ function ClauseReviewModalCard({
       <Card type="Static" padding="Base" state={clauseCardState} indicator style={clauseCardStyle}>
         <div className="flex flex-wrap items-start justify-between gap-orbit-s">
           <div className="flex flex-wrap items-center gap-orbit-xs">
-            {severity && !pureMissing && (
+            {severity && (
               useV6StatusTags ? (
-                <FirstAnalysisStatusTag status={firstAnalysisSeverityStatus[severity]} label={`${titleCaseSeverity(severity)} Deviation`} />
+                <FirstAnalysisStatusTag status={firstAnalysisSeverityStatus[severity]} label={titleCaseSeverity(severity)} />
               ) : (
                 <Badge
                   variant="outline"
                   className={cn("h-5 rounded-full px-orbit-s text-[9px] v6-orbit-weight-medium", severityTone(severity))}
                 >
-                  {titleCaseSeverity(severity)} Deviation
+                  {titleCaseSeverity(severity)}
                 </Badge>
               )
             )}
@@ -7952,7 +7975,7 @@ function ReviewGenerateProgressDashboard({ progress }: { progress: ReviewGenerat
         { label: "Not Met", value: progress.notMet ?? 0, muted: false },
         { label: "Met", value: progress.met ?? 0, muted: false },
         { label: "Missing Clauses", value: progress.missingClauses ?? 0, muted: false },
-        { label: "Ready for CSV", value: progress.readyForCsv, muted: false },
+        { label: "No Further Action", value: progress.noAction, muted: false },
       ]
     : [
         { label: "Used recommendations", value: progress.usedRecommendations, muted: false },
@@ -8238,7 +8261,7 @@ function ReviewScreen({
 function ComparisonSection(props: {
   title: string;
   description: string;
-  accent: "primary" | "warning" | "destructive" | "success";
+  accent: "primary" | "warning" | "neutral" | "destructive" | "success" | "missing";
   rows: ComparisonRow[];
   leftLabel: string;
   rightLabel: string;
@@ -8280,29 +8303,37 @@ function ComparisonSection(props: {
     onUpdateText, onCancelDraft, onSubmitDraft, onConfirmVerdictFromAction, stateOf, layout = "collapsible", overrideVerdict,
     bulkSelectionEnabled = false, bulkSelectedClauseIds, onBulkClauseSelectionChange,
   } = props;
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
   const [pendingDraftCancelId, setPendingDraftCancelId] = useState<string | null>(null);
   if (!visible) return null;
   const accentBar =
     accent === "primary" ? "bg-primary"
       : accent === "warning" ? "bg-warning"
+      : accent === "neutral" ? "bg-muted-foreground"
       : accent === "success" ? "bg-success"
+      : accent === "missing" ? "bg-[#5F5E5A]"
       : "bg-destructive";
   const accentText =
     accent === "primary" ? "text-primary"
       : accent === "warning" ? "text-warning-foreground"
+      : accent === "neutral" ? "text-muted-foreground"
       : accent === "success" ? "text-success"
+      : accent === "missing" ? "text-[#5F5E5A]"
       : "text-destructive";
   const accentBg =
     accent === "primary" ? "bg-primary/5 hover:bg-primary/10"
       : accent === "warning" ? "bg-warning/10 hover:bg-warning/15"
+      : accent === "neutral" ? "bg-muted/60 hover:bg-muted"
       : accent === "success" ? "bg-success/5 hover:bg-success/10"
+      : accent === "missing" ? "bg-[#FFFFFF] hover:bg-[#F7F7F5]"
       : "bg-destructive/5 hover:bg-destructive/10";
   const accentBorder =
     accent === "primary" ? "border-primary/30"
       : accent === "warning" ? "border-warning/40"
+      : accent === "neutral" ? "border-border"
       : accent === "success" ? "border-success/30"
+      : accent === "missing" ? "border-[#D9D8D2]"
       : "border-destructive/30";
   const emptyMsg =
     bucket === "open" ? "No open requests for this round."
@@ -8434,13 +8465,13 @@ function ComparisonSection(props: {
               canShowOutcomeFooter && isNoneDeviationClause(display) ? (
                 <Button
                   variant="outline"
-                  className="h-8 v6-orbit-text-small"
+                  className="ml-auto h-8 v6-orbit-text-small"
                   onClick={() => openReviseTargetEditor()}
                 >
                   {CLAUSE_ACTION_LABELS.reviseTarget}
                 </Button>
               ) : canShowOutcomeFooter && bucket === "closed" ? (
-                <>
+                <div className="ml-auto flex items-center gap-orbit-xs">
                   <Button
                     variant="outline"
                     className="h-8 v6-orbit-text-small"
@@ -8450,7 +8481,7 @@ function ComparisonSection(props: {
                   </Button>
                   <Button
                     variant="default"
-                    className="ml-auto h-8 v6-orbit-text-small"
+                    className="h-8 v6-orbit-text-small"
                     onClick={() => {
                       onConfirmVerdictFromAction?.(r.id, rowVerdict, "Confirmed position");
                       onClose(r.id);
@@ -8458,30 +8489,32 @@ function ComparisonSection(props: {
                   >
                     Confirm Position
                   </Button>
-                </>
+                </div>
               ) : canShowOutcomeFooter && rowVerdict !== "met" ? (
                 <>
                   <Button
                     variant={closure === "follow-up" ? "secondary" : "outline"}
-                    className="h-8 v6-orbit-text-small"
+                    className="ml-auto h-8 v6-orbit-text-small"
                     onClick={() => openReviseTargetEditor()}
                   >
                     {CLAUSE_ACTION_LABELS.reviseTarget}
                   </Button>
-                  <Button
-                    variant="default"
-                    className="ml-auto h-8 v6-orbit-text-small"
-                    onClick={() => {
-                      if (actionabilityRequest && onContinueWithActionability) {
-                        onContinueWithActionability(r.id, actionabilityRequest);
-                        return;
-                      }
-                      onConfirmVerdictFromAction?.(r.id, rowVerdict, "Held previous target");
-                      onKeepOpen(r.id);
-                    }}
-                  >
-                    {CLAUSE_ACTION_LABELS.holdPosition}
-                  </Button>
+                  {bucket !== "no-action" && (
+                    <Button
+                      variant="default"
+                      className="h-8 v6-orbit-text-small"
+                      onClick={() => {
+                        if (actionabilityRequest && onContinueWithActionability) {
+                          onContinueWithActionability(r.id, actionabilityRequest);
+                          return;
+                        }
+                        onConfirmVerdictFromAction?.(r.id, rowVerdict, "Held previous target");
+                        onKeepOpen(r.id);
+                      }}
+                    >
+                      {CLAUSE_ACTION_LABELS.holdPosition}
+                    </Button>
+                  )}
                 </>
               ) : undefined
             }
@@ -8509,6 +8542,12 @@ function ComparisonSection(props: {
             verdictSuperseded={Boolean(rowConfirmation?.overrideComment)}
             deviationDelta={rowDeviationDelta}
             alteredAfterAgreement={Boolean(rowState?.alteredAfterAgreement)}
+            stateBadge={bucket === "no-action" ? (
+              <span className="inline-flex items-center gap-orbit-xs">
+                <span className="text-[11px] text-muted-foreground">Round Action</span>
+                <Chip label="No Further Action" size="Mini" variant="No Status" contrast="Low" />
+              </span>
+            ) : undefined}
             missingClause={Boolean(display.missingClause)}
             metaPrefix={!resolvedOverrideVerdict && r.pill.status === "new" ? <span className="mr-orbit-xs text-[#0C447C]">+</span> : null}
             selectedComparisonAction={closure === "closed" || rowState?.acceptedClosed ? "accepted" : undefined}
@@ -8591,7 +8630,12 @@ function ComparisonSection(props: {
     return (
       <>
         <section className={`overflow-hidden rounded-lg border ${accentBorder} bg-card`}>
-          <div className={`flex items-start gap-orbit-base p-orbit-base ${accentBg}`}>
+          <button
+            type="button"
+            aria-expanded={open}
+            className={`flex w-full items-start gap-orbit-base p-orbit-base text-left transition-colors ${accentBg}`}
+            onClick={() => setOpen((current) => !current)}
+          >
             <span className={`w-1 self-stretch rounded ${accentBar}`} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-orbit-s">
@@ -8604,8 +8648,9 @@ function ComparisonSection(props: {
               </div>
               <p className="mt-orbit-xs v6-orbit-text-small text-muted-foreground" style={{ lineHeight: 1.5 }}>{description}</p>
             </div>
-          </div>
-          {rowsContent}
+            <ChevronDown className={`mt-orbit-xs h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+          </button>
+          {open && rowsContent}
         </section>
         {confirmOverlay}
       </>

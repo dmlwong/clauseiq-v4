@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { ArrowRight, Columns3, List } from "lucide-react";
+import { ArrowRight, Columns3, Info, List } from "lucide-react";
 import {
   Badge,
   Card,
@@ -12,6 +12,7 @@ import {
 } from "@orbit";
 
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/clauseiq-v6a/orbit-ui/tooltip";
 import type { ComparisonStripStats, DeviationDistribution, VersionPanelData } from "@/lib/clauseiq-v4-comparison";
 import {
   FIRST_ANALYSIS_STATUS_THEME,
@@ -80,7 +81,10 @@ const v6DistributionColours: Record<keyof DeviationDistribution, string> = {
 };
 
 function isInitiativesV6Route() {
-  return typeof window !== "undefined" && window.location.pathname.startsWith("/initiatives-v6a");
+  if (typeof window === "undefined") return false;
+  return /(?:^|\/)initiatives-v6a(?:\/|$)/.test(
+    `${window.location.pathname}${window.location.hash}`,
+  );
 }
 
 export function DesignOptionSwitcher({
@@ -179,8 +183,8 @@ export function ComparisonDesignOptions({
       <div className="mx-auto w-full max-w-[1500px] space-y-orbit-base px-orbit-base py-orbit-base">
         {introBanner}
         <div className="grid gap-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
-          <aside className="xl:sticky xl:top-[100px] xl:self-start">
-            <section className="flex overflow-hidden rounded-lg border border-border bg-card xl:h-[calc(100vh-180px)] xl:flex-col">
+          <aside className="clauseiq-v6a-comparison-sticky-rail xl:self-start">
+            <section className="clauseiq-v6a-comparison-sticky-rail-panel flex overflow-hidden rounded-lg border border-border bg-card xl:flex-col">
               <div className="min-h-0 flex-1 overflow-y-auto p-orbit-base">
                 <ComparisonSummaryRail
                   panel={panel}
@@ -288,8 +292,8 @@ export function FirstAnalysisDesignOptions({
     return (
       <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-base py-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
         {banner ? <div className="min-w-0 xl:col-span-2">{banner}</div> : null}
-        <aside className="xl:sticky xl:top-[100px] xl:self-start">
-          <section className="flex overflow-hidden rounded-lg border border-border bg-card xl:h-[calc(100vh-180px)] xl:flex-col">
+        <aside className="clauseiq-v6a-comparison-sticky-rail xl:self-start">
+          <section className="clauseiq-v6a-comparison-sticky-rail-panel flex overflow-hidden rounded-lg border border-border bg-card xl:flex-col">
             <div className="min-h-0 flex-1 overflow-y-auto p-orbit-base">
               <FirstAnalysisReviewCountPanel visibleCount={visibleCount} />
               <FirstAnalysisSummaryPanel
@@ -486,8 +490,8 @@ function WorkflowStack({
     <div className="grid gap-orbit-base">
       {openItems}
       {closedItems}
-      {noActionItems}
       {newChanges}
+      {noActionItems}
       {unmarkedClauses}
     </div>
   );
@@ -876,7 +880,7 @@ const metricDefinitions: Array<{
   { key: "met", label: "Met", value: "met", tone: "success", group: "changes" },
   { key: "not-met", label: "Not Met", value: "notMet", tone: "destructive", group: "changes" },
   { key: "missing", label: "Missing", value: "missingClauses", group: "changes" },
-  { key: "no-action", label: "Not Selected for Review", value: "noAction", group: "changes" },
+  { key: "no-action", label: "No Further Action", value: "noAction", group: "changes" },
   { key: "worsened", label: "Regressed", value: "worsened", tone: "destructive", group: "changes" },
   { key: "unexpected", label: "New supplier change", value: "unexpected", tone: "warning", group: "changes" },
   { key: "manual-review", label: "Needs decision", value: "manualReview", tone: "destructive", group: "changes" },
@@ -897,11 +901,11 @@ const firstAnalysisMetricDefinitions: Array<{
   barBorderColor?: string;
   group: "workflow" | "risk";
 }> = [
-  { key: "high", label: "High Deviation", value: "high", tone: "destructive", color: "hsl(var(--destructive))", v6Status: "high", group: "risk" },
-  { key: "medium", label: "Medium Deviation", value: "medium", tone: "warning", color: "#F0AB00", v6Status: "medium", group: "risk" },
-  { key: "low", label: "Low Deviation", value: "low", color: "#5F5E5A", v6Status: "low", group: "risk" },
+  { key: "high", label: "High", value: "high", tone: "destructive", color: "hsl(var(--destructive))", v6Status: "high", group: "risk" },
+  { key: "medium", label: "Medium", value: "medium", tone: "warning", color: "#F0AB00", v6Status: "medium", group: "risk" },
+  { key: "low", label: "Low", value: "low", color: "#5F5E5A", v6Status: "low", group: "risk" },
   { key: "missing", label: "Missing Clauses", value: "missingClauses", color: "hsl(var(--foreground))", v6Status: "missing", barColor: "#ffffff", barBorderColor: "hsl(var(--border))", group: "risk" },
-  { key: "none", label: "None Deviation", value: "noneDeviation", tone: "success", color: "#3B6D11", v6Status: "none", group: "risk" },
+  { key: "none", label: "None", value: "noneDeviation", tone: "success", color: "#3B6D11", v6Status: "none", group: "risk" },
 ];
 
 const firstAnalysisMetricBarDefinitions = firstAnalysisMetricDefinitions.filter(
@@ -1111,13 +1115,49 @@ function MetricGrid({
   ];
   const sections = simplifyStatusMetrics ? groupedMetricSections : fullGroupedMetricSections;
   const metricByKey = new Map(visibleMetricDefinitions.map((definition) => [definition.key, definition]));
+  const metricSectionTooltipCopy: Record<string, ReactNode> = {
+    "Round Action": "Shows how clauses are progressing in this negotiation round: met, not met, missing, or not selected for review.",
+    "Deviation Level": (
+      <div className="space-y-1 text-xs">
+        <p className="v6-orbit-weight-semibold">Deviation Level - How far the contract differs from best practice.</p>
+        <p>None - Matches best practice. No change needed.</p>
+        <p>Low - Minor difference. Small improvement recommended.</p>
+        <p>Medium - Meaningful difference. Creates a notable legal, commercial, or operational issue.</p>
+        <p>High - Major difference. Creates significant buyer risk or loss of protection.</p>
+      </div>
+    ),
+  };
+  const renderSectionTitle = (title: string) => {
+    const tooltip = metricSectionTooltipCopy[title];
+    return (
+      <div className="flex min-w-0 items-center gap-orbit-xs">
+        <p className="v6-orbit-text-small v6-orbit-weight-semibold text-[var(--orbit-color-text-secondary)]">{title}</p>
+        {tooltip && (
+          <Tooltip>
+            <TooltipTrigger>
+              <button
+                type="button"
+                aria-label={`${title} help`}
+                className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[var(--orbit-color-text-secondary)] transition-colors hover:text-[var(--orbit-color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-border-focus)]"
+              >
+                <Info className="h-3 w-3" aria-hidden="true" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-[380px]">
+              {tooltip}
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+    );
+  };
 
   if (grouped) {
     return (
       <div className="mt-orbit-base grid gap-orbit-base lg:grid-cols-2">
         {sections.map((section) => (
           <div key={section.title} className="rounded-lg border border-border/70 bg-white/60 p-orbit-s">
-            <p className="v6-orbit-text-small v6-orbit-weight-semibold text-[var(--orbit-color-text-secondary)]">{section.title}</p>
+            {renderSectionTitle(section.title)}
             <div className="grid grid-cols-2 gap-orbit-s">
               {section.keys.map((key) => metricByKey.get(key)).filter((definition): definition is (typeof metricDefinitions)[number] => Boolean(definition)).map(renderMetric)}
             </div>
@@ -1134,7 +1174,7 @@ function MetricGrid({
           {sections.map((section) => (
           <div key={section.title}>
             <div className="mb-orbit-xs rounded-md py-orbit-xs">
-              <p className="v6-orbit-text-small v6-orbit-weight-semibold text-[var(--orbit-color-text-secondary)]">{section.title}</p>
+              {renderSectionTitle(section.title)}
             </div>
             <div className="space-y-orbit-xs">
               {section.keys

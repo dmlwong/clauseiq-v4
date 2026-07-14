@@ -348,15 +348,27 @@ body
   box-shadow: var(--orbit-shadow-lg);
   color: var(--orbit-color-text-inverse);
   display: grid;
-  gap: var(--orbit-space-base);
-  grid-template-columns: auto auto auto minmax(220px, 360px) auto auto;
+  gap: var(--orbit-space-s);
+  grid-template-columns: auto auto minmax(220px, 360px) minmax(0, 1fr);
   margin: 0;
   min-height: 56px;
-  padding: var(--orbit-space-s) var(--orbit-space-base);
+  padding: var(--orbit-space-base);
   position: sticky;
   top: 100px;
   width: 100%;
   z-index: 18;
+}
+
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-banner-context {
+  grid-column: 1 / -1;
+  min-width: 0;
+  width: 100%;
+}
+
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-banner-selection {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--orbit-space-s);
 }
 
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-banner-count {
@@ -386,6 +398,7 @@ body
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-banner-label {
   color: color-mix(in srgb, var(--orbit-color-text-inverse) 90%, transparent);
   font-size: var(--orbit-text-body-size);
+  justify-self: end;
   line-height: var(--orbit-text-body-leading);
   white-space: nowrap;
 }
@@ -523,24 +536,30 @@ body
   line-height: var(--orbit-text-strong-leading);
 }
 
-[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-dropdown-footer {
-  align-items: center;
-  border-top: 1px solid var(--orbit-color-card-border-default);
-  display: flex;
-  justify-content: space-between;
-  padding-top: var(--orbit-space-base);
-}
-
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-banner-actions {
   align-items: center;
   display: inline-flex;
   flex: 0 0 auto;
   gap: var(--orbit-space-s);
   justify-self: end;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-banner-close {
   color: var(--orbit-color-text-inverse);
+}
+
+@media (min-width: 1280px) {
+  [data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6a-comparison-sticky-rail {
+    position: sticky;
+    top: calc(40px + var(--orbit-space-m));
+  }
+
+  [data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6a-comparison-sticky-rail-panel {
+    height: calc(100vh - 40px - (var(--orbit-space-m) * 2));
+  }
 }
 
 @media (max-width: 900px) {

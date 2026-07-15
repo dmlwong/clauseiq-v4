@@ -188,7 +188,7 @@ const CLAUSE_ACTION_LABELS = {
   holdPosition: "Apply Recommended Position",
   acceptSupplierPosition: "Accept Supplier Position",
   /** Concede: stop pursuing the change and leave the clause as the supplier left it. */
-  keepCurrentSummary: "Keep current summary",
+  keepCurrentSummary: "Keep Current Summary",
 } as const;
 
 interface CategorySidebarItem {
@@ -8751,7 +8751,7 @@ function ComparisonSection(props: {
                     </p>
                     <Button
                       variant="secondary"
-                      className="shrink-0"
+                      className="shrink-0 font-orbit-medium"
                       onClick={() => {
                         // High deviation: confirm before conceding. Medium/Low/None go straight through.
                         if (display.severity === "high") {

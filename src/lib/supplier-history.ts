@@ -1,3 +1,5 @@
+import { formatClauseIqTimestamp } from "@/lib/clauseiq-v6a-format";
+
 // Supplier extraction + cross-analysis history (mock for ClauseIQ v2 prototype).
 //
 // Scenario: when a contract is analysed, ClauseIQ extracts the supplier name.
@@ -93,6 +95,5 @@ export function extractSupplierFromFile(file: File | null): ExtractedSupplier {
 }
 
 export function formatAnalysedDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return formatClauseIqTimestamp(iso);
 }

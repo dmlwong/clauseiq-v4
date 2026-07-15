@@ -58,8 +58,8 @@ export function V6OrbitOverlay({
                 <div className="min-w-0">
                   <Headings size="Heading 4">{title}</Headings>
                   {description && (
-                    <div className="mt-orbit-s">
-                      <Text size="Small" variant="Secondary" as="p">
+                    <div className="mt-orbit-s min-w-0 max-w-full">
+                      <Text size="Small" variant="Secondary" as="p" className="min-w-0 max-w-full whitespace-normal break-words">
                         {description}
                       </Text>
                     </div>
@@ -123,9 +123,11 @@ export function V6OrbitConfirmOverlay({
       modalKey={modalKey}
       children={
         descriptionPlacement === "body" ? (
-          <Text size="Small" variant="Secondary" as="p">
-            {description}
-          </Text>
+          <div className="min-w-0 max-w-full">
+            <Text size="Small" variant="Secondary" as="p" className="min-w-0 max-w-full whitespace-normal break-words">
+              {description}
+            </Text>
+          </div>
         ) : undefined
       }
       footer={

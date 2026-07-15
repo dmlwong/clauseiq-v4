@@ -329,8 +329,8 @@ function scoreBandIndicatorStatus(score: number): "Error" | "Warning" | "Success
 
 
 const lowDeviationPillStyle = {
-  "--orbit-color-chip-style-2-bg": "var(--orbit-color-chip-style-2-bg)",
-  "--orbit-color-chip-style-2-border": "var(--orbit-color-chip-style-2-border)",
+  "--orbit-color-chip-style-2-bg": "#E5EDEE",
+  "--orbit-color-chip-style-2-border": "#34585C",
 } as CSSProperties;
 
 const missingClausesPillStyle = {

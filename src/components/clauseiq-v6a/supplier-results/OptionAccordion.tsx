@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { newestFirst, oldestFirst, supplierSeverity } from "@/lib/clauseiq-utils";
 import { AnalysisCard } from "./AnalysisCard";
 import { SupplierAvatar } from "./SupplierAvatar";
+import { formatClauseIqTimestamp } from "@/lib/clauseiq-v6a-format";
 import type { ResultsViewProps } from "./types";
 
 export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResult, analysisParameters }: ResultsViewProps) {
@@ -123,12 +124,5 @@ function latestChangeTime(analyses: ResultsViewProps["initiative"]["suppliers"][
 function latestChangeTimestamp(analyses: ResultsViewProps["initiative"]["suppliers"][number]["analyses"]): string {
   const latest = newestFirst(analyses)[0];
   if (!latest) return "not available";
-  return new Date(latest.analysedAt).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+  return formatClauseIqTimestamp(latest.analysedAt);
 }

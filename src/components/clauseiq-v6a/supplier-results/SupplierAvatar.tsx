@@ -10,7 +10,9 @@ interface Props {
   className?: string;
 }
 
-const PRIMARY_AVATAR_COLOR = "var(--orbit-color-btn-primary-bg)";
+// Supplier cards do not navigate to a profile, so they must not borrow the
+// interactive indigo treatment used by actionable user identities.
+const SUPPLIER_AVATAR_COLOR = "var(--orbit-color-bg-surface)";
 
 const sizeMap = {
   sm: "Extra Small",
@@ -25,7 +27,7 @@ export function SupplierAvatar({ name, shortCode, size = "md", className }: Prop
       name={name}
       initials={shortCode}
       size={sizeMap[size]}
-      color={PRIMARY_AVATAR_COLOR}
+      color={SUPPLIER_AVATAR_COLOR}
     />
   );
 

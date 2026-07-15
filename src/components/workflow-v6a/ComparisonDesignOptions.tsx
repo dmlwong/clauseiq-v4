@@ -431,14 +431,22 @@ function FirstAnalysisSummaryPanel({
             <Text as="p" size="Paragraph" variant="Secondary">Score</Text>
             <div className="flex shrink-0 justify-end text-right">
               <Chip
-                label={`Latest analysis · ${versionLabel}`}
+                label={`Initial Analysis · ${versionLabel}`}
                 size="Mini"
                 variant="Information"
                 contrast="Low"
               />
             </div>
           </div>
-          <div className="flex min-w-0 items-baseline gap-orbit-s">
+          <div className="flex min-w-0 items-center gap-orbit-xs">
+            <span data-testid="first-analysis-score-donut" className="shrink-0 self-center">
+              <RadialIndicator
+                status={scoreBandIndicatorStatus(metrics.score)}
+                progress={metrics.score}
+                size={40}
+                ariaLabel={`Score ${metrics.score}`}
+              />
+            </span>
             <span className="v6-orbit-heading-1 text-orbit-fg">{metrics.score}</span>
           </div>
         </div>
@@ -596,20 +604,28 @@ function ScoreHero({
             </Text>
             <div className="flex shrink-0 justify-end text-right">
               <Chip
-                label={`Latest analysis · ${currentVersionLabel}`}
+                label={`Latest Analysis · ${currentVersionLabel}`}
                 size="Mini"
                 variant="Information"
                 contrast="Low"
               />
             </div>
           </div>
-          <div className="flex min-w-0 items-baseline gap-orbit-s">
+          <div className="flex min-w-0 items-center gap-orbit-xs">
+            <span data-testid="comparison-score-donut" className="shrink-0 self-center">
+              <RadialIndicator
+                status={scoreBandIndicatorStatus(panel.current.score)}
+                progress={panel.current.score}
+                size={40}
+                ariaLabel={`Score ${panel.current.score}`}
+              />
+            </span>
             <span className="v6-orbit-heading-1 text-orbit-fg">
               {panel.current.score}
             </span>
             <span
               className={cn(
-                "inline-flex shrink-0 items-center gap-orbit-xxs v6-orbit-text-small v6-orbit-weight-medium",
+                "mb-1.5 inline-flex shrink-0 self-end items-center gap-orbit-xxs v6-orbit-text-small v6-orbit-weight-medium",
                 deltaToneClass,
               )}
               aria-label={
@@ -645,6 +661,12 @@ function ScoreMovementBadge({ panel }: { panel: VersionPanelData }) {
       contrast="Low"
     />
   );
+}
+
+function scoreBandIndicatorStatus(score: number): "Error" | "Warning" | "Success" {
+  if (score <= 39) return "Error";
+  if (score <= 74) return "Warning";
+  return "Success";
 }
 
 function VersionMovementCard({
@@ -998,7 +1020,7 @@ function FirstAnalysisMetricGrid({
   if (density === "rail") {
     const missingMetric = firstAnalysisMetricDefinitions.find((definition) => definition.key === "missing");
     const deviationMetrics = firstAnalysisMetricDefinitions.filter((definition) => definition.key !== "missing");
-    const renderSectionTitle = (title: "Round Action" | "Deviation Level", description: ReactNode) => (
+    const renderSectionTitle = (title: "Review status" | "Deviation Level", description: ReactNode) => (
       <div className="flex min-w-0 items-center gap-orbit-xs">
         <p className="v6-orbit-text-small v6-orbit-weight-semibold text-[var(--orbit-color-text-secondary)]">{title}</p>
         <Tooltip>
@@ -1022,7 +1044,7 @@ function FirstAnalysisMetricGrid({
           {missingMetric && (
             <div>
               <div className="mb-orbit-xs rounded-orbit-md py-orbit-xs">
-                {renderSectionTitle("Round Action", <p className="text-orbit-xs">Missing means the expected clause was not found.</p>)}
+                {renderSectionTitle("Review status", <p className="text-orbit-xs">Missing means the expected clause was not found.</p>)}
               </div>
               <div className="space-y-orbit-xs">{renderMetricRow(missingMetric)}</div>
             </div>
@@ -1108,11 +1130,11 @@ function MetricGrid({
   );
 
   const groupedMetricSections: Array<{ title: string; keys: EvidenceMetricKey[] }> = [
-    { title: "Round Action", keys: ["met", "not-met", "missing", "no-action"] },
+    { title: "Review status", keys: ["met", "not-met", "missing", "no-action"] },
     { title: "Deviation Level", keys: ["high", "medium", "low", "none"] },
   ];
   const fullGroupedMetricSections: Array<{ title: string; keys: EvidenceMetricKey[] }> = [
-    { title: "Round Action", keys: ["met", "not-met", "missing", "no-action"] },
+    { title: "Review status", keys: ["met", "not-met", "missing", "no-action"] },
     { title: "Work needed", keys: ["manual-review"] },
     { title: "System detection", keys: ["unexpected", "worsened"] },
     { title: "Deviation Level", keys: ["high", "medium", "low", "none"] },
@@ -1120,11 +1142,11 @@ function MetricGrid({
   const sections = simplifyStatusMetrics ? groupedMetricSections : fullGroupedMetricSections;
   const metricByKey = new Map(visibleMetricDefinitions.map((definition) => [definition.key, definition]));
   const metricSectionTooltipCopy: Record<string, ReactNode> = {
-    "Round Action": (
+    "Review status": (
       <div className="space-y-orbit-xs text-orbit-xs">
         {/* font-orbit-semibold, not v6-orbit-weight-semibold: tooltip content is
             portaled outside the [data-prototype] root the scoped class needs. */}
-        <p className="font-orbit-semibold">Round Action groups clauses by their outcome in this round:</p>
+        <p className="font-orbit-semibold">Review status groups clauses by their outcome in this round:</p>
         <p>Met means the current clause meets the target position.</p>
         <p>Not Met means it does not meet the latest target position.</p>
         <p>Missing means the expected clause was not found.</p>

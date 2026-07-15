@@ -103,6 +103,8 @@ export const Columns3 = makeIcon(0xf0db);
 export const Database = makeIcon(0xf1c0);
 export const Download = makeIcon(0xf019);
 export const ExternalLink = makeIcon(0xf08e);
+/** Platform export/share glyph: arrow leaving an open square. */
+export const Export = makeIcon(0xf35d);
 export const Eye = makeIcon(0xf06e);
 export const FilePlus2 = makeIcon(0xe494);
 export const FileText = makeIcon(0xf15c);

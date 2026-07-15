@@ -1,3 +1,5 @@
+import { formatClauseIqDate } from "@/lib/clauseiq-v6a-format";
+
 // Prior supplier analyses under the same initiative (mock for ClauseIQ v2).
 //
 // Scenario: a buyer has analysed multiple *different* suppliers within the
@@ -89,5 +91,5 @@ export function filterPriorAnalyses(
 }
 
 export function formatShortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return formatClauseIqDate(iso);
 }

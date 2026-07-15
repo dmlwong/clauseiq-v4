@@ -7,6 +7,7 @@ import { Chip } from "@/components/clauseiq-v6a/orbit-ui/indicators";
 import { Switch } from "@/components/clauseiq-v6a/orbit-ui/switch";
 import type { ClauseAnalysis, Supplier } from "@/data/mock-clauseiq-v6";
 import { cn } from "@/lib/utils";
+import { formatClauseIqTimestamp } from "@/lib/clauseiq-v6a-format";
 import { supplierSeverity } from "@/lib/clauseiq-utils";
 import { DeviationPills } from "./DeviationPills";
 import {
@@ -180,7 +181,7 @@ export function AnalysisCard({
                 {onDownload && (
                 <Button variant="outline" className="h-10 gap-orbit-s" onClick={onDownload}>
                   <Download className="h-4 w-4" />
-                  Download Report
+                  Download report
                 </Button>
                 )}
               </div>
@@ -299,9 +300,5 @@ function documentIconFromFileName(fileName: string) {
 }
 
 function formatAnalysisTimestamp(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatClauseIqTimestamp(iso);
 }

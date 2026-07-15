@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/clauseiq-v
 import { mockInitiative, type ClauseAnalysis, type Supplier } from "@/data/mock-clauseiq-v6";
 import { newestFirst, supplierSeverity } from "@/lib/clauseiq-utils";
 import { cn } from "@/lib/utils";
+import { formatClauseIqDate, formatClauseIqTimestamp } from "@/lib/clauseiq-v6a-format";
 
 export type ScoreConceptId = "score-pill" | "score-delta" | "score-summary";
 type ScoreRefinementId =
@@ -362,7 +363,7 @@ function ScoreSimplificationColumn({
                   </Button>
                   <Button variant="outline" className="h-8 gap-orbit-xs">
                     <Download className="h-3.5 w-3.5" />
-                    Download latest report
+                    Download report
                   </Button>
                 </div>
               </>
@@ -857,20 +858,9 @@ function plainLanguageDelta(score: ExplorationScore) {
 }
 
 function formatCompactTimestamp(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+  return formatClauseIqTimestamp(iso);
 }
 
 function formatShortDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatClauseIqDate(iso);
 }

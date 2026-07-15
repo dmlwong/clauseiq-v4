@@ -16,6 +16,7 @@ import { Searchbox } from "@/components/clauseiq-v6a/orbit-ui/searchbox";
 import type { ClauseAnalysis, Supplier } from "@/data/mock-clauseiq-v6";
 import { flattenSupplierAnalyses, newestFirst, oldestFirst, supplierSeverity } from "@/lib/clauseiq-utils";
 import { cn } from "@/lib/utils";
+import { formatClauseIqDate } from "@/lib/clauseiq-v6a-format";
 import { AnalysisCard } from "./AnalysisCard";
 import {
   getSupplierScorePresentationByAnalysisId,
@@ -566,9 +567,5 @@ function latestChangeTime(supplier: Supplier): number {
 }
 
 function formatCompactTimestamp(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatClauseIqDate(iso);
 }

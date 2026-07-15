@@ -50,7 +50,7 @@ export function CrossSupplierComparison({ initiativeId, onBack, onOpenSupplier, 
   };
 
   return (
-    <div className="min-h-screen bg-orbit-canvas p-orbit-l">
+    <div className="min-h-screen p-orbit-l">
       <div className="max-w-6xl mx-auto space-y-orbit-m">
         <button onClick={onBack} className="flex items-center gap-orbit-xs text-orbit-sm text-orbit-fg-secondary hover:text-orbit-fg">
           <ChevronLeft className="w-4 h-4" /> Back to {initiative.name}

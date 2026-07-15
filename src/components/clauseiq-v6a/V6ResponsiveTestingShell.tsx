@@ -83,7 +83,7 @@ export function V6ResponsiveTestingShell({
                 {sidePanel}
               </aside>
             )}
-            <main className={cn("clauseiq-responsive-main v6-hover-scrollbar flex-1 overflow-y-auto min-h-0", mainClassName)}>
+            <main className={cn("clauseiq-responsive-main clauseiq-v6-canvas-grid v6-hover-scrollbar flex-1 overflow-y-auto min-h-0", mainClassName)}>
               {children}
             </main>
             {rightPanel && (

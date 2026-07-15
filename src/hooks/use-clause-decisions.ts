@@ -82,6 +82,12 @@ export interface ClauseDecisionState {
   requests: Record<string, ClauseRequest>;
   /** Draft request text keyed by target version, before the user submits the request. */
   draftRequests?: Record<string, ClauseRequest>;
+  /**
+   * Explicitly tracked current positions. Tracking is intentionally separate
+   * from a supplier-change request: consumers can export a reference record
+   * without creating a negotiation action.
+   */
+  trackedCurrentPositions?: Record<string, boolean>;
   targetVersions?: ClauseTargetVersion[];
   verdictConfirmations?: Record<string, ClauseVerdictConfirmation>;
   auditLog?: ClauseAuditEntry[];
@@ -439,6 +445,42 @@ export function useClauseDecisions(initial: Store = {}, options: ClauseDecisionO
         roundDecisions: withoutKey(s.roundDecisions, version),
         requests: withoutKey(s.requests, version),
         draftRequests: withoutKey(s.draftRequests, version),
+        trackedCurrentPositions: withoutKey(s.trackedCurrentPositions, version),
+      }));
+    },
+    [mutate],
+  );
+
+  const setTrackedCurrentPosition = useCallback(
+    (
+      supplierId: string,
+      contractId: string,
+      clauseId: string,
+      version: string,
+      tracked: boolean,
+    ) => {
+      mutate(supplierId, contractId, clauseId, (s) => ({
+        ...s,
+        trackedCurrentPositions: tracked
+          ? { ...(s.trackedCurrentPositions ?? {}), [version]: true }
+          : withoutKey(s.trackedCurrentPositions, version),
+      }));
+    },
+    [mutate],
+  );
+
+  /** Reset every v6a review choice for one clause/version before replacement or Undo. */
+  const resetClauseReviewState = useCallback(
+    (supplierId: string, contractId: string, clauseId: string, version: string) => {
+      mutate(supplierId, contractId, clauseId, (s) => ({
+        ...s,
+        roundDecisions: withoutKey(s.roundDecisions, version),
+        closures: withoutKey(s.closures, version),
+        outcomes: withoutKey(s.outcomes, version),
+        requests: withoutKey(s.requests, version),
+        draftRequests: withoutKey(s.draftRequests, version),
+        trackedCurrentPositions: withoutKey(s.trackedCurrentPositions, version),
+        acceptedClosed: false,
       }));
     },
     [mutate],
@@ -672,6 +714,8 @@ export function useClauseDecisions(initial: Store = {}, options: ClauseDecisionO
       acceptSubmittedRequests,
       acceptPendingRequests,
       clearRoundDecision,
+      setTrackedCurrentPosition,
+      resetClauseReviewState,
       changeDecision,
       removePendingRequest,
       submitPendingRequests,
@@ -696,6 +740,8 @@ export function useClauseDecisions(initial: Store = {}, options: ClauseDecisionO
       acceptSubmittedRequests,
       acceptPendingRequests,
       clearRoundDecision,
+      setTrackedCurrentPosition,
+      resetClauseReviewState,
       changeDecision,
       removePendingRequest,
       submitPendingRequests,

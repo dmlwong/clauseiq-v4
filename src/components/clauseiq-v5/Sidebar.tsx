@@ -13,15 +13,24 @@ const ICON_ROCKET = "\uf135";
 const ICON_SEARCH = "\uf002";
 const ICON_TARGET = "\uf140";
 
-export function CiqSidebar() {
+interface CiqSidebarProps {
+  prototype?: "v5" | "v6a";
+}
+
+export function CiqSidebar({ prototype = "v5" }: CiqSidebarProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isResponsiveTestingRoute =
     pathname.startsWith("/clauseiq-responsive-testing") || pathname.startsWith("/initiatives-responsive-testing");
-  const clauseIqHomePath = isResponsiveTestingRoute ? "/clauseiq-responsive-testing" : "/clauseiq-v5";
+  const clauseIqHomePath = isResponsiveTestingRoute
+    ? "/clauseiq-responsive-testing"
+    : prototype === "v6a"
+    ? "/clauseiq-v6a"
+    : "/clauseiq-v5";
   const showResultScenarioControl =
-    pathname === "/clauseiq-v5/output-panel" || pathname === "/clauseiq-responsive-testing/output-panel";
+    pathname === (prototype === "v6a" ? "/clauseiq-v6a/output-panel" : "/clauseiq-v5/output-panel") ||
+    pathname === "/clauseiq-responsive-testing/output-panel";
   const resultScenario = searchParams.get("resultScenario") === "history" ? "history" : "empty";
 
   const goTo = (path: string) => {
@@ -120,8 +129,8 @@ export function CiqSidebar() {
             title: "ClauseIQ",
             subtitle: "2d ago | TestClientTaxonomyCreatedBy",
             active:
-              pathname.startsWith("/clauseiq-v5") ||
-              pathname.startsWith("/initiatives-v5") ||
+              pathname.startsWith(prototype === "v6a" ? "/clauseiq-v6a" : "/clauseiq-v5") ||
+              pathname.startsWith(prototype === "v6a" ? "/initiatives-v6a" : "/initiatives-v5") ||
               isResponsiveTestingRoute,
             onClick: () => goTo(clauseIqHomePath),
           },

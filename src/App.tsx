@@ -10,6 +10,7 @@ import IndexV4 from "./pages/IndexV4.tsx";
 import IndexV5 from "./pages/IndexV5.tsx";
 import IndexV6 from "./pages/IndexV6.tsx";
 import IndexV6A from "./pages/IndexV6A.tsx";
+import IndexV7 from "./pages/IndexV7.tsx";
 import IndexResponsiveTesting from "./pages/IndexResponsiveTesting.tsx";
 import ClauseIQV2 from "./pages/ClauseIQV2.tsx";
 import ClauseIQV3 from "./pages/ClauseIQV3.tsx";
@@ -17,6 +18,7 @@ import ClauseIQV4 from "./pages/ClauseIQV4.tsx";
 import ClauseIQV5 from "./pages/ClauseIQV5.tsx";
 import ClauseIQV6 from "./pages/ClauseIQV6.tsx";
 import ClauseIQV6A from "./pages/ClauseIQV6A.tsx";
+import ClauseIQV7 from "./pages/ClauseIQV7.tsx";
 import ClauseIQResponsiveTesting from "./pages/ClauseIQResponsiveTesting.tsx";
 import ClauseIQV5Test from "./pages/ClauseIQV5Test.tsx";
 import ClauseIQV6Test from "./pages/ClauseIQV6Test.tsx";
@@ -63,6 +65,7 @@ const App = () => (
           <Route path="/initiatives-v5" element={<IndexV5 />} />
           <Route path="/initiatives-v6" element={<IndexV6 />} />
           <Route path="/initiatives-v6a" element={<IndexV6A />} />
+          <Route path="/initiatives-v7" element={<IndexV7 />} />
           <Route path="/initiatives-responsive-testing" element={<IndexResponsiveTesting />} />
           <Route path="/delivery-engine" element={<DeliveryEnginePage />} />
           <Route path="/delivery-engine/:id" element={<InitiativeDetailPage />} />
@@ -78,11 +81,13 @@ const App = () => (
           <Route path="/clauseiq-v5" element={<ClauseIQV5 />} />
           <Route path="/clauseiq-v6" element={<ClauseIQV6 />} />
           <Route path="/clauseiq-v6a" element={<ClauseIQV6A />} />
+          <Route path="/clauseiq-v7" element={<ClauseIQV7 />} />
           <Route path="/clauseiq-v5/test" element={<ClauseIQV5Test />} />
           <Route path="/clauseiq-v6/test" element={<ClauseIQV6Test />} />
           <Route path="/clauseiq-v5/output-panel" element={<ClauseIQV5 forceResults resultsLayout="output-panel" />} />
           <Route path="/clauseiq-v6/output-panel" element={<ClauseIQV6 forceResults resultsLayout="output-panel" />} />
           <Route path="/clauseiq-v6a/output-panel" element={<ClauseIQV6A forceResults resultsLayout="output-panel" />} />
+          <Route path="/clauseiq-v7/output-panel" element={<ClauseIQV7 forceResults resultsLayout="output-panel" />} />
           <Route path="/clauseiq-v5/output-score-exploration" element={<ClauseIQV5OutputScoreExploration />} />
           <Route path="/clauseiq-v6/output-score-exploration" element={<ClauseIQV6OutputScoreExploration />} />
           <Route path="/clauseiq-v5/deviation-prominence" element={<ClauseIQV5DeviationProminence />} />

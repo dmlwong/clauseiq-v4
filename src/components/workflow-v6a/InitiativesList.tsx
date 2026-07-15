@@ -9,7 +9,7 @@ interface Props {
 
 export function InitiativesList({ onSelect }: Props) {
   return (
-    <div className="min-h-screen bg-orbit-canvas p-orbit-l">
+    <div className="min-h-screen p-orbit-l">
       <div className="max-w-6xl mx-auto space-y-orbit-l">
         <header className="flex items-end justify-between gap-orbit-base">
           <div className="space-y-orbit-s">

@@ -53,14 +53,14 @@ function selectedBannerCount() {
 
 function getBulkDropdownTrigger() {
   const banner = screen.getByRole("region", { name: /bulk recommendation filters/i });
-  return within(banner).getByRole("button", { name: /all eligible clauses|deviation:|status:|type:/i });
+  return within(banner).getByRole("button", { name: /no clauses selected|all eligible clauses|deviation level:|review status:|clause:/i });
 }
 
 function openBulkDropdown() {
   fireEvent.click(getBulkDropdownTrigger());
 }
 
-function selectBulkAxis(name: "Deviation" | "Status" | "Type") {
+function selectBulkAxis(name: "Deviation Level" | "Review status" | "Clause") {
   fireEvent.click(screen.getByRole("button", { name }));
 }
 
@@ -68,15 +68,15 @@ function toggleBulkCheckbox(name: RegExp) {
   fireEvent.click(screen.getByRole("checkbox", { name }));
 }
 
-function applyRecommendationOptions(axis: "Deviation" | "Status" | "Type", ...names: RegExp[]) {
+function applyRecommendationOptions(axis: "Deviation Level" | "Review status" | "Clause", ...names: RegExp[]) {
   openRecommendationMenu();
   openBulkDropdown();
   selectBulkAxis(axis);
   names.forEach((name) => {
     toggleBulkCheckbox(name);
   });
-  fireEvent.click(screen.getByRole("button", { name: /Accept recommended positions/i }));
-  fireEvent.click(screen.getByRole("button", { name: /Accept \d+/i }));
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  fireEvent.click(screen.getByRole("button", { name: /Apply \d+/i }));
 }
 
 function generateCsv() {
@@ -184,7 +184,7 @@ describe("ContractResults V6A review controls", () => {
     const bulkApplyButton = screen.getByRole("button", { name: /bulk action/i });
     expect(bulkApplyButton).toBeEnabled();
 
-    applyRecommendationOptions("Deviation", /High/i);
+    applyRecommendationOptions("Deviation Level", /High/i);
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /review & generate/i })).toBeEnabled();
@@ -228,7 +228,7 @@ describe("ContractResults V6A review controls", () => {
     const scope = within(missingRow as HTMLElement);
     expect(scope.getByText("Low Deviation")).toBeInTheDocument();
     expect(scope.getByText("Missing")).toBeInTheDocument();
-    expect(scope.getByText("Round Action")).toBeInTheDocument();
+    expect(scope.getByText("Review status")).toBeInTheDocument();
     expect(scope.queryByText("Not Met")).not.toBeInTheDocument();
   });
 
@@ -239,7 +239,7 @@ describe("ContractResults V6A review controls", () => {
     expect(noActionRow).toBeTruthy();
 
     const scope = within(noActionRow as HTMLElement);
-    expect(scope.getByText("Round Action")).toBeInTheDocument();
+    expect(scope.getByText("Review status")).toBeInTheDocument();
     expect(scope.getByText("No Further Action")).toBeInTheDocument();
     expect(scope.getByText("High Deviation")).toBeInTheDocument();
   });
@@ -310,90 +310,57 @@ describe("ContractResults V6A review controls", () => {
     expect(within(clauseRow as HTMLElement).getByText("c19")).toBeInTheDocument();
   });
 
-  it("switches comparison cards into handled states after continuing with actionability or accepting supplier position", () => {
+  it("collapses a recommended decision into a single-Undo handled state", () => {
     renderContractResults(outcomeReviewRoute);
 
     const holdRow = screen.getByText("Data Processing").closest('[id^="clause-row-"]');
     expect(holdRow).toBeTruthy();
+    const holdScope = within(holdRow as HTMLElement);
+    expect(holdScope.getByRole("button", { name: "Expand Data Processing" })).toHaveAttribute("aria-expanded", "false");
 
-    fireEvent.click(within(holdRow as HTMLElement).getByRole("button", { name: "Apply Recommended Position" }));
+    fireEvent.click(holdScope.getByRole("button", { name: "Expand Data Processing" }));
+    fireEvent.click(holdScope.getByRole("button", { name: "Apply Recommended Position" }));
 
     const updatedHoldRow = screen.getByText("Data Processing").closest('[id^="clause-row-"]');
     expect(updatedHoldRow).toBeTruthy();
 
-    const holdScope = within(updatedHoldRow as HTMLElement);
-    expect(holdScope.getByText("Request:")).toBeInTheDocument();
+    const updatedHoldScope = within(updatedHoldRow as HTMLElement);
+    expect(updatedHoldScope.getByText("Recommendation applied:")).toBeInTheDocument();
     expect(
-      holdScope.getByText("Require full GDPR Art. 28 schedule and 24-hour breach notification SLA."),
+      updatedHoldScope.getByText("Require full GDPR Art. 28 schedule and 24-hour breach notification SLA."),
     ).toBeInTheDocument();
-    expect(holdScope.queryByText("Recommend Position")).not.toBeInTheDocument();
-    expect(holdScope.queryByText("Previous Analysis · v2")).not.toBeInTheDocument();
-    expect(holdScope.queryByText("Current Analysis · v3")).not.toBeInTheDocument();
-    expect(holdScope.getByRole("button", { name: "Edit Position" })).toBeInTheDocument();
-    const handledActionRow = holdScope.getByRole("button", { name: "Edit Position" }).parentElement;
-    expect(handledActionRow).toBeTruthy();
-    const handledButtonOrder = Array.from((handledActionRow as HTMLElement).querySelectorAll("button")).map((button) =>
-      button.textContent?.trim(),
-    );
-    expect(handledButtonOrder).toEqual(["View Detail", "Edit Position", "Remove"]);
-    fireEvent.click(holdScope.getByRole("button", { name: "View Detail" }));
-    expect(holdScope.getByText("Recommend Position")).toBeInTheDocument();
-    expect(holdScope.getByText("Previous Analysis · v2")).toBeInTheDocument();
-    expect(holdScope.getByText("Current Analysis · v3")).toBeInTheDocument();
-    expect(holdScope.queryByRole("button", { name: "Apply Recommended Position" })).not.toBeInTheDocument();
-    expect(holdScope.queryByRole("button", { name: "Accept Supplier Position" })).not.toBeInTheDocument();
-
-    const acceptRow = screen.getByText("Payment Terms").closest('[id^="clause-row-"]');
-    expect(acceptRow).toBeTruthy();
-
-    fireEvent.click(within(acceptRow as HTMLElement).getByRole("button", { name: "Accept Supplier Position" }));
-
-    const updatedAcceptRow = screen.getByText("Payment Terms").closest('[id^="clause-row-"]');
-    expect(updatedAcceptRow).toBeTruthy();
-
-    const acceptScope = within(updatedAcceptRow as HTMLElement);
-    expect(acceptScope.getByText("Accepted:")).toBeInTheDocument();
-    expect(acceptScope.getByText("Supplier position accepted for this round.")).toBeInTheDocument();
-    expect(acceptScope.queryByText("Recommend Position")).not.toBeInTheDocument();
-    expect(acceptScope.queryByText("Previous Analysis · v2")).not.toBeInTheDocument();
-    expect(acceptScope.queryByText("Current Analysis · v3")).not.toBeInTheDocument();
-    expect(acceptScope.getByRole("button", { name: "Change Decision" })).toBeInTheDocument();
-    fireEvent.click(acceptScope.getByRole("button", { name: "View Detail" }));
-    expect(acceptScope.getByText("Recommend Position")).toBeInTheDocument();
-    expect(acceptScope.getByText("Previous Analysis · v2")).toBeInTheDocument();
-    expect(acceptScope.getByText("Current Analysis · v3")).toBeInTheDocument();
-    expect(acceptScope.queryByRole("button", { name: "Apply Recommended Position" })).not.toBeInTheDocument();
-    expect(acceptScope.queryByRole("button", { name: "Accept Supplier Position" })).not.toBeInTheDocument();
+    expect(updatedHoldScope.getByRole("button", { name: "Undo" })).toBeInTheDocument();
+    expect(updatedHoldScope.queryByRole("button", { name: /View Detail|Set Custom Position|Change Decision/i })).not.toBeInTheDocument();
   });
 
-  it("opens the bulk recommendation banner with all eligible clauses selected by default", () => {
+  it("opens the bulk recommendation banner with no clauses selected by default", () => {
     renderContractResults();
 
-    expect(screen.getByText("Bulk Action")).toBeInTheDocument();
-    expect(screen.queryByText(/Bulk Action \(\d+\)/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Bulk Actions")).toBeInTheDocument();
+    expect(screen.queryByText(/Bulk Actions \(\d+\)/i)).not.toBeInTheDocument();
 
     openRecommendationMenu();
 
     expect(screen.queryByRole("menu", { name: /bulk action options/i })).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: /bulk recommendation filters/i })).toBeInTheDocument();
-    expect(selectedBannerCount()).toBeGreaterThan(0);
-    expect(screen.queryByText(/^0 selected$/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Accept recommended positions/i })).toBeEnabled();
+    expect(selectedBannerCount()).toBe(0);
+    expect(screen.getByText(/^0 selected$/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
 
     openBulkDropdown();
-    expect(screen.getByRole("button", { name: "Deviation" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("checkbox", { name: "All eligible clauses" })).toBeChecked();
+    expect(screen.getByRole("button", { name: "Deviation Level" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("checkbox", { name: "All eligible clauses" })).not.toBeChecked();
     expect(screen.getByRole("checkbox", { name: "High" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Medium" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Low" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "None" })).toBeInTheDocument();
 
-    selectBulkAxis("Status");
+    selectBulkAxis("Review status");
     expect(screen.getByRole("checkbox", { name: "Not Met" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Met" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Missing" })).toBeInTheDocument();
 
-    selectBulkAxis("Type");
+    selectBulkAxis("Clause");
     expect(screen.getByRole("checkbox", { name: "Commercial Mechanics" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Miscellaneous" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Warranties and Liability" })).toBeInTheDocument();
@@ -406,14 +373,14 @@ describe("ContractResults V6A review controls", () => {
 
     openBulkDropdown();
     fireEvent.click(screen.getByRole("checkbox", { name: "All eligible clauses" }));
-    selectBulkAxis("Deviation");
+    selectBulkAxis("Deviation Level");
     toggleBulkCheckbox(/High/i);
     toggleBulkCheckbox(/Medium/i);
     const deviationCount = selectedBannerCount();
     expect(deviationCount).toBeGreaterThan(0);
-    expect(getBulkDropdownTrigger()).toHaveTextContent(/Deviation:\s*High,\s*Medium/i);
+    expect(getBulkDropdownTrigger()).toHaveTextContent(/Deviation Level:\s*High,\s*Medium/i);
 
-    selectBulkAxis("Type");
+    selectBulkAxis("Clause");
     expect(screen.getByText(/Switch to Type\? This clears your 2 deviation levels\./i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Switch" }));
 
@@ -427,8 +394,8 @@ describe("ContractResults V6A review controls", () => {
     const scopedCount = selectedBannerCount();
     expect(scopedCount).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole("button", { name: /Accept recommended positions/i }));
-    fireEvent.click(screen.getByRole("button", { name: /Accept \d+/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    fireEvent.click(screen.getByRole("button", { name: /Apply \d+/i }));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /review & generate/i })).toBeEnabled();
@@ -443,7 +410,7 @@ describe("ContractResults V6A review controls", () => {
     openRecommendationMenu();
     openBulkDropdown();
     fireEvent.click(screen.getByRole("checkbox", { name: "All eligible clauses" }));
-    selectBulkAxis("Status");
+    selectBulkAxis("Review status");
 
     const notMetCheckbox = screen.getByRole("checkbox", { name: "Not Met" });
     const metCheckbox = screen.getByRole("checkbox", { name: "Met" });
@@ -457,13 +424,13 @@ describe("ContractResults V6A review controls", () => {
     expect(selectedBannerCount()).toBeGreaterThan(0);
   });
 
-  it("resets draft banner selections back to all eligible when closing the bulk recommendation banner", () => {
+  it("resets draft banner selections when closing the bulk recommendation banner", () => {
     renderContractResults(outcomeReviewDraftRoute);
 
     openRecommendationMenu();
     openBulkDropdown();
     fireEvent.click(screen.getByRole("checkbox", { name: "All eligible clauses" }));
-    selectBulkAxis("Deviation");
+    selectBulkAxis("Deviation Level");
     toggleBulkCheckbox(/High/i);
     expect(getBulkDropdownTrigger()).toHaveTextContent(/Deviation:/i);
 
@@ -471,9 +438,9 @@ describe("ContractResults V6A review controls", () => {
     expect(screen.queryByRole("region", { name: /bulk recommendation filters/i })).not.toBeInTheDocument();
 
     openRecommendationMenu();
-    expect(selectedBannerCount()).toBeGreaterThan(0);
-    expect(getBulkDropdownTrigger()).toHaveTextContent("All eligible clauses");
-    expect(screen.getByRole("button", { name: /Accept recommended positions/i })).toBeEnabled();
+    expect(selectedBannerCount()).toBe(0);
+    expect(getBulkDropdownTrigger()).toHaveTextContent("No clauses selected");
+    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
   });
 
   it("shows the selected state on active outcome filter toggle cards", () => {
@@ -529,7 +496,7 @@ describe("ContractResults V6A review controls", () => {
   it("applies scoped recommendations and undoes only that applied scope", async () => {
     renderContractResults();
 
-    applyRecommendationOptions("Deviation", /High/i);
+    applyRecommendationOptions("Deviation Level", /High/i);
 
     expect(await screen.findByRole("button", { name: /undo high deviation recommendations/i })).toBeInTheDocument();
     expect(localStorage.getItem("ciq-v6a-clause-decisions")).toBeNull();
@@ -546,21 +513,21 @@ describe("ContractResults V6A review controls", () => {
   it("regenerates a stale CSV with current request items after review changes", async () => {
     renderContractResults();
 
-    applyRecommendationOptions("Deviation", /High/i);
+    applyRecommendationOptions("Deviation Level", /High/i);
     generateCsv();
 
     expect(mocks.downloadCsv).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem("ciq-v6a-generated-csv:sup-1:ct-1:first-analysis-demo:v1")).toBeTruthy();
 
-    applyRecommendationOptions("Deviation", /Medium/i);
+    applyRecommendationOptions("Deviation Level", /Medium/i);
 
     fireEvent.click(screen.getByRole("button", { name: /review & generate/i }));
 
     expect(
-      screen.getByText(/Changes have been made since the last generated CSV/i),
+      screen.getByText(/replace the previous download with the latest decision set/i),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /submit & generate/i }));
+    fireEvent.click(screen.getByRole("button", { name: /generate csv/i }));
 
     expect(mocks.downloadCsv).toHaveBeenCalledTimes(2);
     expect(mocks.downloadCsv.mock.calls[1][1]).toContain("Requested change");
@@ -594,10 +561,10 @@ describe("ContractResults V6A review controls", () => {
     fireEvent.click(screen.getByRole("button", { name: /review & generate/i }));
 
     expect(
-      screen.getByText(/Changes have been made since the last generated CSV/i),
+      screen.getByText(/replace the previous download with the latest decision set/i),
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /submit & generate/i }));
+    fireEvent.click(screen.getByRole("button", { name: /generate csv/i }));
 
     expect(mocks.downloadCsv).toHaveBeenCalledTimes(2);
     expect(mocks.downloadCsv.mock.calls[1][1]).toContain("Payment Terms");

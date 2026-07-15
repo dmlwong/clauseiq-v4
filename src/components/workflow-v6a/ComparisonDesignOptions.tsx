@@ -426,19 +426,25 @@ function FirstAnalysisSummaryPanel({
   onMetricSelect?: (metric: FirstAnalysisMetricKey) => void;
   compact?: boolean;
 }) {
+  const versionLabel = metrics.versionLabel.toUpperCase();
   return (
     <section className="rounded-orbit-none border-0 bg-orbit-card p-orbit-none">
       <Card type="Static" padding={compact ? "Small" : "Base"} state="Accent">
-        <div className="flex items-center gap-orbit-s">
-          <RadialIndicator
-            status={metrics.score >= 75 ? "Success" : metrics.score >= 50 ? "Warning" : "Error"}
-            progress={metrics.score}
-            size={32}
-            ariaLabel={`${metrics.score} analysis score`}
-          />
-          <div className="flex items-baseline gap-orbit-s">
-            <Headings size="Heading 1" style={{ lineHeight: 1 }}>{metrics.score}</Headings>
-            <span className="text-orbit-xs leading-orbit-tight text-orbit-fg-secondary">Analysis Score</span>
+        <div className="space-y-orbit-s px-orbit-xs py-orbit-xs">
+          <div className="flex min-w-0 items-center justify-between gap-orbit-base">
+            <Text as="p" size="Paragraph" variant="Secondary">Score</Text>
+            <div className="flex shrink-0 justify-end text-right">
+              <Chip
+                label={`Latest analysis · ${versionLabel}`}
+                size="Mini"
+                variant="Information"
+                contrast="Low"
+              />
+            </div>
+          </div>
+          <div className="flex min-w-0 items-baseline gap-orbit-s">
+            <span className="v6-orbit-heading-1 text-orbit-fg">{metrics.score}</span>
+            <span className="v6-orbit-text-small text-orbit-fg-secondary">Analysis Score</span>
           </div>
         </div>
         <FirstAnalysisMetricBar metrics={metrics} className="mt-orbit-base" />

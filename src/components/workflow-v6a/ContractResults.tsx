@@ -4152,9 +4152,9 @@ function FirstAnalysisContextBanner() {
   return (
     <section>
       <div className="mx-auto w-full max-w-[1500px] px-orbit-base pt-orbit-base pb-orbit-none">
-        <div className="rounded-orbit-lg border border-orbit-border bg-orbit-card px-orbit-base py-orbit-base shadow-orbit-sm">
+        <Card type="Static" padding="Base" state="Highlight" indicator>
           <RecommendationReviewIntro />
-        </div>
+        </Card>
       </div>
     </section>
   );
@@ -7157,37 +7157,29 @@ function ClauseRowScaleCard({
             <ClauseTitleInline clauseId={id} fallback={clause.title} />
           </h3>
         </div>
-        {description && (
-          <div className="mt-orbit-base">
+        {description ? (
+          <div className="mt-orbit-base space-y-orbit-s">
             <SimplifiedComparisonContent
               currentLabel="Current Analysis"
               currentText={description}
+              target={!noneDeviationClause ? actionabilityText || undefined : undefined}
+              targetFooter={
+                !noneDeviationClause && !isDrafting ? (
+                  <Button
+                    variant="outline"
+                    className="h-8 v6-orbit-text-small"
+                    onClick={(event) => runAction(event, onRequest)}
+                  >
+                    <Pencil className="h-3 w-3" /> {CLAUSE_ACTION_LABELS.editPosition}
+                  </Button>
+                ) : undefined
+              }
             />
+            {requestForm}
           </div>
+        ) : (
+          requestForm
         )}
-        {requestForm ?? (!noneDeviationClause ? (
-          <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-xs" onClick={(event) => event.stopPropagation()}>
-            <Button
-              variant="outline"
-              disabled={!actionabilityText || !onUseRecommendation}
-              onClick={(event) => runAction(event, onUseRecommendation)}
-            >
-              <Sparkles className="h-3 w-3" /> Use Recommendation
-            </Button>
-            <Button
-              variant="outline"
-              onClick={(event) => runAction(event, onRequest)}
-            >
-              <Pencil className="h-3 w-3" /> {CLAUSE_ACTION_LABELS.reviseTarget}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={(event) => runAction(event, onNoAction)}
-            >
-              <CheckCircle2 className="h-3 w-3" /> {CLAUSE_ACTION_LABELS.holdPosition}
-            </Button>
-          </div>
-        ) : null)}
       </Card>
     </div>
   );
@@ -8121,6 +8113,85 @@ function ReviewGenerateMetric({
   );
 }
 
+type FirstAnalysisReviewBucketKey = "high" | "medium" | "low" | "missing" | "none";
+
+const FIRST_ANALYSIS_REVIEW_BUCKETS: Array<{
+  key: FirstAnalysisReviewBucketKey;
+  title: string;
+  accent: "destructive" | "warning" | "success" | "neutral";
+  description: string;
+}> = [
+  { key: "high", title: "High", accent: "destructive", description: "Clauses with a high deviation from your preferred position." },
+  { key: "medium", title: "Medium", accent: "warning", description: "Clauses with a moderate deviation to review." },
+  { key: "low", title: "Low", accent: "success", description: "Clauses with a minor deviation." },
+  { key: "missing", title: "Missing", accent: "neutral", description: "Expected clauses that were not found in this contract." },
+  { key: "none", title: "None", accent: "neutral", description: "Clauses with no material deviation identified." },
+];
+
+function FirstAnalysisReviewBucketSection({
+  title,
+  count,
+  accent,
+  description,
+  defaultOpen = true,
+  children,
+}: {
+  title: string;
+  count: number;
+  accent: "destructive" | "warning" | "success" | "neutral";
+  description?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const accentBar =
+    accent === "destructive" ? "bg-orbit-destructive"
+      : accent === "warning" ? "bg-orbit-warning"
+      : accent === "success" ? "bg-orbit-success"
+      : "bg-orbit-fg-secondary";
+  const accentText =
+    accent === "destructive" ? "text-orbit-destructive"
+      : accent === "warning" ? "text-orbit-warning"
+      : accent === "success" ? "text-orbit-success"
+      : "text-orbit-fg-secondary";
+  const accentBg =
+    accent === "destructive" ? "bg-orbit-destructive/5 hover:bg-orbit-destructive/10"
+      : accent === "warning" ? "bg-orbit-warning/10 hover:bg-orbit-warning/15"
+      : accent === "success" ? "bg-orbit-success/5 hover:bg-orbit-success/10"
+      : "bg-orbit-surface/60 hover:bg-orbit-surface";
+  const accentBorder =
+    accent === "destructive" ? "border-orbit-destructive/30"
+      : accent === "warning" ? "border-orbit-warning/40"
+      : accent === "success" ? "border-orbit-success/30"
+      : "border-orbit-border";
+  return (
+    <section className={`overflow-hidden rounded-orbit-lg border ${accentBorder} bg-orbit-card`}>
+      <button
+        type="button"
+        aria-expanded={open}
+        className={`flex w-full items-start gap-orbit-base p-orbit-base text-left transition-colors ${accentBg}`}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className={`w-1 self-stretch rounded-orbit-sm ${accentBar}`} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-orbit-s">
+            <h3 className={`v6-orbit-heading-strong ${accentText}`}>
+              {title} · <span className="tabular-nums text-orbit-fg">{count}</span>
+            </h3>
+          </div>
+          {description && (
+            <p className="mt-orbit-xs v6-orbit-text-small text-orbit-fg-secondary" style={{ lineHeight: 1.5 }}>
+              {description}
+            </p>
+          )}
+        </div>
+        <ChevronDown className={`mt-orbit-xs h-4 w-4 shrink-0 text-orbit-fg-secondary transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && <div className="space-y-orbit-s border-t border-orbit-border p-orbit-base">{children}</div>}
+    </section>
+  );
+}
+
 function ReviewScreen({
   version,
   stateOf,
@@ -8203,7 +8274,10 @@ function ReviewScreen({
       ) return false;
       if (q && !c.title.toLowerCase().includes(q) && !c.category.toLowerCase().includes(q) && !c.id.includes(q)) return false;
       if (quickReviewFilter === "need-review") {
-        const showNoneDeviationClause = quickNoneDeviationFilter && isNoneDeviationClause(c);
+        // Row-scale (first-analysis) surfaces a dedicated "None" bucket, so
+        // none-deviation clauses are shown even though they need no review.
+        const showNoneDeviationClause =
+          (quickNoneDeviationFilter || displayMode === "row-scale") && isNoneDeviationClause(c);
         if (!showNoneDeviationClause && c.resolved) return false;
         if (displayMode !== "row-scale") {
           const state = stateOf(c.id);
@@ -8218,92 +8292,134 @@ function ReviewScreen({
     })
     .sort((a, b) => severityRank(b.clause.severity) - severityRank(a.clause.severity) || a.index - b.index)
     .map(({ clause }) => clause);
+  const renderClauseCard = (c: ClauseResult) => {
+    const state = stateOf(c.id);
+    const decision = state.roundDecisions[versionLabel];
+    const own = state.requests[versionLabel] ?? {};
+    const draft = state.draftRequests?.[versionLabel];
+    const isDrafting = Boolean(draft);
+    const inherited = getLatestRequest(state, versionLabel);
+    const inheritedFromOlder = inherited && inherited.version !== versionLabel ? inherited : undefined;
+    const draftHasText = Boolean(draft?.requestedChange?.trim() || draft?.rationale?.trim());
+    const actionabilityDraft = c.actionability?.trim()
+      ? { ...own, requestedChange: own.requestedChange?.trim() || c.actionability.trim() }
+      : own;
+    const cancelDraft = () => {
+      if (draftHasText) {
+        setPendingDraftCancelId(c.id);
+        return;
+      }
+      onCancelDraft(c.id);
+    };
+
+    return (
+      <ClauseDecisionCard
+        key={c.id}
+        id={c.id}
+        clause={c}
+        versionLabel={versionLabel}
+        description={neutralActions && displayMode !== "row-scale" ? undefined : c.deviation}
+        actionability={neutralActions && displayMode !== "row-scale" ? undefined : c.actionability}
+        decision={decision}
+        request={own}
+        draft={draft}
+        inherited={inheritedFromOlder}
+        isDrafting={isDrafting}
+        highlighted={highlightedId === c.id}
+        missingClause={Boolean(missingClauseIds?.has(c.id))}
+        hideSubclauseReference={hideSubclauseReference}
+        displayMode={displayMode}
+        extraContent={
+          neutralActions && displayMode !== "row-scale" ? (
+            <SimplifiedComparisonContent
+              currentLabel="Current Analysis"
+              currentText={c.deviation}
+            />
+          ) : undefined
+        }
+        onUseRecommendation={() => onUseRecommendation(c.id, actionabilityDraft)}
+        onRequest={() => onStartDraft(c.id, actionabilityDraft)}
+        onNoAction={() => onSetNoAction(c.id)}
+        onEditRequest={() => onStartDraft(c.id, own)}
+        onChangeNoAction={() => onStartDraft(c.id, actionabilityDraft)}
+        onUndoDecision={() => onUndoDecision(c.id)}
+        onUpdateDraft={(patch) => onUpdateDraft(c.id, patch)}
+        onCancelDraft={cancelDraft}
+        onSubmitDraft={() => onSubmitDraft(c.id)}
+        onOpenDetail={() => onOpenDetail(c.id)}
+        bulkSelectionEnabled={bulkSelectionEnabled}
+        bulkSelectedClauseIds={bulkSelectedClauseIds}
+        onBulkClauseSelectionChange={onBulkClauseSelectionChange}
+        neutralActions={neutralActions}
+      />
+    );
+  };
+
+  const emptyState = (
+    <div className="bg-orbit-card border border-orbit-border rounded-orbit-lg p-orbit-xxl text-center text-orbit-sm text-orbit-fg-secondary">
+      No clauses match this category.
+    </div>
+  );
+
+  const discardOverlay = (
+    <V6OrbitConfirmOverlay
+      open={Boolean(pendingDraftCancelId)}
+      onOpenChange={(open) => {
+        if (!open) setPendingDraftCancelId(null);
+      }}
+      modalKey="discard-draft-request"
+      title="Discard Draft Request"
+      description="This will remove the request text you have drafted for this clause."
+      confirmLabel="Discard draft"
+      destructive
+      cancelAlignment="left"
+      descriptionPlacement="body"
+      onConfirm={() => {
+        if (pendingDraftCancelId) onCancelDraft(pendingDraftCancelId);
+        setPendingDraftCancelId(null);
+      }}
+    />
+  );
+
+  // First-analysis review groups clauses into deviation buckets
+  // (High / Medium / Low / Missing / None), mirroring the Comparison View
+  // section layout. The legacy default layout keeps its flat list.
+  if (displayMode === "row-scale") {
+    const bucketOf = (c: ClauseResult): FirstAnalysisReviewBucketKey =>
+      missingClauseIds?.has(c.id)
+        ? "missing"
+        : isNoneDeviationClause(c)
+        ? "none"
+        : c.severity;
+    return (
+      <div className="space-y-orbit-base">
+        {rows.length === 0
+          ? emptyState
+          : FIRST_ANALYSIS_REVIEW_BUCKETS.map((bucket) => {
+              const items = rows.filter((c) => bucketOf(c) === bucket.key);
+              if (items.length === 0) return null;
+              return (
+                <FirstAnalysisReviewBucketSection
+                  key={bucket.key}
+                  title={bucket.title}
+                  count={items.length}
+                  accent={bucket.accent}
+                  description={bucket.description}
+                >
+                  {items.map(renderClauseCard)}
+                </FirstAnalysisReviewBucketSection>
+              );
+            })}
+        {discardOverlay}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-orbit-base">
-      {rows.map((c) => {
-        const state = stateOf(c.id);
-        const decision = state.roundDecisions[versionLabel];
-        const own = state.requests[versionLabel] ?? {};
-        const draft = state.draftRequests?.[versionLabel];
-        const isDrafting = Boolean(draft);
-        const inherited = getLatestRequest(state, versionLabel);
-        const inheritedFromOlder = inherited && inherited.version !== versionLabel ? inherited : undefined;
-        const draftHasText = Boolean(draft?.requestedChange?.trim() || draft?.rationale?.trim());
-        const actionabilityDraft = c.actionability?.trim()
-          ? { ...own, requestedChange: own.requestedChange?.trim() || c.actionability.trim() }
-          : own;
-        const cancelDraft = () => {
-          if (draftHasText) {
-            setPendingDraftCancelId(c.id);
-            return;
-          }
-          onCancelDraft(c.id);
-        };
-
-        return (
-          <ClauseDecisionCard
-            key={c.id}
-            id={c.id}
-            clause={c}
-            versionLabel={versionLabel}
-            description={neutralActions && displayMode !== "row-scale" ? undefined : c.deviation}
-            actionability={neutralActions && displayMode !== "row-scale" ? undefined : c.actionability}
-            decision={decision}
-            request={own}
-            draft={draft}
-            inherited={inheritedFromOlder}
-            isDrafting={isDrafting}
-            highlighted={highlightedId === c.id}
-            missingClause={Boolean(missingClauseIds?.has(c.id))}
-            hideSubclauseReference={hideSubclauseReference}
-            displayMode={displayMode}
-            extraContent={
-              neutralActions && displayMode !== "row-scale" ? (
-                <SimplifiedComparisonContent
-              currentLabel="Current Analysis"
-                  currentText={c.deviation}
-                />
-              ) : undefined
-            }
-            onUseRecommendation={() => onUseRecommendation(c.id, actionabilityDraft)}
-            onRequest={() => onStartDraft(c.id, actionabilityDraft)}
-            onNoAction={() => onSetNoAction(c.id)}
-            onEditRequest={() => onStartDraft(c.id, own)}
-            onChangeNoAction={() => onStartDraft(c.id, actionabilityDraft)}
-            onUndoDecision={() => onUndoDecision(c.id)}
-            onUpdateDraft={(patch) => onUpdateDraft(c.id, patch)}
-            onCancelDraft={cancelDraft}
-            onSubmitDraft={() => onSubmitDraft(c.id)}
-            onOpenDetail={() => onOpenDetail(c.id)}
-            bulkSelectionEnabled={bulkSelectionEnabled}
-            bulkSelectedClauseIds={bulkSelectedClauseIds}
-            onBulkClauseSelectionChange={onBulkClauseSelectionChange}
-            neutralActions={neutralActions}
-          />
-        );
-      })}
-      {rows.length === 0 && (
-        <div className="bg-orbit-card border border-orbit-border rounded-orbit-lg p-orbit-xxl text-center text-orbit-sm text-orbit-fg-secondary">
-          No clauses match this category.
-        </div>
-      )}
-      <V6OrbitConfirmOverlay
-        open={Boolean(pendingDraftCancelId)}
-        onOpenChange={(open) => {
-          if (!open) setPendingDraftCancelId(null);
-        }}
-        modalKey="discard-draft-request"
-        title="Discard Draft Request"
-        description="This will remove the request text you have drafted for this clause."
-        confirmLabel="Discard draft"
-        destructive
-        cancelAlignment="left"
-        descriptionPlacement="body"
-        onConfirm={() => {
-          if (pendingDraftCancelId) onCancelDraft(pendingDraftCancelId);
-          setPendingDraftCancelId(null);
-        }}
-      />
+      {rows.map(renderClauseCard)}
+      {rows.length === 0 && emptyState}
+      {discardOverlay}
     </div>
   );
 }

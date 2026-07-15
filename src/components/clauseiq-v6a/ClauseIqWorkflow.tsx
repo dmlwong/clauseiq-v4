@@ -22,7 +22,7 @@ import {
   Scale,
   Search,
   Sparkles,
-} from "lucide-react";
+} from "@/components/clauseiq-v6a/v6aIcons";
 import { Card, Dropzone, FA, FaIcon, InlineBanner, Text } from "@orbit";
 
 import { Button } from "@/components/clauseiq-v6a/orbit-ui/button";
@@ -681,7 +681,7 @@ export type ClauseIqWorkflow = ReturnType<typeof useClauseIqWorkflow>;
 
 export function SummaryRow({ icon, text }: { icon: ReactNode; text: string }) {
   return (
-    <div className="flex items-start gap-orbit-s text-sm text-foreground/90">
+    <div className="flex items-start gap-orbit-s text-orbit-sm text-orbit-fg/90">
       <span className="mt-orbit-xxs">{icon}</span>
       <span>{text}</span>
     </div>
@@ -700,20 +700,20 @@ export function ClauseIqOverviewCard({
   return (
     <StateCard state="default">
       <div className="flex items-center gap-orbit-base mb-orbit-base">
-        <div className="h-10 w-10 rounded-lg bg-primary text-primary-foreground grid place-items-center">
+        <div className="h-10 w-10 rounded-orbit-lg bg-orbit-primary text-orbit-primary-foreground grid place-items-center">
           <Sparkles className="h-5 w-5" />
         </div>
         <h1 className="v6-orbit-heading-4">ClauseIQ</h1>
       </div>
-      <p className="text-sm text-muted-foreground mb-orbit-m">
+      <p className="text-orbit-sm text-orbit-fg-secondary mb-orbit-m">
         Upload a contract and ClauseIQ will review it against your initiative's playbook,
         surfacing deviations, missing clauses and negotiation actions in seconds.
       </p>
-      <div className={cn("rounded-lg bg-muted/50 border border-border p-orbit-base space-y-orbit-base", step === "welcome" && "mb-orbit-m")}>
-        <div className="text-sm v6-orbit-weight-medium text-foreground mb-orbit-xs">Summary</div>
-        <SummaryRow icon={<ListChecks className="h-4 w-4 text-ciq" />} text="Reviews every clause against your benchmark playbook." />
-        <SummaryRow icon={<Building2 className="h-4 w-4 text-ciq" />} text={currentInitiativeCopy} />
-        <SummaryRow icon={<FilePlus2 className="h-4 w-4 text-ciq" />} text="Exports a shareable report with severity and actions." />
+      <div className={cn("rounded-orbit-lg bg-orbit-surface/50 border border-orbit-border p-orbit-base space-y-orbit-base", step === "welcome" && "mb-orbit-m")}>
+        <div className="text-orbit-sm v6-orbit-weight-medium text-orbit-fg mb-orbit-xs">Summary</div>
+        <SummaryRow icon={<ListChecks className="h-4 w-4 text-orbit-primary" />} text="Reviews every clause against your benchmark playbook." />
+        <SummaryRow icon={<Building2 className="h-4 w-4 text-orbit-primary" />} text={currentInitiativeCopy} />
+        <SummaryRow icon={<FilePlus2 className="h-4 w-4 text-orbit-primary" />} text="Exports a shareable report with severity and actions." />
       </div>
       {step === "welcome" && onStart && (
         <Button className="w-full" onClick={onStart}>
@@ -728,11 +728,11 @@ export function ClauseIqOverviewCard({
 export function NewAnalysisDivider() {
   return (
     <div className="flex items-center gap-orbit-base py-orbit-xs">
-      <div className="h-px flex-1 bg-slate-300" />
-      <span className="rounded-md border border-primary bg-white px-orbit-base py-orbit-xs text-sm v6-orbit-weight-medium text-primary shadow-sm">
+      <div className="h-px flex-1 bg-orbit-border" />
+      <span className="rounded-orbit-md border border-orbit-primary bg-orbit-card px-orbit-base py-orbit-xs text-orbit-sm v6-orbit-weight-medium text-orbit-primary shadow-orbit-sm">
         New Analysis
       </span>
-      <div className="h-px flex-1 bg-slate-300" />
+      <div className="h-px flex-1 bg-orbit-border" />
     </div>
   );
 }
@@ -757,38 +757,38 @@ export function PostAnalysisNextActions({
 
         <button
           type="button"
-          className="flex w-full items-center gap-orbit-base rounded-lg border border-border bg-card p-orbit-base text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="flex w-full items-center gap-orbit-base rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-base text-left transition-colors hover:bg-orbit-surface/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary/40"
           onClick={onStartAnotherInitiative}
         >
-          <Sparkles className="h-6 w-6 shrink-0 text-primary" />
+          <Sparkles className="h-6 w-6 shrink-0 text-orbit-primary" />
           <span className="min-w-0">
-            <span className="block text-sm v6-orbit-weight-medium text-foreground">
+            <span className="block text-orbit-sm v6-orbit-weight-medium text-orbit-fg">
               Analyse Contract on Another Initiative
             </span>
-            <span className="mt-orbit-xs block text-base text-muted-foreground">
+            <span className="mt-orbit-xs block text-orbit-base text-orbit-fg-secondary">
               Start fresh with a new initiative.
             </span>
           </span>
         </button>
 
-        <div className="h-px bg-border" />
+        <div className="h-px bg-orbit-border" />
 
-        <section className="rounded-lg border border-border bg-card p-orbit-base" aria-labelledby="v6-update-milestone-title">
+        <section className="rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-base" aria-labelledby="v6-update-milestone-title">
           <div className="flex items-start justify-between gap-orbit-base">
             <div className="flex min-w-0 items-start gap-orbit-s">
-              <ClipboardList className="mt-orbit-xs h-5 w-5 shrink-0 text-primary" />
+              <ClipboardList className="mt-orbit-xs h-5 w-5 shrink-0 text-orbit-primary" />
               <div>
                 <h3 id="v6-update-milestone-title" className="v6-orbit-heading-label">
                   Update Milestone
                 </h3>
-                <p className="mt-orbit-xs text-base text-muted-foreground">Track your initiative progress.</p>
+                <p className="mt-orbit-xs text-orbit-base text-orbit-fg-secondary">Track your initiative progress.</p>
               </div>
             </div>
-            <ChevronUp className="mt-orbit-xs h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <ChevronUp className="mt-orbit-xs h-5 w-5 shrink-0 text-orbit-fg-secondary" aria-hidden="true" />
           </div>
 
-          <div className="mt-orbit-m rounded-lg border border-border">
-            <table className="w-full table-fixed border-collapse text-left text-sm">
+          <div className="mt-orbit-m rounded-orbit-lg border border-orbit-border">
+            <table className="w-full table-fixed border-collapse text-left text-orbit-sm">
               <colgroup>
                 <col className="w-[23%]" />
                 <col className="w-[25%]" />
@@ -796,7 +796,7 @@ export function PostAnalysisNextActions({
                 <col className="w-[32%]" />
               </colgroup>
               <thead>
-                <tr className="border-b border-border">
+                <tr className="border-b border-orbit-border">
                   <th scope="col" className="v6-orbit-heading-strong px-orbit-base py-orbit-base">Milestone</th>
                   <th scope="col" className="v6-orbit-heading-strong px-orbit-base py-orbit-base">Due Date</th>
                   <th scope="col" className="v6-orbit-heading-strong px-orbit-base py-orbit-base">Status</th>
@@ -808,10 +808,10 @@ export function PostAnalysisNextActions({
                   const completed = completedMilestoneIds.includes(milestone.id);
 
                   return (
-                    <tr key={milestone.id} className="border-b border-border last:border-b-0">
-                      <td className="px-orbit-base py-orbit-base text-base text-foreground">{milestone.label}</td>
-                      <td className="px-orbit-base py-orbit-base text-base text-foreground">{milestone.dueDate}</td>
-                      <td className={cn("px-orbit-base py-orbit-base text-base", completed ? "v6-orbit-weight-medium text-success" : "text-foreground")}>
+                    <tr key={milestone.id} className="border-b border-orbit-border last:border-b-0">
+                      <td className="px-orbit-base py-orbit-base text-orbit-base text-orbit-fg">{milestone.label}</td>
+                      <td className="px-orbit-base py-orbit-base text-orbit-base text-orbit-fg">{milestone.dueDate}</td>
+                      <td className={cn("px-orbit-base py-orbit-base text-orbit-base", completed ? "v6-orbit-weight-medium text-orbit-success" : "text-orbit-fg")}>
                         {completed ? "Completed" : "Pending"}
                       </td>
                       <td className="px-orbit-base py-orbit-s">
@@ -837,13 +837,13 @@ export function PostAnalysisNextActions({
         {!initiativeCompleted && (
           <button
             type="button"
-            className="flex w-full items-center gap-orbit-base rounded-lg border border-border bg-card p-orbit-base text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            className="flex w-full items-center gap-orbit-base rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-base text-left transition-colors hover:bg-orbit-surface/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary/40"
             onClick={onCompleteInitiative}
           >
-            <BadgeCheck className="h-6 w-6 shrink-0 text-primary" />
+            <BadgeCheck className="h-6 w-6 shrink-0 text-orbit-primary" />
             <span className="min-w-0">
-              <span className="block text-sm v6-orbit-weight-medium text-foreground">Complete Initiative</span>
-              <span className="mt-orbit-xs block text-base text-muted-foreground">
+              <span className="block text-orbit-sm v6-orbit-weight-medium text-orbit-fg">Complete Initiative</span>
+              <span className="mt-orbit-xs block text-orbit-base text-orbit-fg-secondary">
                 Mark this initiative as complete.
               </span>
             </span>
@@ -913,7 +913,7 @@ export function AnalysisParameterCards({
       <h2 className="v6-orbit-heading-5 mb-orbit-base">Contract Analysis Parameters</h2>
       {showPlaybookChoiceSelector && (
         <>
-          <p className="text-sm text-muted-foreground mb-orbit-base">
+          <p className="text-orbit-sm text-orbit-fg-secondary mb-orbit-base">
             Do you want to use a playbook for this analysis?
           </p>
 
@@ -936,7 +936,7 @@ export function AnalysisParameterCards({
             />
           ) : (
             <>
-              <p className="text-sm text-muted-foreground mb-orbit-base">
+              <p className="text-orbit-sm text-orbit-fg-secondary mb-orbit-base">
                 Select the playbook ClauseIQ should use for this analysis.
               </p>
               {playbookOption && (
@@ -1114,7 +1114,7 @@ function GeneralBenchmarkSummary({
 }) {
   return (
     <div className={cn("space-y-orbit-base", className)}>
-      <div className="rounded-[var(--orbit-space-s)] bg-[var(--orbit-color-status-high-bg-no-status)] p-orbit-base text-[var(--orbit-color-text-primary)]">
+      <div className="rounded-orbit-md bg-[var(--orbit-color-status-high-bg-no-status)] p-orbit-base text-[var(--orbit-color-text-primary)]">
         <div className="flex items-start gap-orbit-xs">
           <span
             className="inline-flex h-[var(--orbit-inline-banner-icon-box-size)] w-[var(--orbit-inline-banner-icon-box-size)] shrink-0 items-center justify-center"
@@ -1265,12 +1265,12 @@ export function BenchmarkCombobox({
       <div className="relative">
         <div
           ref={controlRef}
-          className="flex min-h-11 items-center gap-orbit-s rounded-lg border border-border bg-card px-orbit-base py-orbit-xs focus-within:ring-2 focus-within:ring-ring"
+          className="flex min-h-11 items-center gap-orbit-s rounded-orbit-lg border border-orbit-border bg-orbit-card px-orbit-base py-orbit-xs focus-within:ring-2 focus-within:ring-orbit-primary"
         >
           {hasSelection ? (
-            <Check className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+            <Check className="h-4 w-4 shrink-0 text-orbit-success" aria-hidden="true" />
           ) : (
-            <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <Search className="h-4 w-4 shrink-0 text-orbit-fg-secondary" aria-hidden="true" />
           )}
           <input
             id={fieldId}
@@ -1280,7 +1280,7 @@ export function BenchmarkCombobox({
             aria-expanded={open}
             aria-controls={listboxId}
             aria-activedescendant={activeOptionId}
-            className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            className="min-w-0 flex-1 bg-transparent text-orbit-sm text-orbit-fg outline-none placeholder:text-orbit-fg-secondary"
             value={open ? query : value}
             placeholder={value ? undefined : placeholder}
             onFocus={() => {
@@ -1298,7 +1298,7 @@ export function BenchmarkCombobox({
             <button
               type="button"
               aria-label={changeActionLabel}
-              className="inline-flex shrink-0 items-center gap-orbit-xs rounded-md px-orbit-xs py-orbit-xxs text-sm v6-orbit-weight-medium text-primary hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex shrink-0 items-center gap-orbit-xs rounded-orbit-md px-orbit-xs py-orbit-xxs text-orbit-sm v6-orbit-weight-medium text-orbit-primary hover:bg-orbit-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
                 onClear();
@@ -1318,7 +1318,7 @@ export function BenchmarkCombobox({
             id={listboxId}
             role="listbox"
             aria-labelledby={`${fieldId}-label`}
-            className="fixed z-[9999] max-h-[min(360px,calc(100vh-32px))] overflow-y-auto rounded-lg border border-border bg-card p-orbit-xs shadow-lg"
+            className="fixed z-[9999] max-h-[min(360px,calc(100vh-32px))] overflow-y-auto rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-xs shadow-orbit-lg"
             style={{
               left: listboxPosition.left,
               top: listboxPosition.top,
@@ -1338,8 +1338,8 @@ export function BenchmarkCombobox({
                       role="option"
                       aria-selected={value === option}
                       className={cn(
-                        "w-full rounded-md px-orbit-base py-orbit-s text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        active ? "bg-muted text-foreground" : "text-foreground hover:bg-muted",
+                        "w-full rounded-orbit-md px-orbit-base py-orbit-s text-left text-orbit-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary",
+                        active ? "bg-orbit-surface text-orbit-fg" : "text-orbit-fg hover:bg-orbit-surface",
                       )}
                       onMouseDown={(event) => event.preventDefault()}
                       onMouseEnter={() => setActiveIndex(index)}
@@ -1351,7 +1351,7 @@ export function BenchmarkCombobox({
                 })}
               </div>
             ) : (
-              <p className="px-orbit-base py-orbit-s text-sm text-muted-foreground">No matches found.</p>
+              <p className="px-orbit-base py-orbit-s text-orbit-sm text-orbit-fg-secondary">No matches found.</p>
             )}
           </div>,
           document.body,
@@ -1388,10 +1388,10 @@ function PlaybookChoiceSelector({
             aria-checked={selected}
             disabled={disabled}
             className={cn(
-              "flex min-h-11 cursor-pointer items-center justify-center rounded-lg border bg-card px-orbit-base py-orbit-s text-sm v6-orbit-weight-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+              "flex min-h-11 cursor-pointer items-center justify-center rounded-orbit-lg border bg-orbit-card px-orbit-base py-orbit-s text-orbit-sm v6-orbit-weight-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60",
               selected
-                ? "border-primary/60 text-foreground shadow-sm ring-1 ring-primary/20"
-                : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                ? "border-orbit-primary/60 text-orbit-fg shadow-orbit-sm ring-1 ring-orbit-primary/20"
+                : "border-orbit-border text-orbit-fg-secondary hover:border-orbit-primary/30 hover:text-orbit-fg",
             )}
             onClick={() => onChange(choice)}
           >
@@ -1417,20 +1417,20 @@ export function SelectedSummaryRow({
   return (
     <div
       className={cn(
-        "flex min-h-11 items-center justify-between gap-orbit-base rounded-md border px-orbit-base py-orbit-s",
-        disabled ? "border-border bg-muted/50 text-muted-foreground" : "border-border bg-card text-foreground",
+        "flex min-h-11 items-center justify-between gap-orbit-base rounded-orbit-md border px-orbit-base py-orbit-s",
+        disabled ? "border-orbit-border bg-orbit-surface/50 text-orbit-fg-secondary" : "border-orbit-border bg-orbit-card text-orbit-fg",
       )}
     >
       <div className="flex min-w-0 items-center gap-orbit-s">
-        <Check className={cn("h-4 w-4 shrink-0", disabled ? "text-muted-foreground" : "text-success")} />
-        <span className={cn("truncate text-sm v6-orbit-weight-medium", disabled ? "text-muted-foreground" : "text-foreground")}>
+        <Check className={cn("h-4 w-4 shrink-0", disabled ? "text-orbit-fg-secondary" : "text-orbit-success")} />
+        <span className={cn("truncate text-orbit-sm v6-orbit-weight-medium", disabled ? "text-orbit-fg-secondary" : "text-orbit-fg")}>
           {label}
         </span>
       </div>
       {!disabled && (
         <button
           type="button"
-          className="inline-flex h-8 shrink-0 items-center gap-orbit-xs rounded-md px-orbit-s text-sm v6-orbit-weight-medium text-ciq transition-colors hover:bg-ciq-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex h-8 shrink-0 items-center gap-orbit-xs rounded-orbit-md px-orbit-s text-orbit-sm v6-orbit-weight-medium text-orbit-primary transition-colors hover:bg-orbit-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary"
           onClick={onAction}
         >
           <Pencil className="h-3.5 w-3.5" />
@@ -1457,8 +1457,8 @@ function ParameterOptionsList({
       role="listbox"
       aria-label={`${option.label} options`}
       className={cn(
-        "rounded-lg",
-        framed ? "overflow-hidden border border-border bg-card" : "max-h-52 overflow-y-auto",
+        "rounded-orbit-lg",
+        framed ? "overflow-hidden border border-orbit-border bg-orbit-card" : "max-h-52 overflow-y-auto",
       )}
     >
       <div className={cn(framed ? "max-h-52 overflow-y-auto p-orbit-xs" : "space-y-orbit-xs")}>
@@ -1468,7 +1468,7 @@ function ParameterOptionsList({
             type="button"
             role="option"
             aria-selected={false}
-            className="w-full rounded-md px-orbit-base py-orbit-s text-left text-sm transition-colors hover:bg-muted"
+            className="w-full rounded-orbit-md px-orbit-base py-orbit-s text-left text-orbit-sm transition-colors hover:bg-orbit-surface"
             onClick={() => onSelect(option, value)}
           >
             {value}
@@ -1511,10 +1511,10 @@ function ParameterKindSelector({
               role="radio"
               aria-checked={selected}
               className={cn(
-                "flex min-h-16 cursor-pointer items-center gap-orbit-s rounded-lg border bg-card px-orbit-base py-orbit-s text-left text-sm transition-colors",
+                "flex min-h-16 cursor-pointer items-center gap-orbit-s rounded-orbit-lg border bg-orbit-card px-orbit-base py-orbit-s text-left text-orbit-sm transition-colors",
                 selected
-                  ? "border-primary/60 text-foreground shadow-sm ring-1 ring-primary/20"
-                  : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground",
+                  ? "border-orbit-primary/60 text-orbit-fg shadow-orbit-sm ring-1 ring-orbit-primary/20"
+                  : "border-orbit-border text-orbit-fg-secondary hover:border-orbit-primary/30 hover:text-orbit-fg",
               )}
               onClick={() => onActiveKindChange(option.kind)}
             >
@@ -1522,12 +1522,12 @@ function ParameterKindSelector({
                 aria-hidden="true"
                 className={cn(
                   "grid h-4 w-4 shrink-0 place-items-center rounded-full border transition-colors",
-                  selected ? "border-primary" : "border-muted-foreground/60",
+                  selected ? "border-orbit-primary" : "border-orbit-fg-secondary/60",
                 )}
               >
-                {selected && <span className="h-2 w-2 rounded-full bg-primary" />}
+                {selected && <span className="h-2 w-2 rounded-full bg-orbit-primary" />}
               </span>
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-orbit-md bg-orbit-primary/10 text-orbit-primary">
                 <ParameterIcon kind={option.kind} />
               </span>
               <span className="min-w-0 flex-1 truncate v6-orbit-weight-medium">{option.label}</span>
@@ -1568,7 +1568,7 @@ export function PlaybookDisclaimer({ variant, parameter }: { variant: "callout" 
 
   if (variant === "inline") {
     return (
-      <p className="mt-orbit-xs text-[11px] leading-snug text-muted-foreground">
+      <p className="mt-orbit-xs text-orbit-xs leading-orbit-snug text-orbit-fg-secondary">
         {copy}
       </p>
     );

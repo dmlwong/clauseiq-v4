@@ -8,7 +8,7 @@ import {
   Loader2,
   RotateCw,
   Search,
-} from "lucide-react";
+} from "@/components/clauseiq-v6a/v6aIcons";
 import { Card, MultiStateButton, MultiStateGroup } from "@orbit";
 import { Button } from "@/components/clauseiq-v6a/orbit-ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/clauseiq-v6a/orbit-ui/tooltip";
@@ -184,7 +184,7 @@ export function SupplierOutputsPanel({
         <div className="space-y-orbit-base">
           <div className="clauseiq-responsive-output-panel-header flex w-full items-baseline justify-between gap-orbit-s">
             <h2 className="v6-orbit-heading-strong">Supplier Outputs</h2>
-            <p className="shrink-0 text-right v6-orbit-text-small text-muted-foreground">
+            <p className="shrink-0 text-right v6-orbit-text-small text-orbit-fg-secondary">
               {supplierCount} {supplierCount === 1 ? "supplier" : "suppliers"} &middot; {outputCount}{" "}
               {outputCount === 1 ? "output" : "outputs"}
             </p>
@@ -219,7 +219,7 @@ export function SupplierOutputsPanel({
           <>
             {hasOutputs ? (
               <Card type="Static" state="Default" padding="Base">
-                <div className="v6-orbit-text-body text-muted-foreground">No outputs match this view.</div>
+                <div className="v6-orbit-text-body text-orbit-fg-secondary">No outputs match this view.</div>
               </Card>
             ) : (
               <SupplierPanelEmptyState
@@ -263,23 +263,23 @@ function SupplierPanelEmptyState({
       <div className="mx-auto max-w-[260px]">
         <div className="mx-auto h-24 w-32">
           <div className="relative mx-auto h-full w-full">
-            <div className="absolute left-[calc(var(--orbit-space-m)+var(--orbit-space-xs))] top-orbit-s h-16 w-20 rounded-xl border border-slate-200 bg-white shadow-sm" />
-            <div className="absolute left-[calc(var(--orbit-space-l)+var(--orbit-space-s))] top-orbit-m h-2 w-8 rounded bg-primary/20" />
-            <div className="absolute left-[calc(var(--orbit-space-l)+var(--orbit-space-s))] top-[calc(var(--orbit-space-l)+var(--orbit-space-s)+var(--orbit-space-xs))] h-2 w-12 rounded bg-slate-200" />
-            <div className="absolute left-[calc(var(--orbit-space-l)+var(--orbit-space-s))] top-orbit-mega h-2 w-9 rounded bg-slate-200" />
-            <div className="absolute right-[calc(var(--orbit-space-base)+var(--orbit-space-xs))] top-[calc(var(--orbit-space-m)+var(--orbit-space-xs))] grid h-9 w-9 place-items-center rounded-full border border-primary/20 bg-primary/10 text-primary shadow-sm">
+            <div className="absolute left-[calc(var(--orbit-space-m)+var(--orbit-space-xs))] top-orbit-s h-16 w-20 rounded-orbit-lg border border-orbit-border bg-orbit-card shadow-orbit-sm" />
+            <div className="absolute left-[calc(var(--orbit-space-l)+var(--orbit-space-s))] top-orbit-m h-2 w-8 rounded-orbit-sm bg-orbit-primary/20" />
+            <div className="absolute left-[calc(var(--orbit-space-l)+var(--orbit-space-s))] top-[calc(var(--orbit-space-l)+var(--orbit-space-s)+var(--orbit-space-xs))] h-2 w-12 rounded-orbit-sm bg-orbit-surface" />
+            <div className="absolute left-[calc(var(--orbit-space-l)+var(--orbit-space-s))] top-orbit-mega h-2 w-9 rounded-orbit-sm bg-orbit-surface" />
+            <div className="absolute right-[calc(var(--orbit-space-base)+var(--orbit-space-xs))] top-[calc(var(--orbit-space-m)+var(--orbit-space-xs))] grid h-9 w-9 place-items-center rounded-full border border-orbit-primary/20 bg-orbit-primary/10 text-orbit-primary shadow-orbit-sm">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             </div>
-            <div className="absolute bottom-orbit-s left-orbit-base grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm">
+            <div className="absolute bottom-orbit-s left-orbit-base grid h-9 w-9 place-items-center rounded-orbit-lg border border-orbit-border bg-orbit-card text-orbit-fg-secondary shadow-orbit-sm">
               <FileText className="h-4 w-4" />
             </div>
-            <div className="absolute bottom-[calc(var(--orbit-space-s)+var(--orbit-space-xs))] right-orbit-l grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm">
+            <div className="absolute bottom-[calc(var(--orbit-space-s)+var(--orbit-space-xs))] right-orbit-l grid h-8 w-8 place-items-center rounded-orbit-lg border border-orbit-border bg-orbit-card text-orbit-fg-secondary shadow-orbit-sm">
               <BarChart2 className="h-3.5 w-3.5" />
             </div>
           </div>
         </div>
         <h3 className="v6-orbit-heading-5 mt-orbit-m">{title}</h3>
-        <p className="mt-orbit-s v6-orbit-text-body text-muted-foreground">{copy}</p>
+        <p className="mt-orbit-s v6-orbit-text-body text-orbit-fg-secondary">{copy}</p>
       </div>
     </div>
   );
@@ -289,11 +289,11 @@ function NoPreviousAnalysisState({ onRunAgain }: { onRunAgain?: () => void }) {
   return (
     <Card type="Static" state="Default" padding="Base">
       <div className="text-center">
-        <div className="mx-auto grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary">
+        <div className="mx-auto grid h-10 w-10 place-items-center rounded-orbit-lg bg-orbit-primary/10 text-orbit-primary">
           <FileText className="h-5 w-5" />
         </div>
         <h3 className="v6-orbit-heading-5 mt-orbit-base">No analysis outputs yet</h3>
-        <p className="mx-auto mt-orbit-s max-w-sm v6-orbit-text-body text-muted-foreground">
+        <p className="mx-auto mt-orbit-s max-w-sm v6-orbit-text-body text-orbit-fg-secondary">
           Once the first supplier contract is analysed, the result card will appear here with the supplier output summary.
         </p>
         {onRunAgain && (
@@ -344,13 +344,13 @@ function SupplierOutputGroup({
           <div className="min-w-0 flex-1">
             <h3 className="v6-orbit-heading-label truncate">{supplier.name}</h3>
           </div>
-          <p className="shrink-0 whitespace-nowrap text-right v6-orbit-text-small text-muted-foreground">
+          <p className="shrink-0 whitespace-nowrap text-right v6-orbit-text-small text-orbit-fg-secondary">
             {supplier.analyses.length} {supplier.analyses.length === 1 ? "output" : "outputs"}
             {containsLatestOutput && <span className="v6-orbit-weight-medium"> - Latest output</span>}
           </p>
           <button
             type="button"
-            className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="grid h-6 w-6 shrink-0 place-items-center rounded-orbit-md text-orbit-fg-secondary transition-colors hover:bg-orbit-surface/40 hover:text-orbit-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary"
             aria-expanded={open}
             aria-controls={contentId}
             aria-label={`${open ? "Collapse" : "Expand"} ${supplier.name} outputs`}
@@ -376,10 +376,10 @@ function SupplierOutputGroup({
               transition={{ duration: 0.18, ease: "easeOut" }}
               className="overflow-hidden"
             >
-              <div className="border-t border-border/70 pt-orbit-base">
+              <div className="border-t border-orbit-border/70 pt-orbit-base">
                 {analyses.map((analysis, index) => (
                   <div key={analysis.id}>
-                    {index > 0 && <div className="my-orbit-base h-px bg-border/70" aria-hidden="true" />}
+                    {index > 0 && <div className="my-orbit-base h-px bg-orbit-border/70" aria-hidden="true" />}
                     <CompactOutputRow
                       analysis={analysis}
                       displayFileName={displayFileNameForSupplierAnalysis(supplier, analysis)}
@@ -428,7 +428,7 @@ function CompactOutputRow({
   return (
     <article className="px-orbit-xs">
       <div className="flex items-center justify-between gap-orbit-s">
-        <p className="min-w-0 flex-1 truncate whitespace-nowrap v6-orbit-heading-strong text-foreground">
+        <p className="min-w-0 flex-1 truncate whitespace-nowrap v6-orbit-heading-strong text-orbit-fg">
           {displayFileName}
         </p>
         <CompactOutputMeta
@@ -463,7 +463,7 @@ function CompactOutputMeta({
   onViewResult?: (selection?: SupplierOutputSelection) => void;
 }) {
   return (
-    <div className="shrink-0 text-right v6-orbit-text-small text-muted-foreground">
+    <div className="shrink-0 text-right v6-orbit-text-small text-orbit-fg-secondary">
       <div className="inline-flex items-center gap-orbit-s whitespace-nowrap">
         <div className="inline-flex items-center gap-orbit-xs whitespace-nowrap">
           <time dateTime={analysedAt}>{formatCompactTimestamp(analysedAt)}</time>

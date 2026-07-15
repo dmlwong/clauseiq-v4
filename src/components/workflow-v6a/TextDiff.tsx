@@ -1,4 +1,4 @@
-import { Plus, Minus } from "lucide-react";
+import { Plus, Minus } from "@/components/clauseiq-v6a/v6aIcons";
 import { diffWords } from "@/lib/text-diff";
 
 interface Props {
@@ -18,21 +18,21 @@ export function TextDiff({ prev, curr, leftLabel, rightLabel }: Props) {
   const added = segments.filter((s) => s.type === "added").length;
 
   if (!prev && !curr) {
-    return <p className="text-xs text-muted-foreground italic">— No clause text available —</p>;
+    return <p className="text-orbit-xs text-orbit-fg-secondary italic">— No clause text available —</p>;
   }
 
   return (
     <div className="space-y-orbit-s">
-      <div className="flex items-center gap-orbit-s text-[10px] tabular-nums uppercase text-muted-foreground">
+      <div className="flex items-center gap-orbit-s text-orbit-xs tabular-nums uppercase text-orbit-fg-secondary">
         <span className="inline-flex items-center gap-orbit-xs">
-          <Minus className="w-3 h-3 text-destructive" aria-hidden /> Removed in {leftLabel}: {removed}
+          <Minus className="w-3 h-3 text-orbit-destructive" aria-hidden /> Removed in {leftLabel}: {removed}
         </span>
         <span aria-hidden>·</span>
         <span className="inline-flex items-center gap-orbit-xs">
-          <Plus className="w-3 h-3 text-success" aria-hidden /> Added in {rightLabel}: {added}
+          <Plus className="w-3 h-3 text-orbit-success" aria-hidden /> Added in {rightLabel}: {added}
         </span>
       </div>
-      <p className="text-sm leading-relaxed rounded-md border border-border bg-card p-orbit-base">
+      <p className="text-orbit-sm leading-orbit-relaxed rounded-orbit-md border border-orbit-border bg-orbit-card p-orbit-base">
         {segments.map((s, i) => {
           if (s.type === "equal") return <span key={i}>{s.text}</span>;
           if (s.type === "added") {
@@ -41,7 +41,7 @@ export function TextDiff({ prev, curr, leftLabel, rightLabel }: Props) {
             return (
               <span
                 key={i}
-                className="bg-success/25 text-foreground dark:text-success underline decoration-success decoration-[3px] underline-offset-[3px] v6-orbit-weight-medium rounded-sm px-orbit-xxs"
+                className="bg-orbit-success/25 text-orbit-fg dark:text-orbit-success underline decoration-success decoration-[3px] underline-offset-[3px] v6-orbit-weight-medium rounded-orbit-sm px-orbit-xxs"
                 aria-label={`added in ${rightLabel}`}
               >
                 {s.text}
@@ -51,7 +51,7 @@ export function TextDiff({ prev, curr, leftLabel, rightLabel }: Props) {
           return (
             <span
               key={i}
-              className="bg-destructive/25 text-foreground dark:text-destructive line-through decoration-destructive decoration-[3px] v6-orbit-weight-medium rounded-sm px-orbit-xxs"
+              className="bg-orbit-destructive/25 text-orbit-fg dark:text-orbit-destructive line-through decoration-destructive decoration-[3px] v6-orbit-weight-medium rounded-orbit-sm px-orbit-xxs"
               aria-label={`removed from ${leftLabel}`}
             >
               {s.text}
@@ -59,9 +59,9 @@ export function TextDiff({ prev, curr, leftLabel, rightLabel }: Props) {
           );
         })}
       </p>
-      <p className="text-[11px] text-muted-foreground">
-        <span className="text-success v6-orbit-weight-semibold">Underlined</span> = added in {rightLabel}.{" "}
-        <span className="text-destructive v6-orbit-weight-semibold line-through">Strikethrough</span> = removed from {leftLabel}.
+      <p className="text-orbit-xs text-orbit-fg-secondary">
+        <span className="text-orbit-success v6-orbit-weight-semibold">Underlined</span> = added in {rightLabel}.{" "}
+        <span className="text-orbit-destructive v6-orbit-weight-semibold line-through">Strikethrough</span> = removed from {leftLabel}.
       </p>
     </div>
   );

@@ -38,7 +38,7 @@ export function V6ResponsiveTestingShell({
   return (
     <V6OrbitRoot>
       <div
-        className="clauseiq-responsive-testing-sandbox h-screen flex bg-background overflow-hidden"
+        className="clauseiq-responsive-testing-sandbox h-screen flex bg-orbit-canvas overflow-hidden"
         style={{
           background: "var(--orbit-color-bg-default)",
           color: "var(--orbit-color-text-primary)",
@@ -73,13 +73,13 @@ export function V6ResponsiveTestingShell({
             </header>
           )}
           {subheader && (
-            <div className={subheaderClassName ?? "shrink-0 border-b border-border bg-background/95 px-orbit-m py-orbit-base backdrop-blur"}>
+            <div className={subheaderClassName ?? "shrink-0 border-b border-orbit-border bg-orbit-canvas/95 px-orbit-m py-orbit-base backdrop-blur"}>
               {subheader}
             </div>
           )}
           <div className="flex flex-1 min-h-0">
             {sidePanel && (
-              <aside className="hidden w-[280px] shrink-0 border-r border-border bg-muted/20 md:flex md:min-h-0 md:flex-col">
+              <aside className="hidden w-[280px] shrink-0 border-r border-orbit-border bg-orbit-surface/20 md:flex md:min-h-0 md:flex-col">
                 {sidePanel}
               </aside>
             )}
@@ -87,7 +87,7 @@ export function V6ResponsiveTestingShell({
               {children}
             </main>
             {rightPanel && (
-              <aside className="clauseiq-responsive-right-panel v6-hover-scrollbar overflow-y-auto border-l border-border bg-white">
+              <aside className="clauseiq-responsive-right-panel v6-hover-scrollbar overflow-y-auto border-l border-orbit-border bg-orbit-card">
                 {rightPanel}
               </aside>
             )}

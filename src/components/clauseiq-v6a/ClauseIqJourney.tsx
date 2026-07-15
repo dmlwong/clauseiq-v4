@@ -1,5 +1,5 @@
 import { type ReactNode, type RefObject } from "react";
-import { Check, FileText, Loader2, Search } from "lucide-react";
+import { Check, FileText, Loader2, Search } from "@/components/clauseiq-v6a/v6aIcons";
 import { Card } from "@orbit";
 
 import { Button } from "@/components/clauseiq-v6a/orbit-ui/button";
@@ -133,7 +133,7 @@ function InitiativeStep({
     return (
       <Card type="Static" state="Feature" padding="Base" indicator={false}>
         <h2 className="v6-orbit-heading-5 mb-orbit-xs">Select Initiative</h2>
-        <p className="text-sm text-muted-foreground mb-orbit-base">
+        <p className="text-orbit-sm text-orbit-fg-secondary mb-orbit-base">
           Choose the initiative to analyse the contract against.
         </p>
         <Button className="w-full" onClick={onOpenInitiativeModal}>
@@ -197,21 +197,21 @@ function ProcessingStep({
   return (
     <Card type="Static" state="Feature" padding="Base" indicator={false}>
       <h2 className="v6-orbit-heading-5 mb-orbit-base">{heading}</h2>
-      <div className="flex items-center justify-between border border-border rounded-lg px-orbit-base py-orbit-s mb-orbit-base">
+      <div className="flex items-center justify-between border border-orbit-border rounded-orbit-lg px-orbit-base py-orbit-s mb-orbit-base">
         <div className="flex items-center gap-orbit-s min-w-0">
-          <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-          <span className="text-sm truncate">{workflow.file?.name ?? "Contract.pdf"}</span>
+          <FileText className="h-4 w-4 text-orbit-fg-secondary shrink-0" />
+          <span className="text-orbit-sm truncate">{workflow.file?.name ?? "Contract.pdf"}</span>
         </div>
-        <span className="text-xs v6-orbit-weight-medium text-success inline-flex items-center gap-orbit-xs">
+        <span className="text-orbit-xs v6-orbit-weight-medium text-orbit-success inline-flex items-center gap-orbit-xs">
           <Check className="h-3.5 w-3.5" /> Uploaded
         </span>
       </div>
       <div className="flex items-center gap-orbit-base py-orbit-s">
-        <Loader2 className="h-5 w-5 animate-spin text-ciq" />
-        <span className="text-sm v6-orbit-weight-medium">{copy}</span>
+        <Loader2 className="h-5 w-5 animate-spin text-orbit-primary" />
+        <span className="text-orbit-sm v6-orbit-weight-medium">{copy}</span>
       </div>
       <PlaybookDisclaimer variant="inline" parameter={parameter} />
-      <p className="text-xs text-muted-foreground mt-orbit-s">
+      <p className="text-orbit-xs text-orbit-fg-secondary mt-orbit-s">
         {heading === "Analysing New Contract"
           ? "The existing analysis history remains available above while this runs."
           : "This may take a moment. We will notify you when the analysis is completed."}

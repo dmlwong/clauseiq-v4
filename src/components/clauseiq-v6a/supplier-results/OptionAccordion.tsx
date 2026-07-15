@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown } from "@/components/clauseiq-v6a/v6aIcons";
 import { Button } from "@/components/clauseiq-v6a/orbit-ui/button";
 import { cn } from "@/lib/utils";
 import { newestFirst, oldestFirst, supplierSeverity } from "@/lib/clauseiq-utils";
@@ -40,30 +40,30 @@ export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResu
             <motion.section
               layout
               key={supplier.id}
-              className="overflow-hidden rounded-lg border border-border bg-card"
+              className="overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card"
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
             >
               <Button
                 type="button"
                 variant="ghost"
                 onClick={() => toggle(supplier.id)}
-                className="h-auto w-full justify-start rounded-none px-orbit-base py-orbit-base text-left hover:bg-muted/45"
+                className="h-auto w-full justify-start rounded-orbit-none px-orbit-base py-orbit-base text-left hover:bg-orbit-surface/45"
               >
                 <div className="flex w-full min-w-0 items-start gap-orbit-base">
                   <SupplierAvatar name={supplier.name} shortCode={supplier.shortCode} severity={severity} />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm v6-orbit-weight-medium text-foreground">{supplier.name}</div>
-                    <div className="mt-orbit-xxs flex flex-wrap items-center gap-orbit-xs text-xs text-muted-foreground">
+                    <div className="truncate text-orbit-sm v6-orbit-weight-medium text-orbit-fg">{supplier.name}</div>
+                    <div className="mt-orbit-xxs flex flex-wrap items-center gap-orbit-xs text-orbit-xs text-orbit-fg-secondary">
                       <span>Total Contract Runs: {supplier.analyses.length}</span>
                       {containsLatestOutput && <span className="v6-orbit-weight-medium">- Contains latest output</span>}
                     </div>
                   </div>
                   <div className="ml-auto flex shrink-0 items-center gap-orbit-s pt-orbit-xxs">
-                    <span className="max-w-[9rem] text-right text-[11px] leading-tight text-muted-foreground">
+                    <span className="max-w-[9rem] text-right text-orbit-xs leading-orbit-snug text-orbit-fg-secondary">
                       {latestChange}
                     </span>
                     <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.18 }}>
-                      <ChevronDown className={cn("h-4 w-4 text-muted-foreground", open && "text-foreground")} />
+                      <ChevronDown className={cn("h-4 w-4 text-orbit-fg-secondary", open && "text-orbit-fg")} />
                     </motion.span>
                   </div>
                 </div>
@@ -77,7 +77,7 @@ export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResu
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                   >
-                    <div className="space-y-orbit-base border-t border-border/70 bg-muted/20 p-orbit-base">
+                    <div className="space-y-orbit-base border-t border-orbit-border/70 bg-orbit-surface/20 p-orbit-base">
                       {oldestFirst(supplier.analyses).map((analysis) => (
                         <AnalysisCard
                           key={analysis.id}

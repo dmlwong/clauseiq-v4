@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 import { motion } from "framer-motion";
-import { BarChart2, Download, RotateCw } from "lucide-react";
+import { BarChart2, Download, RotateCw } from "@/components/clauseiq-v6a/v6aIcons";
 import { Card, FaIcon, InlineBanner } from "@orbit";
 import { Button } from "@/components/clauseiq-v6a/orbit-ui/button";
 import { Chip } from "@/components/clauseiq-v6a/orbit-ui/indicators";
@@ -72,14 +72,14 @@ export function AnalysisCard({
     >
       <Card type="Static" state={highlighted ? "Feature" : "Default"} padding="Base" indicator={false}>
         {showSupplier && supplier && (
-          <div className="mb-orbit-base flex items-center gap-orbit-s border-b border-border/70 pb-orbit-base">
+          <div className="mb-orbit-base flex items-center gap-orbit-s border-b border-orbit-border/70 pb-orbit-base">
             <SupplierAvatar
               name={supplier.name}
               shortCode={supplier.shortCode}
               severity={supplierSeverity(supplier.analyses)}
               size="sm"
             />
-            <span className="text-sm v6-orbit-weight-medium text-foreground">{supplier.name}</span>
+            <span className="text-orbit-sm v6-orbit-weight-medium text-orbit-fg">{supplier.name}</span>
           </div>
         )}
 
@@ -90,13 +90,13 @@ export function AnalysisCard({
                 <Chip label="Analysis Result" size="Mini" variant="Outline" contrast="Low" />
                 {isLatestOutput && <Chip label="Latest output" size="Mini" variant="Outline" contrast="Low" />}
               </div>
-              <span className="shrink-0 text-sm text-muted-foreground">
+              <span className="shrink-0 text-orbit-sm text-orbit-fg-secondary">
                 {formatAnalysisTimestamp(analysis.analysedAt)}
               </span>
             </div>
             <div className="clauseiq-responsive-analysis-card-header flex flex-wrap items-center justify-between gap-orbit-base">
               <h3 className="v6-orbit-heading-4">Here is your Analysis Result</h3>
-              <label className="flex items-center gap-orbit-s text-sm v6-orbit-weight-medium text-foreground">
+              <label className="flex items-center gap-orbit-s text-orbit-sm v6-orbit-weight-medium text-orbit-fg">
                 <span>Save To Content Search</span>
                 <Switch checked={saveToDocuments} onCheckedChange={setSaveToDocuments} aria-label="Save To Content Search" />
               </label>
@@ -143,13 +143,13 @@ export function AnalysisCard({
               </div>
             ) : (
               <div className="space-y-orbit-base">
-                <p className="text-base text-foreground">
+                <p className="text-orbit-base text-orbit-fg">
                   {onDownload
                     ? "Summary shown below. Download the report for full details."
                     : "Summary shown below. View the result for full details."}
                 </p>
                 <div className="space-y-orbit-s" role="group" aria-labelledby={deviationSummaryId}>
-                  <p id={deviationSummaryId} className="text-base text-muted-foreground">
+                  <p id={deviationSummaryId} className="text-orbit-base text-orbit-fg-secondary">
                     Missing Clauses and deviation levels
                   </p>
                   <DeviationPills deviations={analysis.deviations} />
@@ -223,7 +223,7 @@ function ParameterStatusLine({
 }) {
   return (
     <div className="clauseiq-responsive-status-line">
-      <div className="flex min-h-[var(--orbit-inline-banner-height)] w-full items-center justify-between gap-orbit-s rounded-[var(--orbit-space-s)] bg-[var(--orbit-color-status-high-bg-no-status)] px-orbit-s py-orbit-xs text-[var(--orbit-color-text-primary)]">
+      <div className="flex min-h-[var(--orbit-inline-banner-height)] w-full items-center justify-between gap-orbit-s rounded-orbit-md bg-[var(--orbit-color-status-high-bg-no-status)] px-orbit-s py-orbit-xs text-[var(--orbit-color-text-primary)]">
         <div className="flex min-w-0 flex-1 items-center gap-orbit-xs">
           <span
             className="inline-flex h-[var(--orbit-inline-banner-icon-box-size)] w-[var(--orbit-inline-banner-icon-box-size)] shrink-0 items-center justify-center"
@@ -231,13 +231,13 @@ function ParameterStatusLine({
           >
             <FaIcon icon={icon} size={12} color="var(--orbit-color-dove-gray)" />
           </span>
-          <span className="min-w-0 flex-1 break-words text-sm leading-snug">
+          <span className="min-w-0 flex-1 break-words text-orbit-sm leading-orbit-snug">
             <span className="v6-orbit-weight-medium">{label}</span>
             <span aria-hidden="true"> · </span>
             <span>{value}</span>
           </span>
         </div>
-        <span className="shrink-0 text-sm leading-none">{status}</span>
+        <span className="shrink-0 text-orbit-sm leading-orbit-tight">{status}</span>
       </div>
     </div>
   );

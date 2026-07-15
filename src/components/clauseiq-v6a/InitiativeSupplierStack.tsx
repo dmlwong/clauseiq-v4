@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Search, Building2, FileText, ArrowRight, SlidersHorizontal } from "lucide-react";
+import { Search, Building2, FileText, ArrowRight, SlidersHorizontal } from "@/components/clauseiq-v6a/v6aIcons";
 import { Input } from "@/components/clauseiq-v6a/orbit-ui/input";
 import { Badge } from "@/components/clauseiq-v6a/orbit-ui/badge";
 import {
@@ -48,32 +48,32 @@ export function InitiativeSupplierStack({ initiativeName, currentSupplierName }:
     <div className="space-y-orbit-base">
       <div className="flex items-end justify-between gap-orbit-base">
         <div>
-          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-orbit-xs">
+          <div className="text-orbit-xs uppercase tracking-wider text-orbit-fg-secondary mb-orbit-xs">
             Other suppliers in this initiative
           </div>
           <h3 className="v6-orbit-heading-strong">
             {others.length} prior supplier {others.length === 1 ? "analysis" : "analyses"}
-            <span className="v6-orbit-weight-regular text-muted-foreground"> · {initiativeName}</span>
+            <span className="v6-orbit-weight-regular text-orbit-fg-secondary"> · {initiativeName}</span>
           </h3>
         </div>
-        <Badge variant="outline" className="text-[10px] v6-orbit-weight-regular">
+        <Badge variant="outline" className="text-orbit-xs v6-orbit-weight-regular">
           Showing {filtered.length} of {others.length}
         </Badge>
       </div>
 
       <div className="flex items-center gap-orbit-s">
         <div className="relative flex-1">
-          <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-orbit-fg-secondary" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search supplier or contract..."
-            className="pl-orbit-l h-9 text-sm"
+            className="pl-orbit-l h-9 text-orbit-sm"
           />
         </div>
         <Select value={status} onValueChange={(v) => setStatus(v as AnalysisStatusFilter)}>
-          <SelectTrigger className="h-9 w-[160px] text-sm">
-            <SlidersHorizontal className="h-3.5 w-3.5 mr-orbit-xs text-muted-foreground" />
+          <SelectTrigger className="h-9 w-[160px] text-orbit-sm">
+            <SlidersHorizontal className="h-3.5 w-3.5 mr-orbit-xs text-orbit-fg-secondary" />
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -86,7 +86,7 @@ export function InitiativeSupplierStack({ initiativeName, currentSupplierName }:
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border px-orbit-base py-orbit-m text-center text-sm text-muted-foreground">
+        <div className="rounded-orbit-lg border border-dashed border-orbit-border px-orbit-base py-orbit-m text-center text-orbit-sm text-orbit-fg-secondary">
           No supplier analyses match your filters.
         </div>
       ) : (
@@ -100,11 +100,11 @@ export function InitiativeSupplierStack({ initiativeName, currentSupplierName }:
       )}
 
       <div className="flex items-center gap-orbit-s pt-orbit-xs">
-        <div className="h-px flex-1 bg-border" />
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+        <div className="h-px flex-1 bg-orbit-border" />
+        <span className="text-orbit-xs uppercase tracking-wider text-orbit-fg-secondary">
           Latest analysis below
         </span>
-        <div className="h-px flex-1 bg-border" />
+        <div className="h-px flex-1 bg-orbit-border" />
       </div>
     </div>
   );
@@ -114,33 +114,33 @@ function PriorAnalysisCard({ analysis }: { analysis: InitiativeSupplierAnalysis 
   return (
     <button
       type="button"
-      className="w-full text-left rounded-lg border border-border bg-background hover:border-ciq/40 hover:bg-ciq-soft/30 transition-colors px-orbit-base py-orbit-s group"
+      className="w-full text-left rounded-orbit-lg border border-orbit-border bg-orbit-canvas hover:border-orbit-primary/40 hover:bg-orbit-primary-soft/30 transition-colors px-orbit-base py-orbit-s group"
     >
       <div className="flex items-center gap-orbit-s mb-orbit-xs">
-        <Building2 className="h-3.5 w-3.5 text-ciq shrink-0" />
-        <span className="text-sm v6-orbit-weight-medium text-foreground truncate flex-1">
+        <Building2 className="h-3.5 w-3.5 text-orbit-primary shrink-0" />
+        <span className="text-orbit-sm v6-orbit-weight-medium text-orbit-fg truncate flex-1">
           {analysis.supplierName}
         </span>
         <StatusPill status={analysis.status} />
-        <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-ciq transition-colors" />
+        <ArrowRight className="h-3.5 w-3.5 text-orbit-fg-secondary group-hover:text-orbit-primary transition-colors" />
       </div>
-      <div className="flex items-center gap-orbit-xs text-xs text-muted-foreground mb-orbit-s min-w-0">
+      <div className="flex items-center gap-orbit-xs text-orbit-xs text-orbit-fg-secondary mb-orbit-s min-w-0">
         <FileText className="h-3 w-3 shrink-0" />
         <span className="truncate">{analysis.contractName}</span>
         <span>·</span>
         <span className="shrink-0">{formatShortDate(analysis.analysedAt)}</span>
       </div>
       <div className="flex flex-wrap gap-orbit-xs">
-        <Badge variant="outline" className="bg-ciq-soft text-ciq border-ciq-border text-[10px] v6-orbit-weight-regular">
+        <Badge variant="outline" className="bg-orbit-primary-soft text-orbit-primary border-orbit-primary text-orbit-xs v6-orbit-weight-regular">
           Missing: {analysis.missing}
         </Badge>
-        <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-[10px] v6-orbit-weight-regular">
+        <Badge variant="outline" className="bg-orbit-destructive/10 text-orbit-destructive border-orbit-destructive/30 text-orbit-xs v6-orbit-weight-regular">
           High: {analysis.high}
         </Badge>
-        <Badge variant="outline" className="bg-warning/15 text-warning-foreground border-warning/30 text-[10px] v6-orbit-weight-regular">
+        <Badge variant="outline" className="bg-orbit-warning/15 text-orbit-warning border-orbit-warning/30 text-orbit-xs v6-orbit-weight-regular">
           Med: {analysis.medium}
         </Badge>
-        <Badge variant="outline" className="bg-muted text-muted-foreground text-[10px] v6-orbit-weight-regular">
+        <Badge variant="outline" className="bg-orbit-surface text-orbit-fg-secondary text-orbit-xs v6-orbit-weight-regular">
           Low: {analysis.low}
         </Badge>
       </div>
@@ -151,12 +151,12 @@ function PriorAnalysisCard({ analysis }: { analysis: InitiativeSupplierAnalysis 
 function StatusPill({ status }: { status: InitiativeSupplierAnalysis["status"] }) {
   const tone =
     status === "Finalised"
-      ? "bg-success/10 text-success border-success/20"
+      ? "bg-orbit-success/10 text-orbit-success border-orbit-success/20"
       : status === "In Negotiation"
-      ? "bg-primary/10 text-primary border-primary/20"
-      : "bg-warning/15 text-warning-foreground border-warning/30";
+      ? "bg-orbit-primary/10 text-orbit-primary border-orbit-primary/20"
+      : "bg-orbit-warning/15 text-orbit-warning border-orbit-warning/30";
   return (
-    <Badge variant="outline" className={`text-[10px] v6-orbit-weight-regular shrink-0 ${tone}`}>
+    <Badge variant="outline" className={`text-orbit-xs v6-orbit-weight-regular shrink-0 ${tone}`}>
       {status}
     </Badge>
   );

@@ -5,7 +5,7 @@ import {
   GitCompare, History, X, ArrowRight, Sparkles, Upload, Trash2, FileText, Loader2,
   Download, Info, ShieldCheck, ExternalLink, Sigma, Pin, RotateCcw,
   Clock, ShieldX, Pencil,
-} from "lucide-react";
+} from "@/components/clauseiq-v6a/v6aIcons";
 
 import {
   Alert,
@@ -40,7 +40,7 @@ import { Button } from "@/components/clauseiq-v6a/orbit-ui/button";
 import { Checkbox } from "@/components/clauseiq-v6a/orbit-ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/clauseiq-v6a/orbit-ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/clauseiq-v6a/orbit-ui/select";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown } from "@/components/clauseiq-v6a/v6aIcons";
 import {
   IconCircleCheck,
   IconCircleX,
@@ -76,6 +76,7 @@ import {
   type ClauseVerdict,
   type RoundDecision,
   type ClosureDecision,
+  type ClauseOutcome,
 } from "@/hooks/use-clause-decisions";
 import { cn } from "@/lib/utils";
 import { CLAUSE_FRAMEWORK } from "@/lib/clauses-framework";
@@ -178,8 +179,16 @@ type ScoreBand = "A" | "B" | "C" | "D" | "F";
 
 const CLAUSE_ACTION_LABELS = {
   reviseTarget: "Set Custom Position",
+  /**
+   * Not Met card only. `reviseTarget` is shared by five other buttons across
+   * the none-deviation and closed buckets, which must keep their existing
+   * label — so the Not Met card gets its own key rather than a global rename.
+   */
+  editPosition: "Edit Position",
   holdPosition: "Apply Recommended Position",
   acceptSupplierPosition: "Accept Supplier Position",
+  /** Concede: stop pursuing the change and leave the clause as the supplier left it. */
+  keepCurrentSummary: "Keep current summary",
 } as const;
 
 interface CategorySidebarItem {
@@ -259,10 +268,10 @@ type OrbitCardStyle = CSSProperties & {
 };
 
 const severityTone = (s: ClauseResult["severity"] | undefined) =>
-  s === "high" ? "bg-destructive/10 text-destructive border-destructive/20"
-    : s === "medium" ? "bg-warning/15 text-warning-foreground border-warning/30"
-    : s === "low" ? "bg-muted text-muted-foreground border-border"
-    : "bg-muted text-muted-foreground border-border";
+  s === "high" ? "bg-orbit-destructive/10 text-orbit-destructive border-orbit-destructive/20"
+    : s === "medium" ? "bg-orbit-warning/15 text-orbit-warning border-orbit-warning/30"
+    : s === "low" ? "bg-orbit-surface text-orbit-fg-secondary border-orbit-border"
+    : "bg-orbit-surface text-orbit-fg-secondary border-orbit-border";
 
 function isInitiativesV6Route() {
   if (typeof window === "undefined") return false;
@@ -272,13 +281,13 @@ function isInitiativesV6Route() {
 }
 
 const firstAnalysisDeviationBadgeClass =
-  "shrink-0 rounded-full border-[#F3B4B4] bg-[#FFF1F2] px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium text-[#A32D2D]";
+  "shrink-0 rounded-full border-orbit-error-border bg-orbit-error-surface px-orbit-xs py-orbit-xxs text-orbit-xs v6-orbit-weight-medium text-orbit-error";
 const firstAnalysisMissingClauseBadgeClass =
-  "shrink-0 rounded-full border-[#185FA5]/25 bg-[#E6F1FB] px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium text-[#0C447C]";
+  "shrink-0 rounded-full border-orbit-info/25 bg-orbit-info-surface px-orbit-xs py-orbit-xxs text-orbit-xs v6-orbit-weight-medium text-orbit-info";
 const firstAnalysisMissingClauseLegacyBadgeClass =
-  "shrink-0 rounded-full px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium";
+  "shrink-0 rounded-full px-orbit-xs py-orbit-xxs text-orbit-xs v6-orbit-weight-medium";
 const firstAnalysisNoneDeviationBadgeClass =
-  "shrink-0 rounded-full border-[#BFD6AB] bg-[#EAF3DE] px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium text-[#27500A]";
+  "shrink-0 rounded-full border-orbit-success-border bg-orbit-success-surface px-orbit-xs py-orbit-xxs text-orbit-xs v6-orbit-weight-medium text-orbit-success";
 
 function getFirstAnalysisMissingClauseBadgeClass() {
   return isInitiativesV6Route() ? firstAnalysisMissingClauseBadgeClass : firstAnalysisMissingClauseLegacyBadgeClass;
@@ -402,9 +411,9 @@ function ClauseTitleInline({
   fallback: string;
 }) {
   return (
-    <span className="inline-flex min-w-0 max-w-full items-center gap-[4px]">
-      <span className="shrink-0 v6-orbit-text-small v6-orbit-weight-regular text-muted-foreground">{clauseId}</span>
-      <span aria-hidden="true" className="h-[1em] w-px shrink-0 bg-border" />
+    <span className="inline-flex min-w-0 max-w-full items-center gap-orbit-xs">
+      <span className="shrink-0 v6-orbit-text-small v6-orbit-weight-regular text-orbit-fg-secondary">{clauseId}</span>
+      <span aria-hidden="true" className="h-[1em] w-px shrink-0 bg-orbit-border" />
       <span className="min-w-0 truncate">{displayTitleForClause(clauseId, fallback)}</span>
     </span>
   );
@@ -419,11 +428,11 @@ const SEVERITY_WEIGHTS: Record<"high" | "medium" | "low", number> = {
 const DEAL_BREAKER_CLAUSE_IDS = new Set(["c35", "c48", "c58"]);
 
 const bandColor: Record<ScoreBand, string> = {
-  A: "#3B6D11",
-  B: "#3B6D11",
-  C: "#5F5E5A",
-  D: "#854F0B",
-  F: "#A32D2D",
+  A: "var(--orbit-color-text-success)",
+  B: "var(--orbit-color-text-success)",
+  C: "var(--orbit-color-text-secondary)",
+  D: "var(--orbit-color-text-warning)",
+  F: "var(--orbit-color-text-error)",
 };
 
 const historyFilterLabels: Record<HistoryFilter, string> = {
@@ -893,13 +902,13 @@ function roundOutcome(
   state: ClauseDecisionState,
 ): RoundOutcome {
   const idx = versions.findIndex((v) => v.version === versionLabel);
-  if (idx === -1) return { label: "—", tone: "bg-muted/50 text-muted-foreground border-dashed border-border" };
+  if (idx === -1) return { label: "—", tone: "bg-orbit-surface/50 text-orbit-fg-secondary border-dashed border-orbit-border" };
   const round = state.roundDecisions[versionLabel];
   // Round 1 = baseline decision only.
   if (idx === 0) {
-    if (round === "request-update") return { label: "Revise target", tone: "bg-primary/10 text-primary border-primary/20" };
-    if (round === "no-action") return { label: "Hold", tone: "bg-muted text-muted-foreground border-border" };
-    return { label: "—", tone: "bg-muted/40 text-muted-foreground border-dashed border-border" };
+    if (round === "request-update") return { label: "Revise target", tone: "bg-orbit-primary/10 text-orbit-primary border-orbit-primary/20" };
+    if (round === "no-action") return { label: "Hold", tone: "bg-orbit-surface text-orbit-fg-secondary border-orbit-border" };
+    return { label: "—", tone: "bg-orbit-surface/40 text-orbit-fg-secondary border-dashed border-orbit-border" };
   }
   // Later rounds — derive from previous decision + change.
   const prev = versions[idx - 1].clauses.find((c) => c.id === clauseId);
@@ -910,19 +919,19 @@ function roundOutcome(
   );
   const closure = state.closures[versionLabel];
 
-  if (closure === "closed") return { label: "Accepted", tone: "bg-success/10 text-success border-success/20" };
+  if (closure === "closed") return { label: "Accepted", tone: "bg-orbit-success/10 text-orbit-success border-orbit-success/20" };
 
   if (wasRequestedBefore) {
     if (change === "material") {
       // Updated by supplier — still open unless user closes it.
-      return { label: "Updated", tone: "bg-primary/10 text-primary border-primary/20" };
+      return { label: "Updated", tone: "bg-orbit-primary/10 text-orbit-primary border-orbit-primary/20" };
     }
-    return { label: "Still open", tone: "bg-warning/15 text-warning-foreground border-warning/30" };
+    return { label: "Still open", tone: "bg-orbit-warning/15 text-orbit-warning border-orbit-warning/30" };
   }
 
   // Not previously requested
-  if (change === "material") return { label: "New supplier change", tone: "bg-destructive/10 text-destructive border-destructive/20" };
-  return { label: "Hold", tone: "bg-muted text-muted-foreground border-border" };
+  if (change === "material") return { label: "New supplier change", tone: "bg-orbit-destructive/10 text-orbit-destructive border-orbit-destructive/20" };
+  return { label: "Hold", tone: "bg-orbit-surface text-orbit-fg-secondary border-orbit-border" };
 }
 
 function wasRequestedByVersion(
@@ -1724,7 +1733,17 @@ export function ContractResults({
     recordAudit(clauseId, `Round ${target.round} target set (v${target.version}): ${target.text}${target.reason ? ` — ${target.reason}` : ""}`);
   };
 
-  const confirmVerdictFromAction = (clauseId: string, verdict: ClauseVerdict | null | undefined, action: string) => {
+  const confirmVerdictFromAction = (
+    clauseId: string,
+    verdict: ClauseVerdict | null | undefined,
+    action: string,
+    outcome?: ClauseOutcome,
+  ) => {
+    // Record which decision produced this outcome before the verdict guard —
+    // the provenance is independent of whether a verdict needs confirming.
+    if (outcome) {
+      decisions.setOutcome(supplierId, decisionContractId, clauseId, rightVersion?.version ?? "v1", outcome);
+    }
     if (!verdict) {
       recordAudit(clauseId, action);
       return;
@@ -3233,7 +3252,7 @@ export function ContractResults({
           !outcomeReviewMode && canUndoFirstAnalysisRecommendations ? (
             <Button
               variant="outline"
-              className="h-7 gap-orbit-xs bg-white px-orbit-base text-xs"
+              className="h-7 gap-orbit-xs bg-orbit-card px-orbit-base text-orbit-xs"
               onClick={undoAppliedRecommendations}
             >
               <RotateCcw className="h-3.5 w-3.5" />
@@ -3245,8 +3264,8 @@ export function ContractResults({
             <Button
               variant={compactBulkBannerOpen ? "default" : "outline"}
               className={cn(
-                "h-7 gap-orbit-xs bg-white px-orbit-base text-xs clauseiq-v6-recommendation-bulk-trigger",
-                compactBulkBannerOpen && "bg-primary text-primary-foreground",
+                "h-7 gap-orbit-xs bg-orbit-card px-orbit-base text-orbit-xs clauseiq-v6-recommendation-bulk-trigger",
+                compactBulkBannerOpen && "bg-orbit-primary text-orbit-primary-foreground",
               )}
               aria-label="Bulk Action"
               aria-expanded={compactBulkBannerOpen}
@@ -3259,7 +3278,7 @@ export function ContractResults({
           ) : (
             <Button
               variant="outline"
-              className="h-7 gap-orbit-xs px-orbit-base text-xs"
+              className="h-7 gap-orbit-xs px-orbit-base text-orbit-xs"
               disabled
             >
               <FaIcon icon={BULK_ACTION_FA_ICON} size={14} color="currentColor" />
@@ -3269,7 +3288,7 @@ export function ContractResults({
         )}
         <Button
           variant={reviewGenerateDisabled ? "outline" : "default"}
-          className="h-7 gap-orbit-xs px-orbit-base text-xs"
+          className="h-7 gap-orbit-xs px-orbit-base text-orbit-xs"
           disabled={reviewGenerateDisabled}
           onClick={() => setRequestReviewOpen(true)}
         >
@@ -3289,7 +3308,7 @@ export function ContractResults({
     >
     <div className="min-h-screen">
       {compactHeader ? (
-        <div className="sticky top-0 z-30 border-b border-[rgba(0,0,0,0.08)] bg-white">
+        <div className="sticky top-0 z-30 border-b border-orbit-border bg-orbit-card">
           <CompactContractTopbar
             backLabel={compactBackLabel}
             onBack={onBack}
@@ -3303,10 +3322,10 @@ export function ContractResults({
       ) : (
         <>
           {/* Top header */}
-          <div className="border-b border-border bg-card sticky top-0 z-30">
+          <div className="border-b border-orbit-border bg-orbit-card sticky top-0 z-30">
             <div className="max-w-[1400px] mx-auto px-orbit-m py-orbit-base">
               <div className="flex flex-wrap items-center justify-between gap-orbit-s">
-                <button onClick={onBack} className="inline-flex h-8 items-center gap-orbit-xs text-sm text-muted-foreground hover:text-foreground">
+                <button onClick={onBack} className="inline-flex h-8 items-center gap-orbit-xs text-orbit-sm text-orbit-fg-secondary hover:text-orbit-fg">
                   <ChevronLeft className="w-4 h-4" /> {backLabel ?? `Back to ${supplier.name}`}
                 </button>
                 <div
@@ -3320,7 +3339,7 @@ export function ContractResults({
                     !outcomeReviewMode && canUndoFirstAnalysisRecommendations ? (
                       <Button
                         variant="outline"
-                        className="h-9 gap-orbit-xs bg-white"
+                        className="h-9 gap-orbit-xs bg-orbit-card"
                         onClick={undoAppliedRecommendations}
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
@@ -3333,7 +3352,7 @@ export function ContractResults({
                         variant={nonCompactBulkBannerOpen ? "default" : "outline"}
                         className={cn(
                           "h-9 gap-orbit-xs clauseiq-v6-recommendation-bulk-trigger",
-                          !nonCompactBulkBannerOpen && "bg-white",
+                          !nonCompactBulkBannerOpen && "bg-orbit-card",
                           isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger",
                         )}
                         aria-label="Bulk Action"
@@ -3377,7 +3396,7 @@ export function ContractResults({
                 </div>
               </div>
               {canShowBulkActionControls && bulkActionAvailable && nonCompactBulkBannerOpen && (
-                <div className="mt-orbit-s overflow-hidden rounded-md">
+                <div className="mt-orbit-s overflow-hidden rounded-orbit-md">
                   <RecommendationBulkApplyBanner
                     options={bulkRecommendationApplyOptions}
                     onApply={(targets) => {
@@ -3395,7 +3414,7 @@ export function ContractResults({
               )}
               <div className="mt-orbit-s grid gap-orbit-base lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px] lg:items-end">
                 <div className="min-w-0">
-                  <p className="text-xs v6-orbit-weight-semibold text-muted-foreground uppercase tracking-wider">
+                  <p className="text-orbit-xs v6-orbit-weight-semibold text-orbit-fg-secondary uppercase tracking-wider">
                     {initiative.name} · {initiative.reference} · {supplier.name}
                   </p>
                   <div className="mt-orbit-xs flex flex-wrap items-center gap-x-orbit-base gap-y-orbit-s">
@@ -3403,34 +3422,34 @@ export function ContractResults({
                     <Badge variant="outline">{contract.type}</Badge>
                   </div>
                   <div className="mt-orbit-s flex items-center gap-orbit-s flex-wrap">
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-orbit-sm text-orbit-fg-secondary">
                       {versions.length} round{versions.length !== 1 ? "s" : ""}
                       {latest && <> · Latest updated {latest.uploadedAt}</>}
                     </span>
                   </div>
                   {versions.length > 0 && (
-                    <p className="mt-orbit-s max-w-3xl text-xs text-muted-foreground">
-                      Use the <span className="v6-orbit-weight-semibold text-foreground">Review</span> tab to mark which clauses need to change, then switch to <span className="v6-orbit-weight-semibold text-foreground">Changes</span> to see how the supplier responded.
+                    <p className="mt-orbit-s max-w-3xl text-orbit-xs text-orbit-fg-secondary">
+                      Use the <span className="v6-orbit-weight-semibold text-orbit-fg">Review</span> tab to mark which clauses need to change, then switch to <span className="v6-orbit-weight-semibold text-orbit-fg">Changes</span> to see how the supplier responded.
                     </p>
                   )}
                 </div>
 
-                <div className="w-full rounded-lg border border-border bg-muted/30 px-orbit-base py-orbit-base">
+                <div className="w-full rounded-orbit-lg border border-orbit-border bg-orbit-surface/30 px-orbit-base py-orbit-base">
                   <div className="flex flex-wrap items-center justify-between gap-orbit-s">
-                    <p className="text-[11px] v6-orbit-weight-semibold uppercase tracking-wider text-muted-foreground">Review summary</p>
+                    <p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wider text-orbit-fg-secondary">Review summary</p>
                     {versions.length >= 2 && (
-                      <p className="text-xs text-muted-foreground">
-                        <span className="v6-orbit-weight-semibold text-foreground">{clausesRequiringAction}</span>{" "}
+                      <p className="text-orbit-xs text-orbit-fg-secondary">
+                        <span className="v6-orbit-weight-semibold text-orbit-fg">{clausesRequiringAction}</span>{" "}
                         clause{clausesRequiringAction === 1 ? "" : "s"} require action
                       </p>
                     )}
                   </div>
                   <div className="mt-orbit-base grid grid-cols-5 gap-orbit-s">
-                    <SummaryStat label="High" value={v1Counts.high} tone="text-destructive" />
-                    <SummaryStat label="Medium" value={v1Counts.medium} tone="text-warning" />
-                    <SummaryStat label="Low" value={v1Counts.low} tone="text-success" />
-                    <SummaryStat label="Requested" value={v1Counts.requested} tone="text-primary" />
-                    <SummaryStat label="Total" value={v1Counts.total} tone="text-foreground" />
+                    <SummaryStat label="High" value={v1Counts.high} tone="text-orbit-destructive" />
+                    <SummaryStat label="Medium" value={v1Counts.medium} tone="text-orbit-warning" />
+                    <SummaryStat label="Low" value={v1Counts.low} tone="text-orbit-success" />
+                    <SummaryStat label="Requested" value={v1Counts.requested} tone="text-orbit-primary" />
+                    <SummaryStat label="Total" value={v1Counts.total} tone="text-orbit-fg" />
                   </div>
                 </div>
               </div>
@@ -3531,7 +3550,7 @@ export function ContractResults({
 
           <div id="comparison-work-column" className="min-w-0 space-y-orbit-base">
             {versions.length >= 2 && (
-              <div className="flex min-w-0 flex-wrap items-center gap-x-orbit-m gap-y-orbit-s border-b border-border px-orbit-xs pb-orbit-s">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-orbit-m gap-y-orbit-s border-b border-orbit-border px-orbit-xs pb-orbit-s">
                 <div className="flex shrink-0 items-center gap-orbit-m">
                   <ComparisonTabButton
                     active={tab === "changes"}
@@ -3563,7 +3582,7 @@ export function ContractResults({
             )}
 
             {versions.length < 2 && (
-              <div className="flex min-w-0 flex-wrap items-center justify-between gap-orbit-s rounded-md border border-border bg-[#f8f7f5] px-orbit-base py-orbit-s">
+              <div className="flex min-w-0 flex-wrap items-center justify-between gap-orbit-s rounded-orbit-md border border-orbit-border bg-orbit-surface px-orbit-base py-orbit-s">
                 <ReviewGuidance versionLabel={reviewVersion?.version ?? reviewVersionLabel} compact />
                 <ComparisonToolbarControls
                   search={search}
@@ -3784,7 +3803,7 @@ export function ContractResults({
                 />
               </div>
             ) : (
-              <div className="rounded-lg border border-border bg-card p-orbit-xxl text-center text-sm text-muted-foreground">
+              <div className="rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-xxl text-center text-orbit-sm text-orbit-fg-secondary">
                 Select two different versions to compare.
               </div>
             )}
@@ -3939,17 +3958,17 @@ function UploadVersionDialog({
       }
     >
         <div className="space-y-orbit-base">
-          <div className="rounded-md border border-border bg-muted/30 p-orbit-base text-xs space-y-orbit-xs">
-            <p><span className="text-muted-foreground">Initiative:</span> <span className="v6-orbit-weight-medium text-foreground"> {initiativeName} · {initiativeRef}</span></p>
-            <p><span className="text-muted-foreground">Supplier:</span> <span className="v6-orbit-weight-medium text-foreground"> {supplierName}</span></p>
-            <p><span className="text-muted-foreground">Contract:</span> <span className="v6-orbit-weight-medium text-foreground"> {contractName}</span></p>
+          <div className="rounded-orbit-md border border-orbit-border bg-orbit-surface/30 p-orbit-base text-orbit-xs space-y-orbit-xs">
+            <p><span className="text-orbit-fg-secondary">Initiative:</span> <span className="v6-orbit-weight-medium text-orbit-fg"> {initiativeName} · {initiativeRef}</span></p>
+            <p><span className="text-orbit-fg-secondary">Supplier:</span> <span className="v6-orbit-weight-medium text-orbit-fg"> {supplierName}</span></p>
+            <p><span className="text-orbit-fg-secondary">Contract:</span> <span className="v6-orbit-weight-medium text-orbit-fg"> {contractName}</span></p>
           </div>
           <div className="space-y-orbit-xs">
-            <label className="text-[11px] v6-orbit-weight-semibold text-muted-foreground uppercase">Version label</label>
+            <label className="text-orbit-xs v6-orbit-weight-semibold text-orbit-fg-secondary uppercase">Version label</label>
             <Input value={label} onChange={(e) => setLabel(e.target.value)} className="h-9" />
           </div>
           <div className="space-y-orbit-xs">
-            <label className="text-[11px] v6-orbit-weight-semibold text-muted-foreground uppercase">Contract file</label>
+            <label className="text-orbit-xs v6-orbit-weight-semibold text-orbit-fg-secondary uppercase">Contract file</label>
             {file ? (
               <FileItem
                 filename={file.name}
@@ -3999,16 +4018,16 @@ function CompactContractTopbar({
   onFirstAnalysisDemoChange: (enabled: boolean) => void;
 }) {
   return (
-    <div className="flex min-h-10 items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] px-orbit-base py-orbit-s">
+    <div className="flex min-h-10 items-center gap-orbit-base border-b border-orbit-border px-orbit-base py-orbit-s">
       <button
         onClick={onBack}
-        className="inline-flex shrink-0 items-center gap-orbit-xs text-[13px] v6-orbit-weight-medium text-primary hover:underline"
+        className="inline-flex shrink-0 items-center gap-orbit-xs text-orbit-sm v6-orbit-weight-medium text-orbit-primary hover:underline"
       >
         <ChevronLeft className="h-3.5 w-3.5" /> {backLabel}
       </button>
-      <div className="h-3.5 w-px bg-border" aria-hidden />
+      <div className="h-3.5 w-px bg-orbit-border" aria-hidden />
       <div className="flex min-w-0 flex-1 items-center gap-orbit-s">
-        <h1 className="v6-orbit-heading-label min-w-0 truncate text-foreground">{referenceLine}</h1>
+        <h1 className="v6-orbit-heading-label min-w-0 truncate text-orbit-fg">{referenceLine}</h1>
       </div>
       {actions}
       {demoAvailable && !isInitiativesV6Route() && (
@@ -4034,16 +4053,16 @@ function FirstAnalysisDemoToggle({
       aria-pressed={active}
       onClick={onChange}
       className={cn(
-        "ml-auto inline-flex h-7 shrink-0 items-center gap-orbit-s rounded-md border px-orbit-s text-[11px] v6-orbit-weight-medium transition-colors",
+        "ml-auto inline-flex h-7 shrink-0 items-center gap-orbit-s rounded-orbit-md border px-orbit-s text-orbit-xs v6-orbit-weight-medium transition-colors",
         active
-          ? "border-[#185FA5]/35 bg-[#E6F1FB] text-[#0C447C]"
-          : "border-border bg-white text-muted-foreground hover:text-foreground",
+          ? "border-orbit-info/35 bg-orbit-info-surface text-orbit-info"
+          : "border-orbit-border bg-orbit-card text-orbit-fg-secondary hover:text-orbit-fg",
       )}
     >
       <span
         className={cn(
           "h-2 w-2 rounded-full",
-          active ? "bg-[#185FA5]" : "bg-muted-foreground/40",
+          active ? "bg-orbit-info" : "bg-orbit-fg-secondary/40",
         )}
         aria-hidden
       />
@@ -4073,7 +4092,7 @@ function DashboardViewToggle({
 
   return (
     <div
-      className="fixed bottom-[76px] right-orbit-base z-40 flex shrink-0 items-center rounded-md border border-border bg-muted/50 p-orbit-xxs shadow-lg"
+      className="fixed bottom-[76px] right-orbit-base z-40 flex shrink-0 items-center rounded-orbit-md border border-orbit-border bg-orbit-surface/50 p-orbit-xxs shadow-orbit-lg"
       role="group"
       aria-label="Dashboard view"
     >
@@ -4088,11 +4107,11 @@ function DashboardViewToggle({
             title={option.title}
             onClick={() => onChange(option.value)}
             className={cn(
-              "inline-flex h-7 items-center justify-center rounded px-orbit-s text-xs v6-orbit-weight-medium transition-colors",
+              "inline-flex h-7 items-center justify-center rounded-orbit-sm px-orbit-s text-orbit-xs v6-orbit-weight-medium transition-colors",
               active
-                ? "bg-white text-foreground shadow-sm"
-                : "text-muted-foreground hover:bg-white/70 hover:text-foreground",
-              option.disabled && "cursor-not-allowed opacity-50 hover:bg-transparent hover:text-muted-foreground",
+                ? "bg-orbit-card text-orbit-fg shadow-orbit-sm"
+                : "text-orbit-fg-secondary hover:bg-orbit-card/70 hover:text-orbit-fg",
+              option.disabled && "cursor-not-allowed opacity-50 hover:bg-transparent hover:text-orbit-fg-secondary",
             )}
           >
             {option.label}
@@ -4112,7 +4131,7 @@ function RecommendationReviewIntro() {
         </h2>
       </div>
       <p
-        className="mt-orbit-xs v6-orbit-text-small text-muted-foreground"
+        className="mt-orbit-xs v6-orbit-text-small text-orbit-fg-secondary"
         style={{ "--orbit-text-small-leading": "1.5" } as CSSProperties}
       >
         Review ClauseIQ&apos;s findings before supplier negotiation. Use the filters to focus on clauses by deviation level or category, then choose whether to use the recommended position, set a custom position, or mark a clause as no action required. Once reviewed, generate the output for the next negotiation step.
@@ -4133,7 +4152,7 @@ function FirstAnalysisContextBanner() {
   return (
     <section>
       <div className="mx-auto w-full max-w-[1500px] px-orbit-base pt-orbit-base pb-orbit-none">
-        <div className="rounded-lg border border-border bg-card px-orbit-base py-orbit-base shadow-sm">
+        <div className="rounded-orbit-lg border border-orbit-border bg-orbit-card px-orbit-base py-orbit-base shadow-orbit-sm">
           <RecommendationReviewIntro />
         </div>
       </div>
@@ -4184,10 +4203,10 @@ function OutcomeMetric({
         : "text-[var(--orbit-color-text-error)]";
 
   return (
-    <div className="rounded-md border border-border bg-white px-orbit-base py-orbit-s">
+    <div className="rounded-orbit-md border border-orbit-border bg-orbit-card px-orbit-base py-orbit-s">
       <Text as="p" size="Small" variant="Secondary">{label}</Text>
-      <p className={cn("mt-orbit-xxs text-xl v6-orbit-weight-semibold leading-none", toneClass)}>{value}</p>
-      <p className="mt-orbit-xs text-[11px] leading-4 text-muted-foreground">{detail}</p>
+      <p className={cn("mt-orbit-xxs text-orbit-xl v6-orbit-weight-semibold leading-orbit-tight", toneClass)}>{value}</p>
+      <p className="mt-orbit-xs text-orbit-xs leading-orbit-snug text-orbit-fg-secondary">{detail}</p>
     </div>
   );
 }
@@ -4274,7 +4293,7 @@ function ModeSwitcher({
     <>
       <div
         className={cn(
-          "flex min-w-0 items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] bg-white px-orbit-base py-orbit-xs",
+          "flex min-w-0 items-center gap-orbit-base border-b border-orbit-border bg-orbit-card px-orbit-base py-orbit-xs",
           isResponsiveTestingRoute && "clauseiq-responsive-mode-switcher",
         )}
       >
@@ -4300,7 +4319,7 @@ function ModeSwitcher({
                   variant={bulkBannerOpen ? "default" : "outline"}
                   className={cn(
                     "clauseiq-v6-recommendation-bulk-trigger",
-                    !bulkBannerOpen && "bg-white",
+                    !bulkBannerOpen && "bg-orbit-card",
                     isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger",
                   )}
                   aria-label="Bulk Action"
@@ -4332,7 +4351,7 @@ function ModeSwitcher({
             )}
             <Button
               variant={reviewGenerateDisabled ? "outline" : "default"}
-              className="h-7 gap-orbit-xs px-orbit-base text-xs"
+              className="h-7 gap-orbit-xs px-orbit-base text-orbit-xs"
               disabled={reviewGenerateDisabled}
               onClick={onReviewGenerate}
             >
@@ -4803,17 +4822,17 @@ function HistoryComingSoon() {
   return (
     <main
       id="clauseiq-v6-history-panel"
-      className="grid min-h-[calc(100vh-88px)] place-items-center bg-[#F7F9FC] px-orbit-base py-orbit-xxl"
+      className="grid min-h-[calc(100vh-88px)] place-items-center bg-orbit-surface px-orbit-base py-orbit-xxl"
     >
       <div className="flex max-w-[420px] flex-col items-center text-center">
-        <div className="grid h-12 w-12 place-items-center rounded-full border border-[#DDE5F0] bg-white text-[#185FA5] shadow-sm">
+        <div className="grid h-12 w-12 place-items-center rounded-full border border-orbit-info-surface bg-orbit-card text-orbit-info shadow-orbit-sm">
           <History className="h-5 w-5" />
         </div>
-        <p className="mt-orbit-base text-[10px] v6-orbit-weight-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        <p className="mt-orbit-base text-orbit-xs v6-orbit-weight-semibold uppercase tracking-[0.12em] text-orbit-fg-secondary">
           History
         </p>
-        <h1 className="v6-orbit-heading-4 mt-orbit-xs text-foreground">Coming Soon</h1>
-        <p className="mt-orbit-s text-sm leading-6 text-muted-foreground">
+        <h1 className="v6-orbit-heading-4 mt-orbit-xs text-orbit-fg">Coming Soon</h1>
+        <p className="mt-orbit-s text-orbit-sm leading-orbit-relaxed text-orbit-fg-secondary">
           This view is being prepared.
         </p>
       </div>
@@ -4846,24 +4865,24 @@ function ComparisonHeader({
 
   return (
     <>
-      <div className="flex min-h-8 items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] bg-[#f8f7f5] px-orbit-base py-orbit-xxs text-[11px] text-muted-foreground">
-        <span className="shrink-0 text-[10px] v6-orbit-weight-medium uppercase tracking-[0.04em]">Comparing</span>
+      <div className="flex min-h-8 items-center gap-orbit-base border-b border-orbit-border bg-orbit-surface px-orbit-base py-orbit-xxs text-orbit-xs text-orbit-fg-secondary">
+        <span className="shrink-0 text-orbit-xs v6-orbit-weight-medium uppercase tracking-[0.04em]">Comparing</span>
         {versions.length >= 2 ? (
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-orbit-xs text-orbit-fg-secondary">
             {pair.left} to {pair.right}
           </span>
         ) : (
-          <span className="text-[10px] text-muted-foreground">{contract.version || pair.right}</span>
+          <span className="text-orbit-xs text-orbit-fg-secondary">{contract.version || pair.right}</span>
         )}
-        <span className="shrink-0 rounded px-orbit-xs py-orbit-xxs text-[10px] v6-orbit-weight-medium text-muted-foreground">
-          Total Clauses - <strong className="text-foreground">{contract.total}</strong>
+        <span className="shrink-0 rounded-orbit-sm px-orbit-xs py-orbit-xxs text-orbit-xs v6-orbit-weight-medium text-orbit-fg-secondary">
+          Total Clauses - <strong className="text-orbit-fg">{contract.total}</strong>
         </span>
         <InlineMetIndicator comparison={comparison} hasVersionComparison={hasVersionComparison} />
-        <div className="ml-auto min-w-[220px] rounded-md border border-border bg-white px-orbit-s py-orbit-xxs text-[10px]">
+        <div className="ml-auto min-w-[220px] rounded-orbit-md border border-orbit-border bg-orbit-card px-orbit-s py-orbit-xxs text-orbit-xs">
           <div className="flex items-center">
-            <span className="mr-orbit-xs uppercase text-muted-foreground">Score</span>
-            <strong className="text-[13px] text-foreground">{contract.score}</strong>
-            <span className={comparison.scoreDelta > 0 ? "ml-orbit-xs text-[#3B6D11]" : comparison.scoreDelta < 0 ? "ml-orbit-xs text-[#A32D2D]" : "ml-orbit-xs text-muted-foreground"}>
+            <span className="mr-orbit-xs uppercase text-orbit-fg-secondary">Score</span>
+            <strong className="text-orbit-sm text-orbit-fg">{contract.score}</strong>
+            <span className={comparison.scoreDelta > 0 ? "ml-orbit-xs text-orbit-success" : comparison.scoreDelta < 0 ? "ml-orbit-xs text-orbit-error" : "ml-orbit-xs text-orbit-fg-secondary"}>
               {comparison.scoreDelta > 0 ? `↑+${comparison.scoreDelta}` : comparison.scoreDelta < 0 ? `↓-${Math.abs(comparison.scoreDelta)}` : "→0"}
             </span>
           </div>
@@ -4896,7 +4915,7 @@ function InlineMetIndicator({
   if (!hasVersionComparison || comparison.requestedTotal === 0) return null;
   const allMet = comparison.notMet === 0 && comparison.met === comparison.requestedTotal;
   const noneMet = comparison.met === 0;
-  const color = allMet ? "#3B6D11" : noneMet ? "#A32D2D" : "#854F0B";
+  const color = allMet ? "var(--orbit-color-text-success)" : noneMet ? "var(--orbit-color-text-error)" : "var(--orbit-color-text-warning)";
   const label = allMet
     ? "All met"
     : noneMet
@@ -4905,11 +4924,11 @@ function InlineMetIndicator({
   const Icon = allMet ? IconCircleCheck : noneMet ? AlertTriangle : CheckCircle2;
 
   return (
-    <span className="ml-orbit-xs inline-flex shrink-0 items-center gap-orbit-xs text-[10px]" style={{ color }}>
+    <span className="ml-orbit-xs inline-flex shrink-0 items-center gap-orbit-xs text-orbit-xs" style={{ color }}>
       <Icon className="h-3.5 w-3.5" size={13} stroke={1.8} aria-hidden />
-      <span className="text-[11px] v6-orbit-weight-medium">{label}</span>
+      <span className="text-orbit-xs v6-orbit-weight-medium">{label}</span>
       {!noneMet && (
-        <span className="text-[10px] v6-orbit-weight-regular text-muted-foreground">
+        <span className="text-orbit-xs v6-orbit-weight-regular text-orbit-fg-secondary">
           · {comparison.met}/{comparison.requestedTotal}
         </span>
       )}
@@ -4936,18 +4955,18 @@ function HistoryHeader({
   const latest = versions.at(-1);
   return (
     <>
-      <div className="flex h-8 items-center gap-orbit-xs border-b border-[rgba(0,0,0,0.08)] bg-[#FAEEDA]/40 px-orbit-base text-[10px] v6-orbit-weight-medium text-[#633806]">
+      <div className="flex h-8 items-center gap-orbit-xs border-b border-orbit-border bg-orbit-warning-surface/40 px-orbit-base text-orbit-xs v6-orbit-weight-medium text-orbit-warning">
         <IconInfoCircle size={13} stroke={1.8} />
         Showing all {versions.length} rounds · {first?.version ?? "v1"} through {latest?.version ?? "v1"}
         {first && latest && <> · {formatShortDate(first.uploadedAt)} to {formatShortDate(latest.uploadedAt)}</>}
       </div>
-      <div className="grid grid-cols-4 gap-orbit-base border-b border-[rgba(0,0,0,0.08)] bg-white px-orbit-base py-orbit-base">
+      <div className="grid grid-cols-4 gap-orbit-base border-b border-orbit-border bg-orbit-card px-orbit-base py-orbit-base">
         <HistoryStatCard value={model.stats.totalClauses} label="Total clauses" trend={`across ${model.stats.roundCount} rounds`} />
         <HistoryStatCard value={model.stats.stillOpen} label="Still open" trend={`after ${model.stats.roundCount} rounds`} tone="danger" />
         <HistoryStatCard value={model.stats.avgRoundsToResolve} label="Avg rounds to resolve" trend="computed from met clauses" tone="success" />
         <HistoryStatCard value={`${model.stats.settledByRound3Pct}%`} label="Settled by round 3" trend="benchmark 65%" tone={model.stats.settledByRound3Pct >= 65 ? "success" : "danger"} />
       </div>
-      <div className="flex items-center gap-orbit-s border-b border-[rgba(0,0,0,0.08)] bg-[#f8f7f5] px-orbit-base py-orbit-s">
+      <div className="flex items-center gap-orbit-s border-b border-orbit-border bg-orbit-surface px-orbit-base py-orbit-s">
         {(Object.keys(historyFilterLabels) as HistoryFilter[]).map((filter) => (
           <button
             key={filter}
@@ -4955,18 +4974,18 @@ function HistoryHeader({
             onClick={() => onFilterChange(filter)}
             className={`inline-flex h-7 items-center gap-orbit-xs rounded-full px-orbit-base text-[10px] v6-orbit-weight-medium ${
               activeFilter === filter
-                ? "bg-[#1a2744] text-white"
-                : "border border-border bg-white text-muted-foreground hover:text-foreground"
+                ? "bg-orbit-heading text-orbit-inverse"
+                : "border border-orbit-border bg-orbit-card text-orbit-fg-secondary hover:text-orbit-fg"
             }`}
           >
             {historyFilterLabels[filter]}
-            <span className={`rounded-full px-orbit-xs py-orbit-micro text-[9px] ${activeFilter === filter ? "bg-white/20" : "bg-muted"}`}>
+            <span className={`rounded-full px-orbit-xs py-orbit-micro text-orbit-xs ${activeFilter === filter ? "bg-orbit-card/20" : "bg-orbit-surface"}`}>
               {model.filterCounts[filter]}
             </span>
           </button>
         ))}
         <Select value={activeSort} onValueChange={(value) => onSortChange(value as HistorySort)}>
-          <SelectTrigger className="ml-auto h-8 w-[210px] bg-white text-xs">
+          <SelectTrigger className="ml-auto h-8 w-[210px] bg-orbit-card text-orbit-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -4982,12 +5001,12 @@ function HistoryHeader({
 }
 
 function HistoryStatCard({ value, label, trend, tone = "neutral" }: { value: ReactNode; label: string; trend: string; tone?: "neutral" | "success" | "danger" }) {
-  const trendClass = tone === "success" ? "text-[#3B6D11]" : tone === "danger" ? "text-[#A32D2D]" : "text-muted-foreground";
+  const trendClass = tone === "success" ? "text-orbit-success" : tone === "danger" ? "text-orbit-error" : "text-orbit-fg-secondary";
   return (
-    <div className="rounded-md bg-[#f8f7f5] px-orbit-base py-orbit-s">
-      <p className="text-lg v6-orbit-weight-medium tabular-nums text-foreground">{value}</p>
-      <p className="text-[9px] v6-orbit-weight-medium uppercase text-muted-foreground">{label}</p>
-      <p className={`mt-orbit-xs text-[9px] ${trendClass}`}>{trend}</p>
+    <div className="rounded-orbit-md bg-orbit-surface px-orbit-base py-orbit-s">
+      <p className="text-orbit-lg v6-orbit-weight-medium tabular-nums text-orbit-fg">{value}</p>
+      <p className="text-orbit-xs v6-orbit-weight-medium uppercase text-orbit-fg-secondary">{label}</p>
+      <p className={`mt-orbit-xs text-orbit-xs ${trendClass}`}>{trend}</p>
     </div>
   );
 }
@@ -5012,18 +5031,18 @@ function ComparisonToolbarControls({
   return (
     <div className="ml-auto flex min-w-0 flex-1 flex-wrap items-center justify-end gap-orbit-s">
       <div className="relative min-w-[180px] flex-1 sm:max-w-[260px]">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-orbit-fg-secondary" />
         <Input
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder="Filter by name or ID..."
-          className="h-8 bg-card pl-orbit-l text-xs"
+          className="h-8 bg-orbit-card pl-orbit-l text-orbit-xs"
         />
       </div>
       {showBucketFilter && (
         <>
           <Select value={filter} onValueChange={(value) => onFilterChange(value as FilterKey)}>
-            <SelectTrigger className="h-8 w-[160px] bg-card text-xs">
+            <SelectTrigger className="h-8 w-[160px] bg-orbit-card text-orbit-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -5035,7 +5054,7 @@ function ComparisonToolbarControls({
               {!simplifyOutcomeStatus && <SelectItem value="unmarked">Needs decision</SelectItem>}
             </SelectContent>
           </Select>
-          <Button variant="ghost" className="h-8 shrink-0 text-[11px] text-muted-foreground" onClick={onResetToLatest}>
+          <Button variant="ghost" className="h-8 shrink-0 text-orbit-xs text-orbit-fg-secondary" onClick={onResetToLatest}>
             Reset to latest
           </Button>
         </>
@@ -5050,18 +5069,18 @@ function ComparisonTabButton({ active, icon, count, onClick, children }: { activ
       type="button"
       onClick={onClick}
       className={`inline-flex h-10 items-center gap-orbit-xs border-b-2 text-[12px] v6-orbit-weight-medium ${
-        active ? "border-[#1a2744] text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+        active ? "border-orbit-heading text-orbit-fg" : "border-transparent text-orbit-fg-secondary hover:text-orbit-fg"
       }`}
     >
       {icon}
       {children}
-      <span className="rounded-full bg-muted px-orbit-xs py-orbit-micro text-[9px] text-muted-foreground">{count}</span>
+      <span className="rounded-full bg-orbit-surface px-orbit-xs py-orbit-micro text-orbit-xs text-orbit-fg-secondary">{count}</span>
     </button>
   );
 }
 
 function CompactDivider() {
-  return <span className="h-3 w-px shrink-0 bg-border" aria-hidden />;
+  return <span className="h-3 w-px shrink-0 bg-orbit-border" aria-hidden />;
 }
 
 const changePillConfig: Record<ChangePillStatus, {
@@ -5115,7 +5134,7 @@ function ChangePillBadge({ result }: { result: ChangePillResult }) {
               <IconHelp size={10} stroke={1.8} />
             </span>
           </TooltipTrigger>
-          <TooltipContent className="text-xs">
+          <TooltipContent className="text-orbit-xs">
             AI confidence: {result.confidence}%. Verify before accepting.
           </TooltipContent>
         </Tooltip>
@@ -5133,7 +5152,7 @@ function VerdictPill({ verdict, superseded = false }: { verdict: ClauseVerdict; 
         variant={verdict === "met" ? "Success" : "Error"}
         contrast="Low"
       />
-      {superseded && <span className="text-[9px] text-muted-foreground">superseded</span>}
+      {superseded && <span className="text-orbit-xs text-orbit-fg-secondary">superseded</span>}
     </span>
   );
 }
@@ -5144,8 +5163,8 @@ function verdictLabel(verdict: ClauseVerdict) {
 
 function VerdictTooltipContent() {
   return (
-    <div className="space-y-1 text-xs">
-      <p className="v6-orbit-weight-semibold">Target Status - Whether the contract meets the best practice.</p>
+    <div className="space-y-orbit-xs text-orbit-xs">
+      <p className="font-orbit-semibold">Target Status - Whether the contract meets the best practice.</p>
       <p>Met - Aligns with best practice.</p>
       <p>Not Met - Does not align with best practice.</p>
     </div>
@@ -5154,8 +5173,8 @@ function VerdictTooltipContent() {
 
 function DeviationTooltipContent() {
   return (
-    <div className="space-y-1 text-xs">
-      <p className="v6-orbit-weight-semibold">Deviation Level - How far the contract differs from best practice.</p>
+    <div className="space-y-orbit-xs text-orbit-xs">
+      <p className="font-orbit-semibold">Deviation Level - How far the contract differs from best practice.</p>
       <p>None - Matches best practice. No change needed.</p>
       <p>Low - Minor difference. Small improvement recommended.</p>
       <p>Medium - Meaningful difference. Creates a notable legal, commercial, or operational issue.</p>
@@ -5167,7 +5186,7 @@ function DeviationTooltipContent() {
 function DecisionBadge({ decision }: { decision: RoundDecision }) {
   if (decision === "request-update") {
     return (
-      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full bg-primary px-orbit-s py-orbit-xs text-[10px] v6-orbit-weight-medium text-primary-foreground">
+      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full bg-orbit-primary px-orbit-s py-orbit-xs text-orbit-xs v6-orbit-weight-medium text-orbit-primary-foreground">
         <Sparkles className="h-3 w-3" />
         Requested
       </span>
@@ -5175,7 +5194,7 @@ function DecisionBadge({ decision }: { decision: RoundDecision }) {
   }
 
   return (
-    <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full bg-[#EAF3DE] px-orbit-s py-orbit-xs text-[10px] v6-orbit-weight-medium text-[#27500A]">
+    <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full bg-orbit-success-surface px-orbit-s py-orbit-xs text-orbit-xs v6-orbit-weight-medium text-orbit-success">
       <CheckCircle2 className="h-3 w-3" />
       {CLAUSE_ACTION_LABELS.holdPosition}
     </span>
@@ -5185,7 +5204,7 @@ function DecisionBadge({ decision }: { decision: RoundDecision }) {
 function RequestLifecycleBadge({ request }: { request?: ClauseRequest }) {
   if (request?.state === "pending") {
     return (
-      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full border border-[#185FA5]/25 bg-[#E6F1FB] px-orbit-s py-orbit-xs text-[10px] v6-orbit-weight-medium text-[#0C447C]">
+      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full border border-orbit-info/25 bg-orbit-info-surface px-orbit-s py-orbit-xs text-orbit-xs v6-orbit-weight-medium text-orbit-info">
         <FileText className="h-3 w-3" />
         {CLAUSE_ACTION_LABELS.reviseTarget}
       </span>
@@ -5194,7 +5213,7 @@ function RequestLifecycleBadge({ request }: { request?: ClauseRequest }) {
 
   if (request?.state === "submitted") {
     return (
-      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full border border-[#BFD6AB] bg-[#EAF3DE] px-orbit-s py-orbit-xs text-[10px] v6-orbit-weight-medium text-[#27500A]">
+      <span className="inline-flex cursor-default items-center gap-orbit-xs rounded-full border border-orbit-success-border bg-orbit-success-surface px-orbit-s py-orbit-xs text-orbit-xs v6-orbit-weight-medium text-orbit-success">
         <CheckCircle2 className="h-3 w-3" />
         Reviewed
       </span>
@@ -5206,7 +5225,7 @@ function RequestLifecycleBadge({ request }: { request?: ClauseRequest }) {
 
 function OverviewSectionLabel({ children }: { children: ReactNode }) {
   return (
-    <p className="text-[10px] v6-orbit-weight-semibold uppercase tracking-wider text-muted-foreground">
+    <p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wider text-orbit-fg-secondary">
       {children}
     </p>
   );
@@ -5226,26 +5245,26 @@ function ComparisonOverviewPanel({
   if (state === "closed") return null;
   if (state === "collapsed") {
     const deltaLabel = data.delta > 0 ? `+${data.delta}` : data.delta < 0 ? `−${Math.abs(data.delta)}` : "0";
-    const deltaColor = data.delta > 0 ? "#3B6D11" : data.delta < 0 ? "#A32D2D" : "hsl(var(--muted-foreground))";
+    const deltaColor = data.delta > 0 ? "var(--orbit-color-text-success)" : data.delta < 0 ? "var(--orbit-color-text-error)" : "var(--orbit-color-text-secondary)";
     return (
-      <div className="flex h-7 items-center gap-orbit-s border-b border-[rgba(0,0,0,0.08)] bg-white px-orbit-base text-[11px]">
-        <span className="shrink-0 v6-orbit-weight-medium text-muted-foreground">
+      <div className="flex h-7 items-center gap-orbit-s border-b border-orbit-border bg-orbit-card px-orbit-base text-orbit-xs">
+        <span className="shrink-0 v6-orbit-weight-medium text-orbit-fg-secondary">
           {data.previous ? `${pair.from} → ${pair.to}` : "First analysis"}
         </span>
         {data.previous ? (
           <>
             <MiniDistributionBar distribution={data.previous.distribution} muted />
-            <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <ArrowRight className="h-3.5 w-3.5 shrink-0 text-orbit-fg-secondary" />
             <MiniDistributionBar distribution={data.current.distribution} />
             <span className="shrink-0 v6-orbit-weight-medium tabular-nums" style={{ color: deltaColor }}>
               {deltaLabel} pts
             </span>
             <CompactDivider />
             {data.movement.improved > 0 && (
-              <span className="shrink-0 v6-orbit-weight-medium text-[#3B6D11]">↑ {data.movement.improved} improved</span>
+              <span className="shrink-0 v6-orbit-weight-medium text-orbit-success">↑ {data.movement.improved} improved</span>
             )}
             {data.movement.declined > 0 && (
-              <span className="shrink-0 v6-orbit-weight-medium text-[#A32D2D]">↓ {data.movement.declined} declined</span>
+              <span className="shrink-0 v6-orbit-weight-medium text-orbit-error">↓ {data.movement.declined} declined</span>
             )}
           </>
         ) : (
@@ -5254,7 +5273,7 @@ function ComparisonOverviewPanel({
         <button
           type="button"
           onClick={onExpand}
-          className="ml-auto shrink-0 rounded px-orbit-s py-orbit-xxs v6-orbit-weight-medium text-primary hover:bg-primary/5"
+          className="ml-auto shrink-0 rounded-orbit-sm px-orbit-s py-orbit-xxs v6-orbit-weight-medium text-orbit-primary hover:bg-orbit-primary/5"
         >
           Expand
         </button>
@@ -5268,7 +5287,7 @@ function ComparisonOverviewPanel({
 function MiniDistributionBar({ distribution, muted }: { distribution: DeviationDistribution; muted?: boolean }) {
   const colours = isInitiativesV6Route() ? v6DeviationDistributionColors : deviationDistributionColors;
   return (
-    <span className={`flex h-1 w-[60px] shrink-0 overflow-hidden rounded-sm bg-muted ${muted ? "opacity-50" : ""}`} style={{ gap: 1 }}>
+    <span className={`flex h-1 w-[60px] shrink-0 overflow-hidden rounded-orbit-sm bg-orbit-surface ${muted ? "opacity-50" : ""}`} style={{ gap: 1 }}>
       {(Object.keys(deviationDistributionColors) as Array<keyof DeviationDistribution>).map((key) => {
         const value = distribution[key];
         if (value <= 0) return null;
@@ -5301,10 +5320,10 @@ export function ScoringOptionSwitcher({
 
   return (
     <div className="flex items-center gap-orbit-s">
-      <span className="hidden text-[10px] v6-orbit-weight-semibold uppercase tracking-wider text-muted-foreground sm:inline">
+      <span className="hidden text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wider text-orbit-fg-secondary sm:inline">
         Scoring options
       </span>
-      <div className="inline-flex h-7 items-center rounded-full border border-border/80 bg-muted/50 p-orbit-xxs">
+      <div className="inline-flex h-7 items-center rounded-full border border-orbit-border/80 bg-orbit-surface/50 p-orbit-xxs">
         {options.map((option) => {
           const active = value === option.value;
           return (
@@ -5313,7 +5332,7 @@ export function ScoringOptionSwitcher({
               type="button"
               onClick={() => onChange(option.value)}
               className={`h-6 rounded-full px-orbit-s text-[11px] v6-orbit-weight-medium transition-colors ${
-                active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                active ? "bg-orbit-primary text-orbit-primary-foreground shadow-orbit-sm" : "text-orbit-fg-secondary hover:text-orbit-fg"
               }`}
             >
               {option.label}
@@ -5330,13 +5349,13 @@ function ScoringStripSummary({ option, model }: { option: ScoringOptionKey; mode
   const delta = current.delta >= 0 ? `↑+${current.delta}` : `↓${Math.abs(current.delta)}`;
   if (option === "hybrid") {
     return (
-      <span className="shrink-0 rounded px-orbit-xs py-orbit-xxs" style={{ color: bandColor[current.band] }}>
+      <span className="shrink-0 rounded-orbit-sm px-orbit-xs py-orbit-xxs" style={{ color: bandColor[current.band] }}>
         <strong>{current.score} {current.band}</strong> {delta} · {model.resolvedTotal}/{model.identifiedTotal}
       </span>
     );
   }
   return (
-    <span className="shrink-0 rounded px-orbit-xs py-orbit-xxs" style={{ color: bandColor[current.band] }}>
+    <span className="shrink-0 rounded-orbit-sm px-orbit-xs py-orbit-xxs" style={{ color: bandColor[current.band] }}>
       <strong>{current.score} {current.band}</strong> {delta}
     </span>
   );
@@ -5376,13 +5395,13 @@ function ScoringOptionPanel({
   const current = model.current;
 
   return (
-    <div className="rounded-lg border border-border bg-card p-orbit-base">
+    <div className="rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-base">
       <div className="grid gap-orbit-base lg:grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)]">
         <div className="space-y-orbit-base">
           <IssueWeightedScoreOption model={model} onClauseSelect={onClauseSelect} />
         </div>
 
-        <div className="hidden w-px bg-border lg:block" aria-hidden />
+        <div className="hidden w-px bg-orbit-border lg:block" aria-hidden />
 
         <div className="space-y-orbit-base">
           <OverviewSectionLabel>What changed ({leftLabel} → {rightLabel})</OverviewSectionLabel>
@@ -5436,7 +5455,7 @@ function ScoringPanelFooter({
 }) {
   const stalledIds = score.stalled.map((driver) => driver.clauseId.toUpperCase()).join(", ");
   return (
-    <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-s border-t border-border pt-orbit-s text-[10px]">
+    <div className="mt-orbit-base flex flex-wrap items-center gap-orbit-s border-t border-orbit-border pt-orbit-s text-orbit-xs">
       <HybridFooterSignal tone={score.dealBreakerPresent ? "danger" : "success"}>
         {score.dealBreakerPresent ? <ShieldX className="h-3 w-3" /> : <ShieldCheck className="h-3 w-3" />}
         {score.dealBreakerPresent ? `Deal-breaker: ${score.dealBreakerClause}` : "No deal-breakers"}
@@ -5468,11 +5487,11 @@ function ScoringPanelFooter({
         </>
       )}
       <div className="ml-auto flex items-center gap-orbit-s">
-        <Button variant="outline" className="h-7 rounded-[5px] px-orbit-base text-[10px]" onClick={onRequestChanges}>
+        <Button variant="outline" className="h-7 rounded-orbit-sm px-orbit-base text-orbit-xs" onClick={onRequestChanges}>
           Request Changes
         </Button>
         <Button
-          className="h-7 rounded-[5px] px-orbit-base text-[10px]"
+          className="h-7 rounded-orbit-sm px-orbit-base text-orbit-xs"
           onClick={onAcceptVersion}
         >
           Accept Version
@@ -5592,8 +5611,8 @@ function HybridVersionMovementPanel({
   const canCompare = hasComparison ?? Boolean(data.previous);
   if (!canCompare || !data.previous) {
     return (
-      <div className="flex min-h-[70px] items-center gap-orbit-base border-b border-[rgba(0,0,0,0.08)] bg-white px-orbit-base py-orbit-base">
-        <div className="min-w-[180px] flex-1 text-[10px] v6-orbit-weight-medium text-muted-foreground">
+      <div className="flex min-h-[70px] items-center gap-orbit-base border-b border-orbit-border bg-orbit-card px-orbit-base py-orbit-base">
+        <div className="min-w-[180px] flex-1 text-orbit-xs v6-orbit-weight-medium text-orbit-fg-secondary">
           First analysis — no comparison available
         </div>
         <CompactVersionDistributionSide version={data.current} label="current" versions={versions} current />
@@ -5602,7 +5621,7 @@ function HybridVersionMovementPanel({
   }
 
   return (
-    <div className="border-b border-[rgba(0,0,0,0.08)] bg-white">
+    <div className="border-b border-orbit-border bg-orbit-card">
       <div className="flex items-center gap-orbit-base px-orbit-base py-orbit-s">
         <CompactVersionDistributionSide version={data.previous} label="previous" versions={versions} />
         <DeltaIndicator delta={data.delta} />
@@ -5635,26 +5654,26 @@ function CompactVersionDistributionSide({
     <div
       aria-label={`${label} version ${labelText}, score ${version.score}`}
       className={cn(
-        "grid min-h-[54px] min-w-0 flex-1 grid-cols-[auto_1fr_auto] items-center gap-orbit-base rounded-md border px-orbit-base py-orbit-s",
-        current ? "border-[#185FA5]/35 bg-[rgba(230,241,251,0.55)] shadow-[inset_3px_0_0_#185FA5]" : "border-transparent bg-[#f8f7f5]",
+        "grid min-h-[54px] min-w-0 flex-1 grid-cols-[auto_1fr_auto] items-center gap-orbit-base rounded-orbit-md border px-orbit-base py-orbit-s",
+        current ? "border-orbit-info/35 bg-orbit-info-surface shadow-[inset_3px_0_0_var(--orbit-color-text-info)]" : "border-transparent bg-orbit-surface",
       )}
     >
       <div className="min-w-[62px]">
         <div className="flex items-center gap-orbit-xs">
           <span className={cn(
-            "text-[9px] v6-orbit-weight-medium uppercase tracking-[0.04em]",
-            current ? "text-[#185FA5]" : "text-muted-foreground",
+            "text-orbit-xs v6-orbit-weight-medium uppercase tracking-[0.04em]",
+            current ? "text-orbit-info" : "text-orbit-fg-secondary",
           )}>
             {labelText}
           </span>
           {current && (
-            <span className="inline-flex items-center gap-orbit-xs rounded-full bg-[#185FA5] px-orbit-xs py-orbit-xxs text-[8px] v6-orbit-weight-semibold uppercase tracking-[0.04em] text-white">
+            <span className="inline-flex items-center gap-orbit-xs rounded-full bg-orbit-info px-orbit-xs py-orbit-xxs text-orbit-xs v6-orbit-weight-semibold uppercase tracking-[0.04em] text-orbit-inverse">
               <IconEye size={10} stroke={2} aria-hidden />
               Current version
             </span>
           )}
         </div>
-        <p className="mt-orbit-xxs text-2xl v6-orbit-weight-medium leading-none text-foreground tabular-nums">{version.score}</p>
+        <p className="mt-orbit-xxs text-orbit-2xl v6-orbit-weight-medium leading-orbit-tight text-orbit-fg tabular-nums">{version.score}</p>
       </div>
       <div className="min-w-0">
         <DistributionCounts distribution={version.distribution} />
@@ -5666,24 +5685,24 @@ function CompactVersionDistributionSide({
 }
 
 function DeltaIndicator({ delta }: { delta: number }) {
-  const color = delta > 0 ? "#3B6D11" : delta < 0 ? "#A32D2D" : "hsl(var(--muted-foreground))";
+  const color = delta > 0 ? "var(--orbit-color-text-success)" : delta < 0 ? "var(--orbit-color-text-error)" : "var(--orbit-color-text-secondary)";
   const label = delta > 0 ? `+${delta}` : delta < 0 ? `−${Math.abs(delta)}` : "0";
   return (
     <div className="flex shrink-0 flex-col items-center gap-orbit-xxs px-orbit-xxs">
-      <ArrowRight className="h-[13px] w-[13px] text-muted-foreground" />
-      <span className="text-sm v6-orbit-weight-medium leading-none tabular-nums" style={{ color }}>
+      <ArrowRight className="h-[13px] w-[13px] text-orbit-fg-secondary" />
+      <span className="text-orbit-sm v6-orbit-weight-medium leading-orbit-tight tabular-nums" style={{ color }}>
         {label}
       </span>
-      <span className="text-[8px] leading-none text-muted-foreground">pts</span>
+      <span className="text-orbit-xs leading-orbit-tight text-orbit-fg-secondary">pts</span>
     </div>
   );
 }
 
 const deviationDistributionColors: Record<keyof DeviationDistribution, string> = {
-  high: "#A32D2D",
-  medium: "#BA7517",
-  low: "#B4B2A9",
-  clean: "#3B6D11",
+  high: "var(--orbit-color-text-error)",
+  medium: "var(--orbit-color-text-warning)",
+  low: "var(--orbit-color-text-secondary)",
+  clean: "var(--orbit-color-text-success)",
 };
 
 const v6DeviationDistributionColors: Record<keyof DeviationDistribution, string> = {
@@ -5696,14 +5715,14 @@ const v6DeviationDistributionColors: Record<keyof DeviationDistribution, string>
 function DistributionCounts({ distribution }: { distribution: DeviationDistribution }) {
   const useV6StatusColours = isInitiativesV6Route();
   return (
-    <div className="mb-orbit-xs flex min-w-0 flex-wrap items-center gap-x-orbit-xs gap-y-orbit-xxs text-[10px] text-muted-foreground">
-      <DistributionCount value={distribution.high} label="high" color="#A32D2D" />
-      <span className="text-border">·</span>
-      <DistributionCount value={distribution.medium} label="med" color="#854F0B" />
-      <span className="text-border">·</span>
-      <DistributionCount value={distribution.low} label="low" color={useV6StatusColours ? FIRST_ANALYSIS_STATUS_THEME.low.indicatorColor : "hsl(var(--foreground))"} />
-      <span className="text-border">·</span>
-      <DistributionCount value={distribution.clean} label="clean" color={useV6StatusColours ? FIRST_ANALYSIS_STATUS_THEME.none.indicatorColor : "hsl(var(--muted-foreground))"} />
+    <div className="mb-orbit-xs flex min-w-0 flex-wrap items-center gap-x-orbit-xs gap-y-orbit-xxs text-orbit-xs text-orbit-fg-secondary">
+      <DistributionCount value={distribution.high} label="high" color="var(--orbit-color-text-error)" />
+      <span className="text-orbit-border">·</span>
+      <DistributionCount value={distribution.medium} label="med" color="var(--orbit-color-text-warning)" />
+      <span className="text-orbit-border">·</span>
+      <DistributionCount value={distribution.low} label="low" color={useV6StatusColours ? FIRST_ANALYSIS_STATUS_THEME.low.indicatorColor : "var(--orbit-color-text-primary)"} />
+      <span className="text-orbit-border">·</span>
+      <DistributionCount value={distribution.clean} label="clean" color={useV6StatusColours ? FIRST_ANALYSIS_STATUS_THEME.none.indicatorColor : "var(--orbit-color-text-secondary)"} />
     </div>
   );
 }
@@ -5720,7 +5739,7 @@ function CompactDistributionBar({ distribution }: { distribution: DeviationDistr
   const total = Math.max(1, distribution.high + distribution.medium + distribution.low + distribution.clean);
   const colours = isInitiativesV6Route() ? v6DeviationDistributionColors : deviationDistributionColors;
   return (
-    <div className="flex h-2 overflow-hidden rounded-[3px] bg-muted" style={{ gap: 1 }}>
+    <div className="flex h-2 overflow-hidden rounded-orbit-sm bg-orbit-surface" style={{ gap: 1 }}>
       {(Object.keys(deviationDistributionColors) as Array<keyof DeviationDistribution>).map((key) => {
         const value = distribution[key];
         if (value <= 0) return null;
@@ -5752,15 +5771,15 @@ function MovementSummaryZone({
   onSeeMoreChanges?: () => void;
 }) {
   return (
-    <div className="grid gap-orbit-base border-t border-[rgba(0,0,0,0.08)] bg-[rgba(230,241,251,0.15)] px-orbit-base py-orbit-base min-[900px]:grid-cols-[1fr_1.6fr]">
+    <div className="grid gap-orbit-base border-t border-orbit-border bg-orbit-info-surface px-orbit-base py-orbit-base min-[900px]:grid-cols-[1fr_1.6fr]">
       <div className="min-w-0">
         <div className="flex items-center gap-orbit-s">
-          <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full bg-[#1a2744] text-white" aria-hidden="true">
+          <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full bg-orbit-heading text-orbit-inverse" aria-hidden="true">
             <Sparkles className="h-3 w-3" />
           </span>
           <div className="min-w-0">
-            <p className="text-[9px] v6-orbit-weight-medium uppercase tracking-[0.04em] text-muted-foreground">Supplier-initiated</p>
-            <p className="text-xs v6-orbit-weight-medium text-foreground">What changed this round</p>
+            <p className="text-orbit-xs v6-orbit-weight-medium uppercase tracking-[0.04em] text-orbit-fg-secondary">Supplier-initiated</p>
+            <p className="text-orbit-xs v6-orbit-weight-medium text-orbit-fg">What changed this round</p>
           </div>
         </div>
         <MovementNarrative movers={movers} delta={delta} />
@@ -5768,7 +5787,7 @@ function MovementSummaryZone({
           <button
             type="button"
             onClick={onSeeMoreChanges}
-            className="ml-orbit-l mt-orbit-xxs rounded px-orbit-xs py-orbit-xxs text-[10px] v6-orbit-weight-medium text-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            className="ml-orbit-l mt-orbit-xxs rounded-orbit-sm px-orbit-xs py-orbit-xxs text-orbit-xs v6-orbit-weight-medium text-orbit-primary hover:bg-orbit-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary/30"
           >
             See all changes →
           </button>
@@ -5778,7 +5797,7 @@ function MovementSummaryZone({
         {movers.length > 0 && onMoverSelect ? (
           <TopMoversList movers={movers} onMoverSelect={onMoverSelect} />
         ) : (
-          <div className="rounded-[5px] border border-border bg-white px-orbit-s py-orbit-s text-[11px] text-muted-foreground">
+          <div className="rounded-orbit-sm border border-orbit-border bg-orbit-card px-orbit-s py-orbit-s text-orbit-xs text-orbit-fg-secondary">
             No clause movements this round.
           </div>
         )}
@@ -5801,7 +5820,7 @@ function MovementNarrative({ movers, delta }: { movers: ComparisonMover[]; delta
       : `${improved ? `${improved} improved` : ""}${improved && regressed ? ", " : ""}${regressed ? `${regressed} regressed` : ""}${(improved || regressed) && created ? ", " : ""}${created ? `${created} new clause${created === 1 ? "" : "s"}` : ""}. ${scoreText}`.trim();
 
   return (
-    <p className="ml-orbit-l mt-orbit-xs min-w-0 text-[12px] leading-[1.55] text-foreground" aria-label={ariaLabel}>
+    <p className="ml-orbit-l mt-orbit-xs min-w-0 text-orbit-xs leading-orbit-normal text-orbit-fg" aria-label={ariaLabel}>
       {total === 0 ? (
         delta === 0 ? (
           <>No changes in this round.</>
@@ -5853,7 +5872,7 @@ function ScoreDeltaText({ delta }: { delta: number }) {
   return (
     <>
       Net change:{" "}
-      <span className={`v6-orbit-weight-medium tabular-nums ${positive ? "text-[#27500A]" : "text-[#791F1F]"}`}>
+      <span className={`v6-orbit-weight-medium tabular-nums ${positive ? "text-orbit-success" : "text-orbit-error"}`}>
         {positive ? `+${delta}` : `-${Math.abs(delta)}`} points
       </span>
       .
@@ -5876,17 +5895,17 @@ function TopMoversList({
         const regressed = mover.direction === "regressed";
         const created = mover.direction === "new";
         const tone = regressed
-          ? "bg-[rgba(252,235,235,0.4)] hover:bg-[rgba(252,235,235,0.65)]"
-          : "bg-white hover:bg-[#E6F1FB]/30";
-        const badgeClass = regressed ? "bg-[#A32D2D]" : created ? "bg-[#185FA5]" : "bg-[#3B6D11]";
+          ? "bg-orbit-error-surface hover:bg-orbit-error-surface"
+          : "bg-orbit-card hover:bg-orbit-info-surface/30";
+        const badgeClass = regressed ? "bg-orbit-error" : created ? "bg-orbit-info" : "bg-orbit-success";
         const Icon = regressed ? IconArrowDown : created ? IconPlus : IconArrowUp;
         const transitionLabel = created ? (
           <span>New clause</span>
         ) : (
           <>
-            <strong className="v6-orbit-weight-medium text-foreground">{formatMoverSeverity(mover.previousSeverity)}</strong>
+            <strong className="v6-orbit-weight-medium text-orbit-fg">{formatMoverSeverity(mover.previousSeverity)}</strong>
             <span aria-hidden> → </span>
-            <strong className="v6-orbit-weight-medium text-foreground">{formatMoverSeverity(mover.currentSeverity)}</strong>
+            <strong className="v6-orbit-weight-medium text-orbit-fg">{formatMoverSeverity(mover.currentSeverity)}</strong>
           </>
         );
         const accessibleTransition = created
@@ -5899,15 +5918,15 @@ function TopMoversList({
             type="button"
             onClick={() => onMoverSelect(mover.id)}
             aria-label={`${mover.name}, ${accessibleTransition}`}
-            className={`grid w-full grid-cols-[16px_24px_minmax(0,1fr)_auto_12px] items-center gap-orbit-s rounded-[5px] border border-border px-orbit-s py-orbit-xs text-left transition-colors hover:border-[#185FA5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 ${tone}`}
+            className={`grid w-full grid-cols-[16px_24px_minmax(0,1fr)_auto_12px] items-center gap-orbit-s rounded-orbit-sm border border-orbit-border px-orbit-s py-orbit-xs text-left transition-colors hover:border-orbit-info focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary/30 ${tone}`}
           >
-            <span className={`grid h-4 w-4 place-items-center rounded-full text-white ${badgeClass}`} aria-hidden="true">
+            <span className={`grid h-4 w-4 place-items-center rounded-full text-orbit-inverse ${badgeClass}`} aria-hidden="true">
               <Icon size={10} stroke={2} />
             </span>
-            <span className="tabular-nums text-[9px] text-muted-foreground">{mover.id.toUpperCase()}</span>
-            <span className="min-w-0 truncate text-[11px] v6-orbit-weight-medium text-foreground">{mover.name}</span>
-            <span className="shrink-0 text-[9px] text-muted-foreground">{transitionLabel}</span>
-            <span className="text-xs text-muted-foreground" aria-hidden>›</span>
+            <span className="tabular-nums text-orbit-xs text-orbit-fg-secondary">{mover.id.toUpperCase()}</span>
+            <span className="min-w-0 truncate text-orbit-xs v6-orbit-weight-medium text-orbit-fg">{mover.name}</span>
+            <span className="shrink-0 text-orbit-xs text-orbit-fg-secondary">{transitionLabel}</span>
+            <span className="text-orbit-xs text-orbit-fg-secondary" aria-hidden>›</span>
           </button>
         );
       })}
@@ -5916,9 +5935,9 @@ function TopMoversList({
 }
 
 const panelSeverityColor: Record<"high" | "medium" | "low", string> = {
-  high: "#A32D2D",
-  medium: "#854F0B",
-  low: "#5F5E5A",
+  high: "var(--orbit-color-text-error)",
+  medium: "var(--orbit-color-text-warning)",
+  low: "var(--orbit-color-text-secondary)",
 };
 
 function HybridRiskDriverRows({
@@ -5931,9 +5950,9 @@ function HybridRiskDriverRows({
   return (
     <div>
       <OverviewSectionLabel>Top risk drivers</OverviewSectionLabel>
-      <div className="mt-orbit-s divide-y divide-border">
+      <div className="mt-orbit-s divide-y divide-orbit-border">
         {drivers.length === 0 ? (
-          <div className="py-orbit-s text-xs text-muted-foreground">No open risk drivers.</div>
+          <div className="py-orbit-s text-orbit-xs text-orbit-fg-secondary">No open risk drivers.</div>
         ) : drivers.slice(0, 3).map((driver) => {
           const stalled = driver.roundsUnchanged >= 2;
           return (
@@ -5941,7 +5960,7 @@ function HybridRiskDriverRows({
               key={driver.clauseId}
               type="button"
               onClick={() => onClauseSelect(driver.clauseId)}
-              className="grid w-full grid-cols-[minmax(0,1fr)_28px] items-start gap-orbit-base py-orbit-s text-left hover:bg-muted/35"
+              className="grid w-full grid-cols-[minmax(0,1fr)_28px] items-start gap-orbit-base py-orbit-s text-left hover:bg-orbit-surface/35"
             >
               <span className="flex min-w-0 items-start gap-orbit-s">
                 <span
@@ -5949,15 +5968,15 @@ function HybridRiskDriverRows({
                   style={{ backgroundColor: panelSeverityColor[driver.severity] }}
                 />
                 <span className="min-w-0">
-                  <span className="block truncate text-[11px] v6-orbit-weight-medium text-foreground">{driver.clauseName}</span>
-                  <span className="block truncate text-[10px] text-muted-foreground">
+                  <span className="block truncate text-orbit-xs v6-orbit-weight-medium text-orbit-fg">{driver.clauseName}</span>
+                  <span className="block truncate text-orbit-xs text-orbit-fg-secondary">
                     {driver.clauseId.toUpperCase()}
                     {stalled && <> · stalled {driver.roundsUnchanged} rounds</>}
                   </span>
                 </span>
               </span>
               <span
-                className="text-right text-[10px] v6-orbit-weight-medium tabular-nums"
+                className="text-right text-orbit-xs v6-orbit-weight-medium tabular-nums"
                 style={{ color: panelSeverityColor[driver.severity] }}
               >
                 −{driver.weightedCost}
@@ -5972,9 +5991,9 @@ function HybridRiskDriverRows({
 
 function HybridResolutionRows({ score }: { score: ContractScore }) {
   const rows: Array<{ key: "high" | "medium" | "low"; label: string; color: string }> = [
-    { key: "high", label: "High", color: "#A32D2D" },
-    { key: "medium", label: "Medium", color: "#854F0B" },
-    { key: "low", label: "Low", color: "#5F5E5A" },
+    { key: "high", label: "High", color: "var(--orbit-color-text-error)" },
+    { key: "medium", label: "Medium", color: "var(--orbit-color-text-warning)" },
+    { key: "low", label: "Low", color: "var(--orbit-color-text-secondary)" },
   ];
   return (
     <div>
@@ -5988,14 +6007,14 @@ function HybridResolutionRows({ score }: { score: ContractScore }) {
           const resolvedWidth = resolved > 0 ? Math.max(3, (resolved / total) * 100) : 3;
           return (
             <div key={row.key} className="grid grid-cols-[48px_minmax(0,1fr)_38px] items-center gap-orbit-s">
-              <span className="text-[10px] v6-orbit-weight-medium" style={{ color: row.color }}>{row.label}</span>
-              <span className="flex h-2 overflow-hidden rounded-[3px] bg-muted">
-                <span className="bg-[#3B6D11]" style={{ width: `${resolvedWidth}%` }} />
+              <span className="text-orbit-xs v6-orbit-weight-medium" style={{ color: row.color }}>{row.label}</span>
+              <span className="flex h-2 overflow-hidden rounded-orbit-sm bg-orbit-surface">
+                <span className="bg-orbit-success" style={{ width: `${resolvedWidth}%` }} />
                 {remaining > 0 && (
                   <span style={{ width: `${Math.max(0, 100 - resolvedWidth)}%`, backgroundColor: row.color }} />
                 )}
               </span>
-              <span className="text-right text-[10px] v6-orbit-weight-medium tabular-nums" style={{ color: row.color }}>
+              <span className="text-right text-orbit-xs v6-orbit-weight-medium tabular-nums" style={{ color: row.color }}>
                 {resolved}/{identified}
               </span>
             </div>
@@ -6015,7 +6034,7 @@ function HybridChangeList({
 }) {
   if (items.length === 0) {
     return (
-      <div className="rounded-md border border-border bg-muted/25 px-orbit-base py-orbit-base text-xs text-muted-foreground">
+      <div className="rounded-orbit-md border border-orbit-border bg-orbit-surface/25 px-orbit-base py-orbit-base text-orbit-xs text-orbit-fg-secondary">
         No requested or supplier-initiated changes for this comparison.
       </div>
     );
@@ -6024,7 +6043,7 @@ function HybridChangeList({
   const statusOrder: PanelChangeStatus[] = ["met", "not_met", "regressed", "improved", "new"];
 
   return (
-    <div className="divide-y divide-border">
+    <div className="divide-y divide-orbit-border">
       {statusOrder.flatMap((status) => {
         const group = items.filter((item) => item.status === status);
         if (group.length === 0) return [];
@@ -6033,13 +6052,13 @@ function HybridChangeList({
             key={item.id}
             type="button"
             onClick={() => onClauseSelect(item.id)}
-            className={`grid w-full grid-cols-[82px_minmax(0,1fr)_34px] items-center gap-orbit-s py-orbit-s text-left hover:bg-muted/35 ${
-              (status === "regressed" || status === "improved" || status === "new") && index === 0 ? "border-t border-border" : ""
+            className={`grid w-full grid-cols-[82px_minmax(0,1fr)_34px] items-center gap-orbit-s py-orbit-s text-left hover:bg-orbit-surface/35 ${
+              (status === "regressed" || status === "improved" || status === "new") && index === 0 ? "border-t border-orbit-border" : ""
             }`}
           >
             <ChangePillBadge result={{ status }} />
-            <span className="truncate text-[11px] text-foreground">{item.title}</span>
-            <span className="text-right text-[9px] text-muted-foreground">{item.id.toUpperCase()}</span>
+            <span className="truncate text-orbit-xs text-orbit-fg">{item.title}</span>
+            <span className="text-right text-orbit-xs text-orbit-fg-secondary">{item.id.toUpperCase()}</span>
           </button>
         ));
       })}
@@ -6055,42 +6074,42 @@ function HybridFooterSignal({
   tone?: "neutral" | "success" | "warning" | "danger";
 }) {
   const toneClass =
-    tone === "success" ? "text-[#3B6D11]" :
-      tone === "warning" ? "text-[#854F0B]" :
-        tone === "danger" ? "text-[#A32D2D]" :
-          "text-muted-foreground";
+    tone === "success" ? "text-orbit-success" :
+      tone === "warning" ? "text-orbit-warning" :
+        tone === "danger" ? "text-orbit-error" :
+          "text-orbit-fg-secondary";
   return <span className={`inline-flex items-center gap-orbit-xs v6-orbit-weight-medium ${toneClass}`}>{children}</span>;
 }
 
 function BulletScoreBar({ score, previousScore }: { score: number; previousScore?: number }) {
   const zones = [
-    { label: "F", width: 40, color: "#FCEBEB" },
-    { label: "D", width: 20, color: "#FAEEDA" },
-    { label: "C", width: 15, color: "#F1EFE8" },
-    { label: "B", width: 15, color: "#EAF3DE" },
-    { label: "A", width: 10, color: "#C0DD97" },
+    { label: "F", width: 40, color: "var(--orbit-color-card-bg-error)" },
+    { label: "D", width: 20, color: "var(--orbit-color-card-bg-warning)" },
+    { label: "C", width: 15, color: "var(--orbit-color-card-bg-accent)" },
+    { label: "B", width: 15, color: "var(--orbit-color-card-bg-success)" },
+    { label: "A", width: 10, color: "var(--orbit-color-card-border-success)" },
   ];
   return (
     <div>
-      <div className="relative h-3.5 overflow-hidden rounded bg-muted">
+      <div className="relative h-3.5 overflow-hidden rounded-orbit-sm bg-orbit-surface">
         <div className="absolute inset-0 flex">
           {zones.map((zone) => (
             <span key={zone.label} style={{ width: `${zone.width}%`, backgroundColor: zone.color }} />
           ))}
         </div>
         <div
-          className="absolute bottom-[3px] left-0 top-[3px] rounded-sm bg-primary"
+          className="absolute bottom-[3px] left-0 top-[3px] rounded-orbit-sm bg-orbit-primary"
           style={{ width: `${score}%` }}
         />
         {previousScore !== undefined && (
           <span
-            className="absolute bottom-0 top-0 w-0.5 bg-muted-foreground/35"
+            className="absolute bottom-0 top-0 w-0.5 bg-orbit-fg-secondary/35"
             style={{ left: `${previousScore}%` }}
             aria-label={`Previous score ${previousScore}`}
           />
         )}
       </div>
-      <div className="mt-orbit-xs grid grid-cols-5 text-[8px] text-muted-foreground">
+      <div className="mt-orbit-xs grid grid-cols-5 text-orbit-xs text-orbit-fg-secondary">
         {zones.map((zone) => <span key={zone.label}>{zone.label}</span>)}
       </div>
     </div>
@@ -6100,8 +6119,8 @@ function BulletScoreBar({ score, previousScore }: { score: number; previousScore
 function SummaryStat({ label, value, tone }: { label: string; value: number; tone: string }) {
   return (
     <div className="min-w-0 text-center">
-      <p className="text-[9px] v6-orbit-weight-semibold text-muted-foreground uppercase tracking-normal sm:text-[10px]">{label}</p>
-      <p className={`text-lg v6-orbit-weight-bold tabular-nums leading-tight ${tone}`}>{value}</p>
+      <p className="text-orbit-xs v6-orbit-weight-semibold text-orbit-fg-secondary uppercase tracking-normal sm:text-orbit-xs">{label}</p>
+      <p className={`text-orbit-lg v6-orbit-weight-bold tabular-nums leading-orbit-snug ${tone}`}>{value}</p>
     </div>
   );
 }
@@ -6118,8 +6137,8 @@ function PairSelector({
   const rightVersion = versions.find((version) => version.version === pair.right);
   const staticOnly = compact || versions.length <= 2;
   const selectorClass = compact
-    ? "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-orbit-xs text-[11px]"
-    : "inline-flex items-center gap-orbit-xs text-sm";
+    ? "grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-orbit-xs text-orbit-xs"
+    : "inline-flex items-center gap-orbit-xs text-orbit-sm";
   const dropdownClass = compact
     ? "clauseiq-v6a-pair-dropdown clauseiq-v6a-pair-dropdown-compact"
     : "clauseiq-v6a-pair-dropdown";
@@ -6132,10 +6151,10 @@ function PairSelector({
 
   if (staticOnly) {
     return (
-      <div className={cn(selectorClass, "text-muted-foreground")}>
-        <span className="min-w-0 truncate rounded border border-border bg-white px-orbit-s py-orbit-xxs">{formatVersion(leftVersion)}</span>
+      <div className={cn(selectorClass, "text-orbit-fg-secondary")}>
+        <span className="min-w-0 truncate rounded-orbit-sm border border-orbit-border bg-orbit-card px-orbit-s py-orbit-xxs">{formatVersion(leftVersion)}</span>
         <ArrowRight className="h-3.5 w-3.5 shrink-0" />
-        <span className="min-w-0 truncate rounded border border-border bg-white px-orbit-s py-orbit-xxs">{formatVersion(rightVersion)}</span>
+        <span className="min-w-0 truncate rounded-orbit-sm border border-orbit-border bg-orbit-card px-orbit-s py-orbit-xxs">{formatVersion(rightVersion)}</span>
       </div>
     );
   }
@@ -6160,7 +6179,7 @@ function PairSelector({
           onChange={updateLeft}
         />
       </div>
-      <ArrowRight className={compact ? "h-3.5 w-3.5 text-muted-foreground" : "h-4 w-4 text-muted-foreground"} />
+      <ArrowRight className={compact ? "h-3.5 w-3.5 text-orbit-fg-secondary" : "h-4 w-4 text-orbit-fg-secondary"} />
       <div className={dropdownClass}>
         <Dropdown
           ariaLabel="Compare to version"
@@ -6221,14 +6240,14 @@ function CategorySidebar({
       className={cn(
         "overflow-y-auto",
         variant === "rail"
-          ? "sticky top-[178px] max-h-[calc(100vh-190px)] w-60 shrink-0 self-start rounded-lg border border-border bg-card p-orbit-s"
+          ? "sticky top-[178px] max-h-[calc(100vh-190px)] w-60 shrink-0 self-start rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-s"
           : "max-h-[540px] w-full",
       )}
     >
       {variant === "rail" && (
         <div
           tabIndex={0}
-          className="mb-orbit-xs rounded-md px-orbit-s py-orbit-xs outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]"
+          className="mb-orbit-xs rounded-orbit-md px-orbit-s py-orbit-xs outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]"
         >
           <Text as="p" size="Small" variant="Secondary">CLAUSE TYPE</Text>
         </div>
@@ -6343,7 +6362,7 @@ function CategoryStrip({
         </Button>
       </div>
       {panelOpen && (
-        <div className="mt-orbit-s border-t border-border pt-orbit-s">
+        <div className="mt-orbit-s border-t border-orbit-border pt-orbit-s">
           {categoryPanel}
         </div>
       )}
@@ -6370,15 +6389,15 @@ function ReviewGuidance({ versionLabel, compact = false }: { versionLabel: strin
     <div
       className={
         compact
-          ? "flex min-h-9 min-w-[240px] max-w-[360px] flex-1 items-center gap-orbit-s rounded-md border border-primary/20 bg-card px-orbit-base py-orbit-xs text-[11px] leading-snug text-muted-foreground"
-          : "bg-card border border-primary/20 rounded-lg px-orbit-base py-orbit-base text-xs text-muted-foreground flex items-start gap-orbit-s"
+          ? "flex min-h-9 min-w-[240px] max-w-[360px] flex-1 items-center gap-orbit-s rounded-orbit-md border border-orbit-primary/20 bg-orbit-card px-orbit-base py-orbit-xs text-orbit-xs leading-orbit-snug text-orbit-fg-secondary"
+          : "bg-orbit-card border border-orbit-primary/20 rounded-orbit-lg px-orbit-base py-orbit-base text-orbit-xs text-orbit-fg-secondary flex items-start gap-orbit-s"
       }
     >
-      <Sparkles className={compact ? "h-3.5 w-3.5 shrink-0 text-primary" : "w-3.5 h-3.5 text-primary mt-orbit-xxs shrink-0"} />
+      <Sparkles className={compact ? "h-3.5 w-3.5 shrink-0 text-orbit-primary" : "w-3.5 h-3.5 text-orbit-primary mt-orbit-xxs shrink-0"} />
       <span className="min-w-0">
-        Select <span className="v6-orbit-weight-semibold text-foreground">"Request Change"</span> for clauses you want the supplier to update.
+        Select <span className="v6-orbit-weight-semibold text-orbit-fg">"Request Change"</span> for clauses you want the supplier to update.
         {versionLabel !== "v1" && (
-          <> Notes on <span className="v6-orbit-weight-semibold text-foreground">{versionLabel}</span> override the previous round.</>
+          <> Notes on <span className="v6-orbit-weight-semibold text-orbit-fg">{versionLabel}</span> override the previous round.</>
         )}
       </span>
     </div>
@@ -6424,39 +6443,39 @@ function ClauseRequestForm({
   return (
     <div
       className={cn(
-        embedded ? "" : "mt-orbit-base border-t border-border pt-orbit-base",
+        embedded ? "" : "mt-orbit-base border-t border-orbit-border pt-orbit-base",
         compact ? "space-y-orbit-s" : "space-y-orbit-xs",
       )}
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
       {inherited && !draft?.requestedChange && !draft?.rationale && (
-        <div className="space-y-orbit-xs rounded-md border-l-2 border-primary bg-primary/5 px-orbit-base py-orbit-s text-xs">
-          <p className="text-[10px] v6-orbit-weight-semibold uppercase tracking-wide text-primary">
+        <div className="space-y-orbit-xs rounded-orbit-md border-l-2 border-orbit-primary bg-orbit-primary/5 px-orbit-base py-orbit-s text-orbit-xs">
+          <p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wide text-orbit-primary">
             Currently in effect · from {inherited.version}
           </p>
-          {inherited.request.requestedChange && <p className="leading-snug text-foreground">{inherited.request.requestedChange}</p>}
-          {inherited.request.rationale && <p className="italic leading-snug text-muted-foreground">{inherited.request.rationale}</p>}
-          <p className="text-[11px] text-muted-foreground">
+          {inherited.request.requestedChange && <p className="leading-orbit-snug text-orbit-fg">{inherited.request.requestedChange}</p>}
+          {inherited.request.rationale && <p className="italic leading-orbit-snug text-orbit-fg-secondary">{inherited.request.rationale}</p>}
+          <p className="text-orbit-xs text-orbit-fg-secondary">
             Add a new note below to override this for {versionLabel} onwards.
           </p>
         </div>
       )}
       <div className="grid w-full gap-orbit-base">
         <div className="space-y-orbit-xs">
-          <label className="v6-orbit-text-small v6-orbit-weight-semibold text-muted-foreground">
+          <label className="v6-orbit-text-small v6-orbit-weight-semibold text-orbit-fg-secondary">
             Set Custom Position
           </label>
           <Textarea
             value={requestValue}
             onChange={(event) => onUpdate({ requestedChange: event.target.value })}
             placeholder={requestPlaceholder}
-            className={cn("min-h-[64px] text-sm", compact && "min-h-[58px] text-xs")}
+            className={cn("min-h-[64px] text-orbit-sm", compact && "min-h-[58px] text-orbit-xs")}
           />
         </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-orbit-base">
-        <Button variant="outline" className={cn("h-8 text-xs", compact && "h-7 text-[11px]")} onClick={onCancel}>
+        <Button variant="outline" className={cn("h-8 text-orbit-xs", compact && "h-7 text-orbit-xs")} onClick={onCancel}>
           Cancel
         </Button>
         <OrbitButton
@@ -6568,13 +6587,20 @@ function ClauseDecisionCard({
   hideStandaloneDraftForm?: boolean;
   suppressRequestActions?: boolean;
   neutralActions?: boolean;
-  selectedComparisonAction?: "accepted";
+  /**
+   * "accepted" is the pre-existing closed-bucket concede and is left alone.
+   * The other three are Not Met card outcome provenance (see ClauseOutcome).
+   */
+  selectedComparisonAction?: "accepted" | ClauseOutcome;
 }) {
   const bulkSelectionContext = useContext(BulkClauseSelectionContext);
   const [queuedExpanded, setQueuedExpanded] = useState(false);
   const useDefaultComparisonCard = Boolean(extraContent && !neutralActions);
   const pendingBasketRequest = request?.state === "pending" && Boolean(request.requestedChange?.trim());
-  const showAcceptedCompact = selectedComparisonAction === "accepted" && !pendingBasketRequest && !isDrafting;
+  // "kept-unmet" settles the clause without queueing a request, so it condenses
+  // through the same path as the existing "accepted" concede.
+  const conceded = selectedComparisonAction === "accepted" || selectedComparisonAction === "kept-unmet";
+  const showAcceptedCompact = conceded && !pendingBasketRequest && !isDrafting;
   const showQueuedCompact = pendingBasketRequest && !isDrafting;
   const showHandledCompact = showQueuedCompact || showAcceptedCompact;
   const showDecisionBody = !showHandledCompact || queuedExpanded;
@@ -6595,10 +6621,10 @@ function ClauseDecisionCard({
     ) : (
       <div
         className={cn(
-          "flex flex-wrap items-center gap-orbit-s rounded-md px-orbit-base py-orbit-s",
+          "flex flex-wrap items-center gap-orbit-s rounded-orbit-md px-orbit-base py-orbit-s",
           useDefaultComparisonCard
-            ? "border border-border bg-muted/20"
-            : "border border-[#BFD6AB] bg-[#EAF3DE]",
+            ? "border border-orbit-border bg-orbit-surface/20"
+            : "border border-orbit-success-border bg-orbit-success-surface",
         )}
       >
         {children}
@@ -6625,7 +6651,7 @@ function ClauseDecisionCard({
     ? firstAnalysisNoneDeviationBadgeClass
     : useFirstAnalysisDeviationStyle
     ? firstAnalysisDeviationBadgeClass
-    : `${severityTone(clause.severity)} shrink-0 rounded-full px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium`;
+    : `${severityTone(clause.severity)} shrink-0 rounded-full px-orbit-xs py-orbit-xxs text-orbit-xs v6-orbit-weight-medium`;
   const showSeverityBadge = true;
   const reviewCardState: OrbitCardState = useV6DeviationCard
     ? firstAnalysisCardStateForClause(clause)
@@ -6676,7 +6702,7 @@ function ClauseDecisionCard({
   return (
     <div
       id={`clause-row-${id}`}
-      className={cn("rounded-lg transition-colors", highlighted && "ring-2 ring-primary/40")}
+      className={cn("rounded-orbit-lg transition-colors", highlighted && "ring-2 ring-orbit-primary/40")}
     >
       <Card type="Static" padding="Base" state={reviewCardState} indicator={showReviewCardIndicator} style={reviewCardStyle}>
         <div className="flex min-w-0 items-center gap-orbit-s">
@@ -6690,7 +6716,7 @@ function ClauseDecisionCard({
                   onCheckedChange={(checked) => (onBulkClauseSelectionChange ?? bulkSelectionContext.onSelectionChange)(id, checked === true)}
                 />
               )}
-              <h3 className="v6-orbit-heading-label truncate text-foreground">
+              <h3 className="v6-orbit-heading-label truncate text-orbit-fg">
               <ClauseTitleInline clauseId={id} fallback={clause.title} />
               </h3>
             </div>
@@ -6698,7 +6724,7 @@ function ClauseDecisionCard({
           {alteredAfterAgreement && <Chip label="Altered after agreement" size="Mini" variant="Error" contrast="Low" />}
           {verdict && !isMissingClauseCard ? (
             <span className="inline-flex items-center gap-orbit-xs">
-              <span className="text-[11px] text-muted-foreground">Round Action</span>
+              <span className="text-orbit-xs text-orbit-fg-secondary">Round Action</span>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="inline-flex cursor-help">
@@ -6713,7 +6739,7 @@ function ClauseDecisionCard({
           ) : showChangePill && changePill ? <ChangePillBadge result={changePill} /> : null}
           {isMissingClauseCard && (
             <span className="inline-flex items-center gap-orbit-xs">
-              <span className="text-[11px] text-muted-foreground">Round Action</span>
+              <span className="text-orbit-xs text-orbit-fg-secondary">Round Action</span>
               {useV6StatusTags ? (
                 <FirstAnalysisStatusTag status="missing" label="Missing" />
               ) : (
@@ -6729,7 +6755,7 @@ function ClauseDecisionCard({
           {stateBadge}
           {showSeverityBadge && (
             <span className="inline-flex items-center gap-orbit-xs">
-              <span className="text-[11px] text-muted-foreground">Deviation</span>
+              <span className="text-orbit-xs text-orbit-fg-secondary">Deviation</span>
               {useV6StatusTags ? (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -6757,7 +6783,7 @@ function ClauseDecisionCard({
                   </span>
                 </TooltipTrigger>
                 {decision === "request-update" && requestLifecycleLabel(request) && (
-                  <TooltipContent className="text-xs">{requestLifecycleLabel(request)}</TooltipContent>
+                  <TooltipContent className="text-orbit-xs">{requestLifecycleLabel(request)}</TooltipContent>
                 )}
               </Tooltip>
               <button
@@ -6767,7 +6793,7 @@ function ClauseDecisionCard({
                   if (decision === "request-update") onEditRequest?.();
                   else onChangeNoAction?.();
                 }}
-                className="shrink-0 text-[10px] v6-orbit-weight-medium text-primary hover:underline"
+                className="shrink-0 text-orbit-xs v6-orbit-weight-medium text-orbit-primary hover:underline"
               >
                 {decision === "request-update" ? "Edit" : "Change"}
               </button>
@@ -6780,23 +6806,51 @@ function ClauseDecisionCard({
             <CompactHandledCard>
               <p
                 className={cn(
-                  "min-w-[180px] flex-1 truncate text-[11px]",
-                  showAcceptedCompact
-                    ? "text-[#27500A]"
+                  "min-w-[180px] flex-1 truncate text-orbit-xs",
+                  // Not Met outcome provenance: recommended = accent,
+                  // custom = neutral, kept unmet = muted. Everything else keeps
+                  // the pre-existing treatment.
+                  selectedComparisonAction === "recommended"
+                    ? "text-orbit-primary"
+                    : selectedComparisonAction === "custom"
+                    ? "text-orbit-fg"
+                    : selectedComparisonAction === "kept-unmet"
+                    ? "text-orbit-fg-secondary"
+                    : showAcceptedCompact
+                    ? "text-orbit-success"
                     : useDefaultComparisonCard
-                    ? "text-muted-foreground"
-                    : "text-[#27500A]",
+                    ? "text-orbit-fg-secondary"
+                    : "text-orbit-success",
                 )}
               >
-                <span className={cn("v6-orbit-weight-semibold", useDefaultComparisonCard && !showAcceptedCompact && "text-foreground")}>
-                  {showAcceptedCompact ? "Accepted:" : "Request:"}
+                <span
+                  className={cn(
+                    "v6-orbit-weight-semibold",
+                    useDefaultComparisonCard && !showAcceptedCompact && !selectedComparisonAction && "text-orbit-fg",
+                  )}
+                >
+                  {selectedComparisonAction === "recommended"
+                    ? "Recommended:"
+                    : selectedComparisonAction === "custom"
+                    ? "Custom:"
+                    : selectedComparisonAction === "kept-unmet"
+                    ? "Kept unmet:"
+                    : showAcceptedCompact
+                    ? "Accepted:"
+                    : "Request:"}
                 </span>{" "}
-                {showAcceptedCompact ? "Supplier position accepted for this round." : requestPreview}
+                {selectedComparisonAction === "kept-unmet"
+                  ? "Won't pursue this change — the clause stays as it currently stands."
+                  : selectedComparisonAction === "recommended" && !requestPreview
+                  ? "Applied the recommended position."
+                  : showAcceptedCompact
+                  ? "Supplier position accepted for this round."
+                  : requestPreview}
               </p>
               <div className="flex shrink-0 items-center gap-orbit-xs">
                 {showAcceptedCompact ? (
                   onChangeSelectedAction && (
-                    <Button variant="outline" className="h-7 px-orbit-s text-[10px]" onClick={onChangeSelectedAction}>
+                    <Button variant="outline" className="h-7 px-orbit-s text-orbit-xs" onClick={onChangeSelectedAction}>
                       Change Decision
                     </Button>
                   )
@@ -6811,11 +6865,11 @@ function ClauseDecisionCard({
                     >
                       {queuedExpanded ? "Hide Detail" : "View Detail"}
                     </OrbitButton>
-                    <Button variant="outline" className="h-7 px-orbit-s text-[10px]" onClick={onEditRequest}>
+                    <Button variant="outline" className="h-7 px-orbit-s text-orbit-xs" onClick={onEditRequest}>
                       Edit Position
                     </Button>
                     {onRemoveRequest && (
-                      <Button variant="outline" className="h-7 px-orbit-s text-[10px] text-muted-foreground" onClick={onRemoveRequest}>
+                      <Button variant="outline" className="h-7 px-orbit-s text-orbit-xs text-orbit-fg-secondary" onClick={onRemoveRequest}>
                         Remove
                       </Button>
                     )}
@@ -6838,14 +6892,14 @@ function ClauseDecisionCard({
         )}
 
         {showDecisionBody && description && (
-          <p className="mt-orbit-xs v6-orbit-text-small text-muted-foreground">
+          <p className="mt-orbit-xs v6-orbit-text-small text-orbit-fg-secondary">
             {description}
           </p>
         )}
         {showDecisionBody && actionability && (
-          <p className="mt-orbit-xs v6-orbit-text-small text-muted-foreground">
-            <Lightbulb className="mr-orbit-xs inline h-3 w-3 text-primary" />
-            <span className="v6-orbit-weight-semibold text-foreground">Actionability:</span> {actionability}
+          <p className="mt-orbit-xs v6-orbit-text-small text-orbit-fg-secondary">
+            <Lightbulb className="mr-orbit-xs inline h-3 w-3 text-orbit-primary" />
+            <span className="v6-orbit-weight-semibold text-orbit-fg">Actionability:</span> {actionability}
           </p>
         )}
         {showDecisionBody && extraContent && <div className="mt-orbit-s">{extraContent}</div>}
@@ -6854,14 +6908,14 @@ function ClauseDecisionCard({
           <div className="mt-orbit-s flex items-center gap-orbit-xs" onClick={(event) => event.stopPropagation()}>
             <Button
               variant="secondary"
-              className="h-8 gap-orbit-xs rounded-[5px] px-orbit-base text-[11px] v6-orbit-weight-regular"
+              className="h-8 gap-orbit-xs rounded-orbit-sm px-orbit-base text-orbit-xs v6-orbit-weight-regular"
               onClick={onRequest}
             >
               <Sparkles className="h-3 w-3" /> {primaryActionLabel}
             </Button>
             <Button
               variant={noActionIsPrimary ? "default" : "outline"}
-              className={cn("h-8 rounded-[5px] px-orbit-base text-[11px] v6-orbit-weight-regular gap-orbit-xs", noActionIsPrimary && "bg-[#1a2744] text-white hover:bg-[#243454]")}
+              className={cn("h-8 rounded-orbit-sm px-orbit-base text-orbit-xs v6-orbit-weight-regular gap-orbit-xs", noActionIsPrimary && "bg-orbit-heading text-orbit-inverse hover:bg-orbit-heading")}
               onClick={onNoAction}
             >
               <CheckCircle2 className="h-3 w-3" /> {CLAUSE_ACTION_LABELS.holdPosition}
@@ -6879,14 +6933,14 @@ function ClauseDecisionCard({
           <div className="mt-orbit-s" onClick={(event) => event.stopPropagation()}>
             <div
               className={cn(
-                "rounded-md px-orbit-base py-orbit-s text-[11px]",
+                "rounded-orbit-md px-orbit-base py-orbit-s text-orbit-xs",
                 useDefaultComparisonCard
-                  ? "border border-border bg-muted/20 text-muted-foreground"
-                  : "border border-[#BFD6AB] bg-[#EAF3DE] text-[#27500A]",
+                  ? "border border-orbit-border bg-orbit-surface/20 text-orbit-fg-secondary"
+                  : "border border-orbit-success-border bg-orbit-success-surface text-orbit-success",
               )}
             >
-              <p className={cn("v6-orbit-weight-medium", useDefaultComparisonCard && "text-foreground")}>Revise target.</p>
-              <p className={cn("mt-orbit-xxs", useDefaultComparisonCard ? "text-muted-foreground" : "text-[#27500A]/80")}>
+              <p className={cn("v6-orbit-weight-medium", useDefaultComparisonCard && "text-orbit-fg")}>Revise target.</p>
+              <p className={cn("mt-orbit-xxs", useDefaultComparisonCard ? "text-orbit-fg-secondary" : "text-orbit-success/80")}>
                 This clause is queued for the next round target.
               </p>
             </div>
@@ -6895,9 +6949,9 @@ function ClauseDecisionCard({
 
         {showAcceptedCompact && queuedExpanded && (
           <div className="mt-orbit-s" onClick={(event) => event.stopPropagation()}>
-            <div className="rounded-md border border-[#BFD6AB] bg-[#EAF3DE] px-orbit-base py-orbit-s text-[11px] text-[#27500A]">
+            <div className="rounded-orbit-md border border-orbit-success-border bg-orbit-success-surface px-orbit-base py-orbit-s text-orbit-xs text-orbit-success">
               <p className="v6-orbit-weight-medium">Accepted supplier position.</p>
-              <p className="mt-orbit-xxs text-[#27500A]/80">
+              <p className="mt-orbit-xxs text-orbit-success/80">
                 This clause is accepted for the current supplier version and stays monitored in future rounds.
               </p>
             </div>
@@ -7070,7 +7124,7 @@ function ClauseRowScaleCard({
   return (
     <div
       id={`clause-row-${id}`}
-      className={cn("rounded-lg transition-colors", highlighted && "ring-2 ring-primary/40")}
+      className={cn("rounded-orbit-lg transition-colors", highlighted && "ring-2 ring-orbit-primary/40")}
     >
       <Card type="Static" padding="Base" state={orbitCardState} indicator style={cardStyle}>
         <div className="flex flex-col gap-orbit-s">
@@ -7095,11 +7149,11 @@ function ClauseRowScaleCard({
                 )
               )}
             </div>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-orbit-xs text-orbit-fg-secondary">
               {id.toUpperCase()} · {metadata}
             </p>
           </div>
-          <h3 className="v6-orbit-heading-label text-foreground">
+          <h3 className="v6-orbit-heading-label text-orbit-fg">
             <ClauseTitleInline clauseId={id} fallback={clause.title} />
           </h3>
         </div>
@@ -7156,15 +7210,15 @@ const rowScaleSeverityThemes: Record<
   },
   medium: {
     indicatorToken: FIRST_ANALYSIS_STATUS_THEME.medium.indicatorColor,
-    badgeClass: "shrink-0 rounded-full border-[#F1D29B] bg-[#FFF8E8] px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium text-[#854F0B]",
+    badgeClass: "shrink-0 rounded-full border-orbit-warning-border bg-orbit-warning-surface px-orbit-xs py-orbit-xxs text-orbit-xs v6-orbit-weight-medium text-orbit-warning",
     legacyIndicatorToken: "var(--orbit-color-card-indicator-warning)",
-    legacyBadgeClass: "shrink-0 rounded-full border-[#F1D29B] bg-[#FFF8E8] px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium text-[#854F0B]",
+    legacyBadgeClass: "shrink-0 rounded-full border-orbit-warning-border bg-orbit-warning-surface px-orbit-xs py-orbit-xxs text-orbit-xs v6-orbit-weight-medium text-orbit-warning",
   },
   low: {
     indicatorToken: FIRST_ANALYSIS_STATUS_THEME.low.indicatorColor,
-    badgeClass: "shrink-0 rounded-full border-[#D9D8D2] bg-[#F5F5F2] px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium text-[#5F5E5A]",
+    badgeClass: "shrink-0 rounded-full border-orbit-border bg-orbit-surface px-orbit-xs py-orbit-xxs text-orbit-xs v6-orbit-weight-medium text-orbit-fg-secondary",
     legacyIndicatorToken: "var(--orbit-color-card-indicator-success)",
-    legacyBadgeClass: "shrink-0 rounded-full border-border bg-muted px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium text-muted-foreground",
+    legacyBadgeClass: "shrink-0 rounded-full border-orbit-border bg-orbit-surface px-orbit-xs py-orbit-xxs text-orbit-xs v6-orbit-weight-medium text-orbit-fg-secondary",
   },
 };
 
@@ -7200,11 +7254,11 @@ function ResultCardPanel({
         boxShadow: "var(--orbit-shadow-none)",
       }}
     >
-      <Text as="p" size="Small" variant={labelVariant}>
+      <Text as="p" size="Paragraph" variant={labelVariant}>
         {label}
       </Text>
       <p
-        className="mt-orbit-xs v6-orbit-text-small text-foreground"
+        className="mt-orbit-xs v6-orbit-text-small text-orbit-fg"
         style={{ "--orbit-text-small-leading": "1.5" } as CSSProperties}
       >
         {text}
@@ -7352,12 +7406,12 @@ function RecommendationRationaleDialog({
       <div className="space-y-orbit-base">
         <Headings size="Heading 4">Recommend Position&apos;s Rationale</Headings>
         {rationale.explanation.map((paragraph) => (
-          <p key={paragraph} className="v6-orbit-text-body text-foreground">{paragraph}</p>
+          <p key={paragraph} className="v6-orbit-text-body text-orbit-fg">{paragraph}</p>
         ))}
         {rationale.playbookWording && (
-          <div className="rounded-md border border-border bg-muted/20 p-orbit-base">
-            <p className="v6-orbit-text-small v6-orbit-weight-semibold text-foreground">Exact wording from playbook</p>
-            <p className="mt-orbit-s whitespace-pre-line v6-orbit-text-small text-foreground">{rationale.playbookWording}</p>
+          <div className="rounded-orbit-md border border-orbit-border bg-orbit-surface/20 p-orbit-base">
+            <p className="v6-orbit-text-small v6-orbit-weight-semibold text-orbit-fg">Exact wording from playbook</p>
+            <p className="mt-orbit-s whitespace-pre-line v6-orbit-text-small text-orbit-fg">{rationale.playbookWording}</p>
           </div>
         )}
       </div>
@@ -7694,7 +7748,7 @@ function ClauseReviewModalCard({
   return (
     <div
       id={domId}
-      className={cn("rounded-lg transition-colors", highlighted && "ring-2 ring-primary/40")}
+      className={cn("rounded-orbit-lg transition-colors", highlighted && "ring-2 ring-orbit-primary/40")}
     >
       <Card type="Static" padding="Base" state={clauseCardState} indicator style={clauseCardStyle}>
         <div className="flex flex-wrap items-start justify-between gap-orbit-s">
@@ -7705,7 +7759,7 @@ function ClauseReviewModalCard({
               ) : (
                 <Badge
                   variant="outline"
-                  className={cn("h-5 rounded-full px-orbit-s text-[9px] v6-orbit-weight-medium", severityTone(severity))}
+                  className={cn("h-5 rounded-full px-orbit-s text-orbit-xs v6-orbit-weight-medium", severityTone(severity))}
                 >
                   {titleCaseSeverity(severity)}
                 </Badge>
@@ -7723,28 +7777,28 @@ function ClauseReviewModalCard({
             <Badge
               variant="outline"
               className={cn(
-                "h-5 rounded-full px-orbit-s text-[9px] v6-orbit-weight-medium",
-                statusTone === "blue" && "border-[#185FA5]/20 bg-[#E6F1FB]/60 text-[#0C447C]",
-                statusTone === "green" && "border-[#BFD6AB] bg-[#EAF3DE] text-[#27500A]",
-                statusTone === "neutral" && "border-border bg-white text-muted-foreground",
+                "h-5 rounded-full px-orbit-s text-orbit-xs v6-orbit-weight-medium",
+                statusTone === "blue" && "border-orbit-info/20 bg-orbit-info-surface/60 text-orbit-info",
+                statusTone === "green" && "border-orbit-success-border bg-orbit-success-surface text-orbit-success",
+                statusTone === "neutral" && "border-orbit-border bg-orbit-card text-orbit-fg-secondary",
               )}
             >
               {statusLabel}
             </Badge>
           </div>
-          <p className="shrink-0 text-[10px] text-muted-foreground">
+          <p className="shrink-0 text-orbit-xs text-orbit-fg-secondary">
             {itemId.toUpperCase()}{category ? ` · ${category}` : ""}
           </p>
         </div>
 
         <div className="mt-orbit-s min-w-0">
-          <p className="truncate text-[13px] v6-orbit-weight-semibold text-foreground">{title}</p>
-          <p className="mt-orbit-xxs line-clamp-2 text-[11px] leading-4 text-muted-foreground">
+          <p className="truncate text-orbit-sm v6-orbit-weight-semibold text-orbit-fg">{title}</p>
+          <p className="mt-orbit-xxs line-clamp-2 text-orbit-xs leading-orbit-snug text-orbit-fg-secondary">
             {request.requestedChange || "No requested change entered yet."}
           </p>
           {request.rationale && (
-            <p className="mt-orbit-xs line-clamp-2 text-[11px] leading-4 text-muted-foreground">
-              <span className="v6-orbit-weight-medium text-foreground">Rationale:</span> {request.rationale}
+            <p className="mt-orbit-xs line-clamp-2 text-orbit-xs leading-orbit-snug text-orbit-fg-secondary">
+              <span className="v6-orbit-weight-medium text-orbit-fg">Rationale:</span> {request.rationale}
             </p>
           )}
         </div>
@@ -7775,23 +7829,23 @@ function ClauseReviewModalCard({
         </div>
 
         {editing && editMode === "inline" && (
-          <div className="mt-orbit-base rounded-lg border border-border bg-white/85 p-orbit-base" onClick={(event) => event.stopPropagation()}>
+          <div className="mt-orbit-base rounded-orbit-lg border border-orbit-border bg-orbit-card/85 p-orbit-base" onClick={(event) => event.stopPropagation()}>
             <div className="grid gap-orbit-base">
-              <label className="grid gap-orbit-xs text-xs v6-orbit-weight-medium text-foreground">
+              <label className="grid gap-orbit-xs text-orbit-xs v6-orbit-weight-medium text-orbit-fg">
                 Requested change
                 <Textarea
                   value={draft.requestedChange ?? ""}
                   onChange={(event) => setDraft((current) => ({ ...current, requestedChange: event.target.value }))}
-                  className="min-h-[72px] resize-none bg-white text-xs v6-orbit-weight-regular leading-5"
+                  className="min-h-[72px] resize-none bg-orbit-card text-orbit-xs v6-orbit-weight-regular leading-orbit-normal"
                 />
               </label>
-              <label className="grid gap-orbit-xs text-xs v6-orbit-weight-medium text-foreground">
+              <label className="grid gap-orbit-xs text-orbit-xs v6-orbit-weight-medium text-orbit-fg">
                 Rationale
                 <Textarea
                   value={draft.rationale ?? ""}
                   onChange={(event) => setDraft((current) => ({ ...current, rationale: event.target.value }))}
                   placeholder="Add why this change is needed before supplier negotiation."
-                  className="min-h-[64px] resize-none bg-white text-xs v6-orbit-weight-regular leading-5"
+                  className="min-h-[64px] resize-none bg-orbit-card text-orbit-xs v6-orbit-weight-regular leading-orbit-normal"
                 />
               </label>
             </div>
@@ -7801,7 +7855,7 @@ function ClauseReviewModalCard({
               </Button>
               <Button
                 type="button"
-                className="h-8 bg-[#1a2744] text-white hover:bg-[#243454]"
+                className="h-8 bg-orbit-heading text-orbit-inverse hover:bg-orbit-heading"
                 disabled={!canSave}
                 onClick={saveDraft}
               >
@@ -7928,7 +7982,7 @@ function RequestReviewDialog({
         <div className="flex flex-col gap-orbit-base sm:flex-row sm:items-center sm:justify-between">
           <Button
             variant="outline"
-            className="h-8 text-xs"
+            className="h-8 text-orbit-xs"
             onClick={() => onOpenChange(false)}
           >
             Close
@@ -7985,21 +8039,21 @@ function ReviewGenerateProgressDashboard({ progress }: { progress: ReviewGenerat
       ];
 
   return (
-    <section className="rounded-lg border border-border bg-white p-orbit-base">
+    <section className="rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-base">
       <div>
         <div>
-          <p className="text-[10px] v6-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          <p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-[0.08em] text-orbit-fg-secondary">
             Summary
           </p>
-          <p className="mt-orbit-xs text-xs leading-5 text-muted-foreground">
+          <p className="mt-orbit-xs text-orbit-xs leading-orbit-normal text-orbit-fg-secondary">
             {summaryDescription}
           </p>
         </div>
       </div>
 
-      <div className="mt-orbit-base h-2 overflow-hidden rounded-full bg-muted">
+      <div className="mt-orbit-base h-2 overflow-hidden rounded-full bg-orbit-surface">
         <span
-          className="block h-full rounded-full bg-[hsl(var(--ciq-purple))]"
+          className="block h-full rounded-full bg-[var(--orbit-color-btn-primary-bg)]"
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -8021,16 +8075,16 @@ function ReviewGenerateProgressDashboard({ progress }: { progress: ReviewGenerat
           const itemPercentage = item.total > 0 ? Math.round((itemReviewed / item.total) * 100) : 0;
           const itemCaption = comparisonSummary ? `${item.total} clauses` : `${item.unreviewed} left`;
           return (
-            <div key={item.label} className="rounded-md border border-border bg-muted/20 px-orbit-s py-orbit-s">
+            <div key={item.label} className="rounded-orbit-md border border-orbit-border bg-orbit-surface/20 px-orbit-s py-orbit-s">
               <div className="flex items-center justify-between gap-orbit-s">
-                <span className="text-[10px] v6-orbit-weight-medium text-muted-foreground">{item.label}</span>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-orbit-xs v6-orbit-weight-medium text-orbit-fg-secondary">{item.label}</span>
+                <span className="text-orbit-xs text-orbit-fg-secondary">
                   {itemCaption}
                 </span>
               </div>
-              <div className="mt-orbit-s h-1.5 overflow-hidden rounded-full bg-muted">
+              <div className="mt-orbit-s h-1.5 overflow-hidden rounded-full bg-orbit-surface">
                 <span
-                  className="block h-full rounded-full bg-[hsl(var(--ciq-purple))]"
+                  className="block h-full rounded-full bg-[var(--orbit-color-btn-primary-bg)]"
                   style={{ width: `${itemPercentage}%` }}
                 />
               </div>
@@ -8040,7 +8094,7 @@ function ReviewGenerateProgressDashboard({ progress }: { progress: ReviewGenerat
       </div>
 
       {progress.submitted > 0 && (
-        <p className="mt-orbit-base text-[11px] text-muted-foreground">
+        <p className="mt-orbit-base text-orbit-xs text-orbit-fg-secondary">
           {progress.submitted} clause{progress.submitted === 1 ? "" : "s"} already generated in a previous CSV.
         </p>
       )}
@@ -8058,9 +8112,9 @@ function ReviewGenerateMetric({
   muted?: boolean;
 }) {
   return (
-    <div className={cn("rounded-md border border-border bg-[#F7FAFC] px-orbit-s py-orbit-s", muted && "bg-muted/25")}>
-      <p className="text-lg v6-orbit-weight-semibold leading-none text-foreground">{value}</p>
-      <p className="mt-orbit-xs text-[9px] v6-orbit-weight-medium uppercase tracking-[0.04em] text-muted-foreground">
+    <div className={cn("rounded-orbit-md border border-orbit-border bg-orbit-surface px-orbit-s py-orbit-s", muted && "bg-orbit-surface/25")}>
+      <p className="text-orbit-lg v6-orbit-weight-semibold leading-orbit-tight text-orbit-fg">{value}</p>
+      <p className="mt-orbit-xs text-orbit-xs v6-orbit-weight-medium uppercase tracking-[0.04em] text-orbit-fg-secondary">
         {label}
       </p>
     </div>
@@ -8229,7 +8283,7 @@ function ReviewScreen({
         );
       })}
       {rows.length === 0 && (
-        <div className="bg-card border border-border rounded-lg p-orbit-xxl text-center text-sm text-muted-foreground">
+        <div className="bg-orbit-card border border-orbit-border rounded-orbit-lg p-orbit-xxl text-center text-orbit-sm text-orbit-fg-secondary">
           No clauses match this category.
         </div>
       )}
@@ -8286,7 +8340,12 @@ function ComparisonSection(props: {
   onUpdateText?: (id: string, patch: { requestedChange?: string; rationale?: string }) => void;
   onCancelDraft?: (id: string) => void;
   onSubmitDraft?: (id: string) => void;
-  onConfirmVerdictFromAction?: (id: string, verdict: ClauseVerdict | null | undefined, action: string) => void;
+  onConfirmVerdictFromAction?: (
+    id: string,
+    verdict: ClauseVerdict | null | undefined,
+    action: string,
+    outcome?: ClauseOutcome,
+  ) => void;
   stateOf?: (id: string) => ClauseDecisionState;
   layout?: "collapsible" | "plain";
   overrideVerdict?: ClauseVerdict | null;
@@ -8306,35 +8365,37 @@ function ComparisonSection(props: {
   const [open, setOpen] = useState(true);
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
   const [pendingDraftCancelId, setPendingDraftCancelId] = useState<string | null>(null);
+  // High-deviation concede guard: holds the clause awaiting confirmation.
+  const [pendingConcede, setPendingConcede] = useState<{ id: string; verdict: ClauseVerdict | null | undefined } | null>(null);
   if (!visible) return null;
   const accentBar =
-    accent === "primary" ? "bg-primary"
-      : accent === "warning" ? "bg-warning"
-      : accent === "neutral" ? "bg-muted-foreground"
-      : accent === "success" ? "bg-success"
-      : accent === "missing" ? "bg-[#5F5E5A]"
-      : "bg-destructive";
+    accent === "primary" ? "bg-orbit-primary"
+      : accent === "warning" ? "bg-orbit-warning"
+      : accent === "neutral" ? "bg-orbit-fg-secondary"
+      : accent === "success" ? "bg-orbit-success"
+      : accent === "missing" ? "bg-orbit-fg-secondary"
+      : "bg-orbit-destructive";
   const accentText =
-    accent === "primary" ? "text-primary"
-      : accent === "warning" ? "text-warning-foreground"
-      : accent === "neutral" ? "text-muted-foreground"
-      : accent === "success" ? "text-success"
-      : accent === "missing" ? "text-[#5F5E5A]"
-      : "text-destructive";
+    accent === "primary" ? "text-orbit-primary"
+      : accent === "warning" ? "text-orbit-warning"
+      : accent === "neutral" ? "text-orbit-fg-secondary"
+      : accent === "success" ? "text-orbit-success"
+      : accent === "missing" ? "text-orbit-fg-secondary"
+      : "text-orbit-destructive";
   const accentBg =
-    accent === "primary" ? "bg-primary/5 hover:bg-primary/10"
-      : accent === "warning" ? "bg-warning/10 hover:bg-warning/15"
-      : accent === "neutral" ? "bg-muted/60 hover:bg-muted"
-      : accent === "success" ? "bg-success/5 hover:bg-success/10"
-      : accent === "missing" ? "bg-[#FFFFFF] hover:bg-[#F7F7F5]"
-      : "bg-destructive/5 hover:bg-destructive/10";
+    accent === "primary" ? "bg-orbit-primary/5 hover:bg-orbit-primary/10"
+      : accent === "warning" ? "bg-orbit-warning/10 hover:bg-orbit-warning/15"
+      : accent === "neutral" ? "bg-orbit-surface/60 hover:bg-orbit-surface"
+      : accent === "success" ? "bg-orbit-success/5 hover:bg-orbit-success/10"
+      : accent === "missing" ? "bg-orbit-card hover:bg-orbit-surface"
+      : "bg-orbit-destructive/5 hover:bg-orbit-destructive/10";
   const accentBorder =
-    accent === "primary" ? "border-primary/30"
-      : accent === "warning" ? "border-warning/40"
-      : accent === "neutral" ? "border-border"
-      : accent === "success" ? "border-success/30"
-      : accent === "missing" ? "border-[#D9D8D2]"
-      : "border-destructive/30";
+    accent === "primary" ? "border-orbit-primary/30"
+      : accent === "warning" ? "border-orbit-warning/40"
+      : accent === "neutral" ? "border-orbit-border"
+      : accent === "success" ? "border-orbit-success/30"
+      : accent === "missing" ? "border-orbit-border"
+      : "border-orbit-destructive/30";
   const emptyMsg =
     bucket === "open" ? "No open requests for this round."
       : bucket === "no-action" ? "No clauses are currently marked as no action from the previous round."
@@ -8368,9 +8429,9 @@ function ComparisonSection(props: {
   });
 
   const rowsContent = rows.length === 0 ? (
-    <div className="border-t border-border p-orbit-m text-center text-xs text-muted-foreground">{emptyMsg}</div>
+    <div className="border-t border-orbit-border p-orbit-m text-center text-orbit-xs text-orbit-fg-secondary">{emptyMsg}</div>
   ) : (
-    <div className="space-y-orbit-s border-t border-border p-orbit-base">
+    <div className="space-y-orbit-s border-t border-orbit-border p-orbit-base">
       {sortedRows.map((r) => {
         const display = r.curr ?? r.prev!;
         const rowState = stateOf?.(r.id);
@@ -8407,12 +8468,18 @@ function ComparisonSection(props: {
           : previousTargetText
           ? { requestedChange: previousTargetText, rationale: previousTargetReason || undefined }
           : undefined;
-        const openReviseTargetEditor = (actionLabel = "Chose to revise target") => {
-          onConfirmVerdictFromAction?.(r.id, rowVerdict, actionLabel);
+        // `options` is only supplied by the Not Met card. The none-deviation and
+        // closed buckets call this bare, so their seed text and (absent)
+        // provenance stay exactly as before.
+        const openReviseTargetEditor = (
+          actionLabel = "Chose to revise target",
+          options?: { outcome?: ClauseOutcome; prefill?: string },
+        ) => {
+          onConfirmVerdictFromAction?.(r.id, rowVerdict, actionLabel, options?.outcome);
           onFollowUp?.(r.id);
           if (supportsInlineRequest) {
             onUpdateText?.(r.id, {
-              requestedChange: previousTargetText,
+              requestedChange: options?.prefill?.trim() || previousTargetText,
               rationale: previousTargetReason,
             });
             setExpandedRequestId(r.id);
@@ -8471,33 +8538,26 @@ function ComparisonSection(props: {
                   {CLAUSE_ACTION_LABELS.reviseTarget}
                 </Button>
               ) : canShowOutcomeFooter && bucket === "closed" ? (
-                <div className="ml-auto flex items-center gap-orbit-xs">
-                  <Button
-                    variant="outline"
-                    className="h-8 v6-orbit-text-small"
-                    onClick={() => openReviseTargetEditor()}
-                  >
-                    {CLAUSE_ACTION_LABELS.reviseTarget}
-                  </Button>
-                  <Button
-                    variant="default"
-                    className="h-8 v6-orbit-text-small"
-                    onClick={() => {
-                      onConfirmVerdictFromAction?.(r.id, rowVerdict, "Confirmed position");
-                      onClose(r.id);
-                    }}
-                  >
-                    Confirm Position
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  className="ml-auto h-8 v6-orbit-text-small"
+                  onClick={() => openReviseTargetEditor()}
+                >
+                  {CLAUSE_ACTION_LABELS.editPosition}
+                </Button>
               ) : canShowOutcomeFooter && rowVerdict !== "met" ? (
                 <>
                   <Button
                     variant={closure === "follow-up" ? "secondary" : "outline"}
                     className="ml-auto h-8 v6-orbit-text-small"
-                    onClick={() => openReviseTargetEditor()}
+                    onClick={() =>
+                      openReviseTargetEditor("Chose to revise target", {
+                        outcome: "custom",
+                        prefill: comparisonBestPractice,
+                      })
+                    }
                   >
-                    {CLAUSE_ACTION_LABELS.reviseTarget}
+                    {CLAUSE_ACTION_LABELS.editPosition}
                   </Button>
                   {bucket !== "no-action" && (
                     <Button
@@ -8505,10 +8565,11 @@ function ComparisonSection(props: {
                       className="h-8 v6-orbit-text-small"
                       onClick={() => {
                         if (actionabilityRequest && onContinueWithActionability) {
+                          onConfirmVerdictFromAction?.(r.id, rowVerdict, "Held previous target", "recommended");
                           onContinueWithActionability(r.id, actionabilityRequest);
                           return;
                         }
-                        onConfirmVerdictFromAction?.(r.id, rowVerdict, "Held previous target");
+                        onConfirmVerdictFromAction?.(r.id, rowVerdict, "Held previous target", "recommended");
                         onKeepOpen(r.id);
                       }}
                     >
@@ -8544,16 +8605,50 @@ function ComparisonSection(props: {
             alteredAfterAgreement={Boolean(rowState?.alteredAfterAgreement)}
             stateBadge={bucket === "no-action" ? (
               <span className="inline-flex items-center gap-orbit-xs">
-                <span className="text-[11px] text-muted-foreground">Round Action</span>
+                <span className="text-orbit-xs text-orbit-fg-secondary">Round Action</span>
                 <Chip label="No Further Action" size="Mini" variant="No Status" contrast="Low" />
               </span>
             ) : undefined}
             missingClause={Boolean(display.missingClause)}
-            metaPrefix={!resolvedOverrideVerdict && r.pill.status === "new" ? <span className="mr-orbit-xs text-[#0C447C]">+</span> : null}
-            selectedComparisonAction={closure === "closed" || rowState?.acceptedClosed ? "accepted" : undefined}
+            metaPrefix={!resolvedOverrideVerdict && r.pill.status === "new" ? <span className="mr-orbit-xs text-orbit-info">+</span> : null}
+            selectedComparisonAction={
+              // Not Met outcome provenance wins when present; otherwise fall
+              // back to the pre-existing closed-bucket concede.
+              rowState?.outcomes?.[rightLabel] ??
+              (closure === "closed" || rowState?.acceptedClosed ? "accepted" : undefined)
+            }
             extraContent={
               <>
                 {comparisonDetails}
+                {/*
+                  Concede row — the third decision. Sits outside the Recommended
+                  Position block. Lives in extraContent so it disappears once the
+                  card condenses, like the rest of the body.
+                */}
+                {canShowOutcomeFooter && rowVerdict !== "met" && !drafting && (
+                  <div
+                    className="mt-orbit-s flex flex-wrap items-center justify-between gap-orbit-s pt-orbit-s"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <p className="min-w-0 flex-1 text-orbit-xs text-orbit-fg-secondary">
+                      Won&apos;t pursue this change — the clause stays as it currently stands.
+                    </p>
+                    <Button
+                      variant="secondary"
+                      className="shrink-0"
+                      onClick={() => {
+                        // High deviation: confirm before conceding. Medium/Low/None go straight through.
+                        if (display.severity === "high") {
+                          setPendingConcede({ id: r.id, verdict: rowVerdict });
+                          return;
+                        }
+                        performConcede(r.id, rowVerdict);
+                      }}
+                    >
+                      {CLAUSE_ACTION_LABELS.keepCurrentSummary}
+                    </Button>
+                  </div>
+                )}
                 {showRowUndo && onUndoClose && (
                   <button
                     type="button"
@@ -8561,7 +8656,7 @@ function ComparisonSection(props: {
                       event.stopPropagation();
                       onUndoClose(r.id);
                     }}
-                    className="mt-orbit-s inline-flex items-center gap-orbit-xs text-[11px] text-primary hover:underline"
+                    className="mt-orbit-s inline-flex items-center gap-orbit-xs text-orbit-xs text-orbit-primary hover:underline"
                   >
                     <RotateCcw className="h-3 w-3" /> Undo close
                   </button>
@@ -8605,50 +8700,73 @@ function ComparisonSection(props: {
     </div>
   );
 
+  /** Record the concede. Called directly, or via the High-deviation confirm. */
+  const performConcede = (id: string, verdict: ClauseVerdict | null | undefined) => {
+    onConfirmVerdictFromAction?.(id, verdict, "Kept current summary", "kept-unmet");
+  };
+
   const confirmOverlay = (
-    <V6OrbitConfirmOverlay
-      open={Boolean(pendingDraftCancelId)}
-      onOpenChange={(nextOpen) => {
-        if (!nextOpen) setPendingDraftCancelId(null);
-      }}
-      modalKey="discard-draft-request"
-      title="Discard Draft Request"
-      description="This will remove the request text you have drafted for this clause."
-      confirmLabel="Discard draft"
-      destructive
-      cancelAlignment="left"
-      descriptionPlacement="body"
-      onConfirm={() => {
-        if (pendingDraftCancelId) onCancelDraft?.(pendingDraftCancelId);
-        setExpandedRequestId(null);
-        setPendingDraftCancelId(null);
-      }}
-    />
+    <>
+      <V6OrbitConfirmOverlay
+        open={Boolean(pendingDraftCancelId)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setPendingDraftCancelId(null);
+        }}
+        modalKey="discard-draft-request"
+        title="Discard Draft Request"
+        description="This will remove the request text you have drafted for this clause."
+        confirmLabel="Discard draft"
+        destructive
+        cancelAlignment="left"
+        descriptionPlacement="body"
+        onConfirm={() => {
+          if (pendingDraftCancelId) onCancelDraft?.(pendingDraftCancelId);
+          setExpandedRequestId(null);
+          setPendingDraftCancelId(null);
+        }}
+      />
+      <V6OrbitConfirmOverlay
+        open={Boolean(pendingConcede)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setPendingConcede(null);
+        }}
+        modalKey="keep-current-summary"
+        title="Keep the current summary?"
+        description="This clause has a High deviation and the supplier has not met your target position. Keeping the current summary means you won't pursue the change in this round."
+        confirmLabel="Keep current summary"
+        cancelAlignment="left"
+        descriptionPlacement="body"
+        onConfirm={() => {
+          if (pendingConcede) performConcede(pendingConcede.id, pendingConcede.verdict);
+          setPendingConcede(null);
+        }}
+      />
+    </>
   );
 
   if (layout === "plain") {
     return (
       <>
-        <section className={`overflow-hidden rounded-lg border ${accentBorder} bg-card`}>
+        <section className={`overflow-hidden rounded-orbit-lg border ${accentBorder} bg-orbit-card`}>
           <button
             type="button"
             aria-expanded={open}
             className={`flex w-full items-start gap-orbit-base p-orbit-base text-left transition-colors ${accentBg}`}
             onClick={() => setOpen((current) => !current)}
           >
-            <span className={`w-1 self-stretch rounded ${accentBar}`} />
+            <span className={`w-1 self-stretch rounded-orbit-sm ${accentBar}`} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-orbit-s">
                 <h3 className={`v6-orbit-heading-strong ${accentText}`}>
-                  {title} · <span className="tabular-nums text-foreground">{displayedStats.total}</span>
+                  {title} · <span className="tabular-nums text-orbit-fg">{displayedStats.total}</span>
                 </h3>
                 {bucketSummary && (
-                  <span className="text-[11px] v6-orbit-weight-medium text-muted-foreground">{bucketSummary}</span>
+                  <span className="text-orbit-xs v6-orbit-weight-medium text-orbit-fg-secondary">{bucketSummary}</span>
                 )}
               </div>
-              <p className="mt-orbit-xs v6-orbit-text-small text-muted-foreground" style={{ lineHeight: 1.5 }}>{description}</p>
+              <p className="mt-orbit-xs v6-orbit-text-small text-orbit-fg-secondary" style={{ lineHeight: 1.5 }}>{description}</p>
             </div>
-            <ChevronDown className={`mt-orbit-xs h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+            <ChevronDown className={`mt-orbit-xs h-4 w-4 shrink-0 text-orbit-fg-secondary transition-transform ${open ? "rotate-180" : ""}`} />
           </button>
           {open && rowsContent}
         </section>
@@ -8659,26 +8777,26 @@ function ComparisonSection(props: {
 
   return (
     <>
-      <section className={`overflow-hidden rounded-lg border ${accentBorder} bg-card`}>
+      <section className={`overflow-hidden rounded-orbit-lg border ${accentBorder} bg-orbit-card`}>
         <button
           type="button"
           aria-expanded={open}
           className={`flex w-full items-start gap-orbit-base p-orbit-base text-left transition-colors ${accentBg}`}
           onClick={() => setOpen((current) => !current)}
         >
-          <span className={`w-1 self-stretch rounded ${accentBar}`} />
+          <span className={`w-1 self-stretch rounded-orbit-sm ${accentBar}`} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-orbit-s">
               <h3 className={`v6-orbit-heading-strong ${accentText}`}>
-                {title} · <span className="tabular-nums text-foreground">{displayedStats.total}</span>
+                {title} · <span className="tabular-nums text-orbit-fg">{displayedStats.total}</span>
               </h3>
               {bucketSummary && (
-                <span className="text-[11px] v6-orbit-weight-medium text-muted-foreground">{bucketSummary}</span>
+                <span className="text-orbit-xs v6-orbit-weight-medium text-orbit-fg-secondary">{bucketSummary}</span>
               )}
             </div>
-            <p className="mt-orbit-xs v6-orbit-text-small text-muted-foreground" style={{ lineHeight: 1.5 }}>{description}</p>
+            <p className="mt-orbit-xs v6-orbit-text-small text-orbit-fg-secondary" style={{ lineHeight: 1.5 }}>{description}</p>
           </div>
-          <ChevronDown className={`mt-orbit-xs h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+          <ChevronDown className={`mt-orbit-xs h-4 w-4 shrink-0 text-orbit-fg-secondary transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
         {open && rowsContent}
       </section>
@@ -8734,32 +8852,32 @@ function UnmarkedSection({
   if (!visible) return null;
   return (
     <>
-      <div className="bg-card border border-border rounded-lg overflow-hidden">
+      <div className="bg-orbit-card border border-orbit-border rounded-orbit-lg overflow-hidden">
           <button
             type="button"
             aria-expanded={open}
-            className="w-full flex items-start gap-orbit-base p-orbit-base border-b border-border text-left hover:bg-muted/30 transition-colors"
+            className="w-full flex items-start gap-orbit-base p-orbit-base border-b border-orbit-border text-left hover:bg-orbit-surface/30 transition-colors"
             onClick={() => setOpen((current) => !current)}
           >
-            <span className="w-1 self-stretch rounded bg-muted-foreground/40" />
+            <span className="w-1 self-stretch rounded-orbit-sm bg-orbit-fg-secondary/40" />
             <div className="flex-1">
-              <h3 className="v6-orbit-heading-strong text-foreground">
-                Needs decision · <span className="tabular-nums text-muted-foreground">{rows.length}</span>
+              <h3 className="v6-orbit-heading-strong text-orbit-fg">
+                Needs decision · <span className="tabular-nums text-orbit-fg-secondary">{rows.length}</span>
               </h3>
-              <p className="text-xs text-muted-foreground">
-                Clauses you didn't previously flag and the supplier didn't materially change. Expand to search this list, or use the <span className="v6-orbit-weight-medium text-foreground">filter and search above</span> to narrow results, then request a change in this round.
+              <p className="text-orbit-xs text-orbit-fg-secondary">
+                Clauses you didn't previously flag and the supplier didn't materially change. Expand to search this list, or use the <span className="v6-orbit-weight-medium text-orbit-fg">filter and search above</span> to narrow results, then request a change in this round.
               </p>
             </div>
-            <ChevronDown className={`w-4 h-4 text-muted-foreground mt-orbit-xs transition-transform ${open ? "rotate-180" : ""}`} />
+            <ChevronDown className={`w-4 h-4 text-orbit-fg-secondary mt-orbit-xs transition-transform ${open ? "rotate-180" : ""}`} />
           </button>
         {open && (
           rows.length === 0 ? (
-            <div className="p-orbit-m text-center text-xs text-muted-foreground">
+            <div className="p-orbit-m text-center text-orbit-xs text-orbit-fg-secondary">
               Every clause has either been actioned or already has a material change in this round.
             </div>
           ) : (
             <>
-              <div className="p-orbit-base border-b border-border bg-muted/20 flex items-center gap-orbit-s">
+              <div className="p-orbit-base border-b border-orbit-border bg-orbit-surface/20 flex items-center gap-orbit-s">
                 <div className="flex-1 max-w-md">
                   <Searchbox
                     ariaLabel="Search unmarked clauses"
@@ -8770,7 +8888,7 @@ function UnmarkedSection({
                 </div>
               </div>
               {filteredRows.length === 0 ? (
-                <div className="p-orbit-m text-center text-xs text-muted-foreground">
+                <div className="p-orbit-m text-center text-orbit-xs text-orbit-fg-secondary">
                   No unmarked clauses match "{localSearch}".
                 </div>
               ) : (
@@ -8893,10 +9011,10 @@ function RoundTracker({
       width: "260px",
       render: (def: (typeof CLAUSE_FRAMEWORK)[number]) => (
         <div>
-          <span className="text-sm v6-orbit-weight-medium text-foreground hover:text-primary">
+          <span className="text-orbit-sm v6-orbit-weight-medium text-orbit-fg hover:text-orbit-primary">
             {def.title}
           </span>
-          <p className="text-[11px] tabular-nums text-muted-foreground">{def.id.toUpperCase()} · {def.category}</p>
+          <p className="text-orbit-xs tabular-nums text-orbit-fg-secondary">{def.id.toUpperCase()} · {def.category}</p>
         </div>
       ),
     },
@@ -8904,14 +9022,14 @@ function RoundTracker({
       id: v.version,
       header: (
         <div className="flex flex-col items-center">
-          <span className="tabular-nums text-xs v6-orbit-weight-bold text-foreground">Round {parseInt(v.version.replace("v", ""), 10)}</span>
-          <span className="text-[10px] text-muted-foreground tabular-nums">{v.version}</span>
+          <span className="tabular-nums text-orbit-xs v6-orbit-weight-bold text-orbit-fg">Round {parseInt(v.version.replace("v", ""), 10)}</span>
+          <span className="text-orbit-xs text-orbit-fg-secondary tabular-nums">{v.version}</span>
         </div>
       ),
       render: (def: (typeof CLAUSE_FRAMEWORK)[number]) => {
         const state = stateOf(def.id);
         const outcome = roundOutcome(def.id, v.version, versions, state);
-        return <Badge variant="outline" className={`${outcome.tone} text-[10px]`}>{outcome.label}</Badge>;
+        return <Badge variant="outline" className={`${outcome.tone} text-orbit-xs`}>{outcome.label}</Badge>;
       },
     })),
     {
@@ -8921,18 +9039,18 @@ function RoundTracker({
       render: (def: (typeof CLAUSE_FRAMEWORK)[number]) => {
         const state = stateOf(def.id);
         const latest = roundOutcome(def.id, versions.at(-1)!.version, versions, state);
-        return <Badge variant="outline" className={`${latest.tone} text-[10px]`}>{latest.label}</Badge>;
+        return <Badge variant="outline" className={`${latest.tone} text-orbit-xs`}>{latest.label}</Badge>;
       },
     },
   ];
 
   return (
     <div className="space-y-orbit-base">
-      <div className="bg-card border border-border rounded-lg p-orbit-base">
+      <div className="bg-orbit-card border border-orbit-border rounded-orbit-lg p-orbit-base">
         <h2 className="v6-orbit-heading-5">History</h2>
-        <p className="text-xs text-muted-foreground">Track clause changes and outcomes across negotiation rounds.</p>
+        <p className="text-orbit-xs text-orbit-fg-secondary">Track clause changes and outcomes across negotiation rounds.</p>
       </div>
-      <div className="bg-card border border-border rounded-lg overflow-hidden">
+      <div className="bg-orbit-card border border-orbit-border rounded-orbit-lg overflow-hidden">
         <OrbitTable
           ariaLabel="Clause negotiation history"
           columns={roundColumns}
@@ -9016,52 +9134,52 @@ function ClauseSlideOver({
 
   return (
     <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-foreground/25" onClick={onClose} />
-      <aside className="flex h-full w-[380px] flex-col border-l border-border bg-white shadow-xl">
-        <div className="shrink-0 border-b border-border px-orbit-base py-orbit-base">
+      <div className="flex-1 bg-orbit-fg/25" onClick={onClose} />
+      <aside className="flex h-full w-[380px] flex-col border-l border-orbit-border bg-orbit-card shadow-orbit-lg">
+        <div className="shrink-0 border-b border-orbit-border px-orbit-base py-orbit-base">
           <div className="flex items-start justify-between gap-orbit-base">
             <div className="min-w-0">
-              <p className="text-[9px] v6-orbit-weight-medium uppercase text-muted-foreground">{clauseId.toUpperCase()} · {def.category}</p>
-              <h2 className="v6-orbit-heading-label mt-orbit-xs truncate text-foreground">
+              <p className="text-orbit-xs v6-orbit-weight-medium uppercase text-orbit-fg-secondary">{clauseId.toUpperCase()} · {def.category}</p>
+              <h2 className="v6-orbit-heading-label mt-orbit-xs truncate text-orbit-fg">
                 <ClauseTitleInline clauseId={clauseId} fallback={display.title} />
               </h2>
               <div className="mt-orbit-s flex flex-wrap items-center gap-orbit-xs">
-                <Badge variant="outline" className={`${severityTone(display.severity)} text-[9px]`}>{display.severity}</Badge>
+                <Badge variant="outline" className={`${severityTone(display.severity)} text-orbit-xs`}>{display.severity}</Badge>
                 {state.alteredAfterAgreement && <Chip label="Altered after agreement" size="Mini" variant="Error" contrast="Low" />}
                 {verdict ? <VerdictPill verdict={verdict} superseded={Boolean(confirmation?.overrideComment)} /> : changePill.status ? <ChangePillBadge result={changePill} /> : <RoundStatusPill status={historyRow.currentStatus}>{roundStatusLabel(historyRow.currentStatus)}</RoundStatusPill>}
                 <button
                   type="button"
                   onClick={() => onViewHistory(clauseId)}
-                  className="inline-flex items-center gap-orbit-xs rounded-full bg-[#FAEEDA]/70 px-orbit-s py-orbit-xxs text-[9px] v6-orbit-weight-medium text-[#633806] hover:bg-[#FAEEDA]"
+                  className="inline-flex items-center gap-orbit-xs rounded-full bg-orbit-warning-surface/70 px-orbit-s py-orbit-xxs text-orbit-xs v6-orbit-weight-medium text-orbit-warning hover:bg-orbit-warning-surface"
                 >
                   <IconTimeline size={11} stroke={1.8} />
                   {historyRow.existsInRounds} rounds of history
                 </button>
               </div>
             </div>
-            <button type="button" onClick={onClose} className="rounded p-orbit-xs text-muted-foreground hover:bg-muted hover:text-foreground">
+            <button type="button" onClick={onClose} className="rounded-orbit-sm p-orbit-xs text-orbit-fg-secondary hover:bg-orbit-surface hover:text-orbit-fg">
               <X className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
 
-        <div className="shrink-0 border-b border-border bg-[#f8f7f5] px-orbit-base py-orbit-s">
+        <div className="shrink-0 border-b border-orbit-border bg-orbit-surface px-orbit-base py-orbit-s">
           <div className="mb-orbit-s flex items-center justify-between">
-            <p className="text-[9px] v6-orbit-weight-medium uppercase text-muted-foreground">Negotiation timeline</p>
+            <p className="text-orbit-xs v6-orbit-weight-medium uppercase text-orbit-fg-secondary">Negotiation timeline</p>
             {mode === "comparison" && (
-              <button type="button" onClick={() => onViewHistory(clauseId)} className="text-[9px] v6-orbit-weight-medium text-primary hover:underline">
+              <button type="button" onClick={() => onViewHistory(clauseId)} className="text-orbit-xs v6-orbit-weight-medium text-orbit-primary hover:underline">
                 View in History →
               </button>
             )}
           </div>
           <div className="relative flex min-w-0 items-start gap-orbit-base overflow-x-auto px-orbit-xs pb-orbit-xs" aria-label={`Timeline for ${display.title}`}>
-            <div className="absolute left-4 right-4 top-2 h-px bg-border" aria-hidden />
+            <div className="absolute left-orbit-base right-orbit-base top-orbit-s h-px bg-orbit-border" aria-hidden />
             {historyRow.cells.map((cell, index) => (
               <div key={cell.version || index} className="relative z-10 flex min-w-[42px] flex-col items-center gap-orbit-xs">
-                <span className={`grid h-4 w-4 place-items-center rounded-full border text-[8px] v6-orbit-weight-medium ${roundStatusTone(cell.status)} ${index === historyRow.cells.length - 1 ? "outline outline-2 outline-offset-1 outline-[#185FA5]" : ""}`}>
+                <span className={`grid h-4 w-4 place-items-center rounded-full border text-orbit-xs v6-orbit-weight-medium ${roundStatusTone(cell.status)} ${index === historyRow.cells.length - 1 ? "outline outline-2 outline-offset-1 outline-orbit-info" : ""}`}>
                   {index + 1}
                 </span>
-                <span className="text-[7px] text-muted-foreground">{cell.version || "—"}</span>
+                <span className="text-orbit-xs text-orbit-fg-secondary">{cell.version || "—"}</span>
               </div>
             ))}
           </div>
@@ -9071,50 +9189,50 @@ function ClauseSlideOver({
           {mode === "comparison" ? (
             <>
               {state.alteredAfterAgreement && (
-                <div className="rounded-md border border-[#A32D2D]/30 bg-[#FCEBEB] px-orbit-base py-orbit-s text-[11px] text-[#791F1F]">
+                <div className="rounded-orbit-md border border-orbit-error/30 bg-orbit-error-surface px-orbit-base py-orbit-s text-orbit-xs text-orbit-error">
                   <p className="v6-orbit-weight-semibold">Previously agreed — altered by the supplier.</p>
                   <p className="mt-orbit-xxs">This clause was accepted & closed. The round-over-round diff detected a change to the agreed wording and reopened it automatically.</p>
                 </div>
               )}
               {callout && (
-                <div className={`rounded-md border-l-2 px-orbit-s py-orbit-s text-[10px] ${callout.className}`}>
+                <div className={`rounded-orbit-md border-l-2 px-orbit-s py-orbit-s text-orbit-xs ${callout.className}`}>
                   <p>{callout.text}</p>
                 </div>
               )}
               {clauseId === DEMO_TARGET_CLAUSE_ID && !state.simulatedMet && (
-                <div className="rounded-md border border-[#BCA8FF]/40 bg-[#F2EFFF] px-orbit-base py-orbit-s text-[11px] text-[#392C7D]">
+                <div className="rounded-orbit-md border border-orbit-primary/40 bg-orbit-primary-soft px-orbit-base py-orbit-s text-orbit-xs text-orbit-primary">
                   <p className="v6-orbit-weight-semibold">Direction check</p>
                   <p className="mt-orbit-xxs">The supplier returned MORE than you asked (36 &gt; 24). For an instalment schedule, longer can favour you or work against you. Binary verdict at low confidence — confirm the direction before treating this as a shortfall.</p>
                 </div>
               )}
               <SectionLabel>{leftLabel} → {rightLabel} diff</SectionLabel>
               <div className="grid grid-cols-2 gap-orbit-s">
-                <div className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s opacity-75">
-                  <p className="text-[8px] v6-orbit-weight-medium uppercase text-muted-foreground">{leftLabel} · previous</p>
-                  <p className="mt-orbit-xs text-[10px] text-foreground">{isNewClause ? `(Clause did not exist in ${leftLabel})` : prev?.deviation ?? "—"}</p>
+                <div className="rounded-orbit-md bg-orbit-surface px-orbit-s py-orbit-s opacity-75">
+                  <p className="text-orbit-xs v6-orbit-weight-medium uppercase text-orbit-fg-secondary">{leftLabel} · previous</p>
+                  <p className="mt-orbit-xs text-orbit-xs text-orbit-fg">{isNewClause ? `(Clause did not exist in ${leftLabel})` : prev?.deviation ?? "—"}</p>
                 </div>
-                <div className="rounded-md bg-[#E6F1FB]/50 px-orbit-s py-orbit-s">
-                  <p className="text-[8px] v6-orbit-weight-medium uppercase text-[#185FA5]">{rightLabel} · current</p>
-                  <p className="mt-orbit-xs text-[10px] text-foreground">{curr?.deviation ?? display.deviation}</p>
+                <div className="rounded-orbit-md bg-orbit-info-surface/50 px-orbit-s py-orbit-s">
+                  <p className="text-orbit-xs v6-orbit-weight-medium uppercase text-orbit-info">{rightLabel} · current</p>
+                  <p className="mt-orbit-xs text-orbit-xs text-orbit-fg">{curr?.deviation ?? display.deviation}</p>
                 </div>
               </div>
               {state.alteredAfterAgreement && (
                 <>
                   <SectionLabel>Agreed wording vs new redline</SectionLabel>
                   <div className="grid grid-cols-2 gap-orbit-s">
-                    <div className="rounded-md border border-[#3B6D11]/20 bg-[#EAF3DE]/60 px-orbit-s py-orbit-s">
-                      <p className="text-[8px] v6-orbit-weight-medium uppercase text-[#27500A]">Agreed (closed)</p>
-                      <p className="mt-orbit-xs text-[10px] text-foreground">Payment terms follow the agreed 24-month instalment schedule.</p>
+                    <div className="rounded-orbit-md border border-orbit-success/20 bg-orbit-success-surface/60 px-orbit-s py-orbit-s">
+                      <p className="text-orbit-xs v6-orbit-weight-medium uppercase text-orbit-success">Agreed (closed)</p>
+                      <p className="mt-orbit-xs text-orbit-xs text-orbit-fg">Payment terms follow the agreed 24-month instalment schedule.</p>
                     </div>
-                    <div className="rounded-md border border-[#A32D2D]/25 bg-[#FCEBEB]/70 px-orbit-s py-orbit-s">
-                      <p className="text-[8px] v6-orbit-weight-medium uppercase text-[#791F1F]">New redline — change detected</p>
-                      <p className="mt-orbit-xs text-[10px] text-foreground">Payment terms follow the agreed 24-month instalment schedule <mark className="rounded bg-[#F3B4B4]/50 px-0.5">, subject to the Supplier's right to extend the schedule by up to twelve (12) months on written notice where its input costs increase</mark>.</p>
+                    <div className="rounded-orbit-md border border-orbit-error/25 bg-orbit-error-surface/70 px-orbit-s py-orbit-s">
+                      <p className="text-orbit-xs v6-orbit-weight-medium uppercase text-orbit-error">New redline — change detected</p>
+                      <p className="mt-orbit-xs text-orbit-xs text-orbit-fg">Payment terms follow the agreed 24-month instalment schedule <mark className="rounded-orbit-sm bg-orbit-error-border/50 px-orbit-xxs">, subject to the Supplier's right to extend the schedule by up to twelve (12) months on written notice where its input costs increase</mark>.</p>
                     </div>
                   </div>
                 </>
               )}
               <SectionLabel>AI analysis</SectionLabel>
-              <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s text-[11px] text-muted-foreground">
+              <p className="rounded-orbit-md bg-orbit-surface px-orbit-s py-orbit-s text-orbit-xs text-orbit-fg-secondary">
                 {verdict === "notmet" && deviationDelta
                   ? "Not Met — the supplier conceded movement, but withheld the requested position. Deviation improved: they are moving on this clause."
                   : verdict === "notmet"
@@ -9124,7 +9242,7 @@ function ClauseSlideOver({
               {(changePill.status === "met" || changePill.status === "not_met") && request?.requestedChange && (
                 <>
                   <SectionLabel>Your request</SectionLabel>
-                  <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s text-[11px] text-muted-foreground">{request.requestedChange}</p>
+                  <p className="rounded-orbit-md bg-orbit-surface px-orbit-s py-orbit-s text-orbit-xs text-orbit-fg-secondary">{request.requestedChange}</p>
                 </>
               )}
               {computedVerdict && (
@@ -9151,12 +9269,12 @@ function ClauseSlideOver({
                 />
               )}
               {clauseId === DEMO_TARGET_CLAUSE_ID && targets.length >= 2 && !state.simulatedMet && (
-                <Button variant="outline" className="h-8 border-dashed text-xs" onClick={() => onSimulateSupplierResponse(clauseId)}>
+                <Button variant="outline" className="h-8 border-dashed text-orbit-xs" onClick={() => onSimulateSupplierResponse(clauseId)}>
                   ▶ Simulate supplier response
                 </Button>
               )}
               {state.acceptedClosed && !state.alteredAfterAgreement && (
-                <div className="rounded-md border border-[#3B6D11]/25 bg-[#EAF3DE] px-orbit-base py-orbit-s text-[11px] text-[#27500A]">
+                <div className="rounded-orbit-md border border-orbit-success/25 bg-orbit-success-surface px-orbit-base py-orbit-s text-orbit-xs text-orbit-success">
                   <p className="v6-orbit-weight-semibold">Accepted & closed. The clause exits the working queue.</p>
                   <p className="mt-orbit-xxs">Closed means monitored, not forgotten: the round-over-round diff keeps watching this clause.</p>
                 </div>
@@ -9165,22 +9283,22 @@ function ClauseSlideOver({
           ) : (
             <>
               <SectionLabel>Description</SectionLabel>
-              <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s text-[11px] text-muted-foreground">{display.deviation}</p>
+              <p className="rounded-orbit-md bg-orbit-surface px-orbit-s py-orbit-s text-orbit-xs text-orbit-fg-secondary">{display.deviation}</p>
               <SectionLabel>Latest diff</SectionLabel>
-              <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s text-[11px] text-muted-foreground">
+              <p className="rounded-orbit-md bg-orbit-surface px-orbit-s py-orbit-s text-orbit-xs text-orbit-fg-secondary">
                 {latestCell?.clause?.improvementReason ?? latestCell?.clause?.deviation ?? "No latest change available."}
               </p>
               <SectionLabel>AI analysis</SectionLabel>
-              <p className="rounded-md bg-[#f8f7f5] px-orbit-s py-orbit-s text-[11px] text-muted-foreground">
+              <p className="rounded-orbit-md bg-orbit-surface px-orbit-s py-orbit-s text-orbit-xs text-orbit-fg-secondary">
                 {display.actionability ?? `Clause history shows ${historyRow.stateChanges} state change${historyRow.stateChanges === 1 ? "" : "s"} across the negotiation.`}
               </p>
               <SectionLabel>Round-by-round</SectionLabel>
               <div className="space-y-orbit-xs">
                 {historyRow.cells.map((cell, index) => (
-                  <div key={`${cell.version}-${index}`} className="flex items-start justify-between gap-orbit-s rounded-md border border-border px-orbit-s py-orbit-s text-[10px]">
+                  <div key={`${cell.version}-${index}`} className="flex items-start justify-between gap-orbit-s rounded-orbit-md border border-orbit-border px-orbit-s py-orbit-s text-orbit-xs">
                     <div>
-                      <p className="v6-orbit-weight-medium text-foreground">Round {index + 1} · {cell.version}</p>
-                      <p className="mt-orbit-xxs text-muted-foreground">{cell.clause?.improvementReason ?? cell.clause?.deviation ?? "Clause not present in this round."}</p>
+                      <p className="v6-orbit-weight-medium text-orbit-fg">Round {index + 1} · {cell.version}</p>
+                      <p className="mt-orbit-xxs text-orbit-fg-secondary">{cell.clause?.improvementReason ?? cell.clause?.deviation ?? "Clause not present in this round."}</p>
                     </div>
                     <RoundStatusPill status={cell.status}>{cell.label}</RoundStatusPill>
                   </div>
@@ -9190,15 +9308,15 @@ function ClauseSlideOver({
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-orbit-s border-t border-border px-orbit-base py-orbit-s">
-          <Button variant="outline" className="h-8 text-xs" onClick={() => toast({ title: "Full text", description: display.excerpt })}>
+        <div className="flex shrink-0 items-center gap-orbit-s border-t border-orbit-border px-orbit-base py-orbit-s">
+          <Button variant="outline" className="h-8 text-orbit-xs" onClick={() => toast({ title: "Full text", description: display.excerpt })}>
             View Full Text
           </Button>
           {state.alteredAfterAgreement ? (
             <div className="ml-auto flex items-center gap-orbit-xs">
-              <Button className="h-8 bg-[#1a2744] px-orbit-base text-xs text-white hover:bg-[#243454]" onClick={() => onMarkNewIssue(clauseId)}>Reject — Restore Agreed Wording</Button>
-              <Button variant="outline" className="h-8 text-xs" onClick={() => onCloseClause(clauseId)}>Accept Their Change</Button>
-              <Button variant="outline" className="h-8 text-xs" onClick={() => onKeepOpen(clauseId)}>Park &amp; Escalate</Button>
+              <Button className="h-8 bg-orbit-heading px-orbit-base text-orbit-xs text-orbit-inverse hover:bg-orbit-heading" onClick={() => onMarkNewIssue(clauseId)}>Reject — Restore Agreed Wording</Button>
+              <Button variant="outline" className="h-8 text-orbit-xs" onClick={() => onCloseClause(clauseId)}>Accept Their Change</Button>
+              <Button variant="outline" className="h-8 text-orbit-xs" onClick={() => onKeepOpen(clauseId)}>Park &amp; Escalate</Button>
             </div>
           ) : verdict === "met" ? (
             <ClauseJourneyActions
@@ -9243,19 +9361,19 @@ function slideOverCallout(status: ChangePillStatus | null, leftLabel: string) {
   if (status === "regressed") {
     return {
       text: "Supplier weakened this clause without being asked. Recommended: request revert in the next round.",
-      className: "border-[#A32D2D] bg-[#FCEBEB]/50 text-[#791F1F]",
+      className: "border-orbit-error bg-orbit-error-surface/50 text-orbit-error",
     };
   }
   if (status === "improved") {
     return {
       text: "Supplier improved this clause without being asked. You can accept or push for further improvement.",
-      className: "border-[#3B6D11] bg-[#EAF3DE]/70 text-[#27500A]",
+      className: "border-orbit-success bg-orbit-success-surface/70 text-orbit-success",
     };
   }
   if (status === "new") {
     return {
       text: `This clause did not exist in ${leftLabel}. Review carefully before accepting.`,
-      className: "border-[#185FA5] bg-[#E6F1FB]/70 text-[#0C447C]",
+      className: "border-orbit-info bg-orbit-info-surface/70 text-orbit-info",
     };
   }
   return null;
@@ -9285,7 +9403,7 @@ function VerdictConfirmationPanel({
 
   if (confirmation?.overrideComment) {
     return (
-      <div className="rounded-md border border-[#A32D2D]/25 bg-[#FCEBEB]/60 px-orbit-base py-orbit-s text-[11px] text-[#791F1F]">
+      <div className="rounded-orbit-md border border-orbit-error/25 bg-orbit-error-surface/60 px-orbit-base py-orbit-s text-orbit-xs text-orbit-error">
         Verdict superseded by {confirmation.confirmedBy ?? CURRENT_USER_LABEL}:{" "}
         <span className="line-through">{verdictLabel(confirmation.originalVerdict ?? verdict)}</span> →{" "}
         <span className="v6-orbit-weight-semibold">{verdictLabel(confirmation.verdict)}</span> — "{confirmation.overrideComment}"
@@ -9295,27 +9413,27 @@ function VerdictConfirmationPanel({
 
   if (confirmation) {
     return (
-      <div className="rounded-md border border-[#3B6D11]/25 bg-[#EAF3DE]/70 px-orbit-base py-orbit-s text-[11px] text-[#27500A]">
+      <div className="rounded-orbit-md border border-orbit-success/25 bg-orbit-success-surface/70 px-orbit-base py-orbit-s text-orbit-xs text-orbit-success">
         ✓ Verdict confirmed by {confirmation.confirmedBy ?? CURRENT_USER_LABEL} · {formatShortDate(confirmation.confirmedAt ?? new Date().toISOString())}
       </div>
     );
   }
 
   return (
-    <div className="border-t border-dashed border-border pt-orbit-base">
+    <div className="border-t border-dashed border-orbit-border pt-orbit-base">
       <div className="flex flex-wrap items-center justify-between gap-orbit-s">
-        <p className="text-[11px] v6-orbit-weight-medium text-foreground">Do you agree with this verdict?</p>
+        <p className="text-orbit-xs v6-orbit-weight-medium text-orbit-fg">Do you agree with this verdict?</p>
         <div className="flex items-center gap-orbit-xs">
-          <Button variant="outline" className="h-7 border-[#3B6D11]/30 text-[11px] text-[#27500A]" onClick={onAgree}>✓ Agree</Button>
-          <Button variant="outline" className="h-7 border-[#A32D2D]/30 text-[11px] text-[#791F1F]" onClick={() => setOpen(true)}>✕ Disagree</Button>
+          <Button variant="outline" className="h-7 border-orbit-success/30 text-orbit-xs text-orbit-success" onClick={onAgree}>✓ Agree</Button>
+          <Button variant="outline" className="h-7 border-orbit-error/30 text-orbit-xs text-orbit-error" onClick={() => setOpen(true)}>✕ Disagree</Button>
         </div>
       </div>
       {open && (
-        <div className="mt-orbit-s rounded-md border border-[#A32D2D]/25 bg-[#FCEBEB]/60 p-orbit-s">
-          <p className="text-[11px] v6-orbit-weight-semibold text-[#791F1F]">Supersede the AI verdict</p>
-          <p className="mt-orbit-xxs text-[10px] text-[#791F1F]">Corrected verdict: {verdictLabel(verdict)} → {verdictLabel(corrected)}</p>
+        <div className="mt-orbit-s rounded-orbit-md border border-orbit-error/25 bg-orbit-error-surface/60 p-orbit-s">
+          <p className="text-orbit-xs v6-orbit-weight-semibold text-orbit-error">Supersede the AI verdict</p>
+          <p className="mt-orbit-xxs text-orbit-xs text-orbit-error">Corrected verdict: {verdictLabel(verdict)} → {verdictLabel(corrected)}</p>
           <Textarea
-            className="mt-orbit-s min-h-20 text-xs"
+            className="mt-orbit-s min-h-20 text-orbit-xs"
             value={comment}
             placeholder="Reason for the override — required, kept in the audit trail."
             onChange={(event) => {
@@ -9323,9 +9441,9 @@ function VerdictConfirmationPanel({
               setError(false);
             }}
           />
-          {error && <p className="mt-orbit-xs text-[10px] text-[#A32D2D]">A comment is required to supersede a verdict</p>}
+          {error && <p className="mt-orbit-xs text-orbit-xs text-orbit-error">A comment is required to supersede a verdict</p>}
           <Button
-            className="mt-orbit-s h-8 text-xs"
+            className="mt-orbit-s h-8 text-orbit-xs"
             onClick={() => {
               if (!comment.trim()) {
                 setError(true);
@@ -9356,28 +9474,28 @@ function TargetLineagePanel({
   simulatedMet: boolean;
 }) {
   return (
-    <div className="rounded-md border border-border bg-card p-orbit-base">
+    <div className="rounded-orbit-md border border-orbit-border bg-orbit-card p-orbit-base">
       <SectionLabel>Target lineage</SectionLabel>
-      <ol className="mt-orbit-s space-y-orbit-s border-l border-border pl-orbit-base">
+      <ol className="mt-orbit-s space-y-orbit-s border-l border-orbit-border pl-orbit-base">
         {targets.map((target) => (
-          <li key={target.version} className="relative text-[11px]">
-            <span className="absolute -left-[19px] top-1 h-2.5 w-2.5 rounded-full border-2 border-card bg-[#185FA5]" />
-            <p className="text-[9px] v6-orbit-weight-semibold uppercase text-muted-foreground">Our side · Round {target.round} · {formatShortDate(target.createdAt)}</p>
-            <p className="mt-orbit-xxs text-foreground">Target v{target.version}: {target.text}</p>
-            {target.reason && <p className="mt-orbit-xxs italic text-muted-foreground">{target.reason}</p>}
+          <li key={target.version} className="relative text-orbit-xs">
+            <span className="absolute -left-[19px] top-orbit-xs h-2.5 w-2.5 rounded-full border-2 border-orbit-card bg-orbit-info" />
+            <p className="text-orbit-xs v6-orbit-weight-semibold uppercase text-orbit-fg-secondary">Our side · Round {target.round} · {formatShortDate(target.createdAt)}</p>
+            <p className="mt-orbit-xxs text-orbit-fg">Target v{target.version}: {target.text}</p>
+            {target.reason && <p className="mt-orbit-xxs italic text-orbit-fg-secondary">{target.reason}</p>}
           </li>
         ))}
-        <li className="relative text-[11px]">
-          <span className="absolute -left-[19px] top-1 h-2.5 w-2.5 rounded-full border-2 border-card bg-[#BA7517]" />
-          <p className="text-[9px] v6-orbit-weight-semibold uppercase text-muted-foreground">Supplier · {targetVersion}</p>
-          <p className="mt-orbit-xxs text-foreground">Returned: {supplierText}</p>
-          {verdict && <p className="mt-orbit-xxs text-muted-foreground">Graded vs v{targets.at(-1)?.version ?? 1}: {verdict === "met" ? "Met" : "Not Met"} — frozen</p>}
+        <li className="relative text-orbit-xs">
+          <span className="absolute -left-[19px] top-orbit-xs h-2.5 w-2.5 rounded-full border-2 border-orbit-card bg-orbit-warning" />
+          <p className="text-orbit-xs v6-orbit-weight-semibold uppercase text-orbit-fg-secondary">Supplier · {targetVersion}</p>
+          <p className="mt-orbit-xxs text-orbit-fg">Returned: {supplierText}</p>
+          {verdict && <p className="mt-orbit-xxs text-orbit-fg-secondary">Graded vs v{targets.at(-1)?.version ?? 1}: {verdict === "met" ? "Met" : "Not Met"} — frozen</p>}
         </li>
         {!simulatedMet && (
-          <li className="relative text-[11px]">
-            <span className="absolute -left-[19px] top-1 h-2.5 w-2.5 rounded-full border-2 border-dashed border-muted-foreground bg-card" />
-            <p className="text-[9px] v6-orbit-weight-semibold uppercase text-muted-foreground">Pending · Next round</p>
-            <p className="mt-orbit-xxs text-muted-foreground">Awaiting supplier response to the next target.</p>
+          <li className="relative text-orbit-xs">
+            <span className="absolute -left-[19px] top-orbit-xs h-2.5 w-2.5 rounded-full border-2 border-dashed border-orbit-fg-secondary bg-orbit-card" />
+            <p className="text-orbit-xs v6-orbit-weight-semibold uppercase text-orbit-fg-secondary">Pending · Next round</p>
+            <p className="mt-orbit-xxs text-orbit-fg-secondary">Awaiting supplier response to the next target.</p>
           </li>
         )}
       </ol>
@@ -9401,13 +9519,13 @@ function ReviseTargetPanel({
   const [submitted, setSubmitted] = useState(false);
 
   return (
-    <div className="rounded-md border border-[#185FA5]/20 bg-[#E6F1FB]/45 p-orbit-base">
-      <p className="text-[11px] v6-orbit-weight-semibold text-[#0C447C]">Revise target</p>
-      <p className="mt-orbit-xxs text-[10px] text-[#0C447C]">Pre-filled with the supplier's returned wording — edit it into your next ask. This creates target v{nextVersion}; the previous verdict stays frozen.</p>
-      <Textarea className="mt-orbit-s min-h-20 text-xs" value={text} onChange={(event) => setText(event.target.value)} />
-      <Input className="mt-orbit-s h-9 text-xs" value={reason} placeholder="Why the target moved (optional, kept for the audit trail)" onChange={(event) => setReason(event.target.value)} />
+    <div className="rounded-orbit-md border border-orbit-info/20 bg-orbit-info-surface/45 p-orbit-base">
+      <p className="text-orbit-xs v6-orbit-weight-semibold text-orbit-info">Revise target</p>
+      <p className="mt-orbit-xxs text-orbit-xs text-orbit-info">Pre-filled with the supplier's returned wording — edit it into your next ask. This creates target v{nextVersion}; the previous verdict stays frozen.</p>
+      <Textarea className="mt-orbit-s min-h-20 text-orbit-xs" value={text} onChange={(event) => setText(event.target.value)} />
+      <Input className="mt-orbit-s h-9 text-orbit-xs" value={reason} placeholder="Why the target moved (optional, kept for the audit trail)" onChange={(event) => setReason(event.target.value)} />
       <Button
-        className="mt-orbit-s h-8 text-xs"
+        className="mt-orbit-s h-8 text-orbit-xs"
         disabled={!text.trim()}
         onClick={() => {
           onRevise(text, reason);
@@ -9417,7 +9535,7 @@ function ReviseTargetPanel({
         Set as Round {nextVersion} Target (v{nextVersion})
       </Button>
       {submitted && (
-        <p className="mt-orbit-s text-[10px] text-[#0C447C]">Round {nextVersion} target set (v{nextVersion}): {text}. The previous verdict is preserved in the lineage.</p>
+        <p className="mt-orbit-s text-orbit-xs text-orbit-info">Round {nextVersion} target set (v{nextVersion}): {text}. The previous verdict is preserved in the lineage.</p>
       )}
     </div>
   );
@@ -9441,12 +9559,12 @@ function ClauseJourneyActions({
   return (
     <div className="ml-auto flex flex-wrap items-center justify-end gap-orbit-xs">
       {showRevise ? (
-        <Button className="h-8 bg-[#1a2744] px-orbit-base text-xs text-white hover:bg-[#243454]" onClick={onRevise}>{CLAUSE_ACTION_LABELS.reviseTarget}</Button>
+        <Button className="h-8 bg-orbit-heading px-orbit-base text-orbit-xs text-orbit-inverse hover:bg-orbit-heading" onClick={onRevise}>{CLAUSE_ACTION_LABELS.reviseTarget}</Button>
       ) : null}
-      <Button variant="outline" className="h-8 text-xs" onClick={onHold}>{CLAUSE_ACTION_LABELS.holdPosition}</Button>
-      <Button variant="default" className="h-8 text-xs" onClick={onAccept}>{CLAUSE_ACTION_LABELS.acceptSupplierPosition}</Button>
+      <Button variant="outline" className="h-8 text-orbit-xs" onClick={onHold}>{CLAUSE_ACTION_LABELS.holdPosition}</Button>
+      <Button variant="default" className="h-8 text-orbit-xs" onClick={onAccept}>{CLAUSE_ACTION_LABELS.acceptSupplierPosition}</Button>
       {canSimulateRegression && (
-        <Button variant="outline" className="h-8 border-dashed text-xs" onClick={onSimulateRegression}>▶ Simulate Next-Round Redline</Button>
+        <Button variant="outline" className="h-8 border-dashed text-orbit-xs" onClick={onSimulateRegression}>▶ Simulate Next-Round Redline</Button>
       )}
     </div>
   );
@@ -9482,40 +9600,40 @@ function SignoffView({
     <main className="mx-auto max-w-[1200px] space-y-orbit-base px-orbit-base py-orbit-m">
       <div className="flex flex-wrap items-center justify-between gap-orbit-base">
         <div>
-          <p className="text-[10px] v6-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">Round sign-off</p>
-          <h2 className="v6-orbit-heading-3 text-foreground">Negotiation audit pack</h2>
+          <p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-[0.08em] text-orbit-fg-secondary">Round sign-off</p>
+          <h2 className="v6-orbit-heading-3 text-orbit-fg">Negotiation audit pack</h2>
         </div>
-        <Button variant="outline" className="h-9 text-xs" onClick={onClose}>Back to Review</Button>
+        <Button variant="outline" className="h-9 text-orbit-xs" onClick={onClose}>Back to Review</Button>
       </div>
       <div className="grid gap-orbit-base md:grid-cols-3">
         <Card type="Static" padding="Base" state="Success">
           <Text as="p" size="Small" variant="Secondary">Analysis score</Text>
-          <p className="mt-orbit-xs text-2xl v6-orbit-weight-bold text-[#27500A]">52 → 74 → 91</p>
+          <p className="mt-orbit-xs text-orbit-2xl v6-orbit-weight-bold text-orbit-success">52 → 74 → 91</p>
         </Card>
         <Card type="Static" padding="Base">
           <Text as="p" size="Small" variant="Secondary">Outcomes</Text>
-          <p className="mt-orbit-xs text-sm text-foreground">{closed} closed · {Math.max(0, closed - escalated)} landed after re-send · {escalated} escalated · {overrides} verdict override(s) · {supplierChanges} supplier change(s) caught</p>
+          <p className="mt-orbit-xs text-orbit-sm text-orbit-fg">{closed} closed · {Math.max(0, closed - escalated)} landed after re-send · {escalated} escalated · {overrides} verdict override(s) · {supplierChanges} supplier change(s) caught</p>
         </Card>
         <Card type="Static" padding="Base">
           <Text as="p" size="Small" variant="Secondary">Time in tool</Text>
-          <p className="mt-orbit-xs text-sm text-foreground">R1 ~40 min · R2 ~30 min · sign-off ~10 min</p>
+          <p className="mt-orbit-xs text-orbit-sm text-orbit-fg">R1 ~40 min · R2 ~30 min · sign-off ~10 min</p>
         </Card>
       </div>
       <Card type="Static" padding="Base">
         <div className="space-y-orbit-s">
           {items.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No session actions have been created yet.</p>
+            <p className="text-orbit-sm text-orbit-fg-secondary">No session actions have been created yet.</p>
           ) : items.map((item) => (
-            <div key={item.id} className="rounded-md border border-border p-orbit-base">
+            <div key={item.id} className="rounded-orbit-md border border-orbit-border p-orbit-base">
               <div className="flex flex-wrap items-start justify-between gap-orbit-s">
                 <div>
-                  <p className="v6-orbit-heading-label text-foreground">{item.title}</p>
+                  <p className="v6-orbit-heading-label text-orbit-fg">{item.title}</p>
                   {item.status === "escalated" ? <Chip label="Escalated" size="Mini" variant="Warning" contrast="Low" /> : <VerdictPill verdict={item.status} />}
                 </div>
                 {item.status === "escalated" ? (
-                  <Button variant="outline" className="h-8 text-xs" onClick={() => onSaveNote(item.id)}>Save Note &amp; Mark Resolved</Button>
+                  <Button variant="outline" className="h-8 text-orbit-xs" onClick={() => onSaveNote(item.id)}>Save Note &amp; Mark Resolved</Button>
                 ) : (
-                  <Button variant="outline" className="h-8 text-xs" onClick={() => onResolve(item.id)} disabled={item.resolved}>
+                  <Button variant="outline" className="h-8 text-orbit-xs" onClick={() => onResolve(item.id)} disabled={item.resolved}>
                   {item.resolved ? "Resolved" : "Mark Resolved"}
                   </Button>
                 )}
@@ -9523,12 +9641,12 @@ function SignoffView({
               {item.status === "escalated" && (
                 <>
                   <Textarea
-                    className="mt-orbit-s min-h-20 text-xs"
+                    className="mt-orbit-s min-h-20 text-orbit-xs"
                     value={item.note}
                     placeholder="e.g. Verbal agreement on the call: supplier concedes the credit schedule if we commit to the 3-year term — legal drafting to follow."
                     onChange={(event) => onNoteChange(item.id, event.target.value)}
                   />
-                  {item.note && <p className="mt-orbit-xs text-[11px] italic text-muted-foreground">{item.note}</p>}
+                  {item.note && <p className="mt-orbit-xs text-orbit-xs italic text-orbit-fg-secondary">{item.note}</p>}
                 </>
               )}
             </div>
@@ -9542,16 +9660,16 @@ function SignoffView({
       </div>
       {auditPackOpen && (
         <Card type="Static" padding="Base" state="Success">
-          <p className="v6-orbit-heading-label text-foreground">Audit pack ready</p>
-          <div className="mt-orbit-s space-y-orbit-xs text-sm text-foreground">
+          <p className="v6-orbit-heading-label text-orbit-fg">Audit pack ready</p>
+          <div className="mt-orbit-s space-y-orbit-xs text-orbit-sm text-orbit-fg">
             <p>Score trajectory: 52 → 74 → 91.</p>
             <p>Target lineage preserved per clause — every version, every reason, every verdict frozen against its round.</p>
             {auditLog.map((entry) => (
-              <p key={`${entry.timestamp}-${entry.clauseId}`} className="text-xs text-muted-foreground">
+              <p key={`${entry.timestamp}-${entry.clauseId}`} className="text-orbit-xs text-orbit-fg-secondary">
                 {formatShortDate(entry.timestamp)} · {entry.clauseId.toUpperCase()} · {entry.entry}
               </p>
             ))}
-            <p className="text-xs v6-orbit-weight-semibold text-[#27500A]">{auditLog.length} logged actions, timestamped and attributable · export as PDF/docx in production.</p>
+            <p className="text-orbit-xs v6-orbit-weight-semibold text-orbit-success">{auditLog.length} logged actions, timestamped and attributable · export as PDF/docx in production.</p>
           </div>
         </Card>
       )}
@@ -9570,7 +9688,7 @@ function SlideOverPrimaryAction({
   onKeepOpen: () => void;
   onMarkNewIssue: () => void;
 }) {
-  const className = "ml-auto h-8 bg-[#1a2744] px-orbit-base text-xs text-white hover:bg-[#243454]";
+  const className = "ml-auto h-8 bg-orbit-heading px-orbit-base text-orbit-xs text-orbit-inverse hover:bg-orbit-heading";
   if (status === "regressed") return <Button className={className} onClick={onMarkNewIssue}>Request Revert</Button>;
   if (status === "new" || status === "improved") {
     return <Button className={className} onClick={onCloseClause}>{CLAUSE_ACTION_LABELS.acceptSupplierPosition}</Button>;
@@ -9589,21 +9707,21 @@ function detailCalloutForStatus(status: ChangePillStatus | null): {
     return {
       title: "Supplier improved this clause without being asked.",
       description: "You can accept, challenge, or push for further improvement.",
-      className: "border-[#3B6D11]/25 bg-[#EAF3DE] text-[#27500A]",
+      className: "border-orbit-success/25 bg-orbit-success-surface text-orbit-success",
     };
   }
   if (status === "regressed") {
     return {
       title: "Supplier weakened this clause without being asked.",
       description: "Recommended: request revert in the next round.",
-      className: "border-[#A32D2D]/25 bg-[#FCEBEB] text-[#791F1F]",
+      className: "border-orbit-error/25 bg-orbit-error-surface text-orbit-error",
     };
   }
   if (status === "new") {
     return {
       title: "This clause did not exist in the previous version.",
       description: "Review carefully before accepting.",
-      className: "border-[#185FA5]/25 bg-[#E6F1FB] text-[#0C447C]",
+      className: "border-orbit-info/25 bg-orbit-info-surface text-orbit-info",
     };
   }
   return null;
@@ -9634,24 +9752,24 @@ function ClauseDetailPanel({
   const directionalCallout = detailCalloutForStatus(changePill.status);
   return (
     <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-foreground/30" onClick={onClose} />
-      <div className="w-full max-w-3xl bg-background border-l border-border overflow-y-auto">
-        <div className="sticky top-0 bg-background border-b border-border px-orbit-m py-orbit-base flex items-start justify-between gap-orbit-base">
+      <div className="flex-1 bg-orbit-fg/30" onClick={onClose} />
+      <div className="w-full max-w-3xl bg-orbit-canvas border-l border-orbit-border overflow-y-auto">
+        <div className="sticky top-0 bg-orbit-canvas border-b border-orbit-border px-orbit-m py-orbit-base flex items-start justify-between gap-orbit-base">
           <div>
-            <p className="text-[10px] tabular-nums v6-orbit-weight-bold text-muted-foreground">{clauseId.toUpperCase()} · {def.category}</p>
+            <p className="text-orbit-xs tabular-nums v6-orbit-weight-bold text-orbit-fg-secondary">{clauseId.toUpperCase()} · {def.category}</p>
             <h2 className="v6-orbit-heading-4">{display.title}</h2>
-            <p className="text-xs tabular-nums text-muted-foreground">{display.subclause}</p>
+            <p className="text-orbit-xs tabular-nums text-orbit-fg-secondary">{display.subclause}</p>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-orbit-xs">
+          <button onClick={onClose} className="text-orbit-fg-secondary hover:text-orbit-fg p-orbit-xs">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="p-orbit-m space-y-orbit-m">
           {directionalCallout && (
-            <div className={`rounded-md border px-orbit-base py-orbit-s text-sm ${directionalCallout.className}`}>
+            <div className={`rounded-orbit-md border px-orbit-base py-orbit-s text-orbit-sm ${directionalCallout.className}`}>
               <p className="v6-orbit-weight-medium">{directionalCallout.title}</p>
-              <p className="mt-orbit-xxs text-xs opacity-85">{directionalCallout.description}</p>
+              <p className="mt-orbit-xxs text-orbit-xs opacity-85">{directionalCallout.description}</p>
             </div>
           )}
 
@@ -9692,27 +9810,27 @@ function ClauseDetailPanel({
           {/* Locations + actionability */}
           <SectionLabel>Additional locations & actionability</SectionLabel>
           <div className="grid grid-cols-2 gap-orbit-base">
-            <div className="rounded-md border border-border bg-card p-orbit-base space-y-orbit-s">
+            <div className="rounded-orbit-md border border-orbit-border bg-orbit-card p-orbit-base space-y-orbit-s">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] tabular-nums v6-orbit-weight-semibold text-muted-foreground uppercase">{leftLabel}</span>
+                <span className="text-orbit-xs tabular-nums v6-orbit-weight-semibold text-orbit-fg-secondary uppercase">{leftLabel}</span>
                 <Badge variant="outline" className={severityTone((prev ?? display).severity)}>{prev?.severity ?? "—"}</Badge>
               </div>
               <LocationsList items={prev?.locations} />
             </div>
-            <div className="rounded-md border border-border bg-card p-orbit-base space-y-orbit-s">
+            <div className="rounded-orbit-md border border-orbit-border bg-orbit-card p-orbit-base space-y-orbit-s">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] tabular-nums v6-orbit-weight-semibold text-muted-foreground uppercase">{rightLabel}</span>
+                <span className="text-orbit-xs tabular-nums v6-orbit-weight-semibold text-orbit-fg-secondary uppercase">{rightLabel}</span>
                 <Badge variant="outline" className={severityTone((curr ?? display).severity)}>{curr?.severity ?? "—"}</Badge>
               </div>
               <LocationsList items={curr?.locations} />
             </div>
           </div>
           {display.actionability && (
-            <div className="rounded-md border border-primary/20 bg-primary/5 p-orbit-base space-y-orbit-xs">
-              <p className="text-[10px] v6-orbit-weight-semibold text-primary uppercase tracking-wider flex items-center gap-orbit-xs">
+            <div className="rounded-orbit-md border border-orbit-primary/20 bg-orbit-primary/5 p-orbit-base space-y-orbit-xs">
+              <p className="text-orbit-xs v6-orbit-weight-semibold text-orbit-primary uppercase tracking-wider flex items-center gap-orbit-xs">
                 <Lightbulb className="w-3 h-3" /> Suggested action
               </p>
-              <p className="text-sm text-foreground">{display.actionability}</p>
+              <p className="text-orbit-sm text-orbit-fg">{display.actionability}</p>
             </div>
           )}
 
@@ -9725,13 +9843,13 @@ function ClauseDetailPanel({
                   .filter(([, r]) => r.requestedChange || r.rationale)
                   .sort((a, b) => a[0].localeCompare(b[0]))
                   .map(([v, r]) => (
-                    <div key={v} className="rounded-md border border-border bg-card p-orbit-base text-sm space-y-orbit-xs">
-                      <p className="text-[10px] v6-orbit-weight-semibold text-primary uppercase tracking-wider">{v}</p>
+                    <div key={v} className="rounded-orbit-md border border-orbit-border bg-orbit-card p-orbit-base text-orbit-sm space-y-orbit-xs">
+                      <p className="text-orbit-xs v6-orbit-weight-semibold text-orbit-primary uppercase tracking-wider">{v}</p>
                       {r.requestedChange && (
-                        <p><span className="text-[10px] v6-orbit-weight-semibold text-muted-foreground uppercase mr-orbit-s">Ask</span>{r.requestedChange}</p>
+                        <p><span className="text-orbit-xs v6-orbit-weight-semibold text-orbit-fg-secondary uppercase mr-orbit-s">Ask</span>{r.requestedChange}</p>
                       )}
                       {r.rationale && (
-                        <p><span className="text-[10px] v6-orbit-weight-semibold text-muted-foreground uppercase mr-orbit-s">Why</span>{r.rationale}</p>
+                        <p><span className="text-orbit-xs v6-orbit-weight-semibold text-orbit-fg-secondary uppercase mr-orbit-s">Why</span>{r.rationale}</p>
                       )}
                     </div>
                   ))}
@@ -9741,55 +9859,55 @@ function ClauseDetailPanel({
 
 
           {/* Action panel */}
-          <div className="sticky bottom-0 -mx-orbit-m px-orbit-m py-orbit-base bg-background border-t border-border flex items-center justify-between flex-wrap gap-orbit-base">
-            <div className="text-xs text-muted-foreground flex items-center gap-orbit-s">
+          <div className="sticky bottom-0 -mx-orbit-m px-orbit-m py-orbit-base bg-orbit-canvas border-t border-orbit-border flex items-center justify-between flex-wrap gap-orbit-base">
+            <div className="text-orbit-xs text-orbit-fg-secondary flex items-center gap-orbit-s">
               <span className="v6-orbit-weight-semibold">{leftLabel} → {rightLabel}:</span>
               {changePill.status ? (
                 <ChangePillBadge result={changePill} />
               ) : (
-                <Badge variant="outline" className={`${materialChangeTone(change)} text-[10px]`}>{materialChangeLabel(change)}</Badge>
+                <Badge variant="outline" className={`${materialChangeTone(change)} text-orbit-xs`}>{materialChangeLabel(change)}</Badge>
               )}
               {state.closures[targetVersion] && (
-                <span>· status <span className="v6-orbit-weight-semibold text-foreground">{state.closures[targetVersion]}</span></span>
+                <span>· status <span className="v6-orbit-weight-semibold text-orbit-fg">{state.closures[targetVersion]}</span></span>
               )}
             </div>
             <div className="flex items-center gap-orbit-s">
               {changePill.status === "improved" ? (
                 <>
-                  <Button className="h-8 gap-orbit-xs text-xs" onClick={() => onCloseClause(clauseId)}>
+                  <Button className="h-8 gap-orbit-xs text-orbit-xs" onClick={() => onCloseClause(clauseId)}>
                     <CheckCircle2 className="w-3.5 h-3.5" /> {CLAUSE_ACTION_LABELS.acceptSupplierPosition}
                   </Button>
-                  <Button variant="outline" className="h-8 text-xs gap-orbit-xs" onClick={() => onMarkNewIssue(clauseId)}>
+                  <Button variant="outline" className="h-8 text-orbit-xs gap-orbit-xs" onClick={() => onMarkNewIssue(clauseId)}>
                     Challenge Change
                   </Button>
                 </>
               ) : changePill.status === "regressed" ? (
                 <>
-                  <Button className="h-8 gap-orbit-xs text-xs" onClick={() => onMarkNewIssue(clauseId)}>
+                  <Button className="h-8 gap-orbit-xs text-orbit-xs" onClick={() => onMarkNewIssue(clauseId)}>
                     <AlertTriangle className="w-3.5 h-3.5" /> Request Revert
                   </Button>
-                  <Button variant="outline" className="h-8 text-xs gap-orbit-xs" onClick={() => onCloseClause(clauseId)}>
+                  <Button variant="outline" className="h-8 text-orbit-xs gap-orbit-xs" onClick={() => onCloseClause(clauseId)}>
                     Accept Change
                   </Button>
                 </>
               ) : changePill.status === "new" ? (
                 <>
-                  <Button className="h-8 gap-orbit-xs text-xs" onClick={() => onCloseClause(clauseId)}>
+                  <Button className="h-8 gap-orbit-xs text-orbit-xs" onClick={() => onCloseClause(clauseId)}>
                     <CheckCircle2 className="w-3.5 h-3.5" /> {CLAUSE_ACTION_LABELS.acceptSupplierPosition}
                   </Button>
-                  <Button variant="outline" className="h-8 text-xs gap-orbit-xs" onClick={() => onMarkNewIssue(clauseId)}>
+                  <Button variant="outline" className="h-8 text-orbit-xs gap-orbit-xs" onClick={() => onMarkNewIssue(clauseId)}>
                     Request Removal
                   </Button>
                 </>
               ) : (
                 <>
-                  <Button variant="outline" className="h-8 text-xs gap-orbit-xs" onClick={() => onKeepOpen(clauseId)}>
+                  <Button variant="outline" className="h-8 text-orbit-xs gap-orbit-xs" onClick={() => onKeepOpen(clauseId)}>
                     <ArrowRight className="w-3.5 h-3.5" /> {CLAUSE_ACTION_LABELS.holdPosition}
                   </Button>
-                  <Button variant="default" className="h-8 text-xs gap-orbit-xs" onClick={() => onCloseClause(clauseId)}>
+                  <Button variant="default" className="h-8 text-orbit-xs gap-orbit-xs" onClick={() => onCloseClause(clauseId)}>
                     <CheckCircle2 className="w-3.5 h-3.5" /> Close
                   </Button>
-                  <Button variant="secondary" className="h-8 text-xs gap-orbit-xs" onClick={() => onMarkNewIssue(clauseId)}>
+                  <Button variant="secondary" className="h-8 text-orbit-xs gap-orbit-xs" onClick={() => onMarkNewIssue(clauseId)}>
                     <AlertTriangle className="w-3.5 h-3.5" /> Mark as New Issue
                   </Button>
                 </>
@@ -9803,43 +9921,43 @@ function ClauseDetailPanel({
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <p className="text-[10px] v6-orbit-weight-semibold text-muted-foreground uppercase tracking-wider">{children}</p>;
+  return <p className="text-orbit-xs v6-orbit-weight-semibold text-orbit-fg-secondary uppercase tracking-wider">{children}</p>;
 }
 
 function SidePanel({ label, clause, highlight }: { label: string; clause?: ClauseResult; highlight?: boolean }) {
   return (
-    <div className={`rounded-md border p-orbit-base space-y-orbit-s ${highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
+    <div className={`rounded-orbit-md border p-orbit-base space-y-orbit-s ${highlight ? "border-orbit-primary/40 bg-orbit-primary/5" : "border-orbit-border bg-orbit-card"}`}>
       <div className="flex items-center justify-between">
-        <span className="text-[10px] tabular-nums v6-orbit-weight-semibold text-muted-foreground uppercase">{label}</span>
+        <span className="text-orbit-xs tabular-nums v6-orbit-weight-semibold text-orbit-fg-secondary uppercase">{label}</span>
         {clause && (
           <Badge variant="outline" className={severityTone(clause.severity)}>{clause.severity}</Badge>
         )}
       </div>
-      <p className="text-sm text-foreground">{clause?.deviation ?? "— Not present —"}</p>
+      <p className="text-orbit-sm text-orbit-fg">{clause?.deviation ?? "— Not present —"}</p>
     </div>
   );
 }
 
 function ExcerptPanel({ label, text, highlight }: { label: string; text?: string; highlight?: boolean }) {
   return (
-    <div className={`rounded-md border p-orbit-base space-y-orbit-s ${highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
-      <span className="text-[10px] tabular-nums v6-orbit-weight-semibold text-muted-foreground uppercase">{label}</span>
+    <div className={`rounded-orbit-md border p-orbit-base space-y-orbit-s ${highlight ? "border-orbit-primary/40 bg-orbit-primary/5" : "border-orbit-border bg-orbit-card"}`}>
+      <span className="text-orbit-xs tabular-nums v6-orbit-weight-semibold text-orbit-fg-secondary uppercase">{label}</span>
       {text ? (
-        <p className="text-xs text-muted-foreground italic border-l-2 border-border pl-orbit-s">"{text}"</p>
+        <p className="text-orbit-xs text-orbit-fg-secondary italic border-l-2 border-orbit-border pl-orbit-s">"{text}"</p>
       ) : (
-        <p className="text-xs text-muted-foreground italic">— Not present —</p>
+        <p className="text-orbit-xs text-orbit-fg-secondary italic">— Not present —</p>
       )}
     </div>
   );
 }
 
 function LocationsList({ items }: { items?: string[] }) {
-  if (!items || items.length === 0) return <p className="text-xs text-muted-foreground italic">No additional locations.</p>;
+  if (!items || items.length === 0) return <p className="text-orbit-xs text-orbit-fg-secondary italic">No additional locations.</p>;
   return (
     <ul className="space-y-orbit-xs">
       {items.map((l) => (
-        <li key={l} className="text-xs text-foreground tabular-nums flex items-center gap-orbit-xs">
-          <MapPin className="w-3 h-3 text-muted-foreground" /> {l}
+        <li key={l} className="text-orbit-xs text-orbit-fg tabular-nums flex items-center gap-orbit-xs">
+          <MapPin className="w-3 h-3 text-orbit-fg-secondary" /> {l}
         </li>
       ))}
     </ul>
@@ -9865,7 +9983,7 @@ function SupplierGroupingPopover({
       <TooltipTrigger asChild>
         <Button variant="outline" className={`${compact ? "h-7 px-orbit-s text-xs" : "h-9"} gap-orbit-xs`}>
           <Info className="w-3.5 h-3.5" /> Why grouped?
-          <Badge variant="outline" className={`${compact ? "hidden 2xl:inline-flex" : ""} ${isManual ? "bg-secondary text-secondary-foreground border-border ml-orbit-xs" : "bg-success/10 text-success border-success/20 ml-orbit-xs"}`}>
+          <Badge variant="outline" className={`${compact ? "hidden 2xl:inline-flex" : ""} ${isManual ? "bg-orbit-surface text-orbit-fg-secondary border-orbit-border ml-orbit-xs" : "bg-orbit-success/10 text-orbit-success border-orbit-success/20 ml-orbit-xs"}`}>
             {isManual ? "Manual" : `Auto · ${(g.confidence * 100).toFixed(0)}%`}
           </Badge>
         </Button>
@@ -9902,7 +10020,7 @@ function HistoryDesignContent({
     return (
       <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-base py-orbit-base xl:grid-cols-[360px_minmax(0,1fr)] xl:items-start">
         <aside className="self-start xl:sticky xl:top-[104px] xl:max-h-[calc(100vh-128px)] xl:overflow-y-auto">
-          <section className="overflow-hidden rounded-lg border border-border bg-card">
+          <section className="overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">
             <HistoryRailTabs active={railTab} onChange={setRailTab} />
             <div className="p-orbit-base">
               {railTab === "summary" ? (
@@ -9946,15 +10064,15 @@ function HistoryRailTabs({
   onChange: (value: "summary" | "categories") => void;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-orbit-xs border-b border-border bg-[#f8f7f5] p-orbit-xs">
+    <div className="grid grid-cols-2 gap-orbit-xs border-b border-orbit-border bg-orbit-surface p-orbit-xs">
       {(["summary", "categories"] as const).map((value) => (
         <button
           key={value}
           type="button"
           onClick={() => onChange(value)}
           className={cn(
-            "h-7 rounded-md text-[11px] v6-orbit-weight-medium capitalize transition-colors",
-            active === value ? "bg-[#1a2744] text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            "h-7 rounded-orbit-md text-orbit-xs v6-orbit-weight-medium capitalize transition-colors",
+            active === value ? "bg-orbit-heading text-orbit-inverse" : "text-orbit-fg-secondary hover:bg-orbit-surface hover:text-orbit-fg",
           )}
         >
           {value}
@@ -9977,12 +10095,12 @@ function HistorySummaryPanel({
   const latest = versions.at(-1);
   return (
     <div className={cn("space-y-orbit-base", !compact && "mt-orbit-base")}>
-      <div className="rounded-lg border border-border bg-[#f8f7f5] p-orbit-base">
-        <p className="text-[10px] v6-orbit-weight-semibold uppercase tracking-[0.08em] text-muted-foreground">Scope</p>
-        <p className="mt-orbit-xs text-sm v6-orbit-weight-semibold text-foreground">
+      <div className="rounded-orbit-lg border border-orbit-border bg-orbit-surface p-orbit-base">
+        <p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-[0.08em] text-orbit-fg-secondary">Scope</p>
+        <p className="mt-orbit-xs text-orbit-sm v6-orbit-weight-semibold text-orbit-fg">
           {first?.version ?? "v1"} → {latest?.version ?? "v1"}
         </p>
-        <p className="mt-orbit-xxs text-[11px] text-muted-foreground">
+        <p className="mt-orbit-xxs text-orbit-xs text-orbit-fg-secondary">
           {versions.length} rounds{first && latest ? ` · ${formatShortDate(first.uploadedAt)} to ${formatShortDate(latest.uploadedAt)}` : ""}
         </p>
       </div>
@@ -10014,27 +10132,27 @@ function HistoryRoundTable({
 }) {
   if (rows.length === 0) {
     return (
-      <div className="py-orbit-mega text-center text-[11px] italic text-muted-foreground">
+      <div className="py-orbit-mega text-center text-orbit-xs italic text-orbit-fg-secondary">
         No clauses match the current filters.
       </div>
     );
   }
 
   return (
-    <div className="min-w-0 overflow-x-auto rounded-lg border border-border bg-card">
+    <div className="min-w-0 overflow-x-auto rounded-orbit-lg border border-orbit-border bg-orbit-card">
       <div
         className="min-w-[560px]"
         style={{ display: "grid", gridTemplateColumns: `24px minmax(160px,1.35fr) repeat(${versions.length}, minmax(62px,0.75fr)) minmax(76px,0.8fr) 28px` }}
       >
-        <div className="border-b border-border bg-[#f8f7f5] px-orbit-base py-orbit-s" />
-        <div className="border-b border-border bg-[#f8f7f5] px-orbit-base py-orbit-s text-[9px] v6-orbit-weight-medium uppercase tracking-[0.04em] text-muted-foreground">Clause</div>
+        <div className="border-b border-orbit-border bg-orbit-surface px-orbit-base py-orbit-s" />
+        <div className="border-b border-orbit-border bg-orbit-surface px-orbit-base py-orbit-s text-orbit-xs v6-orbit-weight-medium uppercase tracking-[0.04em] text-orbit-fg-secondary">Clause</div>
         {versions.map((version, index) => (
-          <div key={version.version} className="border-b border-border bg-[#f8f7f5] px-orbit-s py-orbit-s text-center text-[9px] v6-orbit-weight-medium uppercase tracking-[0.04em] text-muted-foreground">
+          <div key={version.version} className="border-b border-orbit-border bg-orbit-surface px-orbit-s py-orbit-s text-center text-orbit-xs v6-orbit-weight-medium uppercase tracking-[0.04em] text-orbit-fg-secondary">
             R{index + 1} {version.version}
           </div>
         ))}
-        <div className="border-b border-border bg-[#f8f7f5] px-orbit-s py-orbit-s text-center text-[9px] v6-orbit-weight-medium uppercase tracking-[0.04em] text-muted-foreground">Status</div>
-        <div className="border-b border-border bg-[#f8f7f5] px-orbit-s py-orbit-s" />
+        <div className="border-b border-orbit-border bg-orbit-surface px-orbit-s py-orbit-s text-center text-orbit-xs v6-orbit-weight-medium uppercase tracking-[0.04em] text-orbit-fg-secondary">Status</div>
+        <div className="border-b border-orbit-border bg-orbit-surface px-orbit-s py-orbit-s" />
 
         {rows.map((row) => (
           <button
@@ -10042,24 +10160,24 @@ function HistoryRoundTable({
             key={row.id}
             type="button"
             onClick={() => onOpenDetail(row.id)}
-            className={`group contents text-left ${highlightedId === row.id ? "[&>*]:bg-[#E6F1FB]" : ""}`}
+            className={`group contents text-left ${highlightedId === row.id ? "[&>*]:bg-orbit-info-surface" : ""}`}
           >
-            <div className="border-b border-border px-orbit-base py-orbit-s transition-colors group-hover:bg-[#f8f7f5]">
-              {row.stateChanges >= 3 && <span className="mt-orbit-s block h-1.5 w-1.5 rounded-full bg-[#A32D2D]" title="Highly contentious" />}
+            <div className="border-b border-orbit-border px-orbit-base py-orbit-s transition-colors group-hover:bg-orbit-surface">
+              {row.stateChanges >= 3 && <span className="mt-orbit-s block h-1.5 w-1.5 rounded-full bg-orbit-error" title="Highly contentious" />}
             </div>
-            <div className="min-w-0 border-b border-border px-orbit-base py-orbit-s transition-colors group-hover:bg-[#f8f7f5]">
-              <p className="truncate text-[11px] v6-orbit-weight-medium text-foreground">{row.title}</p>
-              <p className="truncate text-[9px] uppercase text-muted-foreground">{row.id.toUpperCase()} · {row.category}</p>
+            <div className="min-w-0 border-b border-orbit-border px-orbit-base py-orbit-s transition-colors group-hover:bg-orbit-surface">
+              <p className="truncate text-orbit-xs v6-orbit-weight-medium text-orbit-fg">{row.title}</p>
+              <p className="truncate text-orbit-xs uppercase text-orbit-fg-secondary">{row.id.toUpperCase()} · {row.category}</p>
             </div>
             {row.cells.map((cell) => (
-              <div key={`${row.id}-${cell.version}`} className="border-b border-border px-orbit-s py-orbit-s text-center transition-colors group-hover:bg-[#f8f7f5]">
+              <div key={`${row.id}-${cell.version}`} className="border-b border-orbit-border px-orbit-s py-orbit-s text-center transition-colors group-hover:bg-orbit-surface">
                 <RoundStatusPill status={cell.status}>{cell.label}</RoundStatusPill>
               </div>
             ))}
-            <div className="border-b border-border px-orbit-s py-orbit-s text-center transition-colors group-hover:bg-[#f8f7f5]">
+            <div className="border-b border-orbit-border px-orbit-s py-orbit-s text-center transition-colors group-hover:bg-orbit-surface">
               {row.currentPill.status ? <ChangePillBadge result={row.currentPill} /> : <RoundStatusPill status={row.currentStatus}>{roundStatusLabel(row.currentStatus)}</RoundStatusPill>}
             </div>
-            <div className="border-b border-border px-orbit-s py-orbit-s text-center text-sm text-muted-foreground transition-colors group-hover:bg-[#f8f7f5]">›</div>
+            <div className="border-b border-orbit-border px-orbit-s py-orbit-s text-center text-orbit-sm text-orbit-fg-secondary transition-colors group-hover:bg-orbit-surface">›</div>
           </button>
         ))}
       </div>
@@ -10069,21 +10187,21 @@ function HistoryRoundTable({
 
 function RoundStatusPill({ status, children }: { status: RoundStatus; children: ReactNode }) {
   return (
-    <span className={`inline-flex rounded-full border px-orbit-xs py-orbit-xxs text-[9px] v6-orbit-weight-medium ${roundStatusTone(status)}`}>
+    <span className={`inline-flex rounded-full border px-orbit-xs py-orbit-xxs text-orbit-xs v6-orbit-weight-medium ${roundStatusTone(status)}`}>
       {children}
     </span>
   );
 }
 
 function roundStatusTone(status: RoundStatus) {
-  if (status === "requested") return "border-[#185FA5]/25 bg-[#E6F1FB] text-[#185FA5]";
-  if (status === "open") return "border-[#BA7517]/25 bg-[#FAEEDA] text-[#633806]";
-  if (status === "updated") return "border-border bg-muted text-muted-foreground";
-  if (status === "met") return "border-[#3B6D11]/25 bg-[#EAF3DE] text-[#27500A]";
-  if (status === "not_met") return "border-[#A32D2D]/25 bg-[#FCEBEB] text-[#791F1F]";
-  if (status === "regressed") return "border-[#A32D2D]/25 bg-[#FAEEDA] text-[#633806]";
-  if (status === "new") return "border-[#185FA5]/25 bg-[#E6F1FB] text-[#0C447C]";
-  return "border-transparent bg-transparent text-muted-foreground";
+  if (status === "requested") return "border-orbit-info/25 bg-orbit-info-surface text-orbit-info";
+  if (status === "open") return "border-orbit-warning/25 bg-orbit-warning-surface text-orbit-warning";
+  if (status === "updated") return "border-orbit-border bg-orbit-surface text-orbit-fg-secondary";
+  if (status === "met") return "border-orbit-success/25 bg-orbit-success-surface text-orbit-success";
+  if (status === "not_met") return "border-orbit-error/25 bg-orbit-error-surface text-orbit-error";
+  if (status === "regressed") return "border-orbit-error/25 bg-orbit-warning-surface text-orbit-warning";
+  if (status === "new") return "border-orbit-info/25 bg-orbit-info-surface text-orbit-info";
+  return "border-transparent bg-transparent text-orbit-fg-secondary";
 }
 
 function roundStatusLabel(status: RoundStatus) {
@@ -10100,34 +10218,34 @@ function ClauseAuditPanel({ clauseId }: { clauseId: string }) {
   const conf = confidenceLabel(audit.confidence);
   const history = audit.history ?? [];
   return (
-    <div className="rounded-md border border-border bg-card p-orbit-base space-y-orbit-base">
+    <div className="rounded-orbit-md border border-orbit-border bg-orbit-card p-orbit-base space-y-orbit-base">
       <div className="flex items-start justify-between gap-orbit-base flex-wrap">
         <div>
-          <p className="text-[10px] tabular-nums v6-orbit-weight-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-orbit-xs">
+          <p className="text-orbit-xs tabular-nums v6-orbit-weight-semibold text-orbit-fg-secondary uppercase tracking-wider flex items-center gap-orbit-xs">
             <ShieldCheck className="w-3 h-3" /> {audit.ruleId} · {audit.ruleName}
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-orbit-xs text-orbit-fg-secondary">
             Rule version <span className="tabular-nums">{audit.ruleVersion}</span>
           </p>
         </div>
         {/* DI-17: numeric band + reasoning shown inline, no hover required */}
         <div className="flex flex-col items-end gap-orbit-xs">
-          <Badge variant="outline" className={`${conf.tone} text-[11px] gap-orbit-xs`}>
+          <Badge variant="outline" className={`${conf.tone} text-orbit-xs gap-orbit-xs`}>
             <Sigma className="w-3 h-3" /> {conf.label} confidence ·{" "}
             <span className="tabular-nums">{(audit.confidence * 100).toFixed(0)}%</span>
             <span className="opacity-60 tabular-nums">({conf.range})</span>
           </Badge>
-          <p className="text-[11px] text-muted-foreground max-w-[280px] text-right">{conf.reasoning}</p>
+          <p className="text-orbit-xs text-orbit-fg-secondary max-w-[280px] text-right">{conf.reasoning}</p>
         </div>
       </div>
 
       <Tabs defaultValue="rule" className="w-full">
         <TabsList className="h-8">
-          <TabsTrigger value="rule" className="text-[11px] h-7">Active rule</TabsTrigger>
-          <TabsTrigger value="history" className="text-[11px] h-7 gap-orbit-xs">
+          <TabsTrigger value="rule" className="text-orbit-xs h-7">Active rule</TabsTrigger>
+          <TabsTrigger value="history" className="text-orbit-xs h-7 gap-orbit-xs">
             <History className="w-3 h-3" /> Rule history
             {history.length > 0 && (
-              <span className="ml-orbit-xxs px-orbit-xs rounded bg-muted text-[10px] tabular-nums text-muted-foreground">
+              <span className="ml-orbit-xxs px-orbit-xs rounded-orbit-sm bg-orbit-surface text-orbit-xs tabular-nums text-orbit-fg-secondary">
                 {history.length}
               </span>
             )}
@@ -10136,29 +10254,29 @@ function ClauseAuditPanel({ clauseId }: { clauseId: string }) {
 
         <TabsContent value="rule" className="m-orbit-none mt-orbit-base space-y-orbit-base">
           <div>
-            <p className="text-[10px] v6-orbit-weight-semibold uppercase text-muted-foreground tracking-wider">Expectation</p>
-            <p className="text-sm text-foreground">{audit.expectation}</p>
+            <p className="text-orbit-xs v6-orbit-weight-semibold uppercase text-orbit-fg-secondary tracking-wider">Expectation</p>
+            <p className="text-orbit-sm text-orbit-fg">{audit.expectation}</p>
           </div>
           {audit.matchedExcerpt && (
             <div>
-              <p className="text-[10px] v6-orbit-weight-semibold uppercase text-muted-foreground tracking-wider">Matched clause excerpt</p>
-              <p className="text-xs italic text-muted-foreground border-l-2 border-primary/40 pl-orbit-s mt-orbit-xs">"{audit.matchedExcerpt}"</p>
-              {audit.location && <p className="text-[11px] tabular-nums text-muted-foreground mt-orbit-xs">Location: {audit.location}</p>}
+              <p className="text-orbit-xs v6-orbit-weight-semibold uppercase text-orbit-fg-secondary tracking-wider">Matched clause excerpt</p>
+              <p className="text-orbit-xs italic text-orbit-fg-secondary border-l-2 border-orbit-primary/40 pl-orbit-s mt-orbit-xs">"{audit.matchedExcerpt}"</p>
+              {audit.location && <p className="text-orbit-xs tabular-nums text-orbit-fg-secondary mt-orbit-xs">Location: {audit.location}</p>}
             </div>
           )}
           <div>
-            <p className="text-[10px] v6-orbit-weight-semibold uppercase text-muted-foreground tracking-wider">AI rationale</p>
-            <p className="text-xs text-foreground">{audit.rationale}</p>
+            <p className="text-orbit-xs v6-orbit-weight-semibold uppercase text-orbit-fg-secondary tracking-wider">AI rationale</p>
+            <p className="text-orbit-xs text-orbit-fg">{audit.rationale}</p>
           </div>
           {audit.confidence < 0.7 && (
-            <div className="rounded border border-destructive/30 bg-destructive/5 p-orbit-s text-[11px] text-destructive flex items-center gap-orbit-xs">
+            <div className="rounded-orbit-sm border border-orbit-destructive/30 bg-orbit-destructive/5 p-orbit-s text-orbit-xs text-orbit-destructive flex items-center gap-orbit-xs">
               <AlertTriangle className="w-3 h-3" /> Low confidence — review the source clause before accepting.
             </div>
           )}
           {audit.evidenceUrl && (
             <a
               href={audit.evidenceUrl}
-              className="inline-flex items-center gap-orbit-xs text-xs text-primary hover:underline"
+              className="inline-flex items-center gap-orbit-xs text-orbit-xs text-orbit-primary hover:underline"
             >
               View evidence <ExternalLink className="w-3 h-3" />
             </a>
@@ -10167,35 +10285,35 @@ function ClauseAuditPanel({ clauseId }: { clauseId: string }) {
 
         <TabsContent value="history" className="m-orbit-none mt-orbit-base">
           {history.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">No prior versions recorded for this rule.</p>
+            <p className="text-orbit-xs text-orbit-fg-secondary italic">No prior versions recorded for this rule.</p>
           ) : (
-            <ol className="space-y-orbit-s border-l border-border pl-orbit-base">
+            <ol className="space-y-orbit-s border-l border-orbit-border pl-orbit-base">
               {history.map((h, i) => {
                 const prevExpectation = history[i + 1]?.expectation;
                 const changedExpectation = prevExpectation && prevExpectation !== h.expectation;
                 return (
                   <li key={h.version} className="relative">
-                    <span className="absolute -left-[18px] top-1 w-2.5 h-2.5 rounded-full bg-primary/70 border-2 border-card" aria-hidden />
+                    <span className="absolute -left-[18px] top-orbit-xs w-2.5 h-2.5 rounded-full bg-orbit-primary/70 border-2 border-orbit-card" aria-hidden />
                     <div className="flex flex-wrap items-baseline gap-orbit-s">
-                      <span className="tabular-nums text-[11px] v6-orbit-weight-semibold text-foreground">{h.version}</span>
-                      <span className="text-[10px] text-muted-foreground">{h.date}</span>
-                      <span className="text-[10px] text-muted-foreground">· {h.author}</span>
+                      <span className="tabular-nums text-orbit-xs v6-orbit-weight-semibold text-orbit-fg">{h.version}</span>
+                      <span className="text-orbit-xs text-orbit-fg-secondary">{h.date}</span>
+                      <span className="text-orbit-xs text-orbit-fg-secondary">· {h.author}</span>
                       {i === 0 && (
-                        <Badge variant="outline" className="text-[9px] h-4 px-orbit-xs bg-primary/10 text-primary border-primary/30">
+                        <Badge variant="outline" className="text-orbit-xs h-4 px-orbit-xs bg-orbit-primary/10 text-orbit-primary border-orbit-primary/30">
                           current
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-foreground mt-orbit-xxs">{h.change}</p>
+                    <p className="text-orbit-xs text-orbit-fg mt-orbit-xxs">{h.change}</p>
                     {changedExpectation && (
-                      <div className="mt-orbit-xs text-[11px] rounded border border-border bg-muted/30 p-orbit-s space-y-orbit-xxs">
+                      <div className="mt-orbit-xs text-orbit-xs rounded-orbit-sm border border-orbit-border bg-orbit-surface/30 p-orbit-s space-y-orbit-xxs">
                         <p>
-                          <span className="text-destructive line-through decoration-destructive">
+                          <span className="text-orbit-destructive line-through decoration-destructive">
                             {prevExpectation}
                           </span>
                         </p>
                         <p>
-                          <span className="text-success underline decoration-success decoration-2 underline-offset-2">
+                          <span className="text-orbit-success underline decoration-success decoration-2 underline-offset-2">
                             {h.expectation}
                           </span>
                         </p>

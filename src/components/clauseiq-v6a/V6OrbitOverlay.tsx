@@ -73,12 +73,12 @@ export function V6OrbitOverlay({
                   onClick={() => onOpenChange(false)}
                 />
               </div>
-              <div aria-hidden="true" className="pointer-events-none absolute bottom-0 h-px bg-border" style={fullBleedSeparatorStyle} />
+              <div aria-hidden="true" className="pointer-events-none absolute bottom-0 h-px bg-orbit-border" style={fullBleedSeparatorStyle} />
             </div>
-            {children && <div className="v6-hover-scrollbar min-h-0 overflow-y-auto px-[24px] py-[16px]">{children}</div>}
+            {children && <div className="v6-hover-scrollbar min-h-0 overflow-y-auto px-orbit-m py-orbit-base">{children}</div>}
             {footer && (
               <div className="relative px-orbit-base py-orbit-base">
-                <div aria-hidden="true" className="pointer-events-none absolute top-0 h-px bg-border" style={fullBleedSeparatorStyle} />
+                <div aria-hidden="true" className="pointer-events-none absolute top-0 h-px bg-orbit-border" style={fullBleedSeparatorStyle} />
                 {footer}
               </div>
             )}

@@ -1,11 +1,11 @@
 import { useState, useMemo } from "react";
-import { ChevronLeft, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronLeft, ArrowRight } from "@/components/clauseiq-v6a/v6aIcons";
+import { Button } from "@/components/clauseiq-v6a/orbit-ui/button";
+import { Badge } from "@/components/clauseiq-v6a/orbit-ui/badge";
+import { Checkbox } from "@/components/clauseiq-v6a/orbit-ui/checkbox";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+} from "@/components/clauseiq-v6a/orbit-ui/table";
 import { getInitiative, statusTone } from "@/lib/workflow-v6-data";
 import type { Supplier } from "@/lib/workflow-types";
 
@@ -50,21 +50,21 @@ export function CrossSupplierComparison({ initiativeId, onBack, onOpenSupplier, 
   };
 
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+    <div className="min-h-screen bg-orbit-canvas p-orbit-l">
+      <div className="max-w-6xl mx-auto space-y-orbit-m">
+        <button onClick={onBack} className="flex items-center gap-orbit-xs text-orbit-sm text-orbit-fg-secondary hover:text-orbit-fg">
           <ChevronLeft className="w-4 h-4" /> Back to {initiative.name}
         </button>
 
-        <header className="space-y-1">
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Compare suppliers — {initiative.name}</h1>
-          <p className="text-sm text-muted-foreground">
+        <header className="space-y-orbit-xs">
+          <h1 className="text-orbit-2xl font-orbit-bold text-orbit-fg tracking-tight">Compare suppliers — {initiative.name}</h1>
+          <p className="text-orbit-sm text-orbit-fg-secondary">
             Tick up to {MAX_COMPARE} suppliers to evaluate side-by-side, then drill into evidence.
-            <span className="ml-2 text-xs font-mono text-muted-foreground">{selected.size}/{MAX_COMPARE} selected</span>
+            <span className="ml-orbit-s text-orbit-xs tabular-nums text-orbit-fg-secondary">{selected.size}/{MAX_COMPARE} selected</span>
           </p>
         </header>
 
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="bg-orbit-card border border-orbit-border rounded-orbit-lg overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -88,12 +88,12 @@ export function CrossSupplierComparison({ initiativeId, onBack, onOpenSupplier, 
                       aria-label={`Compare ${s.name}`}
                     />
                   </TableCell>
-                  <TableCell className="font-medium">{s.name}</TableCell>
+                  <TableCell className="font-orbit-medium">{s.name}</TableCell>
                   <TableCell><Badge variant="outline" className={statusTone(s.status)}>{s.status}</Badge></TableCell>
-                  <TableCell className="font-mono">{s.score ?? "—"}</TableCell>
-                  <TableCell className="font-mono">{s.high}</TableCell>
-                  <TableCell className="font-mono">{s.openRequests}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{s.latestVersion ?? "—"}</TableCell>
+                  <TableCell className="tabular-nums">{s.score ?? "—"}</TableCell>
+                  <TableCell className="tabular-nums">{s.high}</TableCell>
+                  <TableCell className="tabular-nums">{s.openRequests}</TableCell>
+                  <TableCell className="text-orbit-sm text-orbit-fg-secondary">{s.latestVersion ?? "—"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -101,25 +101,25 @@ export function CrossSupplierComparison({ initiativeId, onBack, onOpenSupplier, 
         </div>
 
         {atCap && (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-orbit-xs text-orbit-fg-secondary">
             Maximum of {MAX_COMPARE} suppliers reached. Untick one to swap.
           </p>
         )}
 
         {compared.length >= 2 && (
-          <div className="bg-card border border-primary/30 rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-border">
-              <h2 className="text-sm font-semibold">Side-by-side comparison ({compared.length})</h2>
-              <p className="text-xs text-muted-foreground">Drill into a supplier or jump to a contract for the underlying clause evidence. Scroll horizontally to see all suppliers.</p>
+          <div className="bg-orbit-card border border-orbit-primary/30 rounded-orbit-lg overflow-hidden">
+            <div className="px-orbit-base py-orbit-base border-b border-orbit-border">
+              <h2 className="text-orbit-sm font-orbit-semibold">Side-by-side comparison ({compared.length})</h2>
+              <p className="text-orbit-xs text-orbit-fg-secondary">Drill into a supplier or jump to a contract for the underlying clause evidence. Scroll horizontally to see all suppliers.</p>
             </div>
             {/* DI-20: horizontal scroll + sticky first column for portfolio-scale comparisons */}
             <div className="overflow-x-auto">
-              <table className="w-full text-sm border-separate border-spacing-0 min-w-[640px]">
-                <thead className="bg-muted/30">
+              <table className="w-full text-orbit-sm border-separate border-spacing-0 min-w-[640px]">
+                <thead className="bg-orbit-surface/30">
                   <tr>
-                    <th className="text-left px-4 py-2 font-semibold text-muted-foreground sticky left-0 bg-muted/30 z-10 border-b border-border min-w-[180px]">Metric</th>
+                    <th className="text-left px-orbit-base py-orbit-s font-orbit-semibold text-orbit-fg-secondary sticky left-0 bg-orbit-surface/30 z-10 border-b border-orbit-border min-w-[180px]">Metric</th>
                     {compared.map((c) => (
-                      <th key={c.id} className="text-left px-4 py-2 font-semibold border-b border-border min-w-[180px]">{c.name}</th>
+                      <th key={c.id} className="text-left px-orbit-base py-orbit-s font-orbit-semibold border-b border-orbit-border min-w-[180px]">{c.name}</th>
                     ))}
                   </tr>
                 </thead>
@@ -128,28 +128,28 @@ export function CrossSupplierComparison({ initiativeId, onBack, onOpenSupplier, 
                     {compared.map((c) => <Badge key={c.id} variant="outline" className={statusTone(c.status)}>{c.status}</Badge>)}
                   </Row>
                   <Row label="ClauseIQ Score">
-                    {compared.map((c) => <span key={c.id} className="font-mono">{c.score ?? "—"}/100</span>)}
+                    {compared.map((c) => <span key={c.id} className="tabular-nums">{c.score ?? "—"}/100</span>)}
                   </Row>
                   <Row label="High-severity issues">
-                    {compared.map((c) => <span key={c.id} className="font-mono text-destructive">{c.high}</span>)}
+                    {compared.map((c) => <span key={c.id} className="tabular-nums text-orbit-destructive">{c.high}</span>)}
                   </Row>
                   <Row label="Medium-severity issues">
-                    {compared.map((c) => <span key={c.id} className="font-mono text-warning">{c.medium}</span>)}
+                    {compared.map((c) => <span key={c.id} className="tabular-nums text-orbit-warning">{c.medium}</span>)}
                   </Row>
                   <Row label="Open requests">
-                    {compared.map((c) => <span key={c.id} className="font-mono">{c.openRequests}</span>)}
+                    {compared.map((c) => <span key={c.id} className="tabular-nums">{c.openRequests}</span>)}
                   </Row>
                   <Row label="Top risk">
-                    {compared.map((c) => <span key={c.id} className="text-xs">{c.topRisk}</span>)}
+                    {compared.map((c) => <span key={c.id} className="text-orbit-xs">{c.topRisk}</span>)}
                   </Row>
                   <Row label="Drill in">
                     {compared.map((c) => (
-                      <div key={c.id} className="flex flex-col items-start gap-1">
-                        <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={() => onOpenSupplier(c.id)}>
-                          Open supplier <ArrowRight className="w-3 h-3 ml-1" />
+                      <div key={c.id} className="flex flex-col items-start gap-orbit-xs">
+                        <Button size="sm" variant="outline" className="h-7 text-orbit-xs" onClick={() => onOpenSupplier(c.id)}>
+                          Open supplier <ArrowRight className="w-3 h-3 ml-orbit-xs" />
                         </Button>
                         {c.firstContractId && (
-                          <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => onOpenContract(c.id, c.firstContractId!)}>
+                          <Button size="sm" variant="ghost" className="h-7 text-orbit-xs" onClick={() => onOpenContract(c.id, c.firstContractId!)}>
                             Open evidence
                           </Button>
                         )}
@@ -170,11 +170,11 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   const items = Array.isArray(children) ? children : [children];
   return (
     <tr>
-      <td className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase border-t border-border sticky left-0 bg-card z-10">
+      <td className="px-orbit-base py-orbit-s text-orbit-xs font-orbit-semibold text-orbit-fg-secondary uppercase border-t border-orbit-border sticky left-0 bg-orbit-card z-10">
         {label}
       </td>
       {items.map((child, i) => (
-        <td key={i} className="px-4 py-2 align-top border-t border-border">{child}</td>
+        <td key={i} className="px-orbit-base py-orbit-s align-top border-t border-orbit-border">{child}</td>
       ))}
     </tr>
   );

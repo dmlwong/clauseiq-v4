@@ -60,16 +60,16 @@ export function NegotiationTrendStrip({ versions, allDecisions, activeVersion, o
   const maxBar = Math.max(1, ...points.map((p) => p.high + p.medium + p.openRequests));
 
   return (
-    <div className="rounded-lg border border-border bg-card px-orbit-base py-orbit-base">
+    <div className="rounded-orbit-lg border border-orbit-border bg-orbit-card px-orbit-base py-orbit-base">
       <div className="mb-orbit-base flex flex-wrap items-start justify-between gap-orbit-base">
         <div>
-          <h3 className="v6-orbit-heading-strong text-foreground">Negotiation trend</h3>
-          <p className="text-xs text-muted-foreground">High / medium issues and open requests across all rounds.</p>
+          <h3 className="v6-orbit-heading-strong text-orbit-fg">Negotiation trend</h3>
+          <p className="text-orbit-xs text-orbit-fg-secondary">High / medium issues and open requests across all rounds.</p>
         </div>
-        <div className="flex items-center gap-orbit-base text-[10px] text-muted-foreground">
-          <span className="inline-flex items-center gap-orbit-xs"><span className="w-2 h-2 rounded-sm bg-destructive" /> High</span>
-          <span className="inline-flex items-center gap-orbit-xs"><span className="w-2 h-2 rounded-sm bg-warning" /> Medium</span>
-          <span className="inline-flex items-center gap-orbit-xs"><span className="w-2 h-2 rounded-sm bg-primary" /> Open requests</span>
+        <div className="flex items-center gap-orbit-base text-orbit-xs text-orbit-fg-secondary">
+          <span className="inline-flex items-center gap-orbit-xs"><span className="w-2 h-2 rounded-orbit-sm bg-orbit-destructive" /> High</span>
+          <span className="inline-flex items-center gap-orbit-xs"><span className="w-2 h-2 rounded-orbit-sm bg-orbit-warning" /> Medium</span>
+          <span className="inline-flex items-center gap-orbit-xs"><span className="w-2 h-2 rounded-orbit-sm bg-orbit-primary" /> Open requests</span>
         </div>
       </div>
       <div className="grid gap-orbit-s md:grid-cols-2 lg:grid-cols-4">
@@ -81,27 +81,27 @@ export function NegotiationTrendStrip({ versions, allDecisions, activeVersion, o
               type="button"
               onClick={() => onJump?.(p.version)}
               className={`rounded-md border px-orbit-base py-orbit-s text-left text-xs transition-colors ${
-                isActive ? "border-primary bg-primary/5" : "border-border bg-background hover:bg-muted/40"
+                isActive ? "border-orbit-primary bg-orbit-primary/5" : "border-orbit-border bg-orbit-canvas hover:bg-orbit-surface/40"
               }`}
             >
               <div className="flex items-start justify-between gap-orbit-s">
-                <span className="tabular-nums text-[11px] v6-orbit-weight-semibold text-foreground">{p.version}</span>
+                <span className="tabular-nums text-orbit-xs v6-orbit-weight-semibold text-orbit-fg">{p.version}</span>
                 {p.supplierChanges > 0 && (
-                  <span className="rounded-full bg-warning/15 px-orbit-s py-orbit-xxs text-[10px] v6-orbit-weight-semibold text-warning-foreground">
+                  <span className="rounded-full bg-orbit-warning/15 px-orbit-s py-orbit-xxs text-orbit-xs v6-orbit-weight-semibold text-orbit-warning">
                     +{p.supplierChanges} changes
                   </span>
                 )}
               </div>
               <div className="mt-orbit-s flex h-9 w-full items-end gap-orbit-xs">
-                <span className="flex-1 rounded-t bg-destructive" style={{ height: `${(p.high / maxBar) * 100}%` }} aria-label={`${p.high} high`} />
-                <span className="flex-1 rounded-t bg-warning" style={{ height: `${(p.medium / maxBar) * 100}%` }} aria-label={`${p.medium} medium`} />
-                <span className="flex-1 rounded-t bg-primary" style={{ height: `${(p.openRequests / maxBar) * 100}%` }} aria-label={`${p.openRequests} open`} />
-                <span className="flex-[4] border-b border-dashed border-border" aria-hidden />
+                <span className="flex-1 rounded-t bg-orbit-destructive" style={{ height: `${(p.high / maxBar) * 100}%` }} aria-label={`${p.high} high`} />
+                <span className="flex-1 rounded-t bg-orbit-warning" style={{ height: `${(p.medium / maxBar) * 100}%` }} aria-label={`${p.medium} medium`} />
+                <span className="flex-1 rounded-t bg-orbit-primary" style={{ height: `${(p.openRequests / maxBar) * 100}%` }} aria-label={`${p.openRequests} open`} />
+                <span className="flex-[4] border-b border-dashed border-orbit-border" aria-hidden />
               </div>
-              <div className="mt-orbit-s grid grid-cols-3 gap-orbit-xs text-[10px] text-muted-foreground">
-                <span><span className="v6-orbit-weight-semibold text-foreground">{p.high}</span> high</span>
-                <span><span className="v6-orbit-weight-semibold text-foreground">{p.medium}</span> med</span>
-                <span><span className="v6-orbit-weight-semibold text-foreground">{p.openRequests}</span> open</span>
+              <div className="mt-orbit-s grid grid-cols-3 gap-orbit-xs text-orbit-xs text-orbit-fg-secondary">
+                <span><span className="v6-orbit-weight-semibold text-orbit-fg">{p.high}</span> high</span>
+                <span><span className="v6-orbit-weight-semibold text-orbit-fg">{p.medium}</span> med</span>
+                <span><span className="v6-orbit-weight-semibold text-orbit-fg">{p.openRequests}</span> open</span>
               </div>
             </button>
           );

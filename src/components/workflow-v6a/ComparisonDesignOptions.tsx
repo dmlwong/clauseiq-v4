@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { ArrowRight, Columns3, Info, List } from "lucide-react";
+import { ArrowRight, Columns3, Info, List } from "@/components/clauseiq-v6a/v6aIcons";
 import {
   Badge,
   Card,
@@ -67,10 +67,10 @@ const designOptions: Array<{ value: ComparisonDesignOption; label: string; icon:
 ];
 
 const distributionColours: Record<keyof DeviationDistribution, string> = {
-  high: "#A32D2D",
-  medium: "#BA7517",
-  low: "#B4B2A9",
-  clean: "#3B6D11",
+  high: "var(--orbit-color-text-error)",
+  medium: "var(--orbit-color-text-warning)",
+  low: "var(--orbit-color-text-secondary)",
+  clean: "var(--orbit-color-text-success)",
 };
 
 const v6DistributionColours: Record<keyof DeviationDistribution, string> = {
@@ -98,7 +98,7 @@ export function DesignOptionSwitcher({
     <div
       role="tablist"
       aria-label="Comparison design"
-      className="flex min-w-0 items-center gap-orbit-xs overflow-x-auto rounded-md border border-border bg-white p-orbit-xxs"
+      className="flex min-w-0 items-center gap-orbit-xs overflow-x-auto rounded-orbit-md border border-orbit-border bg-orbit-card p-orbit-xxs"
     >
       {designOptions.map((option) => {
         const active = option.value === value;
@@ -110,8 +110,8 @@ export function DesignOptionSwitcher({
             ariaControls="comparison-work-column"
             onClick={() => onChange(option.value)}
             className={cn(
-              "h-6 shrink-0 rounded-[5px] px-orbit-s text-[10px]",
-              active ? "bg-[#1a2744] text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              "h-6 shrink-0 rounded-orbit-sm px-orbit-s text-orbit-xs",
+              active ? "bg-orbit-heading text-orbit-inverse" : "text-orbit-fg-secondary hover:bg-orbit-surface hover:text-orbit-fg",
             )}
           >
             <span className="inline-flex items-center gap-orbit-xs">
@@ -184,7 +184,7 @@ export function ComparisonDesignOptions({
         {introBanner}
         <div className="grid gap-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
           <aside className="clauseiq-v6a-comparison-sticky-rail xl:self-start">
-            <section className="clauseiq-v6a-comparison-sticky-rail-panel flex overflow-hidden rounded-lg border border-border bg-card xl:flex-col">
+            <section className="clauseiq-v6a-comparison-sticky-rail-panel flex overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card xl:flex-col">
               <div className="min-h-0 flex-1 overflow-y-auto p-orbit-base">
                 <ComparisonSummaryRail
                   panel={panel}
@@ -293,7 +293,7 @@ export function FirstAnalysisDesignOptions({
       <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-base py-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
         {banner ? <div className="min-w-0 xl:col-span-2">{banner}</div> : null}
         <aside className="clauseiq-v6a-comparison-sticky-rail xl:self-start">
-          <section className="clauseiq-v6a-comparison-sticky-rail-panel flex overflow-hidden rounded-lg border border-border bg-card xl:flex-col">
+          <section className="clauseiq-v6a-comparison-sticky-rail-panel flex overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card xl:flex-col">
             <div className="min-h-0 flex-1 overflow-y-auto p-orbit-base">
               <FirstAnalysisReviewCountPanel visibleCount={visibleCount} />
               <FirstAnalysisSummaryPanel
@@ -397,7 +397,7 @@ function CurrentRiskProfileCard({ metrics }: { metrics: FirstAnalysisMetrics }) 
 
   return (
     <Card type="Static" padding="Base">
-      <div className="mb-orbit-base flex flex-wrap items-center justify-between gap-orbit-s border-b border-border pb-orbit-base">
+      <div className="mb-orbit-base flex flex-wrap items-center justify-between gap-orbit-s border-b border-orbit-border pb-orbit-base">
         <div>
           <Text as="p" size="Small" variant="Secondary">Current risk profile</Text>
           <Text as="p" size="Small" variant="Secondary">{analysisLabel}</Text>
@@ -427,7 +427,7 @@ function FirstAnalysisSummaryPanel({
   compact?: boolean;
 }) {
   return (
-    <section className="rounded-none border-0 bg-card p-orbit-none">
+    <section className="rounded-orbit-none border-0 bg-orbit-card p-orbit-none">
       <Card type="Static" padding={compact ? "Small" : "Base"} state="Accent">
         <div className="flex items-center gap-orbit-s">
           <RadialIndicator
@@ -438,7 +438,7 @@ function FirstAnalysisSummaryPanel({
           />
           <div className="flex items-baseline gap-orbit-s">
             <Headings size="Heading 1" style={{ lineHeight: 1 }}>{metrics.score}</Headings>
-            <span className="text-xs leading-none text-muted-foreground">Analysis Score</span>
+            <span className="text-orbit-xs leading-orbit-tight text-orbit-fg-secondary">Analysis Score</span>
           </div>
         </div>
         <FirstAnalysisMetricBar metrics={metrics} className="mt-orbit-base" />
@@ -537,7 +537,7 @@ export function ComparisonSummaryRail({
     noneDeviation: contract.distribution.clean,
   };
   return (
-    <section className="rounded-none border-0 bg-card p-orbit-none">
+    <section className="rounded-orbit-none border-0 bg-orbit-card p-orbit-none">
       <div>
         <ScoreHero
           stripStats={stripStats}
@@ -614,7 +614,7 @@ function ScoreHero({
             </div>
           </div>
           <div className="flex min-w-0 items-baseline gap-orbit-s">
-            <span className="v6-orbit-heading-1 text-foreground">
+            <span className="v6-orbit-heading-1 text-orbit-fg">
               {panel.current.score}
             </span>
             <span
@@ -636,7 +636,7 @@ function ScoreHero({
           </div>
           <Text as="p" size="Paragraph" variant="Secondary">
             {scoreDirectionLabel} from{" "}
-            <span className="v6-orbit-weight-bold text-foreground">{previous.score}</span>
+            <span className="v6-orbit-weight-bold text-orbit-fg">{previous.score}</span>
             <span aria-hidden="true"> · </span>
             was {previousVersionLabel}
           </Text>
@@ -670,7 +670,7 @@ function VersionMovementCard({
 }) {
   return (
     <Card type="Static" padding="Small" style={{ overflow: "visible" }}>
-      <div className="mb-orbit-base flex flex-wrap items-center justify-between gap-orbit-s border-b border-border pb-orbit-base">
+      <div className="mb-orbit-base flex flex-wrap items-center justify-between gap-orbit-s border-b border-orbit-border pb-orbit-base">
         <Text as="p" size="Small" variant="Secondary">Version movement</Text>
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-orbit-s">
           {comparisonControl}
@@ -709,12 +709,12 @@ function VersionDistributionPair({
 
   if (isHero) {
     return (
-      <div className={cn("grid w-full gap-orbit-s rounded-lg border border-border bg-white p-orbit-base lg:grid-cols-[minmax(0,1fr)_56px_minmax(0,1fr)] lg:items-stretch", className)}>
+      <div className={cn("grid w-full gap-orbit-s rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-base lg:grid-cols-[minmax(0,1fr)_56px_minmax(0,1fr)] lg:items-stretch", className)}>
         <DistributionSide label={leftLabel} score={previous.score} distribution={previous.distribution} large={large} hideScore={hideScore} unframed />
-        <div className="hidden h-full flex-col items-center justify-center gap-orbit-xs text-muted-foreground lg:flex">
+        <div className="hidden h-full flex-col items-center justify-center gap-orbit-xs text-orbit-fg-secondary lg:flex">
           <ArrowRight className="h-4 w-4" />
           {showDelta && (
-            <span className={cn("whitespace-nowrap rounded-full px-orbit-s py-orbit-xxs text-[10px] v6-orbit-weight-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
+            <span className={cn("whitespace-nowrap rounded-full px-orbit-s py-orbit-xxs text-orbit-xs v6-orbit-weight-medium", panel.delta >= 0 ? "bg-orbit-success/10 text-orbit-success" : "bg-orbit-destructive/10 text-orbit-destructive")}>
               {panel.delta >= 0 ? "+" : ""}
               {panel.delta} pts
             </span>
@@ -729,10 +729,10 @@ function VersionDistributionPair({
     <div className={cn("grid w-full gap-orbit-base", isStacked ? "grid-cols-1" : "lg:grid-cols-[minmax(0,1fr)_40px_minmax(0,1fr)] lg:items-stretch", className)}>
       <DistributionSide label={leftLabel} score={previous.score} distribution={previous.distribution} large={large} hideScore={hideScore} />
       {!isStacked && (
-        <div className="hidden h-full flex-col items-center justify-center gap-orbit-xs text-muted-foreground lg:flex">
+        <div className="hidden h-full flex-col items-center justify-center gap-orbit-xs text-orbit-fg-secondary lg:flex">
           <ArrowRight className="h-4 w-4" />
           {showDelta && (
-            <span className={cn("rounded-full px-orbit-s py-orbit-xxs text-[10px] v6-orbit-weight-medium", panel.delta >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
+            <span className={cn("rounded-full px-orbit-s py-orbit-xxs text-orbit-xs v6-orbit-weight-medium", panel.delta >= 0 ? "bg-orbit-success/10 text-orbit-success" : "bg-orbit-destructive/10 text-orbit-destructive")}>
               vs prior{" "}
               {panel.delta >= 0 ? "+" : ""}
               {panel.delta} pts
@@ -775,14 +775,14 @@ function DistributionSide({
           <Text as="p" size="Small" variant="Secondary">{label}</Text>
           {current && <Badge label="Current" status="Information" />}
         </div>
-        {!hideScore && <p className={cn("v6-orbit-weight-semibold text-foreground", large ? "text-lg" : "text-sm")}>{score}</p>}
+        {!hideScore && <p className={cn("v6-orbit-weight-semibold text-orbit-fg", large ? "text-orbit-lg" : "text-orbit-sm")}>{score}</p>}
       </div>
       <DistributionBar distribution={distribution} className="mt-orbit-base" />
-      <div className="mt-orbit-s grid grid-cols-4 gap-orbit-xs text-[9px] text-muted-foreground">
-        <span><strong className="text-[#A32D2D]">{distribution.high}</strong> H</span>
-        <span><strong className="text-[#854F0B]">{distribution.medium}</strong> M</span>
+      <div className="mt-orbit-s grid grid-cols-4 gap-orbit-xs text-orbit-xs text-orbit-fg-secondary">
+        <span><strong className="text-orbit-error">{distribution.high}</strong> H</span>
+        <span><strong className="text-orbit-warning">{distribution.medium}</strong> M</span>
         <span><strong style={useV6StatusColours ? { color: FIRST_ANALYSIS_STATUS_THEME.low.indicatorColor } : undefined}>{distribution.low}</strong> L</span>
-        <span><strong className="text-[#3B6D11]">{distribution.clean}</strong> C</span>
+        <span><strong className="text-orbit-success">{distribution.clean}</strong> C</span>
       </div>
     </Card>
   );
@@ -792,7 +792,7 @@ function DistributionBar({ distribution, className }: { distribution: DeviationD
   const total = Math.max(1, distribution.high + distribution.medium + distribution.low + distribution.clean);
   const colours = isInitiativesV6Route() ? v6DistributionColours : distributionColours;
   return (
-    <div className={cn("flex h-2 overflow-hidden rounded-full bg-muted", className)}>
+    <div className={cn("flex h-2 overflow-hidden rounded-full bg-orbit-surface", className)}>
       {(Object.keys(distributionColours) as Array<keyof DeviationDistribution>).map((key) => {
         const value = distribution[key];
         if (value <= 0) return null;
@@ -901,11 +901,11 @@ const firstAnalysisMetricDefinitions: Array<{
   barBorderColor?: string;
   group: "workflow" | "risk";
 }> = [
-  { key: "high", label: "High", value: "high", tone: "destructive", color: "hsl(var(--destructive))", v6Status: "high", group: "risk" },
-  { key: "medium", label: "Medium", value: "medium", tone: "warning", color: "#F0AB00", v6Status: "medium", group: "risk" },
-  { key: "low", label: "Low", value: "low", color: "#5F5E5A", v6Status: "low", group: "risk" },
-  { key: "missing", label: "Missing Clauses", value: "missingClauses", color: "hsl(var(--foreground))", v6Status: "missing", barColor: "#ffffff", barBorderColor: "hsl(var(--border))", group: "risk" },
-  { key: "none", label: "None", value: "noneDeviation", tone: "success", color: "#3B6D11", v6Status: "none", group: "risk" },
+  { key: "high", label: "High", value: "high", tone: "destructive", color: "var(--orbit-color-text-error)", v6Status: "high", group: "risk" },
+  { key: "medium", label: "Medium", value: "medium", tone: "warning", color: "var(--orbit-color-text-warning)", v6Status: "medium", group: "risk" },
+  { key: "low", label: "Low", value: "low", color: "var(--orbit-color-text-secondary)", v6Status: "low", group: "risk" },
+  { key: "missing", label: "Missing Clauses", value: "missingClauses", color: "var(--orbit-color-text-primary)", v6Status: "missing", barColor: "var(--orbit-color-card-bg-default)", barBorderColor: "var(--orbit-color-card-border-default)", group: "risk" },
+  { key: "none", label: "None", value: "noneDeviation", tone: "success", color: "var(--orbit-color-text-success)", v6Status: "none", group: "risk" },
 ];
 
 const firstAnalysisMetricBarDefinitions = firstAnalysisMetricDefinitions.filter(
@@ -960,7 +960,7 @@ function FirstAnalysisMetricGrid({
               className="h-1.5 w-1.5 shrink-0 rounded-full"
               style={{ backgroundColor: disabled ? "var(--orbit-color-text-disabled)" : dotColor }}
             />
-            <span className="min-w-0 truncate leading-none">
+            <span className="min-w-0 truncate leading-orbit-tight">
               <Text as="span" size="Small" variant={disabled ? "Disabled" : "Secondary"}>
                 {definition.label}
               </Text>
@@ -986,7 +986,7 @@ function FirstAnalysisMetricGrid({
     const riskMetrics = firstAnalysisMetricDefinitions.filter((definition) => definition.group === "risk");
     if (workflowMetrics.length === 0) {
       return (
-        <div className="mt-orbit-base rounded-lg border border-border/70 bg-white/60 p-orbit-s">
+        <div className="mt-orbit-base rounded-orbit-lg border border-orbit-border/70 bg-orbit-card/60 p-orbit-s">
           <div className="mb-orbit-s">
             <Text as="p" size="Small" variant="Secondary">RISK</Text>
           </div>
@@ -998,7 +998,7 @@ function FirstAnalysisMetricGrid({
     }
     return (
       <div className="mt-orbit-base grid gap-orbit-base lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]">
-        <div className="rounded-lg border border-border/70 bg-white/60 p-orbit-s">
+        <div className="rounded-orbit-lg border border-orbit-border/70 bg-orbit-card/60 p-orbit-s">
           <div className="mb-orbit-s">
             <Text as="p" size="Small" variant="Secondary">WORKFLOW</Text>
           </div>
@@ -1006,7 +1006,7 @@ function FirstAnalysisMetricGrid({
             {workflowMetrics.map(renderMetric)}
           </div>
         </div>
-        <div className="rounded-lg border border-border/70 bg-white/60 p-orbit-s">
+        <div className="rounded-orbit-lg border border-orbit-border/70 bg-orbit-card/60 p-orbit-s">
           <div className="mb-orbit-s">
             <Text as="p" size="Small" variant="Secondary">RISK</Text>
           </div>
@@ -1023,7 +1023,7 @@ function FirstAnalysisMetricGrid({
       <div className="mt-orbit-base">
         <div
           tabIndex={0}
-          className="mb-orbit-xs rounded-md py-orbit-xs outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]"
+          className="mb-orbit-xs rounded-orbit-md py-orbit-xs outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]"
         >
           <Text as="p" size="Small" variant="Secondary">DEVIATION LEVEL</Text>
         </div>
@@ -1116,10 +1116,20 @@ function MetricGrid({
   const sections = simplifyStatusMetrics ? groupedMetricSections : fullGroupedMetricSections;
   const metricByKey = new Map(visibleMetricDefinitions.map((definition) => [definition.key, definition]));
   const metricSectionTooltipCopy: Record<string, ReactNode> = {
-    "Round Action": "Shows how clauses are progressing in this negotiation round: met, not met, missing, or not selected for review.",
+    "Round Action": (
+      <div className="space-y-orbit-xs text-orbit-xs">
+        {/* font-orbit-semibold, not v6-orbit-weight-semibold: tooltip content is
+            portaled outside the [data-prototype] root the scoped class needs. */}
+        <p className="font-orbit-semibold">Round Action groups clauses by their outcome in this round:</p>
+        <p>Met means the current clause meets the target position.</p>
+        <p>Not Met means it does not meet the latest target position.</p>
+        <p>Missing means the expected clause was not found.</p>
+        <p>No Further Action means the clause is not being negotiated this round.</p>
+      </div>
+    ),
     "Deviation Level": (
-      <div className="space-y-1 text-xs">
-        <p className="v6-orbit-weight-semibold">Deviation Level - How far the contract differs from best practice.</p>
+      <div className="space-y-orbit-xs text-orbit-xs">
+        <p className="font-orbit-semibold">Deviation Level - How far the contract differs from best practice.</p>
         <p>None - Matches best practice. No change needed.</p>
         <p>Low - Minor difference. Small improvement recommended.</p>
         <p>Medium - Meaningful difference. Creates a notable legal, commercial, or operational issue.</p>
@@ -1156,7 +1166,7 @@ function MetricGrid({
     return (
       <div className="mt-orbit-base grid gap-orbit-base lg:grid-cols-2">
         {sections.map((section) => (
-          <div key={section.title} className="rounded-lg border border-border/70 bg-white/60 p-orbit-s">
+          <div key={section.title} className="rounded-orbit-lg border border-orbit-border/70 bg-orbit-card/60 p-orbit-s">
             {renderSectionTitle(section.title)}
             <div className="grid grid-cols-2 gap-orbit-s">
               {section.keys.map((key) => metricByKey.get(key)).filter((definition): definition is (typeof metricDefinitions)[number] => Boolean(definition)).map(renderMetric)}
@@ -1173,7 +1183,7 @@ function MetricGrid({
         <div className="space-y-orbit-base">
           {sections.map((section) => (
           <div key={section.title}>
-            <div className="mb-orbit-xs rounded-md py-orbit-xs">
+            <div className="mb-orbit-xs rounded-orbit-md py-orbit-xs">
               {renderSectionTitle(section.title)}
             </div>
             <div className="space-y-orbit-xs">
@@ -1209,7 +1219,7 @@ function FirstAnalysisMetricBar({ metrics, className }: { metrics: FirstAnalysis
   );
 
   return (
-    <div className={cn("flex h-2 overflow-hidden rounded-full bg-muted", className)}>
+    <div className={cn("flex h-2 overflow-hidden rounded-full bg-orbit-surface", className)}>
       {firstAnalysisMetricBarDefinitions.map((definition) => {
         const value = metrics[definition.value];
         if (value <= 0) return null;
@@ -1267,7 +1277,7 @@ function MetricCell({
         onFocus={() => setIsHovered(true)}
         onBlur={() => setIsHovered(false)}
         className={cn(
-          "w-full cursor-pointer rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#185FA5]/35",
+          "w-full cursor-pointer rounded-orbit-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-info/35",
           active && "shadow-[inset_3px_0_0_var(--orbit-color-efficio-blue)]",
         )}
       >

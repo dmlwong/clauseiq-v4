@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { CheckCircle2, AlertTriangle, AlertCircle, RotateCcw } from "lucide-react";
+import { CheckCircle2, AlertTriangle, AlertCircle, RotateCcw } from "@/components/clauseiq-v6a/v6aIcons";
 import { Button } from "@/components/clauseiq-v6a/orbit-ui/button";
 import { Badge } from "@/components/clauseiq-v6a/orbit-ui/badge";
 import { cn } from "@/lib/utils";
@@ -116,10 +116,10 @@ export function VersionVerdictBanner({
   return (
     <div
       className={cn(
-        "rounded-xl border p-orbit-m bg-card",
-        tone === "success" && "border-success/30",
-        tone === "warning" && "border-warning/40",
-        tone === "destructive" && "border-destructive/30",
+        "rounded-orbit-lg border p-orbit-m bg-orbit-card",
+        tone === "success" && "border-orbit-success/30",
+        tone === "warning" && "border-orbit-warning/40",
+        tone === "destructive" && "border-orbit-destructive/30",
       )}
     >
       <div className="flex items-start justify-between gap-orbit-m flex-wrap">
@@ -127,9 +127,9 @@ export function VersionVerdictBanner({
           <div
             className={cn(
               "h-10 w-10 rounded-full grid place-items-center shrink-0",
-              tone === "success" && "bg-success/10 text-success",
-              tone === "warning" && "bg-warning/15 text-warning",
-              tone === "destructive" && "bg-destructive/10 text-destructive",
+              tone === "success" && "bg-orbit-success/10 text-orbit-success",
+              tone === "warning" && "bg-orbit-warning/15 text-orbit-warning",
+              tone === "destructive" && "bg-orbit-destructive/10 text-orbit-destructive",
             )}
           >
             <Icon className="h-5 w-5" />
@@ -137,17 +137,17 @@ export function VersionVerdictBanner({
           <div className="min-w-0">
             <div className="flex items-center gap-orbit-s flex-wrap">
               <h2 className="v6-orbit-heading-4">{headline}</h2>
-              <Badge variant="outline" className="tabular-nums text-[11px]">
+              <Badge variant="outline" className="tabular-nums text-orbit-xs">
                 {leftVersion.version} → {rightVersion.version}
               </Badge>
               {decision === "accepted" && (
-                <Badge className="bg-success/10 text-success border-success/30">Accepted</Badge>
+                <Badge className="bg-orbit-success/10 text-orbit-success border-orbit-success/30">Accepted</Badge>
               )}
               {decision === "changes-requested" && (
-                <Badge className="bg-warning/15 text-warning border-warning/30">Changes requested</Badge>
+                <Badge className="bg-orbit-warning/15 text-orbit-warning border-orbit-warning/30">Changes requested</Badge>
               )}
             </div>
-            <p className="text-sm text-muted-foreground mt-orbit-xs">{subline}</p>
+            <p className="text-orbit-sm text-orbit-fg-secondary mt-orbit-xs">{subline}</p>
 
             {/* Three quick stats — clickable to jump */}
             <div className="flex flex-wrap gap-orbit-s mt-orbit-base">
@@ -195,22 +195,22 @@ function Stat({
 }) {
   const toneCls =
     tone === "success"
-      ? "bg-success/10 text-success border-success/20"
+      ? "bg-orbit-success/10 text-orbit-success border-orbit-success/20"
       : tone === "warning"
-        ? "bg-warning/15 text-warning border-warning/30"
-        : "bg-destructive/10 text-destructive border-destructive/30";
+        ? "bg-orbit-warning/15 text-orbit-warning border-orbit-warning/30"
+        : "bg-orbit-destructive/10 text-orbit-destructive border-orbit-destructive/30";
   const Comp = onClick ? "button" : "div";
   return (
     <Comp
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-orbit-s px-orbit-base py-orbit-xs rounded-md border text-sm",
+        "inline-flex items-center gap-orbit-s px-orbit-base py-orbit-xs rounded-orbit-md border text-orbit-sm",
         toneCls,
         onClick && "hover:opacity-80 cursor-pointer",
       )}
     >
       <span className="v6-orbit-weight-semibold tabular-nums">{value}</span>
-      <span className="text-xs opacity-90">{label}</span>
+      <span className="text-orbit-xs opacity-90">{label}</span>
     </Comp>
   );
 }

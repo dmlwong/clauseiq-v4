@@ -15,33 +15,33 @@ export const FIRST_ANALYSIS_STATUS_THEME: Record<
 > = {
   high: {
     label: "High",
-    indicatorColor: "#A32D2D",
+    indicatorColor: "var(--orbit-color-text-error)",
     chipVariant: "Error",
-    className: "border-[#F3B4B4] bg-[#FFF1F2] text-[#A32D2D]",
+    className: "border-orbit-error-border bg-orbit-error-surface text-orbit-error",
   },
   medium: {
     label: "Medium",
-    indicatorColor: "#BA7517",
+    indicatorColor: "var(--orbit-color-text-warning)",
     chipVariant: "Warning",
-    className: "border-[#F1D29B] bg-[#FFF8E8] text-[#854F0B]",
+    className: "border-orbit-warning-border bg-orbit-warning-surface text-orbit-warning",
   },
   low: {
     label: "Low",
-    indicatorColor: "#34585C",
+    indicatorColor: "var(--orbit-color-chip-style-2-border)",
     chipVariant: "Style 2",
-    className: "border-[#34585C] bg-[#E5EDEE] text-[#34585C]",
+    className: "border-orbit-teal bg-orbit-teal-surface text-orbit-teal",
   },
   missing: {
     label: "Missing Clause",
-    indicatorColor: "#5F5E5A",
+    indicatorColor: "var(--orbit-color-text-secondary)",
     chipVariant: "Outline",
-    className: "border-[#D9D8D2] bg-[#FFFFFF] text-[#5F5E5A]",
+    className: "border-orbit-border bg-orbit-card text-orbit-fg-secondary",
   },
   none: {
     label: "None",
-    indicatorColor: "#3B6D11",
+    indicatorColor: "var(--orbit-color-text-success)",
     chipVariant: "Success",
-    className: "border-[#BFD6AB] bg-[#EAF3DE] text-[#27500A]",
+    className: "border-orbit-success-border bg-orbit-success-surface text-orbit-success",
   },
 };
 

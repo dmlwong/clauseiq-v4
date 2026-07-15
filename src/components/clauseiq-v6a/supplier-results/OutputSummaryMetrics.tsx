@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { Info } from "lucide-react";
+import { Info } from "@/components/clauseiq-v6a/v6aIcons";
 import { Chip, RadialIndicator, Text } from "@orbit";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/clauseiq-v6a/orbit-ui/tooltip";
@@ -230,7 +230,7 @@ function OutputMetadataTooltip({
         <button
           type="button"
           aria-label="View output metadata"
-          className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[var(--orbit-color-text-secondary)] transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[var(--orbit-color-text-secondary)] transition-colors hover:text-orbit-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary"
         >
           <Info className="h-3.5 w-3.5" />
         </button>
@@ -329,13 +329,13 @@ function scoreBandIndicatorStatus(score: number): "Error" | "Warning" | "Success
 
 
 const lowDeviationPillStyle = {
-  "--orbit-color-chip-style-2-bg": "#E5EDEE",
-  "--orbit-color-chip-style-2-border": "#34585C",
+  "--orbit-color-chip-style-2-bg": "var(--orbit-color-chip-style-2-bg)",
+  "--orbit-color-chip-style-2-border": "var(--orbit-color-chip-style-2-border)",
 } as CSSProperties;
 
 const missingClausesPillStyle = {
-  "--orbit-color-chip-default-border": "#D9D8D2",
-  color: "#5F5E5A",
+  "--orbit-color-chip-default-border": "var(--orbit-color-card-border-default)",
+  color: "var(--orbit-color-text-secondary)",
 } as CSSProperties;
 
 const primaryScoreTextStyle = {

@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Info } from "lucide-react";
+import { Info } from "@/components/clauseiq-v6a/v6aIcons";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/clauseiq-v6a/orbit-ui/tooltip";
 
@@ -28,10 +28,10 @@ interface Props {
 export function OptionSwitcher({ value, onChange }: Props) {
   return (
     <div className="flex flex-wrap items-center gap-orbit-s">
-      <span className="text-[11px] v6-orbit-weight-medium uppercase tracking-wider text-muted-foreground">
+      <span className="text-orbit-xs v6-orbit-weight-medium uppercase tracking-wider text-orbit-fg-secondary">
         Design options
       </span>
-      <div className="inline-flex h-8 items-center rounded-full border border-border/80 bg-muted/50 p-orbit-xxs">
+      <div className="inline-flex h-8 items-center rounded-full border border-orbit-border/80 bg-orbit-surface/50 p-orbit-xxs">
         {OPTIONS.map((option) => {
           const active = value === option.value;
           return (
@@ -40,14 +40,14 @@ export function OptionSwitcher({ value, onChange }: Props) {
               type="button"
               onClick={() => onChange(option.value)}
               className={cn(
-                "relative h-7 rounded-full px-orbit-base text-xs v6-orbit-weight-medium transition-colors",
-                active ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                "relative h-7 rounded-full px-orbit-base text-orbit-xs v6-orbit-weight-medium transition-colors",
+                active ? "text-orbit-primary-foreground" : "text-orbit-fg-secondary hover:text-orbit-fg",
               )}
             >
               {active && (
                 <motion.span
                   layoutId="clauseiq-results-option"
-                  className="absolute inset-0 rounded-full bg-primary shadow-sm"
+                  className="absolute inset-0 rounded-full bg-orbit-primary shadow-orbit-sm"
                   transition={{ type: "spring", stiffness: 420, damping: 32 }}
                 />
               )}
@@ -61,7 +61,7 @@ export function OptionSwitcher({ value, onChange }: Props) {
           <button
             type="button"
             aria-label="Design rationale"
-            className="grid h-8 w-8 place-items-center rounded-full border border-border/80 bg-muted/50 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+            className="grid h-8 w-8 place-items-center rounded-full border border-orbit-border/80 bg-orbit-surface/50 text-orbit-fg-secondary transition-colors hover:bg-orbit-canvas hover:text-orbit-fg"
           >
             <Info className="h-4 w-4" />
           </button>

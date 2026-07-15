@@ -1,7 +1,7 @@
-import { ChevronLeft, FileText, Plus, Play, Eye } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChevronLeft, FileText, Plus, Play, Eye } from "@/components/clauseiq-v6a/v6aIcons";
+import { Badge } from "@/components/clauseiq-v6a/orbit-ui/badge";
+import { Button } from "@/components/clauseiq-v6a/orbit-ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/clauseiq-v6a/orbit-ui/select";
 import { getInitiative, getSupplier, statusTone, type Contract } from "@/lib/workflow-v6-data";
 import type { ContractStatus } from "@/lib/workflow-types";
 import { CONTRACT_STATUS_OPTIONS } from "@/hooks/use-contract-status-v6";
@@ -26,32 +26,32 @@ export function SupplierPage({
   if (!initiative || !supplier) return null;
 
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+    <div className="min-h-screen bg-orbit-canvas p-orbit-l">
+      <div className="max-w-6xl mx-auto space-y-orbit-m">
+        <button onClick={onBack} className="flex items-center gap-orbit-xs text-orbit-sm text-orbit-fg-secondary hover:text-orbit-fg">
           <ChevronLeft className="w-4 h-4" /> Back to {initiative.name}
         </button>
 
         <header className="flex items-start justify-between">
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <div className="space-y-orbit-s">
+            <p className="text-orbit-xs font-orbit-semibold text-orbit-fg-secondary uppercase tracking-wider">
               {initiative.name} · {initiative.reference}
             </p>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">{supplier.name}</h1>
-            <div className="flex items-center gap-2">
+            <h1 className="text-orbit-2xl font-orbit-bold text-orbit-fg tracking-tight">{supplier.name}</h1>
+            <div className="flex items-center gap-orbit-s">
               <Badge variant="outline" className={statusTone(supplier.status)}>{supplier.status}</Badge>
               {supplier.overallScore != null && (
-                <span className="text-sm text-muted-foreground">ClauseIQ Score <span className="font-mono font-medium text-foreground">{supplier.overallScore}/100</span></span>
+                <span className="text-orbit-sm text-orbit-fg-secondary">ClauseIQ Score <span className="tabular-nums font-orbit-medium text-orbit-fg">{supplier.overallScore}/100</span></span>
               )}
             </div>
           </div>
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-orbit-s">
             <Plus className="w-4 h-4" /> Upload New Version
           </Button>
         </header>
 
-        <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-foreground">Contracts ({supplier.contracts.length})</h2>
+        <div className="space-y-orbit-s">
+          <h2 className="text-orbit-sm font-orbit-semibold text-orbit-fg">Contracts ({supplier.contracts.length})</h2>
           {supplier.contracts.map((c) => (
             <ContractCard
               key={c.id}
@@ -79,46 +79,46 @@ function ContractCard({
 }) {
   const latest = contract.versions.at(-1);
   return (
-    <div className="bg-card border border-border rounded-xl p-5 flex items-center justify-between gap-6">
-      <div className="flex items-start gap-4 flex-1">
-        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-          <FileText className="w-5 h-5 text-primary" />
+    <div className="bg-orbit-card border border-orbit-border rounded-orbit-lg p-orbit-base flex items-center justify-between gap-orbit-m">
+      <div className="flex items-start gap-orbit-base flex-1">
+        <div className="w-10 h-10 rounded-orbit-lg bg-orbit-primary/10 flex items-center justify-center shrink-0">
+          <FileText className="w-5 h-5 text-orbit-primary" />
         </div>
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-foreground">{contract.name}</h3>
-            <Badge variant="outline" className="text-xs">{contract.type}</Badge>
-            {latest && <Badge variant="outline" className="font-mono text-xs">{latest.version}</Badge>}
+        <div className="space-y-orbit-xs">
+          <div className="flex items-center gap-orbit-s">
+            <h3 className="font-orbit-semibold text-orbit-fg">{contract.name}</h3>
+            <Badge variant="outline" className="text-orbit-xs">{contract.type}</Badge>
+            {latest && <Badge variant="outline" className="tabular-nums text-orbit-xs">{latest.version}</Badge>}
           </div>
-          <div className="flex items-center gap-3 text-sm">
+          <div className="flex items-center gap-orbit-s text-orbit-sm">
             <Select value={status} onValueChange={(v) => onChangeStatus(v as ContractStatus)}>
-              <SelectTrigger className="h-7 w-[160px] text-xs">
+              <SelectTrigger className="h-7 w-[160px] text-orbit-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {CONTRACT_STATUS_OPTIONS.map((s) => (
-                  <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
+                  <SelectItem key={s} value={s} className="text-orbit-xs">{s}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {latest ? (
-              <span className="text-muted-foreground">
+              <span className="text-orbit-fg-secondary">
                 {contract.versions.length} version{contract.versions.length > 1 ? "s" : ""} · ClauseIQ Score{" "}
-                <span className="font-mono text-foreground">{latest.overallScore}/100</span>
+                <span className="tabular-nums text-orbit-fg">{latest.overallScore}/100</span>
               </span>
             ) : (
-              <span className="text-muted-foreground">No analysis yet</span>
+              <span className="text-orbit-fg-secondary">No analysis yet</span>
             )}
           </div>
         </div>
       </div>
-      <div className="flex gap-2">
+      <div className="flex gap-orbit-s">
         {latest && (
-          <Button variant="outline" size="sm" onClick={onView} className="gap-1.5">
+          <Button variant="outline" size="sm" onClick={onView} className="gap-orbit-xs">
             <Eye className="w-4 h-4" /> View Results
           </Button>
         )}
-        <Button size="sm" onClick={onRun} className="gap-1.5">
+        <Button size="sm" onClick={onRun} className="gap-orbit-xs">
           <Play className="w-4 h-4" /> Run ClauseIQ
         </Button>
       </div>

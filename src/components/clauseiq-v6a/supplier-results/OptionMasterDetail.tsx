@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Search } from "lucide-react";
+import { Search } from "@/components/clauseiq-v6a/v6aIcons";
 import { Input } from "@/components/clauseiq-v6a/orbit-ui/input";
 import { cn } from "@/lib/utils";
 import {
@@ -65,7 +65,7 @@ export function OptionMasterDetail({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="grid min-h-[360px] place-items-center text-center text-sm text-muted-foreground"
+              className="grid min-h-[360px] place-items-center text-center text-orbit-sm text-orbit-fg-secondary"
             >
               Select a supplier to view their analysis history.
             </motion.div>
@@ -86,7 +86,7 @@ export function MasterSupplierRail({ state, mobile = false }: MasterSupplierRail
 
   if (mobile) {
     return (
-      <aside className="mb-orbit-base rounded-lg border border-border bg-muted/20 p-orbit-base md:hidden">
+      <aside className="mb-orbit-base rounded-orbit-lg border border-orbit-border bg-orbit-surface/20 p-orbit-base md:hidden">
         {content}
       </aside>
     );
@@ -105,17 +105,17 @@ function SupplierRailContent({ state }: { state: MasterDetailState }) {
   return (
     <>
       <div className="mb-orbit-base flex items-center justify-between gap-orbit-s">
-        <div className="text-xs v6-orbit-weight-medium uppercase tracking-wider text-muted-foreground">
+        <div className="text-orbit-xs v6-orbit-weight-medium uppercase tracking-wider text-orbit-fg-secondary">
           Suppliers ({filteredSuppliers.length})
         </div>
       </div>
       <div className="relative mb-orbit-base">
-        <Search className="absolute left-[calc(var(--orbit-space-s)+var(--orbit-space-xxs))] top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Search className="absolute left-[calc(var(--orbit-space-s)+var(--orbit-space-xxs))] top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-orbit-fg-secondary" />
         <Input
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
           placeholder="Search suppliers..."
-          className="h-8 bg-card pl-orbit-l text-xs"
+          className="h-8 bg-orbit-card pl-orbit-l text-orbit-xs"
         />
       </div>
 
@@ -132,30 +132,30 @@ function SupplierRailContent({ state }: { state: MasterDetailState }) {
                 type="button"
                 onClick={() => onSelect(supplier.id)}
                 className={cn(
-                  "relative flex w-full items-center gap-orbit-s rounded-md border border-transparent px-orbit-s py-orbit-s text-left transition-colors hover:bg-background",
-                  selected && "bg-background shadow-sm",
+                  "relative flex w-full items-center gap-orbit-s rounded-orbit-md border border-transparent px-orbit-s py-orbit-s text-left transition-colors hover:bg-orbit-canvas",
+                  selected && "bg-orbit-canvas shadow-orbit-sm",
                 )}
               >
                 {selected && (
                   <motion.span
                     layoutId="selected-supplier-master-accent"
-                    className="absolute bottom-orbit-s left-orbit-none top-orbit-s w-0.5 rounded-full bg-primary"
+                    className="absolute bottom-orbit-s left-orbit-none top-orbit-s w-0.5 rounded-full bg-orbit-primary"
                     transition={{ type: "spring", stiffness: 420, damping: 32 }}
                   />
                 )}
                 <SupplierAvatar name={supplier.name} shortCode={supplier.shortCode} severity={severity} size="sm" />
                 <div className="min-w-0 flex-1 pl-orbit-xxs">
-                  <div className="truncate text-[13px] v6-orbit-weight-medium text-foreground">{supplier.name}</div>
-                  <div className="text-[11px] text-muted-foreground">
+                  <div className="truncate text-orbit-sm v6-orbit-weight-medium text-orbit-fg">{supplier.name}</div>
+                  <div className="text-orbit-xs text-orbit-fg-secondary">
                     {supplier.analyses.length} contract{supplier.analyses.length === 1 ? "" : "s"}
                   </div>
                 </div>
                 <span
                   className={cn(
-                    "rounded-full px-orbit-s py-orbit-xxs text-[10px] v6-orbit-weight-medium",
+                    "rounded-full px-orbit-s py-orbit-xxs text-orbit-xs v6-orbit-weight-medium",
                     deviations.high > 0
-                      ? "bg-destructive/10 text-destructive"
-                      : "bg-success/10 text-success",
+                      ? "bg-orbit-destructive/10 text-orbit-destructive"
+                      : "bg-orbit-success/10 text-orbit-success",
                   )}
                 >
                   {deviations.high > 0 ? `${deviations.high} high` : "clean"}

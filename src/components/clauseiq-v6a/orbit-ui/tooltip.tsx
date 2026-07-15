@@ -180,7 +180,7 @@ export function Tooltip({ children }: TooltipProps) {
               : undefined
           }
           className={cn(
-            "pointer-events-none fixed z-[9999] inline-flex max-w-[288px] rounded-[var(--orbit-radius-sm)] border border-[var(--orbit-color-border-default)] bg-[var(--orbit-color-bg-default)] p-orbit-base text-left text-[var(--orbit-text-small-size)] font-[var(--orbit-text-small-weight)] leading-[var(--orbit-text-small-leading)] text-[var(--orbit-color-text-primary)] shadow-lg whitespace-pre-line",
+            "pointer-events-none fixed z-[9999] inline-flex max-w-[288px] rounded-orbit-sm border border-[var(--orbit-color-border-default)] bg-[var(--orbit-color-bg-default)] p-orbit-base text-left text-[var(--orbit-text-small-size)] font-orbit-regular leading-orbit-tight text-[var(--orbit-color-text-primary)] shadow-orbit-lg whitespace-pre-line",
             !position && "opacity-0",
             className,
           )}

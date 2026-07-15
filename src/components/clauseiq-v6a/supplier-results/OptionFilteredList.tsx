@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Building2, Search, SlidersHorizontal } from "lucide-react";
+import { Building2, Search, SlidersHorizontal } from "@/components/clauseiq-v6a/v6aIcons";
 import { Input } from "@/components/clauseiq-v6a/orbit-ui/input";
 import {
   Select,
@@ -64,7 +64,7 @@ export function OptionFilteredList({
       transition={{ duration: 0.18 }}
       className="space-y-orbit-base"
     >
-      <div className="mx-auto w-full max-w-[640px] text-xs text-muted-foreground">
+      <div className="mx-auto w-full max-w-[640px] text-orbit-xs text-orbit-fg-secondary">
         Showing {rows.length} analyses across {visibleSupplierCount} supplier
         {visibleSupplierCount === 1 ? "" : "s"}
       </div>
@@ -85,7 +85,7 @@ export function OptionFilteredList({
           ))}
         </AnimatePresence>
         {rows.length === 0 && (
-          <div className="rounded-lg border border-dashed border-border bg-card px-orbit-base py-orbit-l text-center text-sm text-muted-foreground">
+          <div className="rounded-orbit-lg border border-dashed border-orbit-border bg-orbit-card px-orbit-base py-orbit-l text-center text-orbit-sm text-orbit-fg-secondary">
             No analyses match your filters.
           </div>
         )}
@@ -107,18 +107,18 @@ export function FilteredListToolbar({ initiative, controls, onControlsChange }: 
   return (
     <div className="grid gap-orbit-base lg:grid-cols-[minmax(260px,1fr)_220px_210px]">
       <div className="relative min-w-[260px] flex-1">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-orbit-fg-secondary" />
         <Input
           value={controls.query}
           onChange={(event) => update({ query: event.target.value })}
           placeholder="Search supplier or contract..."
-          className="h-9 bg-card pl-orbit-l"
+          className="h-9 bg-orbit-card pl-orbit-l"
         />
       </div>
 
       <Select value={controls.supplierId} onValueChange={(value) => update({ supplierId: value })}>
-        <SelectTrigger className="h-9 w-full bg-card text-sm">
-          <Building2 className="mr-orbit-s h-3.5 w-3.5 text-muted-foreground" />
+        <SelectTrigger className="h-9 w-full bg-orbit-card text-orbit-sm">
+          <Building2 className="mr-orbit-s h-3.5 w-3.5 text-orbit-fg-secondary" />
           <SelectValue placeholder="Supplier" />
         </SelectTrigger>
         <SelectContent>
@@ -132,8 +132,8 @@ export function FilteredListToolbar({ initiative, controls, onControlsChange }: 
       </Select>
 
       <Select value={controls.sort} onValueChange={(value) => update({ sort: value as FilteredListSortMode })}>
-        <SelectTrigger className="h-9 w-full bg-card text-sm">
-          <SlidersHorizontal className="mr-orbit-s h-3.5 w-3.5 text-muted-foreground" />
+        <SelectTrigger className="h-9 w-full bg-orbit-card text-orbit-sm">
+          <SlidersHorizontal className="mr-orbit-s h-3.5 w-3.5 text-orbit-fg-secondary" />
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

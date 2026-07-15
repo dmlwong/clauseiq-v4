@@ -18,6 +18,15 @@ export type RoundDecision = "request-update" | "no-action";
 export type ClosureDecision = "closed" | "keep-open" | "follow-up";
 export type RequestLifecycle = "pending" | "submitted";
 export type ClauseVerdict = "met" | "notmet";
+/**
+ * Which decision produced the round outcome on a Not Met clause card.
+ *
+ * Tracked explicitly rather than derived from `closures`: "keep-open" is
+ * written by several different handlers, so a closure value cannot identify
+ * the action that caused it. Without this, "applied the recommendation" and
+ * "wrote a custom position" are indistinguishable once the card condenses.
+ */
+export type ClauseOutcome = "recommended" | "custom" | "kept-unmet";
 
 export interface ClauseTargetVersion {
   version: number;
@@ -57,6 +66,11 @@ export interface ClauseDecisionState {
    * key = target version (e.g. "v2") — value = closed / keep-open / follow-up.
    */
   closures: Record<string, ClosureDecision>;
+  /**
+   * Outcome provenance per target version — which decision the reviewer made
+   * on the Not Met card. Keyed the same way as `closures` (e.g. "v3").
+   */
+  outcomes?: Record<string, ClauseOutcome>;
   /** Optional follow-up notes per target version (TASK-12). */
   followUpNotes?: Record<string, string>;
   /**
@@ -241,6 +255,22 @@ export function useClauseDecisions(initial: Store = {}, options: ClauseDecisionO
       mutate(supplierId, contractId, clauseId, (s) => ({
         ...s,
         closures: { ...s.closures, [targetVersion]: closure },
+      }));
+    },
+    [mutate],
+  );
+
+  const setOutcome = useCallback(
+    (
+      supplierId: string,
+      contractId: string,
+      clauseId: string,
+      targetVersion: string,
+      outcome: ClauseOutcome,
+    ) => {
+      mutate(supplierId, contractId, clauseId, (s) => ({
+        ...s,
+        outcomes: { ...s.outcomes, [targetVersion]: outcome },
       }));
     },
     [mutate],
@@ -631,6 +661,7 @@ export function useClauseDecisions(initial: Store = {}, options: ClauseDecisionO
       resetContract,
       setRoundDecision,
       setClosure,
+      setOutcome,
       patchClauseState,
       setFollowUpNote,
       startDraftRequest,
@@ -654,6 +685,7 @@ export function useClauseDecisions(initial: Store = {}, options: ClauseDecisionO
       resetContract,
       setRoundDecision,
       setClosure,
+      setOutcome,
       patchClauseState,
       setFollowUpNote,
       startDraftRequest,

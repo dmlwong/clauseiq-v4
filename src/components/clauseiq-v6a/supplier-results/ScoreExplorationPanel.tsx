@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ArrowDownRight, ArrowRight, ArrowUpRight, BarChart2, Download, Info } from "lucide-react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, BarChart2, Download, Info } from "@/components/clauseiq-v6a/v6aIcons";
 import { Card } from "@orbit";
 import { Button } from "@/components/clauseiq-v6a/orbit-ui/button";
 import { DeviationPills } from "@/components/clauseiq-v6a/supplier-results/DeviationPills";
@@ -139,7 +139,7 @@ export function SupplierOutputScoreExplorationPanel() {
     <div className="space-y-orbit-l">
       <section className="space-y-orbit-base">
         <h2 className="v6-orbit-heading-strong">Supplier Output Score Exploration</h2>
-        <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
+        <p className="max-w-3xl text-orbit-sm leading-orbit-relaxed text-orbit-fg-secondary">
           This page explores ways to show an overall analysis score on supplier output history cards.
           The goal is to help users spot improvement over time at supplier level without changing the live
           output-panel experience yet.
@@ -155,7 +155,7 @@ export function SupplierOutputScoreExplorationPanel() {
       <section className="space-y-orbit-base">
         <div className="space-y-orbit-xs">
           <h2 className="v6-orbit-heading-strong">Option B Refinements</h2>
-          <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
+          <p className="max-w-3xl text-orbit-sm leading-orbit-relaxed text-orbit-fg-secondary">
             These variants all keep the score-plus-delta idea, but improve clarity, hierarchy, and supplier-level context.
           </p>
         </div>
@@ -170,7 +170,7 @@ export function SupplierOutputScoreExplorationPanel() {
       <section className="space-y-orbit-base">
         <div className="space-y-orbit-xs">
           <h2 className="v6-orbit-heading-strong">Simplified History Options</h2>
-          <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
+          <p className="max-w-3xl text-orbit-sm leading-orbit-relaxed text-orbit-fg-secondary">
             These options respond to the stakeholder feedback by reducing repeated rows, toning down secondary detail,
             and making score movement easier to compare at a glance.
           </p>
@@ -204,11 +204,11 @@ function ScoreConceptColumn({
             <h3 id={`score-concept-${concept.id}`} className="v6-orbit-heading-5">
               {concept.label}
             </h3>
-            <p className="text-sm leading-relaxed text-muted-foreground">{concept.description}</p>
+            <p className="text-orbit-sm leading-orbit-relaxed text-orbit-fg-secondary">{concept.description}</p>
           </div>
 
-          <div className="rounded-lg border border-border/70 bg-white p-orbit-m">
-            <div className="flex items-center gap-orbit-s border-b border-border/70 pb-orbit-s">
+          <div className="rounded-orbit-lg border border-orbit-border/70 bg-orbit-card p-orbit-m">
+            <div className="flex items-center gap-orbit-s border-b border-orbit-border/70 pb-orbit-s">
               <SupplierAvatar
                 name={normalizedSupplier.name}
                 shortCode={normalizedSupplier.shortCode}
@@ -217,13 +217,13 @@ function ScoreConceptColumn({
               />
               <div className="min-w-0 flex-1">
                 <h4 className="v6-orbit-heading-label truncate">{normalizedSupplier.name}</h4>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-orbit-xs text-orbit-fg-secondary">
                   {normalizedSupplier.analyses.length} outputs to compare over time
                 </p>
               </div>
             </div>
 
-            <div className="divide-y divide-border/70">
+            <div className="divide-y divide-orbit-border/70">
               {analyses.map((analysis, index) => (
                 <ExplorationOutputRow
                   key={`${concept.id}-${analysis.id}`}
@@ -265,11 +265,11 @@ function ScoreRefinementColumn({
             <h3 id={`score-refinement-${refinement.id}`} className="v6-orbit-heading-5">
               {refinement.label}
             </h3>
-            <p className="text-sm leading-relaxed text-muted-foreground">{refinement.description}</p>
+            <p className="text-orbit-sm leading-orbit-relaxed text-orbit-fg-secondary">{refinement.description}</p>
           </div>
 
-          <div className="rounded-lg border border-border/70 bg-white p-orbit-m">
-            <div className="flex items-center gap-orbit-s border-b border-border/70 pb-orbit-s">
+          <div className="rounded-orbit-lg border border-orbit-border/70 bg-orbit-card p-orbit-m">
+            <div className="flex items-center gap-orbit-s border-b border-orbit-border/70 pb-orbit-s">
               <SupplierAvatar
                 name={normalizedSupplier.name}
                 shortCode={normalizedSupplier.shortCode}
@@ -279,7 +279,7 @@ function ScoreRefinementColumn({
               <div className="min-w-0 flex-1">
                 <h4 className="v6-orbit-heading-label truncate">{normalizedSupplier.name}</h4>
                 {refinement.id !== "plain-language-duplicate" && (
-                  <p className="text-xs text-muted-foreground">3 outputs tracked for score movement</p>
+                  <p className="text-orbit-xs text-orbit-fg-secondary">3 outputs tracked for score movement</p>
                 )}
               </div>
             </div>
@@ -292,10 +292,10 @@ function ScoreRefinementColumn({
               />
             )}
 
-            <div className={cn(useExplicitRowSeparators ? "pt-orbit-m" : "divide-y divide-border/70 pt-2")}>
+            <div className={cn(useExplicitRowSeparators ? "pt-orbit-m" : "divide-y divide-orbit-border/70 pt-orbit-s")}>
               {analyses.map((analysis, index) => (
                 <div key={`${refinement.id}-${analysis.id}`}>
-                  {useExplicitRowSeparators && index > 0 && <div className="my-orbit-m h-px bg-border/70" aria-hidden="true" />}
+                  {useExplicitRowSeparators && index > 0 && <div className="my-orbit-m h-px bg-orbit-border/70" aria-hidden="true" />}
                   <RefinedOutputRow
                     analysis={analysis}
                     refinementId={refinement.id}
@@ -331,11 +331,11 @@ function ScoreSimplificationColumn({
             <h3 id={`score-simplification-${option.id}`} className="v6-orbit-heading-5">
               {option.label}
             </h3>
-            <p className="text-sm leading-relaxed text-muted-foreground">{option.description}</p>
+            <p className="text-orbit-sm leading-orbit-relaxed text-orbit-fg-secondary">{option.description}</p>
           </div>
 
-          <div className="rounded-lg border border-border/70 bg-white p-orbit-m">
-            <div className="flex items-center gap-orbit-s border-b border-border/70 pb-orbit-s">
+          <div className="rounded-orbit-lg border border-orbit-border/70 bg-orbit-card p-orbit-m">
+            <div className="flex items-center gap-orbit-s border-b border-orbit-border/70 pb-orbit-s">
               <SupplierAvatar
                 name={normalizedSupplier.name}
                 shortCode={normalizedSupplier.shortCode}
@@ -344,7 +344,7 @@ function ScoreSimplificationColumn({
               />
               <div className="min-w-0 flex-1">
                 <h4 className="v6-orbit-heading-label truncate">{normalizedSupplier.name}</h4>
-                <p className="text-xs text-muted-foreground">3 outputs tracked for score movement</p>
+                <p className="text-orbit-xs text-orbit-fg-secondary">3 outputs tracked for score movement</p>
               </div>
             </div>
 
@@ -368,7 +368,7 @@ function ScoreSimplificationColumn({
               </>
             )}
 
-            <div className="divide-y divide-border/70">
+            <div className="divide-y divide-orbit-border/70">
               {analyses.map((analysis, index) => {
                 const score = scoreByAnalysisId[analysis.id];
                 if (!score) return null;
@@ -434,7 +434,7 @@ function ExplorationOutputRow({
       <div className="flex items-start justify-between gap-orbit-s">
         <div className="min-w-0 space-y-orbit-xxs">
           <div className="flex min-w-0 flex-wrap items-center gap-orbit-xs">
-            <p className="truncate text-xs v6-orbit-weight-medium text-foreground">{analysis.fileName}</p>
+            <p className="truncate text-orbit-xs v6-orbit-weight-medium text-orbit-fg">{analysis.fileName}</p>
             {conceptId === "score-pill" && score && <ScorePill score={score.score} />}
           </div>
 
@@ -489,7 +489,7 @@ function RefinedOutputRow({
       <div className={cn("flex items-start justify-between gap-orbit-s", isPlainLanguage && "gap-orbit-base")}>
         <div className={cn("min-w-0 flex-1 space-y-orbit-xxs", isPlainLanguage && "space-y-orbit-xs")}>
           <div className="flex min-w-0 flex-wrap items-center gap-orbit-xs">
-            <p className="truncate text-xs v6-orbit-weight-medium text-foreground">{analysis.fileName}</p>
+            <p className="truncate text-orbit-xs v6-orbit-weight-medium text-orbit-fg">{analysis.fileName}</p>
           </div>
 
           {(refinementId === "plain-language" || refinementId === "plain-language-duplicate") && score && (
@@ -526,7 +526,7 @@ function RefinedOutputRow({
 
 function ScorePill({ score }: { score: number }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-primary/10 px-orbit-xs py-[2px] text-[11px] v6-orbit-weight-medium text-primary">
+    <span className="inline-flex items-center rounded-full bg-orbit-primary/10 px-orbit-xs py-orbit-xxs text-orbit-xs v6-orbit-weight-medium text-orbit-primary">
       Score {score}
     </span>
   );
@@ -545,19 +545,19 @@ function CompactHistoryRow({
     <article className="py-orbit-s">
       <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-orbit-s">
         <div className="min-w-0">
-          <p className="truncate text-xs v6-orbit-weight-medium text-foreground">{analysis.fileName}</p>
-          {isLatestOutput && <p className="mt-orbit-xxs text-[11px] text-muted-foreground">Latest output</p>}
+          <p className="truncate text-orbit-xs v6-orbit-weight-medium text-orbit-fg">{analysis.fileName}</p>
+          {isLatestOutput && <p className="mt-orbit-xxs text-orbit-xs text-orbit-fg-secondary">Latest output</p>}
         </div>
         <div className="text-right">
-          <p className="text-sm v6-orbit-weight-medium text-foreground">{score.score}</p>
-          <p className="text-[11px] text-muted-foreground">Score</p>
+          <p className="text-orbit-sm v6-orbit-weight-medium text-orbit-fg">{score.score}</p>
+          <p className="text-orbit-xs text-orbit-fg-secondary">Score</p>
         </div>
         <div className="min-w-[92px] text-right">
-          <p className={cn("inline-flex items-center gap-[4px] text-[11px] v6-orbit-weight-medium", scoreTrendTextClass(score.trend))}>
+          <p className={cn("inline-flex items-center gap-orbit-xs text-orbit-xs v6-orbit-weight-medium", scoreTrendTextClass(score.trend))}>
             {scoreTrendIcon(score.trend)}
             {plainLanguageDelta(score)}
           </p>
-          <p className="mt-orbit-xxs text-[11px] text-muted-foreground">{formatShortDate(analysis.analysedAt)}</p>
+          <p className="mt-orbit-xxs text-orbit-xs text-orbit-fg-secondary">{formatShortDate(analysis.analysedAt)}</p>
         </div>
         <div className="flex items-center justify-end gap-orbit-xxs">
           <IconActionButton ariaLabel="View Result">
@@ -584,11 +584,11 @@ function FeaturedLatestRow({
       <div className="flex items-start justify-between gap-orbit-s">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-orbit-xs">
-            <p className="truncate text-xs v6-orbit-weight-medium text-foreground">{analysis.fileName}</p>
+            <p className="truncate text-orbit-xs v6-orbit-weight-medium text-orbit-fg">{analysis.fileName}</p>
           </div>
           <div className="mt-orbit-xxs flex flex-wrap items-center gap-x-orbit-s gap-y-orbit-xxs">
-            <span className="text-sm v6-orbit-weight-medium text-foreground">Score {score.score}</span>
-            <span className={cn("inline-flex items-center gap-[4px] text-[11px] v6-orbit-weight-medium", scoreTrendTextClass(score.trend))}>
+            <span className="text-orbit-sm v6-orbit-weight-medium text-orbit-fg">Score {score.score}</span>
+            <span className={cn("inline-flex items-center gap-orbit-xs text-orbit-xs v6-orbit-weight-medium", scoreTrendTextClass(score.trend))}>
               {scoreTrendIcon(score.trend)}
               {plainLanguageDelta(score)}
             </span>
@@ -624,17 +624,17 @@ function LedgerHistoryRow({
     <article className="py-orbit-s">
       <div className="grid grid-cols-[minmax(0,1fr)_64px_110px] items-center gap-orbit-s">
         <div className="min-w-0">
-          <p className="truncate text-xs v6-orbit-weight-medium text-foreground">{analysis.fileName}</p>
-          <p className="mt-orbit-xxs text-[11px] text-muted-foreground">
+          <p className="truncate text-orbit-xs v6-orbit-weight-medium text-orbit-fg">{analysis.fileName}</p>
+          <p className="mt-orbit-xxs text-orbit-xs text-orbit-fg-secondary">
             {isLatestOutput ? "Latest output" : formatShortDate(analysis.analysedAt)}
           </p>
         </div>
         <div className="text-right">
-          <p className="text-sm v6-orbit-weight-medium text-foreground">{score.score}</p>
-          <p className="text-[11px] text-muted-foreground">Score</p>
+          <p className="text-orbit-sm v6-orbit-weight-medium text-orbit-fg">{score.score}</p>
+          <p className="text-orbit-xs text-orbit-fg-secondary">Score</p>
         </div>
-        <div className={cn("text-right text-[11px] v6-orbit-weight-medium", scoreTrendTextClass(score.trend))}>
-          <div className="inline-flex items-center gap-[4px]">
+        <div className={cn("text-right text-orbit-xs v6-orbit-weight-medium", scoreTrendTextClass(score.trend))}>
+          <div className="inline-flex items-center gap-orbit-xs">
             {scoreTrendIcon(score.trend)}
             {plainLanguageDelta(score)}
           </div>
@@ -654,13 +654,13 @@ function OutputTimeMeta({
   showInlineSecondaryActions?: boolean;
 }) {
   return (
-    <div className="shrink-0 text-right text-[11px] leading-snug text-muted-foreground">
+    <div className="shrink-0 text-right text-orbit-xs leading-orbit-snug text-orbit-fg-secondary">
       <div className="inline-flex items-center gap-orbit-s whitespace-nowrap">
         <div className="inline-flex items-center gap-orbit-s whitespace-nowrap">
           {isLatestOutput && (
             <>
               <span>Latest output</span>
-              <span aria-hidden="true" className="h-3 w-px bg-border/80" />
+              <span aria-hidden="true" className="h-3 w-px bg-orbit-border/80" />
             </>
           )}
           <time dateTime={analysedAt}>{formatCompactTimestamp(analysedAt)}</time>
@@ -701,10 +701,10 @@ function IconActionButton({
 
 function ScoreMetadata({ score }: { score: ExplorationScore }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-orbit-s gap-y-orbit-xxs text-[11px] text-muted-foreground">
-      <span className="v6-orbit-weight-medium text-foreground">Score {score.score}</span>
+    <div className="flex flex-wrap items-center gap-x-orbit-s gap-y-orbit-xxs text-orbit-xs text-orbit-fg-secondary">
+      <span className="v6-orbit-weight-medium text-orbit-fg">Score {score.score}</span>
       {typeof score.deltaFromPrevious === "number" ? (
-        <span className={cn("inline-flex items-center gap-[4px]", scoreTrendTextClass(score.trend))}>
+        <span className={cn("inline-flex items-center gap-orbit-xs", scoreTrendTextClass(score.trend))}>
           {scoreTrendIcon(score.trend)}
           {formatDelta(score.deltaFromPrevious)} vs previous
         </span>
@@ -717,18 +717,18 @@ function ScoreMetadata({ score }: { score: ExplorationScore }) {
 
 function ScoreSummaryBlock({ score }: { score: ExplorationScore }) {
   return (
-    <div className="rounded-md border border-border/70 bg-white px-orbit-s py-orbit-xs">
+    <div className="rounded-orbit-md border border-orbit-border/70 bg-orbit-card px-orbit-s py-orbit-xs">
       <div className="flex items-center justify-between gap-orbit-s">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.04em] text-muted-foreground">Overall score</p>
-          <p className="text-lg v6-orbit-weight-medium text-foreground">{score.score}/100</p>
+          <p className="text-orbit-xs uppercase tracking-[0.04em] text-orbit-fg-secondary">Overall score</p>
+          <p className="text-orbit-lg v6-orbit-weight-medium text-orbit-fg">{score.score}/100</p>
         </div>
-        <div className={cn("text-right text-xs", scoreTrendTextClass(score.trend))}>
-          <div className="inline-flex items-center gap-[4px] v6-orbit-weight-medium">
+        <div className={cn("text-right text-orbit-xs", scoreTrendTextClass(score.trend))}>
+          <div className="inline-flex items-center gap-orbit-xs v6-orbit-weight-medium">
             {scoreTrendIcon(score.trend)}
             {typeof score.deltaFromPrevious === "number" ? formatDelta(score.deltaFromPrevious) : "No delta"}
           </div>
-          <p className="mt-orbit-xxs text-[11px] text-muted-foreground">
+          <p className="mt-orbit-xxs text-orbit-xs text-orbit-fg-secondary">
             {typeof score.deltaFromPrevious === "number" ? "vs previous" : "First output"}
           </p>
         </div>
@@ -747,12 +747,12 @@ function PlainLanguageScoreLine({
   showDeviationTooltip?: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-orbit-s gap-y-orbit-xxs text-[11px]">
-      <span className="v6-orbit-weight-medium text-foreground">Score {score.score}</span>
+    <div className="flex flex-wrap items-center gap-x-orbit-s gap-y-orbit-xxs text-orbit-xs">
+      <span className="v6-orbit-weight-medium text-orbit-fg">Score {score.score}</span>
       {showDeviationTooltip && (
         <DeviationTooltip deviations={analysis.deviations} />
       )}
-      <span className={cn("inline-flex items-center gap-[4px]", scoreTrendTextClass(score.trend))}>
+      <span className={cn("inline-flex items-center gap-orbit-xs", scoreTrendTextClass(score.trend))}>
         {scoreTrendIcon(score.trend)}
         {plainLanguageDelta(score)}
       </span>
@@ -767,7 +767,7 @@ function DeviationTooltip({ deviations }: { deviations: ClauseAnalysis["deviatio
         <button
           type="button"
           aria-label="View deviation breakdown"
-          className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex h-4 w-4 items-center justify-center rounded-full text-orbit-fg-secondary transition-colors hover:text-orbit-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary"
         >
           <Info className="h-3.5 w-3.5" />
         </button>
@@ -782,21 +782,21 @@ function DeviationTooltip({ deviations }: { deviations: ClauseAnalysis["deviatio
 function StrongHierarchyScoreLine({ score }: { score: ExplorationScore }) {
   return (
     <div className="flex flex-wrap items-end gap-x-orbit-s gap-y-orbit-xxs">
-      <span className="text-sm v6-orbit-weight-medium text-foreground">Score {score.score}</span>
-      <span className={cn("inline-flex items-center gap-[4px] text-[11px] v6-orbit-weight-medium", scoreTrendTextClass(score.trend))}>
+      <span className="text-orbit-sm v6-orbit-weight-medium text-orbit-fg">Score {score.score}</span>
+      <span className={cn("inline-flex items-center gap-orbit-xs text-orbit-xs v6-orbit-weight-medium", scoreTrendTextClass(score.trend))}>
         {scoreTrendIcon(score.trend)}
         {formatDelta(score.deltaFromPrevious ?? 0)}
       </span>
-      <span className="text-[11px] text-muted-foreground">vs previous</span>
+      <span className="text-orbit-xs text-orbit-fg-secondary">vs previous</span>
     </div>
   );
 }
 
 function CompactTrendLine({ score }: { score: ExplorationScore }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-orbit-s gap-y-orbit-xxs text-[11px] text-muted-foreground">
+    <div className="flex flex-wrap items-center gap-x-orbit-s gap-y-orbit-xxs text-orbit-xs text-orbit-fg-secondary">
       <span>{score.score}/100</span>
-      <span className={cn("inline-flex items-center gap-[4px]", scoreTrendTextClass(score.trend))}>
+      <span className={cn("inline-flex items-center gap-orbit-xs", scoreTrendTextClass(score.trend))}>
         {scoreTrendIcon(score.trend)}
         {plainLanguageDelta(score)}
       </span>
@@ -814,19 +814,19 @@ function SupplierSummaryHeader({
   outputCount: number;
 }) {
   return (
-    <div className="my-orbit-s rounded-md border border-border/70 bg-white px-orbit-s py-orbit-s">
-      <div className="grid grid-cols-3 gap-orbit-s text-xs">
+    <div className="my-orbit-s rounded-orbit-md border border-orbit-border/70 bg-orbit-card px-orbit-s py-orbit-s">
+      <div className="grid grid-cols-3 gap-orbit-s text-orbit-xs">
         <div>
-          <p className="text-muted-foreground">Latest score</p>
-          <p className="mt-orbit-xxs text-sm v6-orbit-weight-medium text-foreground">{latestScore}</p>
+          <p className="text-orbit-fg-secondary">Latest score</p>
+          <p className="mt-orbit-xxs text-orbit-sm v6-orbit-weight-medium text-orbit-fg">{latestScore}</p>
         </div>
         <div>
-          <p className="text-muted-foreground">Trend</p>
-          <p className="mt-orbit-xxs text-sm v6-orbit-weight-medium text-emerald-700">{trendLabel}</p>
+          <p className="text-orbit-fg-secondary">Trend</p>
+          <p className="mt-orbit-xxs text-orbit-sm v6-orbit-weight-medium text-orbit-success">{trendLabel}</p>
         </div>
         <div>
-          <p className="text-muted-foreground">Outputs tracked</p>
-          <p className="mt-orbit-xxs text-sm v6-orbit-weight-medium text-foreground">{outputCount}</p>
+          <p className="text-orbit-fg-secondary">Outputs tracked</p>
+          <p className="mt-orbit-xxs text-orbit-sm v6-orbit-weight-medium text-orbit-fg">{outputCount}</p>
         </div>
       </div>
     </div>
@@ -834,9 +834,9 @@ function SupplierSummaryHeader({
 }
 
 function scoreTrendTextClass(trend?: ScoreTrend) {
-  if (trend === "up") return "text-emerald-700";
-  if (trend === "down") return "text-rose-700";
-  return "text-muted-foreground";
+  if (trend === "up") return "text-orbit-success";
+  if (trend === "down") return "text-orbit-error";
+  return "text-orbit-fg-secondary";
 }
 
 function scoreTrendIcon(trend?: ScoreTrend) {

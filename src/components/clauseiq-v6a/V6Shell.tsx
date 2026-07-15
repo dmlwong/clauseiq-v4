@@ -35,36 +35,36 @@ export function V6Shell({
 }: Props) {
   return (
     <V6OrbitRoot>
-      <div className="h-screen flex bg-background overflow-hidden">
+      <div className="h-screen flex bg-orbit-canvas overflow-hidden">
         <div className="hidden md:flex h-screen sticky top-0">
           <CiqSidebar />
         </div>
         <div className="flex-1 flex flex-col min-w-0 h-screen">
           {(title || headerRight) && (
-            <header className="h-16 shrink-0 border-b border-border bg-card flex items-center justify-between px-6 gap-3">
-              <div className="flex min-w-0 items-center gap-3">
+            <header className="h-16 shrink-0 border-b border-orbit-border bg-orbit-card flex items-center justify-between px-orbit-m gap-orbit-s">
+              <div className="flex min-w-0 items-center gap-orbit-s">
                 {titleIcon}
                 <div className="min-w-0">
-                  {title && <div className="font-semibold text-foreground leading-tight truncate">{title}</div>}
-                  {subtitle && <div className="text-xs text-muted-foreground leading-tight truncate">{subtitle}</div>}
+                  {title && <div className="font-orbit-semibold text-orbit-fg leading-orbit-snug truncate">{title}</div>}
+                  {subtitle && <div className="text-orbit-xs text-orbit-fg-secondary leading-orbit-snug truncate">{subtitle}</div>}
                 </div>
               </div>
               {headerRight && headerRightPlacement === "end" && (
-                <div className="flex items-center gap-2">{headerRight}</div>
+                <div className="flex items-center gap-orbit-s">{headerRight}</div>
               )}
               {headerRight && headerRightPlacement === "title" && (
-                <div className="flex items-center gap-2">{headerRight}</div>
+                <div className="flex items-center gap-orbit-s">{headerRight}</div>
               )}
             </header>
           )}
           {subheader && (
-            <div className={subheaderClassName ?? "shrink-0 border-b border-border bg-background/95 px-6 py-3 backdrop-blur"}>
+            <div className={subheaderClassName ?? "shrink-0 border-b border-orbit-border bg-orbit-canvas/95 px-orbit-m py-orbit-s backdrop-blur"}>
               {subheader}
             </div>
           )}
           <div className="flex flex-1 min-h-0">
             {sidePanel && (
-              <aside className="hidden w-[280px] shrink-0 border-r border-border bg-muted/20 md:flex md:min-h-0 md:flex-col">
+              <aside className="hidden w-[280px] shrink-0 border-r border-orbit-border bg-orbit-surface/20 md:flex md:min-h-0 md:flex-col">
                 {sidePanel}
               </aside>
             )}
@@ -74,7 +74,7 @@ export function V6Shell({
             {rightPanel && (
               <aside
                 className={cn(
-                  "v4-hover-scrollbar hidden w-[368px] shrink-0 overflow-y-auto border-l border-border bg-white xl:w-[400px] lg:block",
+                  "v4-hover-scrollbar hidden w-[368px] shrink-0 overflow-y-auto border-l border-orbit-border bg-orbit-card xl:w-[400px] lg:block",
                   rightPanelClassName,
                 )}
               >

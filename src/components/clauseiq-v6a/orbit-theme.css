@@ -73,6 +73,11 @@
   outline-color: var(--orbit-color-focus-ring);
 }
 
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] button,
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] [role="button"] {
+  font-weight: var(--orbit-text-button-weight);
+}
+
 body
   > [class*="_backdrop_"]
   > [class*="_modal_"]:has([data-v6-overlay="review-generate"]) {

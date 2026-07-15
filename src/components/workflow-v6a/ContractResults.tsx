@@ -6660,13 +6660,6 @@ function ClauseDecisionCard({
     : pendingBasketRequest || decision === "request-update"
     ? "Information"
     : "Default";
-  const reviewCardStyle: OrbitCardStyle = {};
-  if (useV6DeviationCard && reviewCardState === "Default") {
-    reviewCardStyle["--orbit-color-card-indicator-default"] = firstAnalysisCardIndicatorColorForClause(clause);
-  }
-  const showReviewCardIndicator =
-    useV6DeviationCard ||
-    (!useDefaultComparisonCard && (pendingBasketRequest || decision === "request-update"));
 
   if (displayMode === "row-scale" && !actions) {
     return (
@@ -6704,7 +6697,7 @@ function ClauseDecisionCard({
       id={`clause-row-${id}`}
       className={cn("rounded-orbit-lg transition-colors", highlighted && "ring-2 ring-orbit-primary/40")}
     >
-      <Card type="Static" padding="Base" state={reviewCardState} indicator={showReviewCardIndicator} style={reviewCardStyle}>
+      <Card type="Static" padding="Base" state={reviewCardState} indicator={false}>
         <div className="flex min-w-0 items-center gap-orbit-s">
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-orbit-xs">
@@ -7029,20 +7022,12 @@ function ClauseRowScaleCard({
   const theme = rowScaleSeverityThemes[tier];
   const noneDeviationClause = isNoneDeviationClause(clause);
   const useV6StatusColours = isInitiativesV6Route();
-  const orbitCardState = useV6StatusColours ? firstAnalysisCardStateForClause(clause) : "Default";
-  const cardIndicatorToken = useV6StatusColours
-    ? firstAnalysisCardIndicatorColorForClause(clause)
-    : missingClause
-    ? "var(--orbit-color-card-indicator-error)"
-    : noneDeviationClause
-    ? "var(--orbit-color-card-indicator-success)"
-    : theme.legacyIndicatorToken;
+  // The row-scale review view uses the neutral Orbit card surface for every
+  // clause; the deviation status is conveyed by the metadata badge instead.
+  const orbitCardState: OrbitCardState = "Default";
   const cardStyle: OrbitCardStyle = {
     minHeight: 104,
   };
-  if (!useV6StatusColours || orbitCardState === "Default") {
-    cardStyle["--orbit-color-card-indicator-default"] = cardIndicatorToken;
-  }
   const severityLabel = noneDeviationClause
     ? "None"
     : titleCaseSeverity(tier);
@@ -7126,52 +7111,66 @@ function ClauseRowScaleCard({
       id={`clause-row-${id}`}
       className={cn("rounded-orbit-lg transition-colors", highlighted && "ring-2 ring-orbit-primary/40")}
     >
-      <Card type="Static" padding="Base" state={orbitCardState} indicator style={cardStyle}>
+      <Card type="Static" padding="Base" state={orbitCardState} indicator={false} style={cardStyle}>
         <div className="flex flex-col gap-orbit-s">
           <div className="flex flex-wrap items-center justify-between gap-orbit-s">
-            <div className="flex flex-wrap items-center gap-orbit-s">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-orbit-s">
+              <h3 className="v6-orbit-heading-label text-orbit-fg">
+                <ClauseTitleInline clauseId={id} fallback={clause.title} />
+              </h3>
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-orbit-xs">
               {showSeverityBadge && (
-                useV6StatusColours ? (
-                  <FirstAnalysisStatusTag status={severityStatusKey} />
-                ) : (
-                  <Badge variant="outline" className={severityBadgeClass}>
-                    {severityLabel}
-                  </Badge>
-                )
+                <span className="inline-flex items-center gap-orbit-xs">
+                  <span className="text-orbit-xs text-orbit-fg-secondary">Deviation</span>
+                  {useV6StatusColours ? (
+                    <FirstAnalysisStatusTag status={severityStatusKey} />
+                  ) : (
+                    <Badge variant="outline" className={severityBadgeClass}>
+                      {severityLabel}
+                    </Badge>
+                  )}
+                </span>
               )}
               {missingClause && (
-                useV6StatusColours ? (
-                  <FirstAnalysisStatusTag status="missing" />
-                ) : (
-                  <Badge variant="outline" className={getFirstAnalysisMissingClauseBadgeClass()}>
-                    Missing Clause
-                  </Badge>
-                )
+                <span className="inline-flex items-center gap-orbit-xs">
+                  <span className="text-orbit-xs text-orbit-fg-secondary">Round Action</span>
+                  {useV6StatusColours ? (
+                    <FirstAnalysisStatusTag status="missing" label="Missing" />
+                  ) : (
+                    <Badge variant="outline" className={getFirstAnalysisMissingClauseBadgeClass()}>
+                      Missing Clause
+                    </Badge>
+                  )}
+                </span>
               )}
             </div>
-            <p className="text-orbit-xs text-orbit-fg-secondary">
-              {id.toUpperCase()} · {metadata}
-            </p>
           </div>
-          <h3 className="v6-orbit-heading-label text-orbit-fg">
-            <ClauseTitleInline clauseId={id} fallback={clause.title} />
-          </h3>
         </div>
         {description ? (
           <div className="mt-orbit-base space-y-orbit-s">
             <SimplifiedComparisonContent
-              currentLabel="Current Analysis"
+              currentLabel="Current Summary"
               currentText={description}
               target={!noneDeviationClause ? actionabilityText || undefined : undefined}
               targetFooter={
                 !noneDeviationClause && !isDrafting ? (
-                  <Button
-                    variant="outline"
-                    className="h-8 v6-orbit-text-small"
-                    onClick={(event) => runAction(event, onRequest)}
-                  >
-                    <Pencil className="h-3 w-3" /> {CLAUSE_ACTION_LABELS.editPosition}
-                  </Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      className="h-8"
+                      onClick={(event) => runAction(event, onRequest)}
+                    >
+                      {CLAUSE_ACTION_LABELS.editPosition}
+                    </Button>
+                    <Button
+                      variant="default"
+                      className="h-8"
+                      onClick={(event) => runAction(event, onUseRecommendation)}
+                    >
+                      {CLAUSE_ACTION_LABELS.holdPosition}
+                    </Button>
+                  </>
                 ) : undefined
               }
             />
@@ -7309,13 +7308,17 @@ function SimplifiedComparisonContent({
               {!hideRationaleAction && recommendationRationale && (
                 <Button
                   variant="outline"
-                  className="h-8 v6-orbit-text-small"
+                  className="h-8"
                   onClick={() => setRationaleOpen(true)}
                 >
                   View Rationale
                 </Button>
               )}
-              {targetFooter}
+              {targetFooter && (
+                <div className="ml-auto flex flex-wrap items-center justify-end gap-orbit-xs">
+                  {targetFooter}
+                </div>
+              )}
             </>
           }
         />
@@ -7712,17 +7715,6 @@ function ClauseReviewModalCard({
     : severity === "low"
     ? "Success"
     : "Default";
-  const clauseCardStyle: OrbitCardStyle = {};
-  if (clauseCardState === "Default") {
-    clauseCardStyle["--orbit-color-card-indicator-default"] = useV6StatusTags
-      ? firstAnalysisCardIndicatorColorForClause({
-        severity: severity ?? "low",
-        missingClause: Boolean(missingClause),
-        sourceDeviationLevel,
-      })
-      : "var(--orbit-color-card-border-default)";
-  }
-
   useEffect(() => {
     if (!editing) setDraft(request);
   }, [editing, request]);
@@ -7742,7 +7734,7 @@ function ClauseReviewModalCard({
       id={domId}
       className={cn("rounded-orbit-lg transition-colors", highlighted && "ring-2 ring-orbit-primary/40")}
     >
-      <Card type="Static" padding="Base" state={clauseCardState} indicator style={clauseCardStyle}>
+      <Card type="Static" padding="Base" state={clauseCardState} indicator={false}>
         <div className="flex flex-wrap items-start justify-between gap-orbit-s">
           <div className="flex flex-wrap items-center gap-orbit-xs">
             {severity && (
@@ -8124,8 +8116,8 @@ const FIRST_ANALYSIS_REVIEW_BUCKETS: Array<{
   { key: "high", title: "High", accent: "destructive", description: "Clauses with a high deviation from your preferred position." },
   { key: "medium", title: "Medium", accent: "warning", description: "Clauses with a moderate deviation to review." },
   { key: "low", title: "Low", accent: "success", description: "Clauses with a minor deviation." },
-  { key: "missing", title: "Missing", accent: "neutral", description: "Expected clauses that were not found in this contract." },
   { key: "none", title: "None", accent: "neutral", description: "Clauses with no material deviation identified." },
+  { key: "missing", title: "Missing", accent: "neutral", description: "Expected clauses that were not found in this contract." },
 ];
 
 function FirstAnalysisReviewBucketSection({
@@ -8382,7 +8374,7 @@ function ReviewScreen({
   );
 
   // First-analysis review groups clauses into deviation buckets
-  // (High / Medium / Low / Missing / None), mirroring the Comparison View
+  // (High / Medium / Low / None / Missing), mirroring the Comparison View
   // section layout. The legacy default layout keeps its flat list.
   if (displayMode === "row-scale") {
     const bucketOf = (c: ClauseResult): FirstAnalysisReviewBucketKey =>
@@ -8665,7 +8657,7 @@ function ComparisonSection(props: {
                 <>
                   <Button
                     variant={closure === "follow-up" ? "secondary" : "outline"}
-                    className="ml-auto h-8 v6-orbit-text-small"
+                    className="ml-auto h-8"
                     onClick={() =>
                       openReviseTargetEditor("Chose to revise target", {
                         outcome: "custom",
@@ -8678,7 +8670,7 @@ function ComparisonSection(props: {
                   {bucket !== "no-action" && (
                     <Button
                       variant="default"
-                      className="h-8 v6-orbit-text-small"
+                      className="h-8"
                       onClick={() => {
                         if (actionabilityRequest && onContinueWithActionability) {
                           onConfirmVerdictFromAction?.(r.id, rowVerdict, "Held previous target", "recommended");

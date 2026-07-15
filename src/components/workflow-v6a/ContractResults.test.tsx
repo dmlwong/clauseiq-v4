@@ -510,10 +510,20 @@ describe("ContractResults V6A review controls", () => {
 
     expect(orbitClauseCards.length).toBeGreaterThan(0);
     expect(clauseRow).toBeTruthy();
-    expect(within(clauseRow as HTMLElement).getByText("Current Analysis")).toBeInTheDocument();
+    expect(within(clauseRow as HTMLElement).getByText("Current Summary")).toBeInTheDocument();
     expect(within(clauseRow as HTMLElement).queryByText(/Previous Analysis/i)).not.toBeInTheDocument();
     expect(within(clauseRow as HTMLElement).queryByText("Recommend Position")).not.toBeInTheDocument();
     expect(within(clauseRow as HTMLElement).queryByText(/Recommended action/i)).not.toBeInTheDocument();
+  });
+
+  it("uses the default Orbit card state for all first-analysis clause cards", () => {
+    const { container } = renderContractResults(`${firstAnalysisRoute}&cat=term-and-termination`);
+    const cards = Array.from(container.querySelectorAll('[id^="clause-row-"] > div')) as HTMLElement[];
+
+    expect(cards.length).toBeGreaterThan(1);
+    cards.forEach((card) => {
+      expect(card.style.getPropertyValue("--_bg")).toBe("var(--orbit-color-card-bg-default)");
+    });
   });
 
   it("applies scoped recommendations and undoes only that applied scope", async () => {

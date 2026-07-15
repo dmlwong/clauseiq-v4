@@ -4,7 +4,6 @@ import {
   Badge,
   Card,
   Chip,
-  Headings,
   RadialIndicator,
   TabButton,
   Text,
@@ -263,7 +262,6 @@ export function FirstAnalysisDesignOptions({
   banner,
   metrics,
   clausesToReview,
-  visibleCount,
   categoryRail,
   categoryPanel,
   categoryStrip,
@@ -295,7 +293,6 @@ export function FirstAnalysisDesignOptions({
         <aside className="clauseiq-v6a-comparison-sticky-rail xl:self-start">
           <section className="clauseiq-v6a-comparison-sticky-rail-panel flex overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card xl:flex-col">
             <div className="min-h-0 flex-1 overflow-y-auto p-orbit-base">
-              <FirstAnalysisReviewCountPanel visibleCount={visibleCount} />
               <FirstAnalysisSummaryPanel
                 metrics={metrics}
                 activeMetrics={activeMetrics}
@@ -327,7 +324,6 @@ export function FirstAnalysisDesignOptions({
       <div className="min-[900px]:flex min-[900px]:items-start min-[900px]:gap-orbit-base">
         <div className="hidden w-60 shrink-0 min-[900px]:block">
           <div className="space-y-orbit-base">
-            <FirstAnalysisReviewCountPanel visibleCount={visibleCount} />
             <SidebarFiltersPanel>{categoryRail}</SidebarFiltersPanel>
           </div>
         </div>
@@ -444,10 +440,8 @@ function FirstAnalysisSummaryPanel({
           </div>
           <div className="flex min-w-0 items-baseline gap-orbit-s">
             <span className="v6-orbit-heading-1 text-orbit-fg">{metrics.score}</span>
-            <span className="v6-orbit-text-small text-orbit-fg-secondary">Analysis Score</span>
           </div>
         </div>
-        <FirstAnalysisMetricBar metrics={metrics} className="mt-orbit-base" />
       </Card>
       <FirstAnalysisMetricGrid
         metrics={metrics}
@@ -456,16 +450,6 @@ function FirstAnalysisSummaryPanel({
         density="rail"
       />
     </section>
-  );
-}
-
-function FirstAnalysisReviewCountPanel({ visibleCount: _visibleCount }: { visibleCount: number }) {
-  return (
-    <div className="mb-orbit-base px-orbit-xs">
-      <div className="flex items-center gap-orbit-s">
-        <Headings size="Heading 4">Clauses to Review</Headings>
-      </div>
-    </div>
   );
 }
 
@@ -903,20 +887,14 @@ const firstAnalysisMetricDefinitions: Array<{
   tone?: "success" | "warning" | "destructive";
   color: string;
   v6Status: FirstAnalysisStatusKey;
-  barColor?: string;
-  barBorderColor?: string;
   group: "workflow" | "risk";
 }> = [
   { key: "high", label: "High", value: "high", tone: "destructive", color: "var(--orbit-color-text-error)", v6Status: "high", group: "risk" },
   { key: "medium", label: "Medium", value: "medium", tone: "warning", color: "var(--orbit-color-text-warning)", v6Status: "medium", group: "risk" },
   { key: "low", label: "Low", value: "low", color: "var(--orbit-color-text-secondary)", v6Status: "low", group: "risk" },
-  { key: "missing", label: "Missing Clauses", value: "missingClauses", color: "var(--orbit-color-text-primary)", v6Status: "missing", barColor: "var(--orbit-color-card-bg-default)", barBorderColor: "var(--orbit-color-card-border-default)", group: "risk" },
+  { key: "missing", label: "Missing Clauses", value: "missingClauses", color: "var(--orbit-color-text-primary)", v6Status: "missing", group: "risk" },
   { key: "none", label: "None", value: "noneDeviation", tone: "success", color: "var(--orbit-color-text-success)", v6Status: "none", group: "risk" },
 ];
-
-const firstAnalysisMetricBarDefinitions = firstAnalysisMetricDefinitions.filter(
-  (definition) => definition.key !== "none",
-);
 
 const filterToggleCardStyle: CSSProperties = { boxShadow: "var(--orbit-shadow-none)" };
 type V6aToggleCardStatus = "Default" | "Hover" | "Selected" | "Disabled" | "Subtle";
@@ -945,9 +923,9 @@ function FirstAnalysisMetricGrid({
   const renderMetricRow = (definition: (typeof firstAnalysisMetricDefinitions)[number]) => {
     const active = activeMetricSet.has(definition.key);
     const value = metrics[definition.value];
-    const dotColor = FIRST_ANALYSIS_STATUS_THEME[definition.v6Status].indicatorColor;
     const disabled = value === 0;
     const toggleCardStatus = getV6aToggleCardStatus({ active, disabled });
+    const label = definition.key === "missing" ? "Missing" : definition.label;
 
     return (
       <ToggleCard
@@ -960,17 +938,10 @@ function FirstAnalysisMetricGrid({
         style={filterToggleCardStyle}
       >
         <span className="flex min-h-8 w-full items-center gap-orbit-s px-orbit-s py-orbit-xs">
-          <span className="flex min-w-0 flex-1 items-center gap-orbit-s overflow-hidden" style={{ textAlign: "left" }}>
-            <span
-              aria-hidden="true"
-              className="h-1.5 w-1.5 shrink-0 rounded-full"
-              style={{ backgroundColor: disabled ? "var(--orbit-color-text-disabled)" : dotColor }}
-            />
-            <span className="min-w-0 truncate leading-orbit-tight">
-              <Text as="span" size="Small" variant={disabled ? "Disabled" : "Secondary"}>
-                {definition.label}
-              </Text>
-            </span>
+          <span className="min-w-0 flex-1 truncate" style={{ textAlign: "left" }}>
+            <Text as="span" size="Small" variant={disabled ? "Disabled" : "Secondary"}>
+              {label}
+            </Text>
           </span>
           <Chip label={String(value)} size="Mini" variant={disabled ? "Disabled" : "No Status"} contrast="Low" />
         </span>
@@ -1025,16 +996,43 @@ function FirstAnalysisMetricGrid({
   }
 
   if (density === "rail") {
+    const missingMetric = firstAnalysisMetricDefinitions.find((definition) => definition.key === "missing");
+    const deviationMetrics = firstAnalysisMetricDefinitions.filter((definition) => definition.key !== "missing");
+    const renderSectionTitle = (title: "Round Action" | "Deviation Level", description: ReactNode) => (
+      <div className="flex min-w-0 items-center gap-orbit-xs">
+        <p className="v6-orbit-text-small v6-orbit-weight-semibold text-[var(--orbit-color-text-secondary)]">{title}</p>
+        <Tooltip>
+          <TooltipTrigger>
+            <button
+              type="button"
+              aria-label={`${title} help`}
+              className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[var(--orbit-color-text-secondary)] transition-colors hover:text-[var(--orbit-color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-border-focus)]"
+            >
+              <Info className="h-3 w-3" aria-hidden="true" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="max-w-[380px]">{description}</TooltipContent>
+        </Tooltip>
+      </div>
+    );
+
     return (
       <div className="mt-orbit-base">
-        <div
-          tabIndex={0}
-          className="mb-orbit-xs rounded-orbit-md py-orbit-xs outline-none focus-visible:ring-2 focus-visible:ring-[var(--orbit-color-focus-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--orbit-color-card-bg-default)]"
-        >
-          <Text as="p" size="Small" variant="Secondary">DEVIATION LEVEL</Text>
-        </div>
-        <div className="space-y-orbit-xs">
-          {firstAnalysisMetricDefinitions.map(renderMetricRow)}
+        <div className="space-y-orbit-base">
+          {missingMetric && (
+            <div>
+              <div className="mb-orbit-xs rounded-orbit-md py-orbit-xs">
+                {renderSectionTitle("Round Action", <p className="text-orbit-xs">Missing means the expected clause was not found.</p>)}
+              </div>
+              <div className="space-y-orbit-xs">{renderMetricRow(missingMetric)}</div>
+            </div>
+          )}
+          <div>
+            <div className="mb-orbit-xs rounded-orbit-md py-orbit-xs">
+              {renderSectionTitle("Deviation Level", <p className="text-orbit-xs">How far the contract differs from best practice.</p>)}
+            </div>
+            <div className="space-y-orbit-xs">{deviationMetrics.map(renderMetricRow)}</div>
+          </div>
         </div>
       </div>
     );
@@ -1213,36 +1211,6 @@ function MetricGrid({
       )}
     >
       {visibleMetricDefinitions.map(renderMetric)}
-    </div>
-  );
-}
-
-function FirstAnalysisMetricBar({ metrics, className }: { metrics: FirstAnalysisMetrics; className?: string }) {
-  const useV6StatusColours = isInitiativesV6Route();
-  const total = Math.max(
-    1,
-    firstAnalysisMetricBarDefinitions.reduce((sum, definition) => sum + metrics[definition.value], 0),
-  );
-
-  return (
-    <div className={cn("flex h-2 overflow-hidden rounded-full bg-orbit-surface", className)}>
-      {firstAnalysisMetricBarDefinitions.map((definition) => {
-        const value = metrics[definition.value];
-        if (value <= 0) return null;
-
-        return (
-          <span
-            key={definition.key}
-            className="h-full"
-            aria-label={`${definition.label}: ${value}`}
-            style={{
-              width: `${(value / total) * 100}%`,
-              backgroundColor: useV6StatusColours ? FIRST_ANALYSIS_STATUS_THEME[definition.v6Status].indicatorColor : definition.barColor ?? definition.color,
-              border: !useV6StatusColours && definition.barBorderColor ? `1px solid ${definition.barBorderColor}` : undefined,
-            }}
-          />
-        );
-      })}
     </div>
   );
 }

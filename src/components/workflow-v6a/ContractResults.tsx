@@ -174,13 +174,6 @@ interface ReviewGenerateProgress {
   }>;
 }
 
-interface ReviewDecisionSummary {
-  recommendationsApplied: number;
-  customPositionsApplied: number;
-  currentPositionsTracked: number;
-  unchanged: number;
-  exportable: number;
-}
 type CategorySortKey = "risk" | "az" | "count";
 export type ScoringOptionKey = "issue-score" | "hybrid";
 type ScoreBand = "A" | "B" | "C" | "D" | "F";
@@ -417,7 +410,7 @@ function ClauseTitleInline({
   fallback: string;
 }) {
   return (
-    <span className="inline-flex min-w-0 max-w-full items-center gap-orbit-xs">
+    <span className="inline-flex min-w-0 max-w-full items-center gap-orbit-s">
       <span className="shrink-0 v6-orbit-text-small v6-orbit-weight-regular text-orbit-fg-secondary">{clauseId}</span>
       <span aria-hidden="true" className="h-[1em] w-px shrink-0 bg-orbit-border" />
       <span className="min-w-0 truncate">{displayTitleForClause(clauseId, fallback)}</span>
@@ -1005,6 +998,7 @@ export function ContractResults({
     typeof window !== "undefined" && window.location.pathname.startsWith("/initiatives-responsive-testing");
   const mode = normalizeMode(searchParams.get("mode"));
   const designOption = normalizeComparisonDesignOption(searchParams.get("design"));
+  const defaultExpandClauses = designOption === "row-scale";
   const decisionContractId = firstAnalysisDemo ? `${contractId}:first-analysis-demo` : contractId;
   const generatedCsvStoragePrefix = `ciq-v6a-generated-csv:${supplierId}:${decisionContractId}:`;
   const firstAnalysisResetKeyRef = useRef<string | null>(null);
@@ -1380,42 +1374,6 @@ export function ContractResults({
   // set is the single source of truth for both the CTA count and the CSV payload.
   const reviewGenerateItems = currentReviewItems;
   const reviewGenerateDisabled = !activeRequestVersion || reviewGenerateItems.length === 0;
-  const reviewDecisionSummary = useMemo<ReviewDecisionSummary>(() => {
-    if (!activeRequestVersion) {
-      return {
-        recommendationsApplied: 0,
-        customPositionsApplied: 0,
-        currentPositionsTracked: 0,
-        unchanged: 0,
-        exportable: 0,
-      };
-    }
-
-    const summary = currentReviewItems.reduce(
-      (counts, item) => {
-        if (item.action === "track-current-position") {
-          counts.currentPositionsTracked += 1;
-          return counts;
-        }
-        const recommendedPosition = activeRequestVersion.clauses
-          .find((clause) => clause.id === item.clauseId)
-          ?.actionability?.trim();
-        if (recommendedPosition && item.request?.requestedChange?.trim() === recommendedPosition) {
-          counts.recommendationsApplied += 1;
-        } else {
-          counts.customPositionsApplied += 1;
-        }
-        return counts;
-      },
-      { recommendationsApplied: 0, customPositionsApplied: 0, currentPositionsTracked: 0 },
-    );
-    const exportable = currentReviewItems.length;
-    return {
-      ...summary,
-      exportable,
-      unchanged: Math.max(0, activeRequestVersion.clauses.length - exportable),
-    };
-  }, [activeRequestVersion, currentReviewItems]);
   const generateRequestedChangesCsv = () => {
     if (!activeRequestVersion || reviewGenerateDisabled) return;
     const csv = exportRequestChangeCsv(
@@ -1886,6 +1844,7 @@ export function ContractResults({
       clauseId.toUpperCase();
 
     decisions.acceptRequest(supplierId, decisionContractId, clauseId, versionLabel, request);
+    decisions.setOutcome(supplierId, decisionContractId, clauseId, versionLabel, "recommended");
     toast.success(
       "Recommended position added to review",
       `${displayTitleForClause(clauseId, fallbackTitle)} is ready for Review & Generate.`,
@@ -1906,6 +1865,7 @@ export function ContractResults({
       clauseId.toUpperCase();
 
     decisions.submitDraftRequest(supplierId, decisionContractId, clauseId, versionLabel);
+    decisions.setOutcome(supplierId, decisionContractId, clauseId, versionLabel, "custom");
     if (options?.followUp) {
       decisions.setClosure(supplierId, decisionContractId, clauseId, versionLabel, "follow-up");
     }
@@ -3043,6 +3003,7 @@ export function ContractResults({
       neutralActions
       hideSubclauseReference
       displayMode={designOption === "row-scale" ? "row-scale" : "default"}
+      defaultExpandClauses
       onSetNoAction={(id) =>
         decisions.changeDecision(supplierId, decisionContractId, id, firstAnalysisVersion.version, "no-action")
       }
@@ -3080,7 +3041,6 @@ export function ContractResults({
       banner={
         <>
           {!compactHeader && <InlineRecommendationReviewBanner />}
-          <ReviewDecisionSummaryCard summary={reviewDecisionSummary} />
           {compactBulkBanner}
         </>
       }
@@ -3107,7 +3067,6 @@ export function ContractResults({
       introBanner={
         <div className="space-y-orbit-s">
           <InlineRecommendationReviewBanner />
-          <ReviewDecisionSummaryCard summary={reviewDecisionSummary} />
         </div>
       }
       comparisonControl={<PairSelector versions={versions} pair={pair} onChange={setPair} compact />}
@@ -4237,29 +4196,34 @@ function DashboardViewToggle({
   );
 }
 
-function RecommendationReviewIntro() {
+function RecommendationReviewAlert() {
+  const [visible, setVisible] = useState(true);
+
+  if (!visible) return null;
+
   return (
-    <div className="min-w-0">
-      <div className="flex flex-wrap items-center gap-orbit-s">
-        <h2 className="v6-orbit-heading-5">
-          Review ClauseIQ Recommendations
-        </h2>
-      </div>
-      <p
-        className="mt-orbit-xs v6-orbit-text-small text-orbit-fg-secondary"
-        style={{ "--orbit-text-small-leading": "1.5" } as CSSProperties}
-      >
-        Review ClauseIQ&apos;s findings before supplier negotiation. Apply a recommended position, set a custom position, or track a current position when you need it in the output. Clauses you leave untouched remain unchanged and are not included when you generate the next negotiation step.
-      </p>
+    <div className="clauseiq-v6a-review-alert relative">
+      <Alert
+        type="Information"
+        title="Review ClauseIQ Recommendations"
+        description="Review ClauseIQ's findings before supplier negotiation. Apply a recommended position, set a custom position, or track a current position when you need it in the output. Clauses you leave untouched remain unchanged and are not included when you generate the next negotiation step."
+      />
+      <IconButton
+        variant="Tertiary"
+        size="Medium"
+        state="Default"
+        ariaLabel="Dismiss information alert"
+        icon={<FaIcon icon={FA.xmark} size={12} />}
+        onClick={() => setVisible(false)}
+        className="absolute right-orbit-base top-orbit-base"
+      />
     </div>
   );
 }
 
 function InlineRecommendationReviewBanner() {
   return (
-    <Card type="Static" padding="Base" state="Accent" indicator>
-      <RecommendationReviewIntro />
-    </Card>
+    <RecommendationReviewAlert />
   );
 }
 
@@ -4267,9 +4231,7 @@ function FirstAnalysisContextBanner() {
   return (
     <section>
       <div className="mx-auto w-full max-w-[1500px] px-orbit-base pt-orbit-base pb-orbit-none">
-        <Card type="Static" padding="Base" state="Accent" indicator>
-          <RecommendationReviewIntro />
-        </Card>
+        <RecommendationReviewAlert />
       </div>
     </section>
   );
@@ -6616,6 +6578,7 @@ function ClauseDecisionCard({
   missingClause,
   hideSubclauseReference,
   displayMode = "default",
+  defaultExpandClauses = false,
   primaryActionLabel = "Request Change",
   requestPlaceholder,
   requestSubmitLabel = "Add to Requests",
@@ -6666,6 +6629,7 @@ function ClauseDecisionCard({
   missingClause?: boolean;
   hideSubclauseReference?: boolean;
   displayMode?: "default" | "row-scale";
+  defaultExpandClauses?: boolean;
   primaryActionLabel?: string;
   requestPlaceholder?: string;
   requestSubmitLabel?: string;
@@ -6700,8 +6664,8 @@ function ClauseDecisionCard({
   selectedComparisonAction?: "accepted" | ClauseOutcome;
 }) {
   const bulkSelectionContext = useContext(BulkClauseSelectionContext);
-  const [queuedExpanded, setQueuedExpanded] = useState(false);
-  const [detailsExpanded, setDetailsExpanded] = useState(false);
+  const [completedExpanded, setCompletedExpanded] = useState(false);
+  const [detailsExpanded, setDetailsExpanded] = useState(true);
   const useDefaultComparisonCard = Boolean(extraContent && !neutralActions);
   const pendingBasketRequest = request?.state === "pending" && Boolean(request.requestedChange?.trim());
   // "kept-unmet" settles the clause without queueing a request, so it condenses
@@ -6711,34 +6675,14 @@ function ClauseDecisionCard({
   const showQueuedCompact = pendingBasketRequest && !isDrafting;
   const showTrackedCompact = trackedCurrentPosition && !pendingBasketRequest && !isDrafting;
   const showHandledCompact = showQueuedCompact || showAcceptedCompact || showTrackedCompact;
-  const showDecisionBody = !showHandledCompact || queuedExpanded;
+  const showDecisionBody = !showHandledCompact || completedExpanded;
   const showExpandedBody = showDecisionBody && (!useDefaultComparisonCard || detailsExpanded || isDrafting);
-  const requestPreview = request?.requestedChange?.trim() ?? "";
   const settled = decision === "request-update" || decision === "no-action";
   const noActionIsPrimary = !neutralActions && clause.severity === "low";
   const noneDeviationClause = isNoneDeviationClause(clause);
   const showRequestActions = !suppressRequestActions && !noneDeviationClause && !settled && !actions && !showHandledCompact;
   const showBulkSelectionCheckbox = (bulkSelectionEnabled || bulkSelectionContext.enabled) && useDefaultComparisonCard;
   const bulkClauseSelected = bulkSelectedClauseIds?.has(id) ?? bulkSelectionContext.selectedClauseIds.has(id);
-  const CompactHandledCard = ({ children }: { children: ReactNode }) =>
-    showAcceptedCompact ? (
-      <Card type="Static" state="Success" padding="Small" indicator={false}>
-        <div className="flex flex-wrap items-center gap-orbit-s">
-          {children}
-        </div>
-      </Card>
-    ) : (
-      <div
-        className={cn(
-          "flex flex-wrap items-center gap-orbit-s rounded-orbit-md px-orbit-base py-orbit-s",
-          useDefaultComparisonCard
-            ? "border border-orbit-border bg-orbit-surface/20"
-            : "border border-orbit-success-border bg-orbit-success-surface",
-        )}
-      >
-        {children}
-      </div>
-    );
   const useV6StatusTags = isInitiativesV6Route();
   const isMissingClauseCard = Boolean(missingClause || clause.missingClause);
   const useV6DeviationCard = isInitiativesV6Route() && neutralActions;
@@ -6769,6 +6713,18 @@ function ClauseDecisionCard({
     : pendingBasketRequest || decision === "request-update"
     ? "Information"
     : "Default";
+  const completedStatusChip = showTrackedCompact ? (
+    <Chip label="Keep Current Summary" size="Mini" variant="Success" contrast="Low" />
+  ) : selectedComparisonAction === "custom" || request?.requestedChange?.trim() !== clause.actionability?.trim() ? (
+    <Chip label="Custom Position Applied" size="Mini" variant="Success" contrast="Low" />
+  ) : (
+    <Chip label="Recommendation Applied" size="Mini" variant="Success" contrast="Low" />
+  );
+  const toggleDetails = () => {
+    if (showHandledCompact) setCompletedExpanded((current) => !current);
+    else setDetailsExpanded((current) => !current);
+  };
+  const detailsAreExpanded = showHandledCompact ? completedExpanded : detailsExpanded;
 
   if (displayMode === "row-scale" && !actions) {
     return (
@@ -6802,6 +6758,9 @@ function ClauseDecisionCard({
         bulkSelectionEnabled={bulkSelectionEnabled}
         bulkSelectedClauseIds={bulkSelectedClauseIds}
         onBulkClauseSelectionChange={onBulkClauseSelectionChange}
+        initiallyExpanded
+        showTrackCurrentPosition={!defaultExpandClauses}
+        selectedComparisonAction={selectedComparisonAction}
       />
     );
   }
@@ -6823,6 +6782,9 @@ function ClauseDecisionCard({
                   onCheckedChange={(checked) => (onBulkClauseSelectionChange ?? bulkSelectionContext.onSelectionChange)(id, checked === true)}
                 />
               )}
+              {showHandledCompact && (
+                <span className="inline-flex w-[168px] shrink-0">{completedStatusChip}</span>
+              )}
               <h3 className="v6-orbit-heading-label truncate text-orbit-fg">
                 <ClauseTitleInline clauseId={id} fallback={clause.title} />
               </h3>
@@ -6830,7 +6792,7 @@ function ClauseDecisionCard({
           </div>
           {alteredAfterAgreement && <Chip label="Altered after agreement" size="Mini" variant="Error" contrast="Low" />}
           {verdict && !isMissingClauseCard ? (
-            <span className="inline-flex items-center gap-orbit-xs">
+            <span className="inline-flex w-[152px] shrink-0 items-center gap-orbit-xs">
               <span className="text-orbit-xs text-orbit-fg-secondary">Review status</span>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -6845,7 +6807,7 @@ function ClauseDecisionCard({
             </span>
           ) : showChangePill && changePill ? <ChangePillBadge result={changePill} /> : null}
           {isMissingClauseCard && (
-            <span className="inline-flex items-center gap-orbit-xs">
+            <span className="inline-flex w-[152px] shrink-0 items-center gap-orbit-xs">
               <span className="text-orbit-xs text-orbit-fg-secondary">Review status</span>
               {useV6StatusTags ? (
                 <FirstAnalysisStatusTag status="missing" label="Missing" />
@@ -6860,11 +6822,11 @@ function ClauseDecisionCard({
             </span>
           )}
           {stateBadge}
-          {trackedCurrentPosition && (
-            <Chip label="Current position tracked" size="Mini" variant="No Status" contrast="Low" />
+          {trackedCurrentPosition && !showHandledCompact && (
+            <Chip label="Keep Current Summary" size="Mini" variant="Success" contrast="Low" />
           )}
           {showSeverityBadge && (
-            <span className="inline-flex items-center gap-orbit-xs">
+            <span className="inline-flex w-[120px] shrink-0 items-center gap-orbit-xs">
               <span className="text-orbit-xs text-orbit-fg-secondary">Deviation</span>
               {useV6StatusTags ? (
                 <Tooltip>
@@ -6884,18 +6846,32 @@ function ClauseDecisionCard({
               )}
             </span>
           )}
-          {useDefaultComparisonCard && !showHandledCompact && (
-            <button
-              type="button"
-              className="shrink-0 text-orbit-fg-secondary"
-              aria-label={`${detailsExpanded ? "Collapse" : "Expand"} ${clause.title}`}
-              aria-expanded={detailsExpanded}
-              onClick={() => setDetailsExpanded((current) => !current)}
+          {showHandledCompact && (
+            <Button
+              variant="outline"
+              className="h-7 px-orbit-s text-orbit-xs text-orbit-fg-secondary"
+              onClick={() => {
+                onUndoDecision?.();
+                onRemoveRequest?.();
+                onTrackCurrentPosition?.(false);
+              }}
             >
-              <ChevronDown className={cn("h-4 w-4 transition-transform", detailsExpanded && "rotate-180")} />
-            </button>
+              Undo
+            </Button>
           )}
-          {settled && !pendingBasketRequest && (
+          {useDefaultComparisonCard && (
+            <IconButton
+              variant="Tertiary"
+              size="Small"
+              state="Default"
+              className="shrink-0"
+              ariaLabel={`${detailsAreExpanded ? "Collapse" : "Expand"} ${clause.title}`}
+              aria-expanded={detailsAreExpanded}
+              onClick={toggleDetails}
+              icon={<ChevronDown className={cn("h-4 w-4 transition-transform", detailsAreExpanded && "rotate-180")} />}
+            />
+          )}
+          {settled && !pendingBasketRequest && !showHandledCompact && (
             <>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -6921,75 +6897,6 @@ function ClauseDecisionCard({
             </>
           )}
         </div>
-
-        {showHandledCompact && (
-          <div className="mt-orbit-s space-y-orbit-s" onClick={(event) => event.stopPropagation()}>
-            <CompactHandledCard>
-              <p
-                className={cn(
-                  "min-w-[180px] flex-1 truncate text-orbit-xs",
-                  // Not Met outcome provenance: recommended = accent,
-                  // custom = neutral, kept unmet = muted. Everything else keeps
-                  // the pre-existing treatment.
-                  selectedComparisonAction === "recommended"
-                    ? "text-orbit-primary"
-                    : selectedComparisonAction === "custom"
-                    ? "text-orbit-fg"
-                    : selectedComparisonAction === "kept-unmet"
-                    ? "text-orbit-fg-secondary"
-                    : showAcceptedCompact
-                    ? "text-orbit-success"
-                    : useDefaultComparisonCard
-                    ? "text-orbit-fg-secondary"
-                    : "text-orbit-success",
-                )}
-              >
-                <span
-                  className={cn(
-                    "v6-orbit-weight-semibold",
-                    useDefaultComparisonCard && !showAcceptedCompact && !selectedComparisonAction && "text-orbit-fg",
-                  )}
-                >
-                  {showTrackedCompact
-                    ? "Current position tracked:"
-                    : selectedComparisonAction === "recommended" || requestPreview === clause.actionability?.trim()
-                    ? "Recommendation applied:"
-                    : selectedComparisonAction === "custom"
-                    ? "Custom position applied:"
-                    : selectedComparisonAction === "kept-unmet"
-                    ? "Kept unmet:"
-                    : showAcceptedCompact
-                    ? "Accepted:"
-                    : "Request:"}
-                </span>{" "}
-                {showTrackedCompact
-                  ? clause.deviation
-                  : selectedComparisonAction === "kept-unmet"
-                  ? "Won't pursue this change, the clause stays as it currently stands."
-                  : selectedComparisonAction === "recommended" && !requestPreview
-                  ? "Applied the recommended position."
-                  : showAcceptedCompact
-                  ? "Supplier position accepted for this round."
-                  : requestPreview}
-              </p>
-              <div className="flex shrink-0 items-center gap-orbit-xs">
-                {(onUndoDecision || onRemoveRequest || onTrackCurrentPosition) && (
-                  <Button
-                    variant="outline"
-                    className="h-7 px-orbit-s text-orbit-xs text-orbit-fg-secondary"
-                    onClick={() => {
-                      onUndoDecision?.();
-                      onRemoveRequest?.();
-                      onTrackCurrentPosition?.(false);
-                    }}
-                  >
-                    Undo
-                  </Button>
-                )}
-              </div>
-            </CompactHandledCard>
-          </div>
-        )}
 
         {showExpandedBody && description && (
           <p className="mt-orbit-xs v6-orbit-text-small text-orbit-fg-secondary">
@@ -7022,7 +6929,7 @@ function ClauseDecisionCard({
           </div>
         )}
 
-        {showAcceptedCompact && queuedExpanded && (
+        {showAcceptedCompact && completedExpanded && (
           <div className="mt-orbit-s" onClick={(event) => event.stopPropagation()}>
             <div className="rounded-orbit-md border border-orbit-success-border bg-orbit-success-surface px-orbit-base py-orbit-s text-orbit-xs text-orbit-success">
               <p className="v6-orbit-weight-medium">Accepted supplier position.</p>
@@ -7081,6 +6988,9 @@ function ClauseRowScaleCard({
   bulkSelectionEnabled = false,
   bulkSelectedClauseIds,
   onBulkClauseSelectionChange,
+  initiallyExpanded = true,
+  showTrackCurrentPosition = true,
+  selectedComparisonAction,
 }: {
   id: string;
   clause: ClauseResult;
@@ -7109,8 +7019,11 @@ function ClauseRowScaleCard({
   bulkSelectionEnabled?: boolean;
   bulkSelectedClauseIds?: Set<string>;
   onBulkClauseSelectionChange?: (clauseId: string, selected: boolean) => void;
+  initiallyExpanded?: boolean;
+  showTrackCurrentPosition?: boolean;
+  selectedComparisonAction?: "accepted" | ClauseOutcome;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(initiallyExpanded);
   const tier = clause.severity;
   const theme = rowScaleSeverityThemes[tier];
   const noneDeviationClause = isNoneDeviationClause(clause);
@@ -7143,7 +7056,13 @@ function ClauseRowScaleCard({
       ? "tracked"
       : "no-action"
     : null;
-  const acceptedRecommendation = hasRequest && actionabilityText === requestText;
+  useEffect(() => {
+    if (handledState) setExpanded(false);
+  }, [handledState]);
+  const acceptedRecommendation = hasRequest && (
+    selectedComparisonAction === "recommended" ||
+    (selectedComparisonAction !== "custom" && actionabilityText === requestText)
+  );
   const requestForm =
     isDrafting && onUpdateDraft && onCancelDraft && onSubmitDraft ? (
       <ClauseRequestForm
@@ -7165,47 +7084,104 @@ function ClauseRowScaleCard({
   };
 
   if (handledState) {
-    const requestSubmitted = request?.state === "submitted";
     const statusLabel =
       handledState === "request"
-        ? requestSubmitted
-          ? "Reviewed"
-          : acceptedRecommendation
-          ? "Recommendation applied"
-          : "Custom position applied"
+        ? acceptedRecommendation
+          ? "Recommendation Applied"
+          : "Custom Position Applied"
         : handledState === "tracked"
-        ? "Current position tracked"
+        ? "Keep Current Summary"
         : "No action selected";
-    const preview =
-      handledState === "request"
-        ? requestText
-        : handledState === "tracked"
+    const positionLabel =
+      handledState === "tracked"
+        ? "Keep Current Summary"
+        : acceptedRecommendation
+        ? "Recommended Position"
+        : "Custom Position";
+    const positionText =
+      handledState === "tracked"
         ? description ?? clause.deviation
-        : "No supplier change will be requested for this clause.";
+        : requestText;
 
     return (
-      <ClauseReviewModalCard
-        domId={`clause-row-${id}`}
-        itemId={id}
-        title={<ClauseTitleInline clauseId={id} fallback={clause.title} />}
-        category={metadata}
-        severity={tier}
-        missingClause={clause.missingClause}
-        sourceDeviationLevel={clause.sourceDeviationLevel}
-        request={{ requestedChange: preview }}
-        statusLabel={statusLabel}
-        statusTone={requestSubmitted ? "green" : handledState === "request" ? "blue" : "neutral"}
-        highlighted={highlighted}
-        editMode="external"
-        onEditRequest={onEditRequest}
-        onRemove={() => {
-          onUndoDecision?.();
-          onTrackCurrentPosition?.(false);
-        }}
-        secondaryActionLabel="Undo"
-        secondaryActionIcon={null}
-        secondaryActionTone="neutral"
-      />
+      <div
+        id={`clause-row-${id}`}
+        className={cn("rounded-orbit-lg transition-colors", highlighted && "ring-2 ring-orbit-primary/40")}
+      >
+        <Card type="Static" padding="Base" state={orbitCardState} indicator={false}>
+          <div className="flex flex-col gap-orbit-s">
+            <div className="flex flex-wrap items-center justify-between gap-orbit-s">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-orbit-xs">
+                {bulkSelectionEnabled && (
+                  <Checkbox
+                    checked={bulkClauseSelected}
+                    aria-label={`Bulk selected ${id.toUpperCase()}`}
+                    className="shrink-0 self-center"
+                    onCheckedChange={(checked) => onBulkClauseSelectionChange?.(id, checked === true)}
+                  />
+                )}
+                <span className="inline-flex w-[168px] shrink-0">
+                  <Chip
+                    label={statusLabel}
+                    size="Mini"
+                    variant="Success"
+                    contrast="Low"
+                  />
+                </span>
+                <h3 className="v6-orbit-heading-label text-orbit-fg">
+                  <ClauseTitleInline clauseId={id} fallback={clause.title} />
+                </h3>
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-orbit-xs">
+                {missingClause && (
+                  <span className="inline-flex w-[152px] shrink-0 items-center gap-orbit-xs">
+                    <span className="text-orbit-xs text-orbit-fg-secondary">Review status</span>
+                    <FirstAnalysisStatusTag status="missing" label="Missing" />
+                  </span>
+                )}
+                <span className="inline-flex w-[120px] shrink-0 items-center gap-orbit-xs">
+                  <span className="text-orbit-xs text-orbit-fg-secondary">Deviation</span>
+                  <FirstAnalysisStatusTag status={severityStatusKey} />
+                </span>
+                <Button
+                  variant="outline"
+                  className="h-7 px-orbit-s text-orbit-xs text-orbit-fg-secondary"
+                  onClick={() => {
+                    onUndoDecision?.();
+                    onTrackCurrentPosition?.(false);
+                  }}
+                >
+                  Undo
+                </Button>
+                <IconButton
+                  variant="Tertiary"
+                  size="Small"
+                  state="Default"
+                  className="shrink-0"
+                  ariaLabel={`${expanded ? "Collapse" : "Expand"} ${clause.title}`}
+                  aria-expanded={expanded}
+                  onClick={() => setExpanded((current) => !current)}
+                  icon={<ChevronDown className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")} />}
+                />
+              </div>
+            </div>
+            {expanded && (
+              <SimplifiedComparisonContent
+                currentLabel="Current Summary"
+                currentText={description ?? clause.deviation}
+                target={positionText}
+                targetLabel={positionLabel}
+                hideRationaleAction
+                clauseContext={{
+                  clauseId: id,
+                  clauseName: displayTitleForClause(id, clause.title),
+                  subClauseName: clause.subclause,
+                }}
+              />
+            )}
+          </div>
+        </Card>
+      </div>
     );
   }
 
@@ -7243,15 +7219,6 @@ function ClauseRowScaleCard({
                   )}
                 </span>
               )}
-              <button
-                type="button"
-                className="shrink-0 text-orbit-fg-secondary"
-                aria-label={`${expanded ? "Collapse" : "Expand"} ${clause.title}`}
-                aria-expanded={expanded}
-                onClick={() => setExpanded((current) => !current)}
-              >
-                <ChevronDown className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")} />
-              </button>
               {showSeverityBadge && (
                 <span className="inline-flex items-center gap-orbit-xs">
                   <span className="text-orbit-xs text-orbit-fg-secondary">Deviation</span>
@@ -7264,6 +7231,16 @@ function ClauseRowScaleCard({
                   )}
                 </span>
               )}
+              <IconButton
+                variant="Tertiary"
+                size="Small"
+                state="Default"
+                className="shrink-0"
+                ariaLabel={`${expanded ? "Collapse" : "Expand"} ${clause.title}`}
+                aria-expanded={expanded}
+                onClick={() => setExpanded((current) => !current)}
+                icon={<ChevronDown className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")} />}
+              />
             </div>
           </div>
         </div>
@@ -7273,6 +7250,11 @@ function ClauseRowScaleCard({
               currentLabel="Current Summary"
               currentText={description}
               target={!noneDeviationClause ? actionabilityText || undefined : undefined}
+              clauseContext={{
+                clauseId: id,
+                clauseName: displayTitleForClause(id, clause.title),
+                subClauseName: clause.subclause,
+              }}
               targetFooter={
                 !noneDeviationClause && !isDrafting ? (
                   <>
@@ -7292,7 +7274,7 @@ function ClauseRowScaleCard({
                     >
                       {CLAUSE_ACTION_LABELS.holdPosition}
                     </Button>
-                    {onTrackCurrentPosition && (
+                    {showTrackCurrentPosition && onTrackCurrentPosition && (
                       <Button
                         variant="outline"
                         className="h-8"
@@ -7353,23 +7335,27 @@ type ResultCardPanelTone = "default" | "primary" | "accent";
 
 function ResultCardPanel({
   label,
+  icon,
   text,
   tone = "default",
   content,
   footer,
+  headerAction,
 }: {
   label: ReactNode;
+  icon?: ReactNode;
   text: string;
   tone?: ResultCardPanelTone;
   content?: ReactNode;
   footer?: ReactNode;
+  headerAction?: ReactNode;
 }) {
   const surfaceToken = tone === "accent" ? "accent" : "default";
   const labelVariant = tone === "default" ? "Secondary" : "Information";
 
   return (
     <div
-      className="flex min-w-0 flex-col gap-orbit-xs border px-orbit-s py-orbit-s"
+      className="flex min-w-0 flex-col gap-orbit-xs border px-orbit-s pt-orbit-s pb-orbit-xs"
       style={{
         backgroundColor: `var(--orbit-color-card-bg-${surfaceToken})`,
         borderColor: `var(--orbit-color-card-border-${surfaceToken})`,
@@ -7377,9 +7363,15 @@ function ResultCardPanel({
         boxShadow: "var(--orbit-shadow-none)",
       }}
     >
-      <Text as="p" size="Paragraph" variant={labelVariant}>
-        {label}
-      </Text>
+      <div className="flex min-w-0 items-start justify-between gap-orbit-s">
+        <div className="flex min-w-0 items-center gap-orbit-xs">
+          {icon}
+          <Text as="p" size="Paragraph" variant={labelVariant}>
+            {label}
+          </Text>
+        </div>
+        {headerAction ? <div className="shrink-0">{headerAction}</div> : null}
+      </div>
       <p
         className="mt-orbit-xs v6-orbit-text-body text-orbit-fg"
         style={{ "--orbit-text-small-leading": "1.5" } as CSSProperties}
@@ -7414,6 +7406,7 @@ function truncateToWordLimit(text: string, limit: number) {
 function SimplifiedComparisonContent({
   target,
   rationale,
+  clauseContext,
   previousLabel,
   previousText,
   currentLabel,
@@ -7421,10 +7414,12 @@ function SimplifiedComparisonContent({
   currentFooter,
   targetContent,
   targetFooter,
+  targetLabel = "Recommended Position",
   hideRationaleAction = false,
 }: {
   target?: string;
   rationale?: RecommendationRationale;
+  clauseContext?: { clauseId: string; clauseName: string; subClauseName?: string };
   previousLabel?: string;
   previousText?: string;
   currentLabel: string;
@@ -7432,6 +7427,7 @@ function SimplifiedComparisonContent({
   currentFooter?: ReactNode;
   targetContent?: ReactNode;
   targetFooter?: ReactNode;
+  targetLabel?: string;
   hideRationaleAction?: boolean;
 }) {
   const targetText = target?.trim();
@@ -7442,16 +7438,27 @@ function SimplifiedComparisonContent({
 
   return (
     <div className="space-y-orbit-s v6-orbit-text-small">
-      <div className={cn("grid gap-orbit-s", hasPrevious && "md:grid-cols-2")}>
-        {hasPrevious && <ResultCardPanel label={previousLabel!} text={previousText!} />}
-        <ResultCardPanel label={currentLabel} text={currentText} tone="accent" footer={currentFooter} />
+      <div className="space-y-orbit-s">
+        {hasPrevious && (
+          <ResultCardPanel
+            label={previousLabel!}
+            icon={previousLabel?.startsWith("Previous Summary") ? <History className="h-3.5 w-3.5 shrink-0 text-orbit-fg-secondary" aria-hidden="true" /> : undefined}
+            text={previousText!}
+          />
+        )}
+        <ResultCardPanel
+          label={currentLabel}
+          icon={currentLabel.startsWith("Current Summary") ? <FileText className="h-3.5 w-3.5 shrink-0 text-orbit-fg-secondary" aria-hidden="true" /> : undefined}
+          text={currentText}
+          headerAction={currentFooter}
+        />
       </div>
       {targetText && (
         <ResultCardPanel
           label={(
             <span className="inline-flex items-center gap-orbit-xs">
               <Sparkles className="h-3 w-3 shrink-0" aria-hidden="true" />
-              <span>Recommend Position</span>
+              <span>{targetLabel}</span>
             </span>
           )}
           text={displayedTargetText!}
@@ -7482,6 +7489,7 @@ function SimplifiedComparisonContent({
           open={rationaleOpen}
           onOpenChange={setRationaleOpen}
           rationale={recommendationRationale}
+          clauseContext={clauseContext}
         />
       )}
     </div>
@@ -7534,10 +7542,12 @@ function RecommendationRationaleDialog({
   open,
   onOpenChange,
   rationale,
+  clauseContext,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   rationale: RecommendationRationale;
+  clauseContext?: { clauseId: string; clauseName: string; subClauseName?: string };
 }) {
   return (
     <V6OrbitOverlay
@@ -7553,6 +7563,24 @@ function RecommendationRationaleDialog({
       }
     >
       <div className="space-y-orbit-s">
+        {clauseContext && (
+          <div className="rounded-orbit-md border border-orbit-border bg-orbit-surface/20 p-orbit-base">
+            <dl className="grid gap-orbit-xs sm:grid-cols-3">
+              <div>
+                <dt className="v6-orbit-text-body v6-orbit-weight-semibold text-orbit-fg">Clause ID</dt>
+                <dd className="mt-orbit-xxs v6-orbit-text-small v6-orbit-weight-medium text-orbit-fg">{clauseContext.clauseId}</dd>
+              </div>
+              <div>
+                <dt className="v6-orbit-text-body v6-orbit-weight-semibold text-orbit-fg">Clause Name</dt>
+                <dd className="mt-orbit-xxs v6-orbit-text-small v6-orbit-weight-medium text-orbit-fg">{clauseContext.clauseName}</dd>
+              </div>
+              <div>
+                <dt className="v6-orbit-text-body v6-orbit-weight-semibold text-orbit-fg">Sub Clause Name</dt>
+                <dd className="mt-orbit-xxs v6-orbit-text-small v6-orbit-weight-medium text-orbit-fg">{clauseContext.subClauseName || "—"}</dd>
+              </div>
+            </dl>
+          </div>
+        )}
         <p className="v6-orbit-text-body v6-orbit-weight-semibold text-orbit-fg">Recommend Position&apos;s Rationale</p>
         {rationale.explanation.map((paragraph) => (
           <p key={paragraph} className="v6-orbit-text-body text-orbit-fg">{paragraph}</p>
@@ -8077,33 +8105,6 @@ function exportRequestChangeCsv(
   return rows.map((row) => row.map(requestCsvEscape).join(",")).join("\n");
 }
 
-function ReviewDecisionSummaryCard({ summary }: { summary: ReviewDecisionSummary }) {
-  const metrics = [
-    { label: "Recommendations applied", value: summary.recommendationsApplied },
-    { label: "Custom positions applied", value: summary.customPositionsApplied },
-    { label: "Current positions tracked", value: summary.currentPositionsTracked },
-    { label: "Clauses unchanged", value: summary.unchanged, muted: true },
-  ];
-
-  return (
-    <section aria-label="Decision summary" className="rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-base">
-      <div className="flex flex-wrap items-start justify-between gap-orbit-s">
-        <div>
-          <h2 className="v6-orbit-heading-label text-orbit-fg">Decision summary</h2>
-          <p className="mt-orbit-xxs text-orbit-xs text-orbit-fg-secondary">
-            {summary.exportable} clause{summary.exportable === 1 ? "" : "s"} will be included when you generate the CSV.
-          </p>
-        </div>
-      </div>
-      <div className="mt-orbit-base grid gap-orbit-s sm:grid-cols-4">
-        {metrics.map((metric) => (
-          <ReviewGenerateMetric key={metric.label} {...metric} />
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function RequestReviewDialog({
   open,
   onOpenChange,
@@ -8376,6 +8377,7 @@ function ReviewScreen({
   neutralActions = false,
   hideSubclauseReference = false,
   displayMode = "default",
+  defaultExpandClauses = false,
   onSetNoAction,
   onStartDraft,
   onUseRecommendation,
@@ -8403,6 +8405,7 @@ function ReviewScreen({
   neutralActions?: boolean;
   hideSubclauseReference?: boolean;
   displayMode?: "default" | "row-scale";
+  defaultExpandClauses?: boolean;
   onSetNoAction: (id: string) => void;
   onStartDraft: (id: string, initialDraft?: { requestedChange?: string; rationale?: string }) => void;
   onUseRecommendation: (id: string, request: { requestedChange?: string; rationale?: string }) => void;
@@ -8503,6 +8506,7 @@ function ReviewScreen({
         missingClause={Boolean(missingClauseIds?.has(c.id))}
         hideSubclauseReference={hideSubclauseReference}
         displayMode={displayMode}
+        defaultExpandClauses={defaultExpandClauses}
         extraContent={
           neutralActions && displayMode !== "row-scale" ? (
             <SimplifiedComparisonContent
@@ -8526,6 +8530,7 @@ function ReviewScreen({
         bulkSelectedClauseIds={bulkSelectedClauseIds}
         onBulkClauseSelectionChange={onBulkClauseSelectionChange}
         neutralActions={neutralActions}
+        selectedComparisonAction={state.outcomes?.[versionLabel]}
       />
     );
   };
@@ -8786,17 +8791,39 @@ function ComparisonSection(props: {
           setExpandedRequestId(null);
         };
         const comparisonBestPractice = display.actionability?.trim() || req.requestedChange;
+        const completedOutcome = rowState?.outcomes?.[rightLabel];
+        const completedAction = pendingBasketRequest || trackedCurrentPosition;
+        const completedCustomPosition = completedOutcome === "custom" || (
+          pendingBasketRequest &&
+          Boolean(display.actionability?.trim()) &&
+          basketRequest?.requestedChange?.trim() !== display.actionability?.trim()
+        );
+        const completedPositionLabel = trackedCurrentPosition
+          ? "Keep Current Summary"
+          : completedCustomPosition
+          ? "Custom Position"
+          : "Recommended Position";
+        const completedPositionText = trackedCurrentPosition
+          ? r.curr?.deviation ?? "Clause no longer present."
+          : basketRequest?.requestedChange?.trim() || comparisonBestPractice;
         const canShowOutcomeFooter =
           !drafting &&
           !requested &&
-          !noAction &&
+          (!noAction || bucket === "no-action") &&
           !pendingBasketRequest &&
+          !trackedCurrentPosition &&
           closure !== "closed" &&
           !rowState?.acceptedClosed;
         const comparisonDetails = (
           <SimplifiedComparisonContent
-            target={comparisonBestPractice}
+            target={completedAction ? completedPositionText : comparisonBestPractice}
+            targetLabel={completedAction ? completedPositionLabel : undefined}
             rationale={getRecommendationRationale(r.id, comparisonBestPractice ?? "")}
+            clauseContext={{
+              clauseId: r.id,
+              clauseName: displayTitleForClause(r.id, display.title),
+              subClauseName: display.subclause,
+            }}
             previousLabel={`Previous Summary · ${leftLabel}`}
             previousText={r.prev?.deviation ?? "Clause did not exist."}
             currentLabel={`Current Summary · ${rightLabel}`}
@@ -8831,7 +8858,7 @@ function ComparisonSection(props: {
                 />
               ) : undefined
             }
-            hideRationaleAction={drafting}
+            hideRationaleAction={drafting || completedAction}
             targetFooter={
               canShowOutcomeFooter && isNoneDeviationClause(display) ? (
                 <Button
@@ -8866,24 +8893,22 @@ function ComparisonSection(props: {
                   >
                     {CLAUSE_ACTION_LABELS.editPosition}
                   </Button>
-                  {bucket !== "no-action" && (
-                    <Button
-                      variant="default"
-                      className="h-8"
-                      disabled={bulkSelectionEnabled}
-                      onClick={() => {
-                        if (actionabilityRequest && onContinueWithActionability) {
-                          onConfirmVerdictFromAction?.(r.id, rowVerdict, "Held previous target", "recommended");
-                          onContinueWithActionability(r.id, actionabilityRequest);
-                          return;
-                        }
+                  <Button
+                    variant="default"
+                    className="h-8"
+                    disabled={bulkSelectionEnabled}
+                    onClick={() => {
+                      if (actionabilityRequest && onContinueWithActionability) {
                         onConfirmVerdictFromAction?.(r.id, rowVerdict, "Held previous target", "recommended");
-                        onKeepOpen(r.id);
-                      }}
-                    >
-                      {CLAUSE_ACTION_LABELS.holdPosition}
-                    </Button>
-                  )}
+                        onContinueWithActionability(r.id, actionabilityRequest);
+                        return;
+                      }
+                      onConfirmVerdictFromAction?.(r.id, rowVerdict, "Held previous target", "recommended");
+                      onKeepOpen(r.id);
+                    }}
+                  >
+                    {CLAUSE_ACTION_LABELS.holdPosition}
+                  </Button>
                 </>
               ) : undefined
             }
@@ -9191,6 +9216,11 @@ function UnmarkedSection({
                         extraContent={
                           <SimplifiedComparisonContent
                             target={display.actionability?.trim() || req.requestedChange}
+                            clauseContext={{
+                              clauseId: r.id,
+                              clauseName: displayTitleForClause(r.id, display.title),
+                              subClauseName: display.subclause,
+                            }}
                             previousLabel={`Previous Analysis · ${leftLabel}`}
                             previousText={r.prev?.deviation ?? "Clause did not exist."}
                             currentLabel={`Current Analysis · ${rightLabel}`}

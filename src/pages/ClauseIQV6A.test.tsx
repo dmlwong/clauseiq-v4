@@ -520,7 +520,7 @@ describe("ClauseIQ V6A flow", () => {
     expect(route).not.toContain("resultMode=outcome");
   });
 
-  it("opens the dashboard from the completed output-panel analysis card", () => {
+  it("opens the initial-analysis dashboard from the first completed output-panel analysis card", () => {
     render(
       <MemoryRouter initialEntries={["/clauseiq-v6a/output-panel"]}>
         <TooltipProvider>
@@ -539,10 +539,12 @@ describe("ClauseIQ V6A flow", () => {
 
     const route = screen.getByTestId("location").textContent ?? "";
     expect(route).toContain("/initiatives-v6a?");
-    expect(route).toContain("resultMode=outcome");
+    expect(route).toContain("scenario=first-analysis");
     expect(route).toContain("analysisId=a-001");
-    expect(route).toContain("previousAnalysisId=a-002");
-    expect(route).toContain("dashboardView=comparison");
+    expect(route).toContain("dashboardView=initial-analysis");
+    expect(route).toContain("to=v1");
+    expect(route).not.toContain("previousAnalysisId=");
+    expect(route).not.toContain("resultMode=outcome");
   });
 
   it("shows next actions below the completed output-panel analysis", () => {

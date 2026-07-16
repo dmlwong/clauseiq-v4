@@ -1588,12 +1588,14 @@ export function PlaybookDisclaimer({ variant, parameter }: { variant: "callout" 
 
 export function ClauseIqDropzone({ onFile }: { onFile: (file: File | null) => void }) {
   return (
-    <Dropzone
-      ariaLabel="Upload contract PDF"
-      accept="application/pdf,.pdf"
-      onFileSelected={onFile}
-      acceptedFileTypesLabel="File types supported: .pdf files."
-      maxFileSizeLabel="Maximum upload file size: 100 MB"
-    />
+    <div className="clauseiq-v6a-upload-dropzone">
+      <Dropzone
+        ariaLabel="Upload contract PDF"
+        accept="application/pdf,.pdf"
+        onFileSelected={onFile}
+        acceptedFileTypesLabel="File types supported: .pdf files."
+        maxFileSizeLabel="Maximum upload file size: 100 MB"
+      />
+    </div>
   );
 }

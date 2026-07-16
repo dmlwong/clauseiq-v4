@@ -156,6 +156,7 @@ export default function ClauseIQV6A({ forceResults = false, resultsLayout = "acc
 
   const handleViewResult = (selection?: SupplierOutputSelection) => {
     const selectedOutput = selection && "analysis" in selection ? selection : undefined;
+    const isFirstRunOutput = resultScenario === "empty";
     const analysisId = selectedOutput?.analysis.id ?? "a-001";
     const previousAnalysisId = selectedOutput?.previousAnalysis?.id;
     const context = getSupplierOutputComparisonContext(
@@ -185,10 +186,10 @@ export default function ClauseIQV6A({ forceResults = false, resultsLayout = "acc
       design: "row-scale",
       analysisId: context.analysis.id,
       outputSupplierId: context.supplier.id,
-      to: context.selectedVersionLabel,
+      to: isFirstRunOutput ? "v1" : context.selectedVersionLabel,
     });
 
-    if (context.previousAnalysis && context.previousVersionLabel) {
+    if (!isFirstRunOutput && context.previousAnalysis && context.previousVersionLabel) {
       params.set("scenario", "negotiated-reanalysis");
       params.set("resultMode", "outcome");
       params.set("previousAnalysisId", context.previousAnalysis.id);

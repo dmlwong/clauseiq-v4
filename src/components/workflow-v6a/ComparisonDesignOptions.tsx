@@ -181,7 +181,7 @@ export function ComparisonDesignOptions({
     return (
       <div className="mx-auto w-full max-w-[1500px] space-y-orbit-base px-orbit-base py-orbit-base">
         {introBanner}
-        <div className="grid gap-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
+        <div className="grid gap-orbit-base xl:grid-cols-[304px_minmax(0,1fr)] xl:items-start">
           <aside className="clauseiq-v6a-comparison-sticky-rail xl:self-start">
             <section className="clauseiq-v6a-comparison-sticky-rail-panel flex overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card xl:flex-col">
               <div className="min-h-0 flex-1 overflow-y-auto p-orbit-base">
@@ -288,7 +288,7 @@ export function FirstAnalysisDesignOptions({
 }) {
   if (option === "side-by-side" || option === "row-scale") {
     return (
-      <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-base py-orbit-base xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
+      <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-base py-orbit-base xl:grid-cols-[304px_minmax(0,1fr)] xl:items-start">
         {banner ? <div className="min-w-0 xl:col-span-2">{banner}</div> : null}
         <aside className="clauseiq-v6a-comparison-sticky-rail xl:self-start">
           <section className="clauseiq-v6a-comparison-sticky-rail-panel flex overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card xl:flex-col">

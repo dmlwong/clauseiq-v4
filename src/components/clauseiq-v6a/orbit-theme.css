@@ -73,6 +73,16 @@
   outline-color: var(--orbit-color-focus-ring);
 }
 
+/* Scope the upload action to Orbit's Indigo primary token. */
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6a-upload-dropzone {
+  --orbit-color-btn-tertiary-fg: var(--orbit-color-btn-primary-bg);
+}
+
+/* Reserve the alert's right edge for the shared modal close control. */
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6a-review-alert [class*="_banner_"] {
+  padding-right: calc(var(--orbit-space-base) + var(--orbit-icon-btn-medium));
+}
+
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] button,
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] [role="button"] {
   font-weight: var(--orbit-text-button-weight);

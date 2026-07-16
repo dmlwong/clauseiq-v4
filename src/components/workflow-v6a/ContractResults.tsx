@@ -6759,7 +6759,7 @@ function ClauseDecisionCard({
         bulkSelectedClauseIds={bulkSelectedClauseIds}
         onBulkClauseSelectionChange={onBulkClauseSelectionChange}
         initiallyExpanded
-        showTrackCurrentPosition={!defaultExpandClauses}
+        showTrackCurrentPosition
         selectedComparisonAction={selectedComparisonAction}
       />
     );
@@ -6851,6 +6851,8 @@ function ClauseDecisionCard({
               variant="outline"
               className="h-7 px-orbit-s text-orbit-xs text-orbit-fg-secondary"
               onClick={() => {
+                setCompletedExpanded(true);
+                setDetailsExpanded(true);
                 onUndoDecision?.();
                 onRemoveRequest?.();
                 onTrackCurrentPosition?.(false);
@@ -7031,9 +7033,9 @@ function ClauseRowScaleCard({
   // The row-scale review view uses the neutral Orbit card surface for every
   // clause; the deviation status is conveyed by the metadata badge instead.
   const orbitCardState: OrbitCardState = "Default";
-  const cardStyle: OrbitCardStyle = {
-    minHeight: 104,
-  };
+  const cardStyle: OrbitCardStyle | undefined = expanded
+    ? { minHeight: 104 }
+    : undefined;
   const severityLabel = noneDeviationClause
     ? "None"
     : titleCaseSeverity(tier);
@@ -7147,6 +7149,7 @@ function ClauseRowScaleCard({
                   variant="outline"
                   className="h-7 px-orbit-s text-orbit-xs text-orbit-fg-secondary"
                   onClick={() => {
+                    setExpanded(true);
                     onUndoDecision?.();
                     onTrackCurrentPosition?.(false);
                   }}
@@ -7255,6 +7258,19 @@ function ClauseRowScaleCard({
                 clauseName: displayTitleForClause(id, clause.title),
                 subClauseName: clause.subclause,
               }}
+              currentFooter={
+                showTrackCurrentPosition && onTrackCurrentPosition && !noneDeviationClause && !isDrafting ? (
+                  <label className="inline-flex items-center gap-orbit-xs text-orbit-xs text-orbit-fg-secondary">
+                    <Checkbox
+                      checked={trackedCurrentPosition}
+                      disabled={bulkSelectionEnabled}
+                      aria-label="Keep Current Summary"
+                      onCheckedChange={(checked) => onTrackCurrentPosition(checked === true)}
+                    />
+                    <span>Keep Current Summary</span>
+                  </label>
+                ) : undefined
+              }
               targetFooter={
                 !noneDeviationClause && !isDrafting ? (
                   <>
@@ -7274,16 +7290,6 @@ function ClauseRowScaleCard({
                     >
                       {CLAUSE_ACTION_LABELS.holdPosition}
                     </Button>
-                    {showTrackCurrentPosition && onTrackCurrentPosition && (
-                      <Button
-                        variant="outline"
-                        className="h-8"
-                        disabled={bulkSelectionEnabled}
-                        onClick={(event) => runAction(event, () => onTrackCurrentPosition(true))}
-                      >
-                        Track current position
-                      </Button>
-                    )}
                   </>
                 ) : undefined
               }

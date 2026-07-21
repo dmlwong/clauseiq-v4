@@ -3199,7 +3199,9 @@ export function ContractResults({
       option={designOption}
       banner={
         <>
-          {!compactHeader && <InlineRecommendationReviewBanner />}
+          {!compactHeader && (
+            <InlineRecommendationReviewBanner description="Review ClauseIQ's findings and decide which positions to take forward. Apply a recommended position, set a custom position, or leave a clause unchanged for now." />
+          )}
           {compactBulkBanner}
         </>
       }
@@ -3217,6 +3219,16 @@ export function ContractResults({
       onClearAllMetrics={clearAllFirstAnalysisMetrics}
       activeMetrics={firstAnalysisActiveMetrics}
       onMetricSelect={selectFirstAnalysisMetric}
+      optionTwoFilters={
+        <FirstAnalysisOptionTwoFilterBar
+          activeMetrics={firstAnalysisMetricFilters}
+          onMetricToggle={selectFirstAnalysisMetric}
+          onClearMetrics={clearAllFirstAnalysisMetrics}
+          section={activeCategories.length === 1 ? activeCategories[0] : "all"}
+          sections={comparisonCategoryItems}
+          onSectionChange={(section) => setActiveCategories(section === "all" ? [] : [section])}
+        />
+      }
     />
   ) : null;
   const comparisonDesignContent = leftVersion && rightVersion && hasVersionComparison ? (
@@ -7888,9 +7900,8 @@ function InitialAnalysisOptionTwoClauseCard({
               onClick={(event) => event.stopPropagation()}
             />
           ) : null}
-          <span className="text-orbit-xs text-orbit-fg-secondary">{id}</span>
           <span className="v6-orbit-heading-label text-orbit-fg">
-            <ClauseTitleInline clauseId={id} fallback={clause.title} category={clause.category} />
+            <ClauseTitleInline clauseId={id} fallback={clause.title} />
           </span>
           <Chip label={clause.category} size="Mini" variant="No Status" contrast="High" />
         </span>
@@ -8173,6 +8184,81 @@ function RoundComparisonFilterBar({
         ]}
         onChange={onDeviationChange}
       />
+      <span className="hidden h-5 w-px bg-orbit-border sm:block" aria-hidden="true" />
+      <label className="flex items-center gap-orbit-s text-orbit-xs text-orbit-fg-secondary">
+        <span className="v6-orbit-weight-semibold">Section</span>
+        <select
+          value={section}
+          aria-label="Section"
+          onChange={(event) => onSectionChange(event.target.value)}
+          className="h-8 min-w-[160px] rounded-orbit-md border border-orbit-border bg-orbit-card px-orbit-s text-orbit-xs text-orbit-fg outline-none focus:border-orbit-primary"
+        >
+          <option value="all">All sections</option>
+          {sections.map((item) => <option key={item.name} value={item.name}>{item.name}</option>)}
+        </select>
+      </label>
+    </div>
+  );
+}
+
+function FirstAnalysisOptionTwoFilterBar({
+  activeMetrics,
+  onMetricToggle,
+  onClearMetrics,
+  section,
+  sections,
+  onSectionChange,
+}: {
+  activeMetrics: Set<FirstAnalysisMetricKey>;
+  onMetricToggle: (metric: FirstAnalysisMetricKey) => void;
+  onClearMetrics: () => void;
+  section: string;
+  sections: CategorySidebarItem[];
+  onSectionChange: (value: string) => void;
+}) {
+  const filters: Array<[FirstAnalysisMetricKey, string]> = [
+    ["high", "High"],
+    ["medium", "Medium"],
+    ["low", "Low"],
+    ["missing", "Missing"],
+    ["none", "None"],
+  ];
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-orbit-base gap-y-orbit-s">
+      <span className="text-orbit-xs v6-orbit-weight-semibold text-orbit-fg-secondary">Filter</span>
+      <div className="flex flex-wrap items-center gap-orbit-xs" role="group" aria-label="Deviation">
+        <span className="text-orbit-xs text-orbit-fg-secondary">Deviation</span>
+        <button
+          type="button"
+          aria-pressed={activeMetrics.size === 0}
+          onClick={onClearMetrics}
+          className={cn(
+            "rounded-full border px-orbit-s py-orbit-xxs text-orbit-xs v6-orbit-weight-medium transition-colors",
+            activeMetrics.size === 0
+              ? "border-orbit-fg bg-orbit-card text-orbit-fg shadow-orbit-xs"
+              : "border-orbit-border bg-orbit-card text-orbit-fg-secondary hover:border-orbit-fg-secondary hover:text-orbit-fg",
+          )}
+        >
+          All
+        </button>
+        {filters.map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={activeMetrics.has(value)}
+            onClick={() => onMetricToggle(value)}
+            className={cn(
+              "rounded-full border px-orbit-s py-orbit-xxs text-orbit-xs v6-orbit-weight-medium transition-colors",
+              activeMetrics.has(value)
+                ? "border-orbit-fg bg-orbit-card text-orbit-fg shadow-orbit-xs"
+                : "border-orbit-border bg-orbit-card text-orbit-fg-secondary hover:border-orbit-fg-secondary hover:text-orbit-fg",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       <span className="hidden h-5 w-px bg-orbit-border sm:block" aria-hidden="true" />
       <label className="flex items-center gap-orbit-s text-orbit-xs text-orbit-fg-secondary">
         <span className="v6-orbit-weight-semibold">Section</span>

@@ -7948,7 +7948,9 @@ function InitialAnalysisOptionTwoClauseCard({
       {expanded ? (
         <div className="border-t border-orbit-border p-orbit-base">
           <SimplifiedComparisonContent
-            currentLabel={missingClause ? "Missing clause" : "Current Supplier Position"}
+            currentLabel={missingClause ? "Missing clause" : (
+              <Chip label="Current Supplier Position" size="Mini" variant="No Status" contrast="High" />
+            )}
             currentText={description}
             target={targetText}
             targetLabel={positionLabel}
@@ -8502,7 +8504,7 @@ function SimplifiedComparisonContent({
   clauseContext?: { clauseId: string; clauseName: string; subClauseName?: string };
   previousLabel?: string;
   previousText?: string;
-  currentLabel: string;
+  currentLabel: ReactNode;
   currentText: string;
   currentFooter?: ReactNode;
   targetContent?: ReactNode;
@@ -8524,10 +8526,11 @@ function SimplifiedComparisonContent({
       padding={layout === "thread" || layout === "initial-two-card" ? "base" : "compact"}
     />
   ) : null;
+  const currentLabelText = typeof currentLabel === "string" ? currentLabel : "";
   const currentPanel = (
     <ResultCardPanel
       label={currentLabel}
-      icon={currentLabel.startsWith("Latest") || currentLabel.startsWith("Current") ? <FileText className="h-3.5 w-3.5 shrink-0 text-orbit-fg-secondary" aria-hidden="true" /> : undefined}
+      icon={currentLabelText.startsWith("Latest") || currentLabelText.startsWith("Current") ? <FileText className="h-3.5 w-3.5 shrink-0 text-orbit-fg-secondary" aria-hidden="true" /> : undefined}
       text={currentText}
       headerAction={layout === "thread" || layout === "initial-two-card" ? undefined : currentFooter}
       footer={layout === "thread" || layout === "initial-two-card" ? currentFooter : undefined}

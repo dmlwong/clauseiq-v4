@@ -7068,6 +7068,7 @@ function ClauseDecisionCard({
   hideSubclauseReference,
   displayMode = "default",
   defaultExpandClauses = false,
+  initiallyExpanded = defaultExpandClauses,
   primaryActionLabel = "Request Change",
   requestPlaceholder,
   requestSubmitLabel = "Add to Requests",
@@ -7121,6 +7122,7 @@ function ClauseDecisionCard({
   hideSubclauseReference?: boolean;
   displayMode?: "default" | "row-scale" | "initial-option-2";
   defaultExpandClauses?: boolean;
+  initiallyExpanded?: boolean;
   primaryActionLabel?: string;
   requestPlaceholder?: string;
   requestSubmitLabel?: string;
@@ -7608,6 +7610,7 @@ function ClauseRowScaleCard({
         bulkSelectionEnabled={bulkSelectionEnabled}
         bulkSelected={bulkClauseSelected}
         onBulkSelectionChange={(selected) => onBulkClauseSelectionChange?.(id, selected)}
+        initiallyExpanded={initiallyExpanded}
         onUseRecommendation={onUseRecommendation}
         onEditPosition={onRequest}
         onNoAction={onNoAction}
@@ -7853,6 +7856,7 @@ function InitialAnalysisOptionTwoClauseCard({
   bulkSelectionEnabled,
   bulkSelected,
   onBulkSelectionChange,
+  initiallyExpanded,
   onUseRecommendation,
   onEditPosition,
   onNoAction,
@@ -7873,6 +7877,7 @@ function InitialAnalysisOptionTwoClauseCard({
   bulkSelectionEnabled: boolean;
   bulkSelected: boolean;
   onBulkSelectionChange: (selected: boolean) => void;
+  initiallyExpanded: boolean;
   onUseRecommendation?: () => void;
   onEditPosition?: () => void;
   onNoAction?: () => void;
@@ -7880,8 +7885,8 @@ function InitialAnalysisOptionTwoClauseCard({
   onCancelDraft?: () => void;
   onSubmitDraft?: () => void;
 }) {
-  const [expanded, setExpanded] = useState(true);
   const noneDeviationClause = isNoneDeviationClause(clause);
+  const [expanded, setExpanded] = useState(initiallyExpanded && !noneDeviationClause);
   const requestText = request?.requestedChange?.trim() ?? "";
   const actionabilityText = actionability || requestText;
   const handled = decision === "request-update" || decision === "no-action";
@@ -9588,7 +9593,7 @@ function ReviewScreen({
   const reviewRows = displayMode === "initial-option-2"
     ? rows.filter((clause) => stateOf(clause.id).roundDecisions[versionLabel] !== "no-action")
     : rows;
-  const renderClauseCard = (c: ClauseResult) => {
+  const renderClauseCard = (c: ClauseResult, initiallyExpanded = defaultExpandClauses) => {
     const state = stateOf(c.id);
     const decision = state.roundDecisions[versionLabel];
     const own = state.requests[versionLabel] ?? {};
@@ -9628,6 +9633,7 @@ function ReviewScreen({
         hideSubclauseReference={hideSubclauseReference}
         displayMode={displayMode}
         defaultExpandClauses={defaultExpandClauses}
+        initiallyExpanded={initiallyExpanded}
         extraContent={
           neutralActions && displayMode !== "row-scale" ? (
             <SimplifiedComparisonContent
@@ -9719,7 +9725,10 @@ function ReviewScreen({
                   accent={bucket.accent}
                   description={bucket.description}
                 >
-                  {items.map(renderClauseCard)}
+                  {items.map((item) => renderClauseCard(
+                    item,
+                    displayMode === "initial-option-2" && bucket.key === "none" ? false : defaultExpandClauses,
+                  ))}
                 </FirstAnalysisReviewBucketSection>
               );
             })}

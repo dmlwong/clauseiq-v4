@@ -69,7 +69,7 @@ const IndexV6A = () => {
     if (
       searchParams.get("scenario") === "first-analysis" &&
       (searchParams.get("mode") === "comparison" || searchParams.get("mode") === "history") &&
-      searchParams.get("design") === "row-scale" &&
+      (searchParams.get("design") === "row-scale" || searchParams.get("design") === "design-option-2") &&
       searchParams.get("catSort") === "risk"
     ) {
       return;

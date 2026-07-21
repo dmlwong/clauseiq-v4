@@ -1009,11 +1009,7 @@ export function ContractResults({
     typeof window !== "undefined" && window.location.pathname.startsWith("/initiatives-responsive-testing");
   const mode = normalizeMode(searchParams.get("mode"));
   const requestedDesignOption = normalizeComparisonDesignOption(searchParams.get("design"));
-  // Design option 2 is a round-comparison workspace. Initial analysis keeps the
-  // established review layout even if a demo URL previously selected option 2.
-  const designOption = firstAnalysisDemo && requestedDesignOption === "design-option-2"
-    ? "row-scale"
-    : requestedDesignOption;
+  const designOption = requestedDesignOption;
   const usesRowScaleDesign = designOption === "row-scale" || designOption === "design-option-2";
   const defaultExpandClauses = usesRowScaleDesign;
   const decisionContractId = firstAnalysisDemo ? `${contractId}:first-analysis-demo` : contractId;
@@ -1032,13 +1028,6 @@ export function ContractResults({
     params.delete("from");
     setSearchParams(params, { replace: true });
   }, [dashboardView, searchParams, selectedOutputHasComparison, setSearchParams]);
-
-  useEffect(() => {
-    if (!firstAnalysisDemo || requestedDesignOption !== "design-option-2") return;
-    const params = new URLSearchParams(searchParams);
-    params.set("design", "row-scale");
-    setSearchParams(params, { replace: true });
-  }, [firstAnalysisDemo, requestedDesignOption, searchParams, setSearchParams]);
 
   // Local mutable copy of versions so the user can simulate uploading a new
   // round or deleting an existing one without touching shared seed data.
@@ -3172,7 +3161,7 @@ export function ContractResults({
       quickNoneDeviationFilter={firstAnalysisNoneSelected}
       neutralActions
       hideSubclauseReference
-      displayMode={usesRowScaleDesign ? "row-scale" : "default"}
+      displayMode={designOption === "design-option-2" ? "initial-option-2" : usesRowScaleDesign ? "row-scale" : "default"}
       defaultExpandClauses
       onSetNoAction={(id) =>
         decisions.changeDecision(supplierId, decisionContractId, id, firstAnalysisVersion.version, "no-action")
@@ -3569,7 +3558,7 @@ export function ContractResults({
       dashboardView={dashboardView}
       comparisonAvailable={!selectedOutputContext || selectedOutputHasComparison}
       designOption={designOption}
-      showOptionTwo={dashboardView === "comparison"}
+      showOptionTwo
       onDashboardViewChange={setDashboardView}
       onDesignOptionChange={setDesignOption}
     />
@@ -7093,7 +7082,7 @@ function ClauseDecisionCard({
   showClauseType?: boolean;
   defaultDetailsExpanded?: boolean;
   hideSubclauseReference?: boolean;
-  displayMode?: "default" | "row-scale";
+  displayMode?: "default" | "row-scale" | "initial-option-2";
   defaultExpandClauses?: boolean;
   primaryActionLabel?: string;
   requestPlaceholder?: string;
@@ -7193,7 +7182,7 @@ function ClauseDecisionCard({
   };
   const detailsAreExpanded = showHandledCompact ? completedExpanded : detailsExpanded;
 
-  if (displayMode === "row-scale" && !actions) {
+  if ((displayMode === "row-scale" || displayMode === "initial-option-2") && !actions) {
     return (
       <ClauseRowScaleCard
         id={id}
@@ -7228,6 +7217,7 @@ function ClauseDecisionCard({
         initiallyExpanded
         showTrackCurrentPosition
         selectedComparisonAction={selectedComparisonAction}
+        initialOptionTwo={displayMode === "initial-option-2"}
       />
     );
   }
@@ -7469,6 +7459,7 @@ function ClauseRowScaleCard({
   initiallyExpanded = true,
   showTrackCurrentPosition = true,
   selectedComparisonAction,
+  initialOptionTwo = false,
 }: {
   id: string;
   clause: ClauseResult;
@@ -7500,6 +7491,7 @@ function ClauseRowScaleCard({
   initiallyExpanded?: boolean;
   showTrackCurrentPosition?: boolean;
   selectedComparisonAction?: "accepted" | ClauseOutcome;
+  initialOptionTwo?: boolean;
 }) {
   const [expanded, setExpanded] = useState(initiallyExpanded);
   const tier = clause.severity;
@@ -7562,6 +7554,32 @@ function ClauseRowScaleCard({
     event.stopPropagation();
     action?.();
   };
+
+  if (initialOptionTwo) {
+    return (
+      <InitialAnalysisOptionTwoClauseCard
+        id={id}
+        clause={clause}
+        description={description ?? clause.deviation}
+        actionability={actionabilityText}
+        decision={decision}
+        request={request}
+        draft={draft}
+        isDrafting={Boolean(isDrafting)}
+        versionLabel={versionLabel}
+        missingClause={missingClause}
+        bulkSelectionEnabled={bulkSelectionEnabled}
+        bulkSelected={bulkClauseSelected}
+        onBulkSelectionChange={(selected) => onBulkClauseSelectionChange?.(id, selected)}
+        onUseRecommendation={onUseRecommendation}
+        onEditPosition={onRequest}
+        onNoAction={onNoAction}
+        onUpdateDraft={onUpdateDraft}
+        onCancelDraft={onCancelDraft}
+        onSubmitDraft={onSubmitDraft}
+      />
+    );
+  }
 
   if (handledState) {
     const statusLabel =
@@ -7781,6 +7799,142 @@ function ClauseRowScaleCard({
         ) : null}
       </Card>
     </div>
+  );
+}
+
+function InitialAnalysisOptionTwoClauseCard({
+  id,
+  clause,
+  description,
+  actionability,
+  decision,
+  request,
+  draft,
+  isDrafting,
+  versionLabel,
+  missingClause,
+  bulkSelectionEnabled,
+  bulkSelected,
+  onBulkSelectionChange,
+  onUseRecommendation,
+  onEditPosition,
+  onNoAction,
+  onUpdateDraft,
+  onCancelDraft,
+  onSubmitDraft,
+}: {
+  id: string;
+  clause: ClauseResult;
+  description: string;
+  actionability: string;
+  decision?: RoundDecision;
+  request?: ClauseRequest;
+  draft?: ClauseRequest;
+  isDrafting: boolean;
+  versionLabel: string;
+  missingClause?: boolean;
+  bulkSelectionEnabled: boolean;
+  bulkSelected: boolean;
+  onBulkSelectionChange: (selected: boolean) => void;
+  onUseRecommendation?: () => void;
+  onEditPosition?: () => void;
+  onNoAction?: () => void;
+  onUpdateDraft?: (patch: { requestedChange?: string; rationale?: string }) => void;
+  onCancelDraft?: () => void;
+  onSubmitDraft?: () => void;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  const noneDeviationClause = isNoneDeviationClause(clause);
+  const requestText = request?.requestedChange?.trim() ?? "";
+  const actionabilityText = actionability || requestText;
+  const handled = decision === "request-update" || decision === "no-action";
+  const positionLabel = decision === "no-action"
+    ? "No action selected"
+    : requestText && requestText !== actionabilityText
+    ? "Custom Position"
+    : "Recommended Next Position";
+  const targetText = isDrafting ? undefined : handled && requestText ? requestText : actionabilityText || undefined;
+  const canEditPosition = !noneDeviationClause && !handled;
+  const draftEditor = isDrafting && onUpdateDraft && onCancelDraft && onSubmitDraft ? (
+    <ClauseRequestForm
+      versionLabel={versionLabel}
+      draft={draft}
+      request={request}
+      revertText={actionabilityText}
+      comparisonEditing
+      requestPlaceholder="Write the position you want to take with the supplier"
+      submitLabel="Confirm Custom Position"
+      embedded
+      onUpdate={onUpdateDraft}
+      onCancel={onCancelDraft}
+      onSubmit={onSubmitDraft}
+    />
+  ) : undefined;
+
+  return (
+    <section className="overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-orbit-base p-orbit-base text-left"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((current) => !current)}
+      >
+        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-orbit-s">
+          {bulkSelectionEnabled ? (
+            <Checkbox
+              checked={bulkSelected}
+              aria-label={`Bulk selected ${id.toUpperCase()}`}
+              onCheckedChange={(checked) => onBulkSelectionChange(checked === true)}
+              onClick={(event) => event.stopPropagation()}
+            />
+          ) : null}
+          <span className="text-orbit-xs text-orbit-fg-secondary">{id}</span>
+          <span className="v6-orbit-heading-label text-orbit-fg">
+            <ClauseTitleInline clauseId={id} fallback={clause.title} category={clause.category} />
+          </span>
+          <Chip label={clause.category} size="Mini" variant="No Status" contrast="High" />
+        </span>
+        <span className="flex shrink-0 items-center gap-orbit-xs">
+          <span className="text-orbit-xs text-orbit-fg-secondary">Deviation</span>
+          <FirstAnalysisStatusTag status={noneDeviationClause ? "none" : firstAnalysisSeverityStatus[clause.severity]} />
+          <ChevronDown className={cn("h-4 w-4 text-orbit-fg-secondary transition-transform", expanded && "rotate-180")} />
+        </span>
+      </button>
+      {expanded ? (
+        <div className="border-t border-orbit-border p-orbit-base">
+          <SimplifiedComparisonContent
+            currentLabel={missingClause ? "Missing clause" : "Current Analysis"}
+            currentText={description}
+            target={targetText}
+            targetLabel={positionLabel}
+            targetContent={draftEditor}
+            hideRationaleAction={isDrafting || handled}
+            layout="initial-two-card"
+            clauseContext={{
+              clauseId: id,
+              clauseName: displayTitleForClause(id, clause.title),
+              subClauseName: clause.subclause,
+            }}
+            targetFooter={
+              canEditPosition ? (
+                <>
+                  <Button variant="outline" className="h-8" disabled={bulkSelectionEnabled} onClick={onEditPosition}>
+                    Set Custom Position
+                  </Button>
+                  <Button variant="default" className="h-8" disabled={bulkSelectionEnabled} onClick={onUseRecommendation}>
+                    Apply Recommended Position
+                  </Button>
+                </>
+              ) : decision === "no-action" && onNoAction ? (
+                <Button variant="outline" className="h-8" disabled={bulkSelectionEnabled} onClick={onNoAction}>
+                  No Action
+                </Button>
+              ) : undefined
+            }
+          />
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -8236,7 +8390,7 @@ function SimplifiedComparisonContent({
   targetFooter?: ReactNode;
   targetLabel?: string;
   hideRationaleAction?: boolean;
-  layout?: "stacked" | "thread";
+  layout?: "stacked" | "thread" | "initial-two-card";
 }) {
   const targetText = target?.trim();
   const displayedTargetText = targetText ? truncateToWordLimit(targetText, 20) : undefined;
@@ -8248,7 +8402,7 @@ function SimplifiedComparisonContent({
       label={previousLabel!}
       icon={previousLabel?.startsWith("Previous") ? <History className="h-3.5 w-3.5 shrink-0 text-orbit-fg-secondary" aria-hidden="true" /> : undefined}
       text={previousText!}
-      padding={layout === "thread" ? "base" : "compact"}
+      padding={layout === "thread" || layout === "initial-two-card" ? "base" : "compact"}
     />
   ) : null;
   const currentPanel = (
@@ -8271,8 +8425,8 @@ function SimplifiedComparisonContent({
         </span>
       )}
       text={displayedTargetText ?? ""}
-      tone={layout === "thread" ? "highlight" : "primary"}
-      padding={layout === "thread" ? "base" : "compact"}
+      tone={layout === "thread" || layout === "initial-two-card" ? "highlight" : "primary"}
+      padding={layout === "thread" || layout === "initial-two-card" ? "base" : "compact"}
       content={targetContent}
       footer={
         <div className={cn("w-full", targetFooter ? "grid grid-cols-2 gap-orbit-xs" : "flex") }>
@@ -8286,7 +8440,7 @@ function SimplifiedComparisonContent({
             </Button>
           )}
           {targetFooter && (
-            <div className="flex w-full flex-wrap items-center justify-end gap-orbit-xs [&>button]:ml-0 [&>button]:w-full">
+            <div className="col-span-2 grid w-full grid-cols-2 gap-orbit-xs [&>button]:ml-0 [&>button]:w-full">
               {targetFooter}
             </div>
           )}
@@ -8309,6 +8463,12 @@ function SimplifiedComparisonContent({
           {previousPanel}
           {previousPanel && targetPanel ? <ArrowRight className="hidden self-center justify-self-center text-orbit-fg-secondary lg:block" aria-hidden="true" /> : null}
           {currentPanel}
+          {targetPanel}
+        </div>
+      ) : layout === "initial-two-card" ? (
+        <div className="grid gap-orbit-s lg:grid-cols-[minmax(0,1fr)_24px_minmax(0,1fr)] lg:items-stretch">
+          {currentPanel}
+          {targetPanel ? <ArrowRight className="hidden self-center justify-self-center text-orbit-fg-secondary lg:block" aria-hidden="true" /> : null}
           {targetPanel}
         </div>
       ) : (
@@ -9240,7 +9400,7 @@ function ReviewScreen({
   quickNoneDeviationFilter?: boolean;
   neutralActions?: boolean;
   hideSubclauseReference?: boolean;
-  displayMode?: "default" | "row-scale";
+  displayMode?: "default" | "row-scale" | "initial-option-2";
   defaultExpandClauses?: boolean;
   onSetNoAction: (id: string) => void;
   onStartDraft: (id: string, initialDraft?: { requestedChange?: string; rationale?: string }) => void;
@@ -9288,9 +9448,9 @@ function ReviewScreen({
         // Row-scale (first-analysis) surfaces a dedicated "None" bucket, so
         // none-deviation clauses are shown even though they need no review.
         const showNoneDeviationClause =
-          (quickNoneDeviationFilter || displayMode === "row-scale") && isNoneDeviationClause(c);
+          (quickNoneDeviationFilter || displayMode === "row-scale" || displayMode === "initial-option-2") && isNoneDeviationClause(c);
         if (!showNoneDeviationClause && c.resolved) return false;
-        if (displayMode !== "row-scale") {
+        if (displayMode !== "row-scale" && displayMode !== "initial-option-2") {
           const state = stateOf(c.id);
           const decision = state.roundDecisions[versionLabel];
           const request = state.requests[versionLabel];
@@ -9330,8 +9490,8 @@ function ReviewScreen({
         id={c.id}
         clause={c}
         versionLabel={versionLabel}
-        description={neutralActions && displayMode !== "row-scale" ? undefined : c.deviation}
-        actionability={neutralActions && displayMode !== "row-scale" ? undefined : c.actionability}
+        description={neutralActions && displayMode !== "row-scale" && displayMode !== "initial-option-2" ? undefined : c.deviation}
+        actionability={neutralActions && displayMode !== "row-scale" && displayMode !== "initial-option-2" ? undefined : c.actionability}
         decision={decision}
         trackedCurrentPosition={trackedCurrentPosition}
         request={own}
@@ -9400,7 +9560,7 @@ function ReviewScreen({
   // First-analysis review groups clauses into deviation buckets
   // (High / Medium / Low / None / Missing), mirroring the Comparison View
   // section layout. The legacy default layout keeps its flat list.
-  if (displayMode === "row-scale") {
+  if (displayMode === "row-scale" || displayMode === "initial-option-2") {
     const bucketOf = (c: ClauseResult): FirstAnalysisReviewBucketKey =>
       missingClauseIds?.has(c.id)
         ? "missing"

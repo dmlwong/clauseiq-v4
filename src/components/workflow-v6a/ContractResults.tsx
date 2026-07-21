@@ -3043,10 +3043,8 @@ export function ContractResults({
     ? outcomeRecommendationTargets.length === 0
     : firstAnalysisRecommendationsReviewed;
   const bulkActionAvailable = availableBulkRecommendationApplyOptions.length > 0;
-  const canShowBulkActionControls =
-    mode === "comparison" &&
-    (firstAnalysisDemo || outcomeReviewMode) &&
-    !(firstAnalysisDemo && designOption === "design-option-2");
+  const canShowBulkActionControls = mode === "comparison" && (firstAnalysisDemo || outcomeReviewMode);
+  const initialOptionTwoBulkMode = firstAnalysisDemo && designOption === "design-option-2";
   const [compactBulkBannerOpen, setCompactBulkBannerOpen] = useState(false);
   const [bulkBannerSelectedClauseIds, setBulkBannerSelectedClauseIds] = useState<Set<string>>(new Set());
   const compactBulkCanUndoAppliedRecommendations = Boolean(
@@ -3055,7 +3053,6 @@ export function ContractResults({
   const compactBulkRecommendationsQueued = !outcomeReviewMode && firstAnalysisDemo && firstAnalysisRecommendationsQueued;
   const compactBulkCanChooseRecommendationScope =
     mode === "comparison" &&
-    !(firstAnalysisDemo && designOption === "design-option-2") &&
     !compactBulkCanUndoAppliedRecommendations &&
     !compactBulkRecommendationsQueued &&
     !bulkRecommendationsReviewed &&
@@ -3145,9 +3142,17 @@ export function ContractResults({
           setCompactBulkBannerOpen(false);
         }}
         onKeepCurrent={(targets) => {
-          keepCurrentSummaries(targets);
+          if (initialOptionTwoBulkMode && firstAnalysisVersion) {
+            targets.forEach((target) =>
+              decisions.changeDecision(supplierId, decisionContractId, target.id, firstAnalysisVersion.version, "no-action"),
+            );
+          } else {
+            keepCurrentSummaries(targets);
+          }
           setCompactBulkBannerOpen(false);
         }}
+        showRecommendationAction={!initialOptionTwoBulkMode}
+        acceptSupplierMode={initialOptionTwoBulkMode}
         onUndoApply={!outcomeReviewMode ? undoAppliedRecommendations : undefined}
         onClose={() => setCompactBulkBannerOpen(false)}
       />
@@ -3741,6 +3746,18 @@ export function ContractResults({
                         applyAllRecommendations(targets);
                       }
                     }}
+                    onKeepCurrent={(targets) => {
+                      if (initialOptionTwoBulkMode && firstAnalysisVersion) {
+                        targets.forEach((target) =>
+                          decisions.changeDecision(supplierId, decisionContractId, target.id, firstAnalysisVersion.version, "no-action"),
+                        );
+                      } else {
+                        keepCurrentSummaries(targets);
+                      }
+                      setNonCompactBulkBannerOpen(false);
+                    }}
+                    showRecommendationAction={!initialOptionTwoBulkMode}
+                    acceptSupplierMode={initialOptionTwoBulkMode}
                     onUndoApply={!outcomeReviewMode ? undoAppliedRecommendations : undefined}
                     onSelectedTargetsChange={setBulkBannerSelectedClauseIds}
                     onClose={() => setNonCompactBulkBannerOpen(false)}
@@ -4797,6 +4814,8 @@ function RecommendationBulkApplyBanner({
   onClose,
   onSelectedTargetsChange,
   onUndoApply,
+  showRecommendationAction = true,
+  acceptSupplierMode = false,
 }: {
   options: RecommendationApplyOption[];
   metadataTargets?: RecommendationTargetItem[];
@@ -4806,6 +4825,8 @@ function RecommendationBulkApplyBanner({
   onClose: () => void;
   onSelectedTargetsChange?: (selectedClauseIds: Set<string>) => void;
   onUndoApply?: () => void;
+  showRecommendationAction?: boolean;
+  acceptSupplierMode?: boolean;
 }) {
   const [activeAxis, setActiveAxis] = useState<RecommendationBulkBannerAxis>("deviation");
   const [action, setAction] = useState<RecommendationBulkAction | null>(null);
@@ -4858,6 +4879,7 @@ function RecommendationBulkApplyBanner({
     [scopedTargetIds],
   );
   const readySummaryLabel = String(eligibleTargets.length);
+  const secondaryActionLabel = acceptSupplierMode ? "Accept Supplier Position" : "Keep Current Summary";
   const scopeSummaryLabel = selectionMode === "all"
     ? "All eligible clauses"
     : summarizeBulkBannerScopeLabel(activeAxis, selection, optionById);
@@ -4960,7 +4982,9 @@ function RecommendationBulkApplyBanner({
     if (addSelectedDisabled) return;
     if (action === "keep-current") {
       onKeepCurrent?.(selectedTargets);
-      toast({ title: `${selectedCount} current position${selectedCount === 1 ? "" : "s"} kept` });
+      toast({ title: acceptSupplierMode
+        ? `${selectedCount} supplier position${selectedCount === 1 ? "" : "s"} accepted`
+        : `${selectedCount} current position${selectedCount === 1 ? "" : "s"} kept` });
     } else {
       onApply(selectedTargets);
       toast({
@@ -5011,17 +5035,19 @@ function RecommendationBulkApplyBanner({
             iconRight={<ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", actionDropdownOpen && "rotate-180")} />}
           >
             <span className="clauseiq-v6-recommendation-bulk-banner-trigger-label">
-              {action === "recommendation" ? "Apply Recommendation" : action === "keep-current" ? "Keep Current Summary" : "Select a type of bulk action…"}
+              {action === "recommendation" ? "Apply Recommendation" : action === "keep-current" ? secondaryActionLabel : "Select a type of bulk action…"}
             </span>
           </OrbitButton>
           {actionDropdownOpen && (
             <div className="clauseiq-v6-recommendation-bulk-action-menu" role="listbox" aria-label="Bulk action type">
               <Card type="Static" padding="Base" state="Default" indicator={false}>
-                <OrbitButton variant="Tertiary" size="Medium" state="Default" className="w-full justify-start" onClick={() => { setAction("recommendation"); setActionDropdownOpen(false); setDropdownOpen(false); clearSelection(); }}>
-                  Apply Recommendation
-                </OrbitButton>
+                {showRecommendationAction ? (
+                  <OrbitButton variant="Tertiary" size="Medium" state="Default" className="w-full justify-start" onClick={() => { setAction("recommendation"); setActionDropdownOpen(false); setDropdownOpen(false); clearSelection(); }}>
+                    Apply Recommendation
+                  </OrbitButton>
+                ) : null}
                 <OrbitButton variant="Tertiary" size="Medium" state="Default" className="w-full justify-start" onClick={() => { setAction("keep-current"); setActionDropdownOpen(false); setDropdownOpen(false); clearSelection(); }}>
-                  Keep Current Summary
+                  {secondaryActionLabel}
                 </OrbitButton>
               </Card>
             </div>
@@ -8517,18 +8543,18 @@ function SimplifiedComparisonContent({
       padding={layout === "thread" || layout === "initial-two-card" ? "base" : "compact"}
       content={targetContent}
       footer={
-        <div className={cn("w-full", targetFooter ? "grid grid-cols-2 gap-orbit-xs" : "flex") }>
+        <div className="flex w-full flex-nowrap items-center gap-orbit-xs">
           {!hideRationaleAction && recommendationRationale && (
             <Button
               variant="outline"
-              className="h-8 w-full"
+              className="h-8 min-w-0 flex-1"
               onClick={() => setRationaleOpen(true)}
             >
               View Rationale
             </Button>
           )}
           {targetFooter && (
-            <div className="col-span-2 grid w-full grid-cols-2 gap-orbit-xs [&>button]:ml-0 [&>button]:w-full">
+            <div className="flex min-w-0 flex-1 items-center gap-orbit-xs [&>button]:ml-0 [&>button]:min-w-0 [&>button]:flex-1">
               {targetFooter}
             </div>
           )}

@@ -3211,9 +3211,10 @@ export function ContractResults({
           {(!compactHeader || designOption === "design-option-2") && (
             <InlineRecommendationReviewBanner description="Review ClauseIQ's findings and decide which positions to take forward. Apply a recommended position, set a custom position, or leave a clause unchanged for now." />
           )}
-          {compactBulkBanner}
+          {designOption !== "design-option-2" ? compactBulkBanner : null}
         </>
       }
+      optionTwoBulkBanner={compactBulkBanner}
       metrics={firstAnalysisMetrics}
       clausesToReview={firstAnalysisReviewList}
       categoryRail={categoryRail}
@@ -3310,14 +3311,14 @@ export function ContractResults({
           )}
           acceptedAsIs={optionTwoActionSection(
             "Accepted As Is",
-            "Supplier wording accepted without changes.",
+            "Supplier position accepted without changes.",
             optionTwoGroups.acceptedAsIs,
             "success",
             { bucket: "closed", showOutcomeActions: false, overrideVerdict: "met" },
           )}
           metThisRound={optionTwoActionSection(
             "Positions Met this Round",
-            "Newly settled in this round.",
+            "Newly settled in this round. No further action required",
             optionTwoGroups.metThisRound,
             "success",
             { bucket: "closed", showOutcomeActions: false, overrideVerdict: "met" },
@@ -6980,11 +6981,6 @@ function ClauseRequestForm({
             maxLength={comparisonEditing ? requestCharacterLimit : undefined}
             className={cn("min-h-[64px] text-orbit-sm", compact && "min-h-[58px] text-orbit-xs")}
           />
-          {comparisonEditing && (
-            <div className="text-right text-orbit-xs text-orbit-fg-secondary">
-              {requestValue.length}/{requestCharacterLimit}
-            </div>
-          )}
         </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-orbit-base">
@@ -7894,7 +7890,11 @@ function InitialAnalysisOptionTwoClauseCard({
     : requestText && requestText !== actionabilityText
     ? "Custom Position"
     : "Recommended Next Position";
-  const targetText = isDrafting ? undefined : handled && requestText ? requestText : actionabilityText || undefined;
+  const targetText = noneDeviationClause || isDrafting
+    ? undefined
+    : handled && requestText
+    ? requestText
+    : actionabilityText || undefined;
   const canEditPosition = !noneDeviationClause && !handled;
   const draftEditor = isDrafting && onUpdateDraft && onCancelDraft && onSubmitDraft ? (
     <ClauseRequestForm
@@ -7943,7 +7943,7 @@ function InitialAnalysisOptionTwoClauseCard({
       {expanded ? (
         <div className="border-t border-orbit-border p-orbit-base">
           <SimplifiedComparisonContent
-            currentLabel={missingClause ? "Missing clause" : "Current Analysis"}
+            currentLabel={missingClause ? "Missing clause" : "Current Supplier Position"}
             currentText={description}
             target={targetText}
             targetLabel={positionLabel}
@@ -8580,7 +8580,12 @@ function SimplifiedComparisonContent({
           {targetPanel}
         </div>
       ) : layout === "initial-two-card" ? (
-        <div className="grid gap-orbit-s lg:grid-cols-[minmax(0,1fr)_24px_minmax(0,1fr)] lg:items-stretch">
+        <div
+          className={cn(
+            "grid gap-orbit-s lg:items-stretch",
+            targetPanel ? "lg:grid-cols-[minmax(0,1fr)_24px_minmax(0,1fr)]" : "lg:grid-cols-1",
+          )}
+        >
           {currentPanel}
           {targetPanel ? <ArrowRight className="hidden self-center justify-self-center text-orbit-fg-secondary lg:block" aria-hidden="true" /> : null}
           {targetPanel}
@@ -9577,6 +9582,12 @@ function ReviewScreen({
     })
     .sort((a, b) => severityRank(b.clause.severity) - severityRank(a.clause.severity) || a.index - b.index)
     .map(({ clause }) => clause);
+  const acceptedSupplierPositionRows = displayMode === "initial-option-2"
+    ? rows.filter((clause) => stateOf(clause.id).roundDecisions[versionLabel] === "no-action")
+    : [];
+  const reviewRows = displayMode === "initial-option-2"
+    ? rows.filter((clause) => stateOf(clause.id).roundDecisions[versionLabel] !== "no-action")
+    : rows;
   const renderClauseCard = (c: ClauseResult) => {
     const state = stateOf(c.id);
     const decision = state.roundDecisions[versionLabel];
@@ -9675,6 +9686,18 @@ function ReviewScreen({
   // (High / Medium / Low / None / Missing), mirroring the Comparison View
   // section layout. The legacy default layout keeps its flat list.
   if (displayMode === "row-scale" || displayMode === "initial-option-2") {
+    const reviewBuckets = displayMode === "initial-option-2"
+      ? [...FIRST_ANALYSIS_REVIEW_BUCKETS].sort((left, right) => {
+          const order: Record<FirstAnalysisReviewBucketKey, number> = {
+            high: 0,
+            medium: 1,
+            low: 2,
+            missing: 3,
+            none: 4,
+          };
+          return order[left.key] - order[right.key];
+        })
+      : FIRST_ANALYSIS_REVIEW_BUCKETS;
     const bucketOf = (c: ClauseResult): FirstAnalysisReviewBucketKey =>
       missingClauseIds?.has(c.id)
         ? "missing"
@@ -9683,10 +9706,10 @@ function ReviewScreen({
         : c.severity;
     return (
       <div className="space-y-orbit-base">
-        {rows.length === 0
+        {reviewRows.length === 0 && acceptedSupplierPositionRows.length === 0
           ? emptyState
-          : FIRST_ANALYSIS_REVIEW_BUCKETS.map((bucket) => {
-              const items = rows.filter((c) => bucketOf(c) === bucket.key);
+          : reviewBuckets.map((bucket) => {
+              const items = reviewRows.filter((c) => bucketOf(c) === bucket.key);
               if (items.length === 0) return null;
               return (
                 <FirstAnalysisReviewBucketSection
@@ -9700,6 +9723,16 @@ function ReviewScreen({
                 </FirstAnalysisReviewBucketSection>
               );
             })}
+        {acceptedSupplierPositionRows.length > 0 && (
+          <FirstAnalysisReviewBucketSection
+            title="Accepted Supplier Position"
+            count={acceptedSupplierPositionRows.length}
+            accent="success"
+            description="Supplier position accepted without changes."
+          >
+            {acceptedSupplierPositionRows.map(renderClauseCard)}
+          </FirstAnalysisReviewBucketSection>
+        )}
         {discardOverlay}
       </div>
     );

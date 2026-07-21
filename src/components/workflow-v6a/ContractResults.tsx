@@ -3199,7 +3199,7 @@ export function ContractResults({
       option={designOption}
       banner={
         <>
-          {!compactHeader && (
+          {(!compactHeader || designOption === "design-option-2") && (
             <InlineRecommendationReviewBanner description="Review ClauseIQ's findings and decide which positions to take forward. Apply a recommended position, set a custom position, or leave a clause unchanged for now." />
           )}
           {compactBulkBanner}
@@ -3207,7 +3207,6 @@ export function ContractResults({
       }
       metrics={firstAnalysisMetrics}
       clausesToReview={firstAnalysisReviewList}
-      visibleCount={firstAnalysisVisibleClauses.length}
       categoryRail={categoryRail}
       categoryPanel={categoryPanel}
       categoryStrip={categoryStrip}
@@ -3791,7 +3790,7 @@ export function ContractResults({
       )}
 
       {dashboardDesignControl}
-      {compactHeader && firstAnalysisDemo && <FirstAnalysisContextBanner />}
+      {compactHeader && firstAnalysisDemo && designOption !== "design-option-2" && <FirstAnalysisContextBanner />}
       {outcomeReviewContent}
       {signoffOpen && (
         <SignoffView

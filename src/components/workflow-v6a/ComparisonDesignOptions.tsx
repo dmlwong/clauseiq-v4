@@ -270,7 +270,6 @@ export function FirstAnalysisDesignOptions({
   banner,
   metrics,
   clausesToReview,
-  visibleCount,
   categoryRail,
   categoryPanel,
   categoryStrip,
@@ -282,7 +281,6 @@ export function FirstAnalysisDesignOptions({
   banner?: ReactNode;
   metrics: FirstAnalysisMetrics;
   clausesToReview: ReactNode;
-  visibleCount: number;
   categoryRail: ReactNode;
   categoryPanel: ReactNode;
   categoryStrip: ReactNode;
@@ -300,20 +298,19 @@ export function FirstAnalysisDesignOptions({
   if (option === "design-option-2") {
     return (
       <div className="mx-auto w-full max-w-[1800px] space-y-orbit-base px-orbit-base py-orbit-base">
-        {banner}
-        <div className="grid gap-orbit-base md:grid-cols-3">
-          <InitialAnalysisOptionTwoMetric label="Review needed" value={metrics.needReview} detail="clauses need a decision" tone="warning" />
-          <InitialAnalysisOptionTwoMetric label="Requested" value={metrics.requested} detail="positions selected" tone="information" />
-          <InitialAnalysisOptionTwoMetric label="ClauseIQ score" value={metrics.score} detail={`${metrics.versionLabel.toUpperCase()} initial analysis`} tone="default" />
-        </div>
         <section className="overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">
-          <div className="border-b border-orbit-border p-orbit-base">
+          <div className="p-orbit-base">
             <h1 className="v6-orbit-heading-strong text-orbit-fg">Latest Analysis</h1>
-            <p className="mt-orbit-xxs v6-orbit-text-small text-orbit-fg-secondary">{visibleCount} clauses reviewed</p>
           </div>
-          <div className="border-b border-orbit-border bg-orbit-surface/30 p-orbit-base">{optionTwoFilters}</div>
-          <div className="p-orbit-base"><FirstAnalysisReviewShell>{clausesToReview}</FirstAnalysisReviewShell></div>
+          {banner ? <div className="border-t border-orbit-border p-orbit-base">{banner}</div> : null}
+          <div className="grid gap-orbit-base border-t border-orbit-border p-orbit-base md:grid-cols-3">
+            <InitialAnalysisOptionTwoMetric label="Review needed" value={metrics.needReview} detail="clauses need a decision" tone="warning" />
+            <InitialAnalysisOptionTwoMetric label="Requested" value={metrics.requested} detail="positions selected" tone="information" />
+            <InitialAnalysisOptionTwoMetric label="ClauseIQ score" value={metrics.score} detail={`${metrics.versionLabel.toUpperCase()} initial analysis`} tone="default" />
+          </div>
+          <div className="border-t border-orbit-border bg-orbit-surface/30 p-orbit-base">{optionTwoFilters}</div>
         </section>
+        <FirstAnalysisReviewShell>{clausesToReview}</FirstAnalysisReviewShell>
       </div>
     );
   }
@@ -386,11 +383,11 @@ function InitialAnalysisOptionTwoMetric({
     ? "text-orbit-info"
     : "text-orbit-fg";
   return (
-    <Card type="Static" padding="Base" state="Default" indicator={false}>
+    <div className="rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-base">
       <p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wide text-orbit-fg-secondary">{label}</p>
       <p className={cn("mt-orbit-xs text-orbit-xl v6-orbit-weight-semibold", valueClass)}>{value}</p>
       <p className="mt-orbit-xxs v6-orbit-text-small text-orbit-fg-secondary">{detail}</p>
-    </Card>
+    </div>
   );
 }
 

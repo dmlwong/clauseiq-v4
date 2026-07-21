@@ -3289,13 +3289,13 @@ export function ContractResults({
             />
           }
           actionRequired={optionTwoActionSection(
-            "Action Required — Position Not Met",
+            "Still Open — Position Not Met",
             "Review the next-round position, edit it, or accept the supplier's wording.",
             optionTwoGroups.actionRequired,
             "destructive",
           )}
           regressed={optionTwoActionSection(
-            "Action Required — previously agreed, but changed by the supplier",
+            "Still Open — Previously agreed, but changed by the supplier",
             "These were met in an earlier round. The supplier's latest wording has weakened your position.",
             optionTwoGroups.regressed,
             "warning",

@@ -125,8 +125,8 @@ describe("ContractResults V6A review controls", () => {
 
     expect(screen.getByText("Latest Analysis")).toBeInTheDocument();
     expect(screen.getByText("Convergence")).toBeInTheDocument();
-    expect(screen.getByText(/^Action Required — Position Not Met/)).toBeInTheDocument();
-    expect(screen.getByText(/^Action Required — previously agreed, but changed by the supplier/)).toBeInTheDocument();
+    expect(screen.getByText(/^Still Open — Position Not Met/)).toBeInTheDocument();
+    expect(screen.getByText(/^Still Open — Previously agreed, but changed by the supplier/)).toBeInTheDocument();
     expect(screen.getByText(/^Positions Met this Round/)).toBeInTheDocument();
     expect(screen.getAllByText("Commercial Terms").length).toBeGreaterThan(0);
     expect(screen.queryByText("Sub-clause:")).not.toBeInTheDocument();

@@ -6862,6 +6862,7 @@ function ClauseRequestForm({
   embedded = false,
   compact = false,
   revertText,
+  comparisonEditing = false,
   onUpdate,
   onCancel,
   onSubmit,
@@ -6875,6 +6876,7 @@ function ClauseRequestForm({
   embedded?: boolean;
   compact?: boolean;
   revertText?: string;
+  comparisonEditing?: boolean;
   onUpdate: (patch: { requestedChange?: string; rationale?: string }) => void;
   onCancel: () => void;
   onSubmit: () => void;
@@ -6883,6 +6885,8 @@ function ClauseRequestForm({
   const [expanded, setExpanded] = useState(false);
   const revertValue = revertText?.trim() ?? "";
   const canRevert = Boolean(revertValue) && requestValue.trim() !== revertValue;
+  const requestCharacterLimit = 250;
+  const isRecommendationCopy = requestValue.trim() === revertValue;
 
   return (
     <div
@@ -6906,33 +6910,51 @@ function ClauseRequestForm({
         </div>
       )}
       <div className="grid w-full gap-orbit-base">
+        {comparisonEditing && (
+          <div className="flex items-center gap-orbit-xs text-orbit-xs text-orbit-fg-secondary">
+            <span>{isRecommendationCopy ? "Editing a copy of the recommended position" : "Edited from the recommended position"}</span>
+            <Chip label="Custom" size="Mini" variant="No Status" contrast="Low" />
+          </div>
+        )}
         <div className="space-y-orbit-xs">
           <div className="flex items-center justify-between gap-orbit-s">
             <label className="v6-orbit-text-small v6-orbit-weight-semibold text-orbit-fg-secondary">
-              Set Custom Position
+              {comparisonEditing ? "Your position" : "Set Custom Position"}
             </label>
-            <div className="flex items-center gap-orbit-xs">
+            <div className="flex items-center gap-orbit-s">
               {revertText ? (
-                <Button
-                  variant="outline"
-                  className="h-7 px-orbit-s text-orbit-xs"
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-orbit-xxs text-orbit-xs text-orbit-primary hover:underline disabled:cursor-not-allowed disabled:text-orbit-fg-tertiary disabled:no-underline"
                   disabled={!canRevert}
                   onClick={() => onUpdate({ requestedChange: revertValue })}
                 >
-                  Revert to Recommended
-                </Button>
+                  <RotateCcw className="h-3 w-3" aria-hidden="true" />
+                  Revert
+                </button>
               ) : null}
-              <Button variant="outline" className="h-7 px-orbit-s text-orbit-xs" onClick={() => setExpanded(true)}>
-                Expand editor
-              </Button>
+              <button
+                type="button"
+                className="inline-flex items-center gap-orbit-xxs text-orbit-xs text-orbit-primary hover:underline"
+                onClick={() => setExpanded(true)}
+              >
+                <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                Expand
+              </button>
             </div>
           </div>
           <Textarea
             value={requestValue}
             onChange={(event) => onUpdate({ requestedChange: event.target.value })}
             placeholder={requestPlaceholder}
+            maxLength={comparisonEditing ? requestCharacterLimit : undefined}
             className={cn("min-h-[64px] text-orbit-sm", compact && "min-h-[58px] text-orbit-xs")}
           />
+          {comparisonEditing && (
+            <div className="text-right text-orbit-xs text-orbit-fg-secondary">
+              {requestValue.length}/{requestCharacterLimit}
+            </div>
+          )}
         </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-orbit-base">
@@ -8240,7 +8262,7 @@ function SimplifiedComparisonContent({
       padding={layout === "thread" ? "base" : "compact"}
     />
   );
-  const targetPanel = targetText ? (
+  const targetPanel = targetText || targetContent ? (
     <ResultCardPanel
       label={(
         <span className="inline-flex items-center gap-orbit-xs">
@@ -8248,7 +8270,7 @@ function SimplifiedComparisonContent({
           <span>{targetLabel}</span>
         </span>
       )}
-      text={displayedTargetText!}
+      text={displayedTargetText ?? ""}
       tone={layout === "thread" ? "highlight" : "primary"}
       padding={layout === "thread" ? "base" : "compact"}
       content={targetContent}
@@ -9645,7 +9667,7 @@ function ComparisonSection(props: {
           : r.curr?.deviation ?? "Clause no longer present.";
         const comparisonDetails = (
           <SimplifiedComparisonContent
-            target={showRecommendedNextPosition
+            target={!drafting && showRecommendedNextPosition
               ? completedAction ? completedPositionText : comparisonBestPractice
               : undefined}
             targetLabel={completedAction ? completedPositionLabel : isRoundDashboard ? "Recommended Next Position" : undefined}
@@ -9692,8 +9714,9 @@ function ComparisonSection(props: {
                   versionLabel={rightLabel}
                   draft={draft}
                   request={basketRequest}
-                  requestPlaceholder="Write the target you want to send in the next round"
                   revertText={comparisonBestPractice}
+                  comparisonEditing={isRoundDashboard}
+                  requestPlaceholder="Write the target you want to send in the next round"
                   submitLabel="Confirm Custom Position"
                   embedded
                   onUpdate={(patch) => onUpdateText(r.id, patch)}

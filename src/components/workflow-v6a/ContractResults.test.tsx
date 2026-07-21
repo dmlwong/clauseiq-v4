@@ -17,6 +17,8 @@ const firstAnalysisRoute =
   "/initiatives-v6a?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=first-analysis";
 const outcomeReviewRoute =
   "/initiatives-v6a?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=negotiated-reanalysis&resultMode=outcome&analysisId=a-001&previousAnalysisId=a-002&outputSupplierId=sup-001&from=v2&to=v3";
+const optionTwoComparisonRoute =
+  "/initiatives-v6a?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=design-option-2&scenario=negotiated-reanalysis&resultMode=outcome&analysisId=a-001&previousAnalysisId=a-002&outputSupplierId=sup-001&from=v2&to=v3&dashboardView=comparison";
 const outcomeReviewDraftRoute =
   "/initiatives-v6a?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=negotiated-reanalysis&resultMode=outcome&analysisId=a-004&previousAnalysisId=a-005&outputSupplierId=sup-002&from=v1&to=v2";
 const initialAnalysisOnlyRoute =
@@ -116,6 +118,43 @@ describe("ContractResults V6A review controls", () => {
     expect(screen.queryByRole("button", { name: "Compare to version v3" })).not.toBeInTheDocument();
     expect(screen.queryByText("MSA_ThomsonReuters_v1.pdf")).not.toBeInTheDocument();
     expect(screen.queryByText("MSA_ThomsonReuters_v2.pdf")).not.toBeInTheDocument();
+  });
+
+  it("renders the round comparison dashboard only for comparison design option 2", () => {
+    renderContractResults(optionTwoComparisonRoute);
+
+    expect(screen.getByText("Latest Analysis")).toBeInTheDocument();
+    expect(screen.getByText("Convergence")).toBeInTheDocument();
+    expect(screen.getByText(/^Action Required — Position Not Met/)).toBeInTheDocument();
+    expect(screen.getByText(/^Action Required — previously agreed, but changed by the supplier/)).toBeInTheDocument();
+    expect(screen.getByText(/^Positions Met this Round/)).toBeInTheDocument();
+    expect(screen.getAllByText("Commercial Terms").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Sub-clause:")).not.toBeInTheDocument();
+    const metBucket = screen.getByText(/^Positions Met this Round/).closest("section");
+    expect(within(metBucket as HTMLElement).queryByText("Recommended Next Position")).not.toBeInTheDocument();
+    const previouslyMetBucket = screen.getByText(/^Previously Met And Unchanged/).closest("button");
+    expect(previouslyMetBucket).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getAllByText("Previous Negotiation Position Sent to Supplier").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Latest Supplier Position").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Recommended Next Position").length).toBeGreaterThan(0);
+  });
+
+  it("falls back to option 1 and hides option 2 for initial analysis", () => {
+    renderContractResults(firstAnalysisRoute.replace("design=row-scale", "design=design-option-2"));
+
+    expect(screen.queryByText("Latest Analysis")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Design Control" }));
+    expect(screen.getByText("Design option 1")).toBeInTheDocument();
+    expect(screen.queryByText("Design option 2")).not.toBeInTheDocument();
+  });
+
+  it("switches to comparison design option 2 from Design Control", () => {
+    renderContractResults(outcomeReviewRoute);
+
+    fireEvent.click(screen.getByRole("button", { name: "Design Control" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Design option 2" }));
+
+    expect(screen.getByText("Latest Analysis")).toBeInTheDocument();
   });
 
   it("switches the dashboard between initial-analysis and comparison views", () => {

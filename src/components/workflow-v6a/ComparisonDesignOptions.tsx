@@ -5,7 +5,6 @@ import {
   Card,
   Chip,
   RadialIndicator,
-  TabButton,
   Text,
   ToggleCard,
 } from "@orbit";
@@ -18,7 +17,7 @@ import {
   type FirstAnalysisStatusKey,
 } from "./firstAnalysisStatusTags";
 
-export type ComparisonDesignOption = "evolved" | "side-by-side" | "row-scale";
+export type ComparisonDesignOption = "evolved" | "side-by-side" | "row-scale" | "design-option-2";
 export type EvidenceMetricKey =
   | "not-met"
   | "met"
@@ -61,8 +60,8 @@ export interface FirstAnalysisMetrics {
 }
 
 const designOptions: Array<{ value: ComparisonDesignOption; label: string; icon: ReactNode }> = [
-  { value: "row-scale", label: "A · Row scale", icon: <List className="h-3.5 w-3.5" /> },
-  { value: "side-by-side", label: "Current · Side-by-side", icon: <Columns3 className="h-3.5 w-3.5" /> },
+  { value: "row-scale", label: "Design option 1", icon: <List className="h-3.5 w-3.5" /> },
+  { value: "design-option-2", label: "Design option 2", icon: <Columns3 className="h-3.5 w-3.5" /> },
 ];
 
 const distributionColours: Record<keyof DeviationDistribution, string> = {
@@ -89,9 +88,11 @@ function isInitiativesV6Route() {
 export function DesignOptionSwitcher({
   value,
   onChange,
+  showOptionTwo = true,
 }: {
   value: ComparisonDesignOption;
   onChange: (value: ComparisonDesignOption) => void;
+  showOptionTwo?: boolean;
 }) {
   return (
     <div
@@ -99,17 +100,18 @@ export function DesignOptionSwitcher({
       aria-label="Comparison design"
       className="flex min-w-0 items-center gap-orbit-xs overflow-x-auto rounded-orbit-md border border-orbit-border bg-orbit-card p-orbit-xxs"
     >
-      {designOptions.map((option) => {
+      {designOptions.filter((option) => showOptionTwo || option.value !== "design-option-2").map((option) => {
         const active = option.value === value;
         return (
-          <TabButton
+          <button
             key={option.value}
-            active={active}
-            showUnderline={false}
-            ariaControls="comparison-work-column"
+            type="button"
+            role="tab"
+            aria-selected={active}
+            aria-controls="comparison-work-column"
             onClick={() => onChange(option.value)}
             className={cn(
-              "h-6 shrink-0 rounded-orbit-sm px-orbit-s text-orbit-xs",
+              "inline-flex h-6 shrink-0 items-center justify-center rounded-orbit-sm px-orbit-s text-orbit-xs",
               active ? "bg-orbit-heading text-orbit-inverse" : "text-orbit-fg-secondary hover:bg-orbit-surface hover:text-orbit-fg",
             )}
           >
@@ -117,7 +119,7 @@ export function DesignOptionSwitcher({
               {option.icon}
               {option.label}
             </span>
-          </TabButton>
+          </button>
         );
       })}
     </div>
@@ -147,6 +149,7 @@ export function ComparisonDesignOptions({
   onEvidenceMetricSelect,
   evidenceMetrics,
   simplifyStatusMetrics = false,
+  optionTwoDashboard,
 }: {
   option: ComparisonDesignOption;
   banner?: ReactNode;
@@ -176,7 +179,12 @@ export function ComparisonDesignOptions({
   onEvidenceMetricSelect?: (metric: EvidenceMetricKey) => void;
   evidenceMetrics?: EvidenceMetricCounts;
   simplifyStatusMetrics?: boolean;
+  optionTwoDashboard?: ReactNode;
 }) {
+  if (option === "design-option-2" && optionTwoDashboard) {
+    return <div className="mx-auto w-full max-w-[1800px] px-orbit-base py-orbit-base">{optionTwoDashboard}</div>;
+  }
+
   if (option === "side-by-side" || option === "row-scale") {
     return (
       <div className="mx-auto w-full max-w-[1500px] space-y-orbit-base px-orbit-base py-orbit-base">
@@ -286,7 +294,7 @@ export function FirstAnalysisDesignOptions({
   activeMetrics?: FirstAnalysisMetricKey[];
   onMetricSelect?: (metric: FirstAnalysisMetricKey) => void;
 }) {
-  if (option === "side-by-side" || option === "row-scale") {
+  if (option === "side-by-side" || option === "row-scale" || option === "design-option-2") {
     return (
       <div className="mx-auto grid w-full max-w-[1500px] gap-orbit-base px-orbit-base py-orbit-base xl:grid-cols-[304px_minmax(0,1fr)] xl:items-start">
         {banner ? <div className="min-w-0 xl:col-span-2">{banner}</div> : null}

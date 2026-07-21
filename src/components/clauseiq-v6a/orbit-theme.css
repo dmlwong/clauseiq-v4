@@ -364,7 +364,7 @@ body
   color: var(--orbit-color-text-inverse);
   display: grid;
   gap: var(--orbit-space-s);
-  grid-template-columns: auto auto minmax(220px, 360px) minmax(0, 1fr);
+  grid-template-columns: auto minmax(220px, 300px) minmax(220px, 360px) minmax(0, 1fr);
   margin: 0;
   min-height: 56px;
   padding: var(--orbit-space-base);
@@ -427,9 +427,33 @@ body
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-banner-controls {
   align-items: center;
   display: flex;
+  gap: var(--orbit-space-s);
+  grid-column: 2 / span 2;
   justify-self: stretch;
   min-width: 0;
   position: relative;
+}
+
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-action-control,
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-scope-control {
+  min-width: 0;
+  position: relative;
+}
+
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-action-control {
+  flex: 0 1 300px;
+}
+
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-scope-control {
+  flex: 1 1 260px;
+}
+
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-action-menu {
+  left: 0;
+  min-width: 240px;
+  position: absolute;
+  top: calc(100% + var(--orbit-space-xs));
+  z-index: 25;
 }
 
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-banner-trigger {

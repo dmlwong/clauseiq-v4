@@ -8540,7 +8540,9 @@ function SimplifiedComparisonContent({
   );
   const targetPanel = targetText || targetContent ? (
     <ResultCardPanel
-      label={(
+      label={layout === "initial-two-card" ? (
+        <Chip label={targetLabel} size="Mini" variant="Information" contrast="High" />
+      ) : (
         <span className="inline-flex items-center gap-orbit-xs">
           <Sparkles className="h-3 w-3 shrink-0" aria-hidden="true" />
           <span>{targetLabel}</span>

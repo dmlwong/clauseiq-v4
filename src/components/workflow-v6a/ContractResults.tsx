@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useMemo, useEffect, useRef, useCal
 import { useSearchParams } from "react-router-dom";
 import {
   ChevronLeft, AlertTriangle, Check, CheckCircle2, Search, MapPin, Lightbulb,
-  GitCompare, History, X, ArrowRight, Sparkles, Upload, Trash2, FileText, Loader2,
+  GitCompare, History, X, ArrowRight, Sparkles, Upload, Trash2, FileText, Loader2, BarChart3,
   Export, Info, ShieldCheck, ExternalLink, Sigma, Pin, RotateCcw,
   Clock, ShieldX, Pencil,
 } from "@/components/clauseiq-v6a/v6aIcons";
@@ -30,6 +30,7 @@ import {
   Button as OrbitButton,
   Text,
   ToggleCard,
+  LinkText,
 } from "@orbit";
 import { showV6OrbitToast as toast } from "@/components/clauseiq-v6a/V6OrbitToast";
 import { V6OrbitConfirmOverlay, V6OrbitOverlay } from "@/components/clauseiq-v6a/V6OrbitOverlay";
@@ -3151,7 +3152,7 @@ export function ContractResults({
           }
           setCompactBulkBannerOpen(false);
         }}
-        showRecommendationAction={!initialOptionTwoBulkMode}
+        showRecommendationAction={false}
         acceptSupplierMode={initialOptionTwoBulkMode}
         onUndoApply={!outcomeReviewMode ? undoAppliedRecommendations : undefined}
         onClose={() => setCompactBulkBannerOpen(false)}
@@ -3757,7 +3758,7 @@ export function ContractResults({
                       }
                       setNonCompactBulkBannerOpen(false);
                     }}
-                    showRecommendationAction={!initialOptionTwoBulkMode}
+                    showRecommendationAction={false}
                     acceptSupplierMode={initialOptionTwoBulkMode}
                     onUndoApply={!outcomeReviewMode ? undoAppliedRecommendations : undefined}
                     onSelectedTargetsChange={setBulkBannerSelectedClauseIds}
@@ -6922,7 +6923,7 @@ function ClauseRequestForm({
   return (
     <div
       className={cn(
-        embedded ? "" : "mt-orbit-base border-t border-orbit-border pt-orbit-base",
+        embedded ? "flex h-full flex-col" : "mt-orbit-base border-t border-orbit-border pt-orbit-base",
         compact ? "space-y-orbit-s" : "space-y-orbit-xs",
       )}
       onClick={(event) => event.stopPropagation()}
@@ -6940,7 +6941,7 @@ function ClauseRequestForm({
           </p>
         </div>
       )}
-      <div className="grid w-full gap-orbit-base">
+      <div className="flex w-full flex-1 flex-col gap-orbit-base">
         {comparisonEditing && (
           <div className="flex items-center gap-orbit-xs text-orbit-xs text-orbit-fg-secondary">
             <span>{isRecommendationCopy ? "Editing a copy of the recommended position" : "Edited from the recommended position"}</span>
@@ -6979,11 +6980,15 @@ function ClauseRequestForm({
             onChange={(event) => onUpdate({ requestedChange: event.target.value })}
             placeholder={requestPlaceholder}
             maxLength={comparisonEditing ? requestCharacterLimit : undefined}
-            className={cn("min-h-[64px] text-orbit-sm", compact && "min-h-[58px] text-orbit-xs")}
+            className={cn(
+              comparisonEditing ? "min-h-[120px]" : "min-h-[64px]",
+              compact && !comparisonEditing && "min-h-[58px] text-orbit-xs",
+              "text-orbit-sm",
+            )}
           />
         </div>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-orbit-base">
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-orbit-base">
         <Button variant="outline" className={cn("h-8 text-orbit-xs", compact && "h-7 text-orbit-xs")} onClick={onCancel}>
           Cancel
         </Button>
@@ -7064,6 +7069,7 @@ function ClauseDecisionCard({
   metaPrefix,
   missingClause,
   showClauseType = false,
+  suppressChangePill = false,
   defaultDetailsExpanded = true,
   hideSubclauseReference,
   displayMode = "default",
@@ -7118,6 +7124,7 @@ function ClauseDecisionCard({
   metaPrefix?: ReactNode;
   missingClause?: boolean;
   showClauseType?: boolean;
+  suppressChangePill?: boolean;
   defaultDetailsExpanded?: boolean;
   hideSubclauseReference?: boolean;
   displayMode?: "default" | "row-scale" | "initial-option-2";
@@ -7181,6 +7188,7 @@ function ClauseDecisionCard({
   const useV6DeviationCard = isInitiativesV6Route() && neutralActions;
   const useFirstAnalysisDeviationStyle = neutralActions && hideSubclauseReference && clause.severity === "high";
   const showChangePill =
+    !suppressChangePill &&
     !useV6StatusTags &&
     Boolean(changePill?.status) &&
     !stateBadge &&
@@ -7296,8 +7304,8 @@ function ClauseDecisionCard({
           </div>
           {alteredAfterAgreement && <Chip label="Altered after agreement" size="Mini" variant="Error" contrast="Low" />}
           {verdict && !isMissingClauseCard ? (
-            <span className="inline-flex w-[152px] shrink-0 items-center gap-orbit-xs">
-              <span className="text-orbit-xs text-orbit-fg-secondary">Review status</span>
+            <span className="inline-flex w-fit min-w-[152px] shrink-0 items-center gap-orbit-xs whitespace-nowrap">
+              <span className="shrink-0 text-orbit-xs text-orbit-fg-secondary">Review status</span>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="inline-flex cursor-help">
@@ -7311,8 +7319,8 @@ function ClauseDecisionCard({
             </span>
           ) : showChangePill && changePill ? <ChangePillBadge result={changePill} /> : null}
           {isMissingClauseCard && (
-            <span className="inline-flex w-[152px] shrink-0 items-center gap-orbit-xs">
-              <span className="text-orbit-xs text-orbit-fg-secondary">Review status</span>
+            <span className="inline-flex w-fit min-w-[152px] shrink-0 items-center gap-orbit-xs whitespace-nowrap">
+              <span className="shrink-0 text-orbit-xs text-orbit-fg-secondary">Review status</span>
               {useV6StatusTags ? (
                 <FirstAnalysisStatusTag status="missing" label="Missing" />
               ) : (
@@ -7674,13 +7682,13 @@ function ClauseRowScaleCard({
               </div>
               <div className="flex shrink-0 flex-wrap items-center justify-end gap-orbit-xs">
                 {missingClause && (
-                  <span className="inline-flex w-[152px] shrink-0 items-center gap-orbit-xs">
-                    <span className="text-orbit-xs text-orbit-fg-secondary">Review status</span>
+                  <span className="inline-flex w-fit min-w-[152px] shrink-0 items-center gap-orbit-xs whitespace-nowrap">
+                    <span className="shrink-0 text-orbit-xs text-orbit-fg-secondary">Review status</span>
                     <FirstAnalysisStatusTag status={isMetOutcome ? "met" : "missing"} label={isMetOutcome ? "Met" : "Missing"} />
                   </span>
                 )}
-                <span className="inline-flex w-[120px] shrink-0 items-center gap-orbit-xs">
-                  <span className="text-orbit-xs text-orbit-fg-secondary">Deviation</span>
+                <span className="inline-flex w-[120px] shrink-0 items-center gap-orbit-xs whitespace-nowrap">
+                  <span className="shrink-0 text-orbit-xs text-orbit-fg-secondary">Deviation</span>
                   <FirstAnalysisStatusTag status={severityStatusKey} />
                 </span>
                 <Button
@@ -7749,8 +7757,8 @@ function ClauseRowScaleCard({
             </div>
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-orbit-xs">
               {missingClause && (
-                <span className="inline-flex items-center gap-orbit-xs">
-                  <span className="text-orbit-xs text-orbit-fg-secondary">Review status</span>
+                <span className="inline-flex items-center gap-orbit-xs whitespace-nowrap">
+                  <span className="shrink-0 text-orbit-xs text-orbit-fg-secondary">Review status</span>
                   {useV6StatusColours ? (
                     <FirstAnalysisStatusTag status={isMetOutcome ? "met" : "missing"} label={isMetOutcome ? "Met" : "Missing"} />
                   ) : (
@@ -7949,7 +7957,10 @@ function InitialAnalysisOptionTwoClauseCard({
         <div className="border-t border-orbit-border p-orbit-base">
           <SimplifiedComparisonContent
             currentLabel={missingClause ? "Missing clause" : (
-              <Chip label="Current Supplier Position" size="Mini" variant="Outline" contrast="Low" />
+              <span className="inline-flex items-center gap-orbit-xxs rounded-orbit-sm border border-orbit-border bg-orbit-card px-orbit-s py-orbit-xxs text-orbit-xs text-orbit-fg">
+                <FileText className="h-3 w-3 shrink-0 text-orbit-fg-secondary" aria-hidden="true" />
+                <span>Current Supplier Position</span>
+              </span>
             )}
             currentText={description}
             target={targetText}
@@ -7964,7 +7975,7 @@ function InitialAnalysisOptionTwoClauseCard({
             }}
             currentFooter={
               canEditPosition && onNoAction ? (
-                <Button variant="outline" className="h-8 w-full" disabled={bulkSelectionEnabled} onClick={onNoAction}>
+                <Button variant="outline" className="ml-auto h-8 w-fit px-orbit-base" disabled={bulkSelectionEnabled} onClick={onNoAction}>
                   <Check className="h-3.5 w-3.5" aria-hidden="true" />
                   Accept Supplier Position
                 </Button>
@@ -7973,6 +7984,7 @@ function InitialAnalysisOptionTwoClauseCard({
             targetFooter={
               canEditPosition && !isDrafting ? (
                 <Button variant="outline" className="h-8" disabled={bulkSelectionEnabled} onClick={onEditPosition}>
+                  <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                   Set Custom Position
                 </Button>
               ) : undefined
@@ -8071,7 +8083,7 @@ function ResultCardPanel({
       >
         {text}
       </p>
-      {content ? <div className="mt-orbit-s">{content}</div> : null}
+      {content ? <div className="mt-orbit-s flex flex-1 flex-col">{content}</div> : null}
       {footer ? <div className={cn(footerPushBottom ? "mt-auto pt-orbit-s" : "mt-orbit-s", "flex flex-wrap items-center gap-orbit-xs")}>{footer}</div> : null}
     </div>
   );
@@ -8126,14 +8138,15 @@ function RoundComparisonDashboard({
         </div>
         {banner ? <div className="border-b border-orbit-border p-orbit-base">{banner}</div> : null}
         <div className="grid gap-orbit-base border-b border-orbit-border p-orbit-base md:grid-cols-3">
-          <RoundComparisonMetric label="Convergence" value={`${metCount}/${comparedCount}`} detail="positions met" tone="success" />
+          <RoundComparisonMetric icon={<GitCompare className="h-5 w-5" aria-hidden="true" />} label="Convergence" value={`${metCount}/${comparedCount}`} detail="positions met" tone="success" />
           <RoundComparisonMetric
+            icon={<BarChart3 className="h-5 w-5" aria-hidden="true" />}
             label="Score by round"
             value={`${previousScore} → ${currentScore}`}
             detail={`${scoreDelta >= 0 ? "+" : ""}${scoreDelta} vs previous round · playbook`}
             tone={scoreDelta >= 0 ? "default" : "warning"}
           />
-          <RoundComparisonMetric label="Still open" value={stillOpenCount} detail="need next-round decision" tone="warning" />
+          <RoundComparisonMetric icon={<AlertTriangle className="h-5 w-5" aria-hidden="true" />} label="Still open" value={stillOpenCount} detail="need next-round decision" tone="warning" />
         </div>
         <div className="border-b border-orbit-border bg-orbit-surface/30 p-orbit-base">{filters}</div>
       </section>
@@ -8151,11 +8164,13 @@ function RoundComparisonDashboard({
 }
 
 function RoundComparisonMetric({
+  icon,
   label,
   value,
   detail,
   tone,
 }: {
+  icon: ReactNode;
   label: string;
   value: string | number;
   detail: string;
@@ -8166,10 +8181,18 @@ function RoundComparisonMetric({
     : tone === "warning"
       ? "text-orbit-warning"
       : "text-orbit-fg";
+  const iconClass = tone === "success"
+    ? "bg-orbit-success-surface text-orbit-success"
+    : tone === "warning"
+      ? "bg-orbit-warning-surface text-orbit-warning"
+      : "bg-orbit-info-surface text-orbit-info";
 
   return (
     <div className="rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-base">
-      <p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wide text-orbit-fg-secondary">{label}</p>
+      <div className="flex items-start justify-between gap-orbit-s">
+        <p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wide text-orbit-fg-secondary">{label}</p>
+        <span className={cn("inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-orbit-md", iconClass)}>{icon}</span>
+      </div>
       <p className={cn("mt-orbit-xs text-orbit-xl v6-orbit-weight-semibold", valueTone)}>{value}</p>
       <p className="mt-orbit-xxs v6-orbit-text-small text-orbit-fg-secondary">{detail}</p>
     </div>
@@ -8520,8 +8543,13 @@ function SimplifiedComparisonContent({
   const recommendationRationale = rationale ?? (targetText ? getRecommendationRationale(undefined, targetText) : undefined);
   const previousPanel = hasPrevious ? (
     <ResultCardPanel
-      label={previousLabel!}
-      icon={previousLabel?.startsWith("Previous") ? <History className="h-3.5 w-3.5 shrink-0 text-orbit-fg-secondary" aria-hidden="true" /> : undefined}
+      label={layout === "thread" ? (
+        <span className="inline-flex items-center gap-orbit-xxs rounded-orbit-sm border border-orbit-border bg-orbit-card px-orbit-s py-orbit-xxs text-orbit-xs text-orbit-fg">
+          <History className="h-3 w-3 shrink-0 text-orbit-fg-secondary" aria-hidden="true" />
+          <span>{previousLabel}</span>
+        </span>
+      ) : previousLabel!}
+      icon={layout === "thread" ? undefined : previousLabel?.startsWith("Previous") ? <History className="h-3.5 w-3.5 shrink-0 text-orbit-fg-secondary" aria-hidden="true" /> : undefined}
       text={previousText!}
       padding={layout === "thread" || layout === "initial-two-card" ? "base" : "compact"}
     />
@@ -8529,8 +8557,13 @@ function SimplifiedComparisonContent({
   const currentLabelText = typeof currentLabel === "string" ? currentLabel : "";
   const currentPanel = (
     <ResultCardPanel
-      label={currentLabel}
-      icon={currentLabelText.startsWith("Latest") || currentLabelText.startsWith("Current") ? <FileText className="h-3.5 w-3.5 shrink-0 text-orbit-fg-secondary" aria-hidden="true" /> : undefined}
+      label={layout === "thread" ? (
+        <span className="inline-flex items-center gap-orbit-xxs rounded-orbit-sm border border-orbit-border bg-orbit-card px-orbit-s py-orbit-xxs text-orbit-xs text-orbit-fg">
+          <FileText className="h-3 w-3 shrink-0 text-orbit-fg-secondary" aria-hidden="true" />
+          <span>{currentLabelText}</span>
+        </span>
+      ) : currentLabel}
+      icon={layout === "thread" ? undefined : currentLabelText.startsWith("Latest") || currentLabelText.startsWith("Current") ? <FileText className="h-3.5 w-3.5 shrink-0 text-orbit-fg-secondary" aria-hidden="true" /> : undefined}
       text={currentText}
       headerAction={layout === "thread" || layout === "initial-two-card" ? undefined : currentFooter}
       footer={layout === "thread" || layout === "initial-two-card" ? currentFooter : undefined}
@@ -8540,8 +8573,11 @@ function SimplifiedComparisonContent({
   );
   const targetPanel = targetText || targetContent ? (
     <ResultCardPanel
-      label={layout === "initial-two-card" ? (
-        <Chip label={targetLabel} size="Mini" variant="Information" contrast="Low" />
+      label={layout === "initial-two-card" || layout === "thread" ? (
+        <span className="inline-flex items-center gap-orbit-xs rounded-orbit-sm border border-orbit-info bg-orbit-info/5 px-orbit-s py-orbit-xxs text-orbit-xs text-orbit-info">
+          <Sparkles className="h-3 w-3 shrink-0" aria-hidden="true" />
+          <span>{targetLabel}</span>
+        </span>
       ) : (
         <span className="inline-flex items-center gap-orbit-xs">
           <Sparkles className="h-3 w-3 shrink-0" aria-hidden="true" />
@@ -8549,22 +8585,35 @@ function SimplifiedComparisonContent({
         </span>
       )}
       text={displayedTargetText ?? ""}
-      tone={layout === "thread" ? "highlight" : layout === "initial-two-card" ? "default" : "primary"}
+      tone={layout === "thread" || layout === "initial-two-card" ? "default" : "primary"}
+      footerPushBottom={layout === "thread" || layout === "initial-two-card"}
       padding={layout === "thread" || layout === "initial-two-card" ? "base" : "compact"}
       content={targetContent}
       footer={
-        <div className="flex w-full flex-nowrap items-center gap-orbit-xs">
+        <div
+          className={cn(
+            "flex w-full gap-orbit-xs",
+            "flex-row items-center",
+          )}
+        >
           {!hideRationaleAction && recommendationRationale && (
-            <Button
-              variant="outline"
-              className="h-8 min-w-0 flex-1"
-              onClick={() => setRationaleOpen(true)}
-            >
-              View Rationale
-            </Button>
+            <span className="[&>a]:!text-orbit-primary">
+              <LinkText
+                label="View Rationale"
+                href="#rationale"
+                onClick={() => setRationaleOpen(true)}
+              />
+            </span>
           )}
           {targetFooter && (
-            <div className="flex min-w-0 flex-1 items-center gap-orbit-xs [&>button]:ml-0 [&>button]:min-w-0 [&>button]:flex-1">
+            <div
+              className={cn(
+                "flex min-w-0 flex-1 items-center gap-orbit-xs [&>button]:min-w-0",
+                layout === "thread" ? "[&>button]:ml-auto" : "[&>button]:ml-0",
+                layout === "thread" ? "[&>button]:flex-none" : "[&>button]:flex-1",
+                layout === "initial-two-card" && "ml-auto w-fit flex-none [&>button]:!w-fit [&>button]:!flex-none",
+              )}
+            >
               {targetFooter}
             </div>
           )}
@@ -10008,7 +10057,7 @@ function ComparisonSection(props: {
                   {isRoundDashboard && !isPureMissingClause(display) && r.curr && onAcceptSupplierPosition ? (
                     <Button
                       variant="outline"
-                      className="h-8 w-full"
+                      className="h-8 w-fit px-orbit-base"
                       disabled={bulkSelectionEnabled}
                       onClick={() => onAcceptSupplierPosition(r.id)}
                     >
@@ -10055,26 +10104,28 @@ function ComparisonSection(props: {
               showOutcomeActions && canShowOutcomeFooter && isNoneDeviationClause(display) ? (
                 <Button
                   variant="outline"
-                  className="ml-auto h-8 v6-orbit-text-small"
+                  className="ml-auto h-8 w-fit v6-orbit-text-small"
                   disabled={bulkSelectionEnabled}
                   onClick={() => openReviseTargetEditor()}
                 >
+                  <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                   {CLAUSE_ACTION_LABELS.reviseTarget}
                 </Button>
               ) : showOutcomeActions && canShowOutcomeFooter && bucket === "closed" ? (
                 <Button
                   variant="outline"
-                  className="ml-auto h-8 v6-orbit-text-small"
+                  className="ml-auto h-8 w-fit v6-orbit-text-small"
                   disabled={bulkSelectionEnabled}
                   onClick={() => openReviseTargetEditor()}
                 >
+                  <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                   {CLAUSE_ACTION_LABELS.editPosition}
                 </Button>
               ) : showOutcomeActions && canShowOutcomeFooter && rowVerdict !== "met" ? (
                 <>
                   <Button
                     variant={closure === "follow-up" ? "secondary" : "outline"}
-                    className="ml-auto h-8"
+                    className="ml-auto h-8 w-fit"
                     disabled={bulkSelectionEnabled}
                     onClick={() =>
                       openReviseTargetEditor("Chose to revise target", {
@@ -10083,6 +10134,7 @@ function ComparisonSection(props: {
                       })
                     }
                   >
+                    <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                     {CLAUSE_ACTION_LABELS.editPosition}
                   </Button>
                   {!isRoundDashboard ? (
@@ -10132,13 +10184,14 @@ function ComparisonSection(props: {
             deviationDelta={rowDeviationDelta}
             alteredAfterAgreement={Boolean(rowState?.alteredAfterAgreement)}
             stateBadge={bucket === "no-action" ? (
-              <span className="inline-flex items-center gap-orbit-xs">
-                <span className="text-orbit-xs text-orbit-fg-secondary">Review status</span>
+              <span className="inline-flex items-center gap-orbit-xs whitespace-nowrap">
+                <span className="shrink-0 text-orbit-xs text-orbit-fg-secondary">Review status</span>
                 <Chip label="No Further Action" size="Mini" variant="No Status" contrast="Low" />
               </span>
             ) : undefined}
             missingClause={Boolean(display.missingClause)}
             showClauseType={isRoundDashboard}
+            suppressChangePill={isRoundDashboard}
             defaultDetailsExpanded={!collapseClausesByDefault}
             metaPrefix={!resolvedOverrideVerdict && r.pill.status === "new" ? <span className="mr-orbit-xs text-orbit-info">+</span> : null}
             selectedComparisonAction={

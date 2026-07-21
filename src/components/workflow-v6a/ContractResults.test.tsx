@@ -532,6 +532,29 @@ describe("ContractResults V6A review controls", () => {
     });
   });
 
+  it("moves accepted supplier positions into their own Design 2 bucket", () => {
+    renderContractResults(firstAnalysisRoute.replace("design=row-scale", "design=design-option-2"));
+
+    const clauseCard = screen.getByText("Term of Contract").closest("section");
+    expect(clauseCard).toBeTruthy();
+    fireEvent.click(within(clauseCard as HTMLElement).getByRole("button", { name: "Accept Supplier Position" }));
+
+    const acceptedBucket = screen.getByRole("heading", { name: /accepted supplier position/i }).closest("section");
+    expect(acceptedBucket).toBeTruthy();
+    expect(within(acceptedBucket as HTMLElement).getByText("Term of Contract")).toBeInTheDocument();
+    expect(screen.getAllByText("Term of Contract")).toHaveLength(1);
+  });
+
+  it("does not show a recommended position for None deviation clauses in Design 2", () => {
+    renderContractResults(firstAnalysisRoute.replace("design=row-scale", "design=design-option-2"));
+
+    const clauseCard = screen.getByText("Milestone Payments").closest("section");
+    expect(clauseCard).toBeTruthy();
+    fireEvent.click(within(clauseCard as HTMLElement).getByRole("button", { name: /Milestone Payments/ }));
+    expect(within(clauseCard as HTMLElement).getByText("Current Supplier Position")).toBeInTheDocument();
+    expect(within(clauseCard as HTMLElement).queryByText("Recommended Next Position")).not.toBeInTheDocument();
+  });
+
   it("applies scoped recommendations and undoes only that applied scope", async () => {
     renderContractResults();
 

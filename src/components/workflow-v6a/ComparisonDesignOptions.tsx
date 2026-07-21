@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { ArrowRight, Columns3, Info, List } from "@/components/clauseiq-v6a/v6aIcons";
+import { ArrowRight, ClipboardList, Columns3, Info, List, Sigma, Target } from "@/components/clauseiq-v6a/v6aIcons";
 import {
   Badge,
   Card,
@@ -276,6 +276,7 @@ export function FirstAnalysisDesignOptions({
   activeMetrics,
   onMetricSelect,
   optionTwoFilters,
+  optionTwoBulkBanner,
 }: {
   option: ComparisonDesignOption;
   banner?: ReactNode;
@@ -294,6 +295,7 @@ export function FirstAnalysisDesignOptions({
   activeMetrics?: FirstAnalysisMetricKey[];
   onMetricSelect?: (metric: FirstAnalysisMetricKey) => void;
   optionTwoFilters?: ReactNode;
+  optionTwoBulkBanner?: ReactNode;
 }) {
   if (option === "design-option-2") {
     return (
@@ -304,12 +306,13 @@ export function FirstAnalysisDesignOptions({
           </div>
           {banner ? <div className="border-t border-orbit-border p-orbit-base">{banner}</div> : null}
           <div className="grid gap-orbit-base border-t border-orbit-border p-orbit-base md:grid-cols-3">
-            <InitialAnalysisOptionTwoMetric label="Review needed" value={metrics.needReview} detail="clauses need a decision" tone="warning" />
-            <InitialAnalysisOptionTwoMetric label="Requested" value={metrics.requested} detail="positions selected" tone="information" />
-            <InitialAnalysisOptionTwoMetric label="ClauseIQ score" value={metrics.score} detail={`${metrics.versionLabel.toUpperCase()} initial analysis`} tone="default" />
+            <InitialAnalysisOptionTwoMetric icon={<ClipboardList className="h-5 w-5" aria-hidden="true" />} label="Review needed" value={metrics.needReview} detail="clauses need a decision" tone="warning" />
+            <InitialAnalysisOptionTwoMetric icon={<Target className="h-5 w-5" aria-hidden="true" />} label="Requested" value={metrics.requested} detail="positions selected" tone="information" />
+            <InitialAnalysisOptionTwoMetric icon={<Sigma className="h-5 w-5" aria-hidden="true" />} label="ClauseIQ score" value={metrics.score} detail={`${metrics.versionLabel.toUpperCase()} initial analysis`} tone="default" />
           </div>
           <div className="border-t border-orbit-border bg-orbit-surface/30 p-orbit-base">{optionTwoFilters}</div>
         </section>
+        {optionTwoBulkBanner}
         <FirstAnalysisReviewShell>{clausesToReview}</FirstAnalysisReviewShell>
       </div>
     );
@@ -367,11 +370,13 @@ export function FirstAnalysisDesignOptions({
 }
 
 function InitialAnalysisOptionTwoMetric({
+  icon,
   label,
   value,
   detail,
   tone,
 }: {
+  icon: ReactNode;
   label: string;
   value: number;
   detail: string;
@@ -382,9 +387,17 @@ function InitialAnalysisOptionTwoMetric({
     : tone === "information"
     ? "text-orbit-info"
     : "text-orbit-fg";
+  const iconClass = tone === "warning"
+    ? "bg-orbit-warning-surface text-orbit-warning"
+    : tone === "information"
+      ? "bg-orbit-info-surface text-orbit-info"
+      : "bg-orbit-surface text-orbit-fg-secondary";
   return (
     <div className="rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-base">
-      <p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wide text-orbit-fg-secondary">{label}</p>
+      <div className="flex items-start justify-between gap-orbit-s">
+        <p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wide text-orbit-fg-secondary">{label}</p>
+        <span className={cn("inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-orbit-md", iconClass)}>{icon}</span>
+      </div>
       <p className={cn("mt-orbit-xs text-orbit-xl v6-orbit-weight-semibold", valueClass)}>{value}</p>
       <p className="mt-orbit-xxs v6-orbit-text-small text-orbit-fg-secondary">{detail}</p>
     </div>

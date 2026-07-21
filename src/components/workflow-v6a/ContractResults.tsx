@@ -7949,7 +7949,7 @@ function InitialAnalysisOptionTwoClauseCard({
         <div className="border-t border-orbit-border p-orbit-base">
           <SimplifiedComparisonContent
             currentLabel={missingClause ? "Missing clause" : (
-              <Chip label="Current Supplier Position" size="Mini" variant="No Status" contrast="High" />
+              <Chip label="Current Supplier Position" size="Mini" variant="Outline" contrast="Low" />
             )}
             currentText={description}
             target={targetText}

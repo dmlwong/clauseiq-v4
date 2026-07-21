@@ -7860,7 +7860,7 @@ function InitialAnalysisOptionTwoClauseCard({
   const actionabilityText = actionability || requestText;
   const handled = decision === "request-update" || decision === "no-action";
   const positionLabel = decision === "no-action"
-    ? "No action selected"
+    ? "Accepted Supplier Position"
     : requestText && requestText !== actionabilityText
     ? "Custom Position"
     : "Recommended Next Position";
@@ -7925,19 +7925,18 @@ function InitialAnalysisOptionTwoClauseCard({
               clauseName: displayTitleForClause(id, clause.title),
               subClauseName: clause.subclause,
             }}
+            currentFooter={
+              canEditPosition && onNoAction ? (
+                <Button variant="outline" className="h-8 w-full" disabled={bulkSelectionEnabled} onClick={onNoAction}>
+                  <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                  Accept Supplier Position
+                </Button>
+              ) : undefined
+            }
             targetFooter={
               canEditPosition ? (
-                <>
-                  <Button variant="outline" className="h-8" disabled={bulkSelectionEnabled} onClick={onEditPosition}>
-                    Set Custom Position
-                  </Button>
-                  <Button variant="default" className="h-8" disabled={bulkSelectionEnabled} onClick={onUseRecommendation}>
-                    Apply Recommended Position
-                  </Button>
-                </>
-              ) : decision === "no-action" && onNoAction ? (
-                <Button variant="outline" className="h-8" disabled={bulkSelectionEnabled} onClick={onNoAction}>
-                  No Action
+                <Button variant="outline" className="h-8" disabled={bulkSelectionEnabled} onClick={onEditPosition}>
+                  Set Custom Position
                 </Button>
               ) : undefined
             }
@@ -8495,10 +8494,10 @@ function SimplifiedComparisonContent({
       label={currentLabel}
       icon={currentLabel.startsWith("Latest") || currentLabel.startsWith("Current") ? <FileText className="h-3.5 w-3.5 shrink-0 text-orbit-fg-secondary" aria-hidden="true" /> : undefined}
       text={currentText}
-      headerAction={layout === "thread" ? undefined : currentFooter}
-      footer={layout === "thread" ? currentFooter : undefined}
-      footerPushBottom={layout === "thread"}
-      padding={layout === "thread" ? "base" : "compact"}
+      headerAction={layout === "thread" || layout === "initial-two-card" ? undefined : currentFooter}
+      footer={layout === "thread" || layout === "initial-two-card" ? currentFooter : undefined}
+      footerPushBottom={layout === "thread" || layout === "initial-two-card"}
+      padding={layout === "thread" || layout === "initial-two-card" ? "base" : "compact"}
     />
   );
   const targetPanel = targetText || targetContent ? (

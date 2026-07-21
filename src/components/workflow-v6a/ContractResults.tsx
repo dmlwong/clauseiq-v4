@@ -7158,6 +7158,8 @@ function ClauseDecisionCard({
     : "Default";
   const completedStatusChip = showTrackedCompact ? (
     <Chip label="Keep Current Summary" size="Mini" variant="Success" contrast="Low" />
+  ) : selectedComparisonAction === "accepted" ? (
+    <Chip label="Accepted Supplier Position" size="Mini" variant="Success" contrast="Low" />
   ) : selectedComparisonAction === "custom" || request?.requestedChange?.trim() !== clause.actionability?.trim() ? (
     <Chip label="Custom Position Applied" size="Mini" variant="Success" contrast="Low" />
   ) : (

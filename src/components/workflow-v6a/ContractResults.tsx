@@ -7964,7 +7964,7 @@ function InitialAnalysisOptionTwoClauseCard({
               ) : undefined
             }
             targetFooter={
-              canEditPosition ? (
+              canEditPosition && !isDrafting ? (
                 <Button variant="outline" className="h-8" disabled={bulkSelectionEnabled} onClick={onEditPosition}>
                   Set Custom Position
                 </Button>

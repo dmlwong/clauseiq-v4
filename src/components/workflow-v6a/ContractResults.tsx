@@ -7517,7 +7517,7 @@ function ClauseRowScaleCard({
     selectedComparisonAction === "recommended" ||
     (selectedComparisonAction !== "custom" && actionabilityText === requestText)
   );
-  const isMetOutcome = verdict === "met" || selectedComparisonAction === "accepted";
+  const isMetOutcome = selectedComparisonAction === "accepted";
   const requestForm =
     isDrafting && onUpdateDraft && onCancelDraft && onSubmitDraft ? (
       <ClauseRequestForm

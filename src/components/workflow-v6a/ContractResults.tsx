@@ -3043,7 +3043,10 @@ export function ContractResults({
     ? outcomeRecommendationTargets.length === 0
     : firstAnalysisRecommendationsReviewed;
   const bulkActionAvailable = availableBulkRecommendationApplyOptions.length > 0;
-  const canShowBulkActionControls = mode === "comparison" && (firstAnalysisDemo || outcomeReviewMode);
+  const canShowBulkActionControls =
+    mode === "comparison" &&
+    (firstAnalysisDemo || outcomeReviewMode) &&
+    !(firstAnalysisDemo && designOption === "design-option-2");
   const [compactBulkBannerOpen, setCompactBulkBannerOpen] = useState(false);
   const [bulkBannerSelectedClauseIds, setBulkBannerSelectedClauseIds] = useState<Set<string>>(new Set());
   const compactBulkCanUndoAppliedRecommendations = Boolean(
@@ -3052,6 +3055,7 @@ export function ContractResults({
   const compactBulkRecommendationsQueued = !outcomeReviewMode && firstAnalysisDemo && firstAnalysisRecommendationsQueued;
   const compactBulkCanChooseRecommendationScope =
     mode === "comparison" &&
+    !(firstAnalysisDemo && designOption === "design-option-2") &&
     !compactBulkCanUndoAppliedRecommendations &&
     !compactBulkRecommendationsQueued &&
     !bulkRecommendationsReviewed &&

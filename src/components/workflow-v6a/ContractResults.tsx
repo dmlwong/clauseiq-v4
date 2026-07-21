@@ -8549,7 +8549,7 @@ function SimplifiedComparisonContent({
         </span>
       )}
       text={displayedTargetText ?? ""}
-      tone={layout === "thread" || layout === "initial-two-card" ? "highlight" : "primary"}
+      tone={layout === "thread" ? "highlight" : layout === "initial-two-card" ? "default" : "primary"}
       padding={layout === "thread" || layout === "initial-two-card" ? "base" : "compact"}
       content={targetContent}
       footer={

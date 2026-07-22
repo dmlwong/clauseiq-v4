@@ -37,7 +37,7 @@ interface ClauseIQV6AProps {
   resultsLayout?: ResultsLayout;
 }
 
-export default function ClauseIQV6A({ forceResults = false, resultsLayout = "accordion" }: ClauseIQV6AProps) {
+export default function ClauseIQV6A({ forceResults = false, resultsLayout = "output-panel" }: ClauseIQV6AProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const resultsFromRoute = forceResults || searchParams.get("view") === "results";
@@ -70,10 +70,9 @@ export default function ClauseIQV6A({ forceResults = false, resultsLayout = "acc
   }, []);
 
   const handleProcessingComplete = useCallback(() => {
-    if (!forceResults) {
-      navigate("/clauseiq-v6a/output-panel");
-    }
-  }, [forceResults, navigate]);
+    // Keep the completed analysis in this workflow instance so supplier
+    // fingerprint resolution can determine its output history before results render.
+  }, []);
 
   const handleRunAgain = useCallback(() => {
     if (!forceResults) {
@@ -89,7 +88,14 @@ export default function ClauseIQV6A({ forceResults = false, resultsLayout = "acc
     initialInitiative: resultsFromRoute ? defaultCompletedInitiative : null,
     initialSelectedParameter: resultsFromRoute ? createDefaultParameterSelection() : null,
     initialRerunUploadVisible: rerunUploadFromRoute,
-    useFirstRunResults: resultsLayout === "output-panel" && resultScenario === "empty",
+    // Seed a representative first-run result only when this is the standalone
+    // results route. A newly completed analysis must start with an empty
+    // history, otherwise the seeded result and the new result are both shown.
+    useFirstRunResults:
+      resultsFromRoute &&
+      resultsLayout === "output-panel" &&
+      resultScenario === "empty",
+    useEmptyResults: !resultsFromRoute,
     onProcessingComplete: handleProcessingComplete,
     onRunAgain: handleRunAgain,
   });
@@ -142,6 +148,59 @@ export default function ClauseIQV6A({ forceResults = false, resultsLayout = "acc
     scrollLatestOutputIntoView(140);
   }, [scrollLatestOutputIntoView, scrollRerunWorkflowIntoView, step, workflow.rerunProcessing, workflow.rerunUploadVisible]);
 
+  // Several conversation cards are revealed without changing the main workflow
+  // step (for example, supplier context, rerun parameters, and fingerprint
+  // confirmation). Keep these state transitions in the same continuous flow.
+  useEffect(() => {
+    const scrollTo = (
+      ref: RefObject<HTMLDivElement>,
+      block: ScrollLogicalPosition = "start",
+    ) => {
+      window.setTimeout(() => {
+        ref.current?.scrollIntoView({ behavior: "smooth", block });
+      }, 100);
+    };
+
+    if (workflow.awaitingSupplierFingerprintResolution) {
+      scrollTo(step === "processing" ? processingRef : resultRef);
+      return;
+    }
+
+    if (!resultsVisible) {
+      if (step === "parameters" && workflow.initialSupplierName) {
+        scrollTo(parametersRef);
+      }
+      return;
+    }
+
+    if (
+      workflow.rerunUploadVisible ||
+      workflow.rerunProcessing ||
+      workflow.rerunNewSupplierEntryOpen ||
+      workflow.rerunSupplierContext ||
+      workflow.rerunSelectedParameter
+    ) {
+      scrollTo(rerunUploadRef);
+      return;
+    }
+
+    if (workflow.latestOutputAnalysisId) {
+      scrollLatestOutputIntoView(100);
+    }
+  }, [
+    resultsVisible,
+    scrollLatestOutputIntoView,
+    step,
+    workflow.awaitingSupplierFingerprintResolution,
+    workflow.initialSupplierName,
+    workflow.latestOutputAnalysisId,
+    workflow.rerunNewSupplierEntryOpen,
+    workflow.rerunProcessing,
+    workflow.rerunSelectedParameter,
+    workflow.rerunSupplierContext,
+    workflow.rerunUploadVisible,
+  ]);
+
   // ---- handlers ----
   const handleSelect = (i: CiqInitiative) => {
     workflow.actions.selectInitiative(i);
@@ -156,11 +215,10 @@ export default function ClauseIQV6A({ forceResults = false, resultsLayout = "acc
 
   const handleViewResult = (selection?: SupplierOutputSelection) => {
     const selectedOutput = selection && "analysis" in selection ? selection : undefined;
-    const isFirstRunOutput = resultScenario === "empty";
     const analysisId = selectedOutput?.analysis.id ?? "a-001";
     const previousAnalysisId = selectedOutput?.previousAnalysis?.id;
     const context = getSupplierOutputComparisonContext(
-      mockInitiative,
+      workflow.resultsInitiative,
       analysisId,
       previousAnalysisId,
     );
@@ -174,6 +232,10 @@ export default function ClauseIQV6A({ forceResults = false, resultsLayout = "acc
       return;
     }
 
+    const isFirstRunOutput = selectedOutput
+      ? !context.previousAnalysis
+      : resultScenario === "empty";
+
     const params = new URLSearchParams({
       view: "results",
       initiativeId: "init-1",
@@ -183,7 +245,7 @@ export default function ClauseIQV6A({ forceResults = false, resultsLayout = "acc
       catSort: "risk",
       mode: "comparison",
       tab: "changes",
-      design: "row-scale",
+      design: "design-option-2",
       analysisId: context.analysis.id,
       outputSupplierId: context.supplier.id,
       to: isFirstRunOutput ? "v1" : context.selectedVersionLabel,
@@ -225,10 +287,14 @@ export default function ClauseIQV6A({ forceResults = false, resultsLayout = "acc
             onDownload={workflow.actions.handleDownload}
             onViewResult={handleViewResult}
             showComparisonStatus={showComparisonStatus}
+            highlightSupplierId={workflow.latestOutputSupplierId}
+            highlightAnalysisId={workflow.latestOutputAnalysisId}
           />
         </div>
       }
-      rightPanelClassName={outputPanelResultsVisible ? "w-[448px]" : undefined}
+      rightPanelClassName={
+        outputPanelResultsVisible ? "w-[448px]" : undefined
+      }
     >
       <div
         className={cn(
@@ -246,7 +312,10 @@ export default function ClauseIQV6A({ forceResults = false, resultsLayout = "acc
           refs={journeyRefs}
           resultsLayout={resultsLayout}
           showComparisonStatus={showComparisonStatus}
-          showMobileSupplierPanel={!outputPanelResultsVisible}
+          showMobileSupplierPanel={
+            !outputPanelResultsVisible &&
+            !workflow.awaitingSupplierFingerprintResolution
+          }
           workflow={workflow}
         />
       </div>

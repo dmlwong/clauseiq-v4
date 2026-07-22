@@ -24,6 +24,7 @@ import {
   type OutputScorePresentation,
 } from "./OutputSummaryMetrics";
 import { SupplierAvatar } from "./SupplierAvatar";
+import { SupplierOutputHistoryOverlay } from "./SupplierOutputHistoryOverlay";
 import type { ResultsViewProps, SupplierOutputSelection, SupplierOutputsPanelState } from "./types";
 
 type OutputScope = "team" | "mine";
@@ -77,7 +78,11 @@ export function OutputPanelResultsContent({
               showSupplier
               onRunAgain={onRunAgain}
               onDownload={onDownload}
-              onViewResult={onViewResult}
+              onViewResult={
+                onViewResult
+                  ? () => onViewResult({ supplier, analysis, previousAnalysis: previousAnalysisForSupplierOutput(supplier, analysis) })
+                  : undefined
+              }
               viewResultPrimary={viewResultPrimary && analysis.id === latestAnalysisId}
               isLatestOutput={analysis.id === latestAnalysisId}
               highlighted={highlightLatestOutput && analysis.id === latestAnalysisId}
@@ -119,6 +124,8 @@ export function SupplierOutputsPanel({
   // TODO: confirm score polarity with scoring model owner.
   higherIsBetter = true,
   showComparisonStatus = false,
+  highlightSupplierId,
+  highlightAnalysisId,
   className,
 }: SupplierOutputsPanelProps) {
   const [outputScope, setOutputScope] = useState<OutputScope>(initialOutputScope);
@@ -126,8 +133,8 @@ export function SupplierOutputsPanel({
   const allRows = useMemo(() => flattenSupplierAnalyses(initiative.suppliers), [initiative.suppliers]);
   const hasOutputs = allRows.length > 0;
   const scopedSuppliers = useMemo(
-    () => filterSuppliersByScope(initiative.suppliers, outputScope),
-    [initiative.suppliers, outputScope],
+    () => filterSuppliersByScope(initiative.suppliers, outputScope, highlightAnalysisId),
+    [highlightAnalysisId, initiative.suppliers, outputScope],
   );
   const filteredSuppliers = useMemo(
     () => filterSuppliersByQuery(scopedSuppliers, query),
@@ -141,6 +148,8 @@ export function SupplierOutputsPanel({
   const latestAnalysisId = rows.at(-1)?.analysis.id;
   const suppliers = useMemo(() => sortSuppliersByLatestChange(filteredSuppliers), [filteredSuppliers]);
   const [openSupplierIds, setOpenSupplierIds] = useState<string[]>([]);
+  const [historySupplierId, setHistorySupplierId] = useState<string | null>(null);
+  const historySupplier = initiative.suppliers.find((supplier) => supplier.id === historySupplierId) ?? null;
   const supplierCount = suppliers.length;
   const outputCount = rows.length;
   const emptyState =
@@ -157,8 +166,11 @@ export function SupplierOutputsPanel({
         };
 
   useEffect(() => {
-    setOpenSupplierIds(suppliers[0] ? [suppliers[0].id] : []);
-  }, [suppliers]);
+    const highlightedSupplier = highlightSupplierId && suppliers.some((supplier) => supplier.id === highlightSupplierId)
+      ? highlightSupplierId
+      : suppliers[0]?.id;
+    setOpenSupplierIds(highlightedSupplier ? [highlightedSupplier] : []);
+  }, [highlightSupplierId, suppliers]);
 
   useEffect(() => {
     setOutputScope(initialOutputScope);
@@ -240,12 +252,23 @@ export function SupplierOutputsPanel({
               onToggle={() => toggleSupplier(supplier.id)}
               onDownload={onDownload}
               onViewResult={onViewResult}
+              onViewAllOutputs={() => setHistorySupplierId(supplier.id)}
               higherIsBetter={higherIsBetter}
               showComparisonStatus={showComparisonStatus}
             />
           ))
         )}
       </div>
+      <SupplierOutputHistoryOverlay
+        supplier={historySupplier}
+        open={historySupplier !== null}
+        onOpenChange={(open) => {
+          if (!open) setHistorySupplierId(null);
+        }}
+        onDownload={onDownload}
+        onViewResult={onViewResult}
+        showComparisonStatus={showComparisonStatus}
+      />
     </section>
   );
 }
@@ -315,6 +338,7 @@ function SupplierOutputGroup({
   onToggle,
   onDownload,
   onViewResult,
+  onViewAllOutputs,
   higherIsBetter,
   showComparisonStatus,
 }: {
@@ -324,10 +348,13 @@ function SupplierOutputGroup({
   onToggle: () => void;
   onDownload?: () => void;
   onViewResult?: (selection?: SupplierOutputSelection) => void;
+  onViewAllOutputs: () => void;
   higherIsBetter: boolean;
   showComparisonStatus: boolean;
 }) {
   const analyses = newestFirst(supplier.analyses);
+  const visibleAnalyses = analyses.slice(0, 3);
+  const hasAdditionalHistory = analyses.length > visibleAnalyses.length;
   const scoresByAnalysisId = getSupplierScorePresentationByAnalysisId(analyses);
   const contentId = `supplier-output-${supplier.id}`;
   const containsLatestOutput = supplier.analyses.some((analysis) => analysis.id === latestAnalysisId);
@@ -378,7 +405,7 @@ function SupplierOutputGroup({
               className="overflow-hidden"
             >
               <div className="border-t border-orbit-border/70 pt-orbit-base">
-                {analyses.map((analysis, index) => (
+                {visibleAnalyses.map((analysis, index) => (
                   <div key={analysis.id}>
                     {index > 0 && <div className="my-orbit-base h-px bg-orbit-border/70" aria-hidden="true" />}
                     <CompactOutputRow
@@ -400,6 +427,17 @@ function SupplierOutputGroup({
                     />
                   </div>
                 ))}
+                {hasAdditionalHistory && (
+                  <div className="mt-orbit-base border-t border-orbit-border/70 pt-orbit-base">
+                    <button
+                      type="button"
+                      className="v6-orbit-text-small v6-orbit-weight-medium text-orbit-primary transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary"
+                      onClick={onViewAllOutputs}
+                    >
+                      View all {analyses.length} outputs
+                    </button>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
@@ -525,7 +563,7 @@ function sortSuppliersByLatestChange(suppliers: Supplier[]): Supplier[] {
   return [...suppliers].sort((a, b) => latestChangeTime(a) - latestChangeTime(b) || a.name.localeCompare(b.name));
 }
 
-function filterSuppliersByScope(suppliers: Supplier[], outputScope: OutputScope): Supplier[] {
+function filterSuppliersByScope(suppliers: Supplier[], outputScope: OutputScope, highlightAnalysisId?: string | null): Supplier[] {
   if (outputScope === "team") {
     return suppliers.filter((supplier) => supplier.analyses.length > 0);
   }
@@ -533,7 +571,7 @@ function filterSuppliersByScope(suppliers: Supplier[], outputScope: OutputScope)
   return suppliers
     .map((supplier) => ({
       ...supplier,
-      analyses: supplier.analyses.filter((analysis) => MINE_ANALYSIS_IDS.has(analysis.id)),
+      analyses: supplier.analyses.filter((analysis) => MINE_ANALYSIS_IDS.has(analysis.id) || analysis.id === highlightAnalysisId),
     }))
     .filter((supplier) => supplier.analyses.length > 0);
 }

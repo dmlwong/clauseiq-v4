@@ -162,12 +162,11 @@ export function getSupplierScorePresentationByAnalysisId(
   );
 
   return chronological.reduce<Record<string, OutputScorePresentation>>((scores, analysis, index) => {
-    const score = SUPPLIER_OUTPUT_SCORE_BY_ANALYSIS_ID[analysis.id];
-    if (typeof score !== "number") return scores;
+    const score = scoreForAnalysis(analysis);
 
     const previousAnalysis = chronological[index - 1];
     const previousScore = previousAnalysis
-      ? SUPPLIER_OUTPUT_SCORE_BY_ANALYSIS_ID[previousAnalysis.id]
+      ? scoreForAnalysis(previousAnalysis)
       : undefined;
     const hasPreviousOutput = typeof previousScore === "number";
     const deltaFromPrevious = hasPreviousOutput ? score - previousScore : undefined;
@@ -180,6 +179,23 @@ export function getSupplierScorePresentationByAnalysisId(
     };
     return scores;
   }, {});
+}
+
+function scoreForAnalysis(analysis: ClauseAnalysis): number {
+  return SUPPLIER_OUTPUT_SCORE_BY_ANALYSIS_ID[analysis.id] ?? deriveScoreFromDeviations(analysis.deviations);
+}
+
+function deriveScoreFromDeviations(deviations: DeviationCounts): number {
+  const totalClauses =
+    deviations.missing + deviations.high + deviations.medium + deviations.low + deviations.none;
+
+  if (totalClauses === 0) return 100;
+
+  const weightedRisk =
+    deviations.missing * 4 + deviations.high * 3 + deviations.medium * 2 + deviations.low;
+  const score = Math.round(100 - (weightedRisk / totalClauses) * 30);
+
+  return Math.min(100, Math.max(0, score));
 }
 
 function OutputSummaryPill({

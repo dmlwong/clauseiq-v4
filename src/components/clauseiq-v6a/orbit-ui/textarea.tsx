@@ -9,7 +9,7 @@ export interface TextareaProps
 }
 
 export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea(
-  { className, value, onChange, placeholder, disabled, required, rows, maxLength, "aria-label": ariaLabel, id },
+  { className, value, onChange, placeholder, disabled, required, rows, maxLength, autoFocus, "aria-label": ariaLabel, id },
   _ref,
 ) {
   const stringValue = Array.isArray(value) ? value.join(", ") : value === undefined ? "" : String(value);
@@ -29,6 +29,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(fun
         required={required}
         rows={rows}
         maxLength={maxLength}
+        autoFocus={autoFocus}
         ariaLabel={ariaLabel || placeholder || id || "Text area"}
       />
     </div>

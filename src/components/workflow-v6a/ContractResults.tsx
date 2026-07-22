@@ -990,9 +990,6 @@ export function ContractResults({
       ),
     [searchParams],
   );
-  const selectedOutputHasComparison = Boolean(
-    selectedOutputContext?.previousAnalysis && selectedOutputContext.previousVersionLabel,
-  );
   const requestedDashboardView = normalizeDashboardView(searchParams.get("dashboardView"));
   const dashboardView: DashboardViewMode =
     requestedDashboardView ??
@@ -1018,17 +1015,6 @@ export function ContractResults({
   const firstAnalysisResetKeyRef = useRef<string | null>(null);
   const seededNoActionScenarioRef = useRef<string | null>(null);
   const seededOutcomeReviewRequestsRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (dashboardView !== "comparison" || selectedOutputHasComparison || !searchParams.get("analysisId")) return;
-    const params = new URLSearchParams(searchParams);
-    params.set("dashboardView", "initial-analysis");
-    params.set("scenario", "first-analysis");
-    params.delete("resultMode");
-    params.delete("previousAnalysisId");
-    params.delete("from");
-    setSearchParams(params, { replace: true });
-  }, [dashboardView, searchParams, selectedOutputHasComparison, setSearchParams]);
 
   // Local mutable copy of versions so the user can simulate uploading a new
   // round or deleting an existing one without touching shared seed data.
@@ -1293,6 +1279,8 @@ export function ContractResults({
     mode === "comparison" && versions.length >= 2 ? "open-items" : null,
   );
   const [firstAnalysisMetricFilters, setFirstAnalysisMetricFilters] = useState<Set<FirstAnalysisMetricKey>>(() => new Set());
+  const [comparisonStatusFilter, setComparisonStatusFilter] = useState<RoundDashboardStatusFilter>("all");
+  const [comparisonDeviationFilter, setComparisonDeviationFilter] = useState<RoundDashboardDeviationFilter>("all");
   useEffect(() => {
     if (!simplifyComparisonStatus) return;
     if (filter === "new-issues" || filter === "unmarked") {
@@ -1387,9 +1375,11 @@ export function ContractResults({
   // P0 decisions stay exportable after a previous download. The current decision
   // set is the single source of truth for both the CTA count and the CSV payload.
   const reviewGenerateItems = currentReviewItems;
-  const reviewGenerateDisabled = !activeRequestVersion || reviewGenerateItems.length === 0;
+  // Keep the primary CTA available from the outset in both initial analysis and
+  // comparison. An empty review simply generates the current, empty change log.
+  const reviewGenerateDisabled = !activeRequestVersion;
   const generateRequestedChangesCsv = () => {
-    if (!activeRequestVersion || reviewGenerateDisabled) return;
+    if (!activeRequestVersion) return;
     const csv = exportRequestChangeCsv(
       {
         initiativeName: initiative.name,
@@ -1958,10 +1948,16 @@ export function ContractResults({
       }
     : null;
   const clausesRequiringAction = comparisonModel.actionFacts.pendingReview;
-  const severityQuickFilter =
+  const quickFilterSeverity =
     quickFilter === "high" || quickFilter === "medium" || quickFilter === "low" ? quickFilter : null;
-  const quickMissingClauseFilter = quickFilter === "missing";
+  const severityQuickFilter =
+    comparisonDeviationFilter === "high" || comparisonDeviationFilter === "medium" || comparisonDeviationFilter === "low"
+      ? comparisonDeviationFilter
+      : quickFilterSeverity;
+  const quickMissingClauseFilter = quickFilter === "missing" || comparisonDeviationFilter === "missing";
   const quickNoneDeviationFilter = quickFilter === "none";
+  const comparisonMetFilter = comparisonStatusFilter === "met";
+  const comparisonNotMetFilter = comparisonStatusFilter === "not-met";
   const currentDecision = rightVersion ? decisions_[rightVersion.version] ?? null : null;
   const changePillFor = (id: string, prev?: ClauseResult, curr?: ClauseResult): ChangePillResult => {
     const state = allDecisions[id];
@@ -2048,7 +2044,7 @@ export function ContractResults({
         } else if (!(clause && isMissingClause(clause))) return false;
       }
       if (quickNoneDeviationFilter && !(clause && isNoneDeviationClause(clause))) return false;
-      if (quickFilter === "met") {
+      if (quickFilter === "met" || comparisonMetFilter) {
         if (outcomeReviewMode) {
           if (outcomeBucket !== "met") return false;
         } else if (simplifyComparisonStatus) {
@@ -2064,7 +2060,7 @@ export function ContractResults({
           if (row.actionState === "no_action" || previousDecision === "no-action") return false;
         }
       }
-      if (quickFilter === "not-met") {
+      if (quickFilter === "not-met" || comparisonNotMetFilter) {
         if (outcomeReviewMode) {
           if (outcomeBucket !== "not-met") return false;
         } else if (simplifyComparisonStatus) {
@@ -2157,8 +2153,6 @@ export function ContractResults({
     setSearchParams(params, { replace: false });
   };
   const setDashboardView = (nextDashboardView: DashboardViewMode) => {
-    if (nextDashboardView === "comparison" && !selectedOutputHasComparison && selectedOutputContext) return;
-
     const params = new URLSearchParams(searchParams);
     params.set("dashboardView", nextDashboardView);
     params.set("mode", "comparison");
@@ -2720,11 +2714,12 @@ export function ContractResults({
       ? categoryAllRows
       : Object.values(comparisonModel.buckets).flat();
     const actionRequired = actionable.filter((row) => !isRegressed(row) && !isAcceptedAsIs(row));
-    const actionRequiredDemo = actionRequired.length > 0
+    const hasComparisonDashboardFilter = comparisonStatusFilter !== "all" || comparisonDeviationFilter !== "all";
+    const actionRequiredDemo = actionRequired.length > 0 || hasComparisonDashboardFilter
       ? actionRequired
       : demonstrationRows.filter((row) => !isRegressed(row) && !isAcceptedAsIs(row)).slice(0, 2);
     const regressed = actionable.filter(isRegressed);
-    const regressedDemo = regressed.length > 0
+    const regressedDemo = regressed.length > 0 || hasComparisonDashboardFilter
       ? regressed
         : demonstrationRows
         .filter((row) => !actionRequiredDemo.some((actionRow) => actionRow.id === row.id) && !isAcceptedAsIs(row))
@@ -2754,6 +2749,20 @@ export function ContractResults({
       notSelected: unique([...designNoActionRows, ...designUnmarkedRows]).filter((row) => !acceptedAsIsIds.has(row.id)),
     };
   })();
+  const comparisonBucketFilterActive = comparisonStatusFilter !== "all" || comparisonDeviationFilter !== "all";
+  const shouldShowComparisonBucket = (
+    bucket: "action-required" | "regressed" | "accepted-as-is" | "met-this-round" | "previously-met" | "not-selected",
+    rows: ComparisonRow[],
+  ) => {
+    if (!comparisonBucketFilterActive) return true;
+    if (comparisonStatusFilter === "met") {
+      return (bucket === "met-this-round" || bucket === "previously-met") && rows.length > 0;
+    }
+    if (comparisonStatusFilter === "not-met") {
+      return (bucket === "action-required" || bucket === "regressed") && rows.length > 0;
+    }
+    return rows.length > 0;
+  };
   const optionTwoComparedCount =
     optionTwoGroups.actionRequired.length +
     optionTwoGroups.regressed.length +
@@ -2865,6 +2874,16 @@ export function ContractResults({
     });
   };
   const clearAllFirstAnalysisMetrics = () => setFirstAnalysisMetricFilters(new Set());
+  const clearInitialAnalysisOptionTwoFilters = () => {
+    clearAllFirstAnalysisMetrics();
+    clearActiveCategories();
+  };
+  const clearComparisonOptionTwoFilters = () => {
+    setFilter("all");
+    setComparisonStatusFilter("all");
+    setComparisonDeviationFilter("all");
+    clearActiveCategories();
+  };
   const firstAnalysisRecommendationTargets = firstAnalysisVersion
     ? firstAnalysisVersion.clauses
         .filter((clause) =>
@@ -3153,7 +3172,7 @@ export function ContractResults({
           setCompactBulkBannerOpen(false);
         }}
         showRecommendationAction={false}
-        acceptSupplierMode={initialOptionTwoBulkMode}
+        acceptSupplierMode={outcomeReviewMode || initialOptionTwoBulkMode}
         onUndoApply={!outcomeReviewMode ? undoAppliedRecommendations : undefined}
         onClose={() => setCompactBulkBannerOpen(false)}
       />
@@ -3234,6 +3253,8 @@ export function ContractResults({
           activeMetrics={firstAnalysisMetricFilters}
           onMetricToggle={selectFirstAnalysisMetric}
           onClearMetrics={clearAllFirstAnalysisMetrics}
+          onClearFilters={clearInitialAnalysisOptionTwoFilters}
+          hasActiveFilters={firstAnalysisMetricFilters.size > 0 || activeCategories.length > 0}
           section={activeCategories.length === 1 ? activeCategories[0] : "all"}
           sections={comparisonCategoryItems}
           onSectionChange={(section) => setActiveCategories(section === "all" ? [] : [section])}
@@ -3283,48 +3304,54 @@ export function ContractResults({
           comparisonControl={null}
           filters={
             <RoundComparisonFilterBar
-              status={quickFilter === "met" ? "met" : quickFilter === "not-met" ? "not-met" : "all"}
-              deviation={severityQuickFilter ?? (quickMissingClauseFilter ? "missing" : "all")}
+              status={comparisonStatusFilter}
+              deviation={comparisonDeviationFilter}
               section={activeCategories.length === 1 ? activeCategories[0] : "all"}
               sections={comparisonCategoryItems}
               onStatusChange={(status) => {
                 setFilter("all");
-                setQuickFilter(status === "all" ? null : status);
+                setComparisonStatusFilter(status);
               }}
               onDeviationChange={(deviation) => {
                 setFilter("all");
-                setQuickFilter(deviation === "all" ? null : deviation);
+                setComparisonDeviationFilter(deviation);
               }}
               onSectionChange={(section) => setActiveCategories(section === "all" ? [] : [section])}
+              onClearFilters={clearComparisonOptionTwoFilters}
+              hasActiveFilters={
+                comparisonStatusFilter !== "all" ||
+                comparisonDeviationFilter !== "all" ||
+                activeCategories.length > 0
+              }
             />
           }
-          actionRequired={optionTwoActionSection(
+          actionRequired={shouldShowComparisonBucket("action-required", optionTwoGroups.actionRequired) ? optionTwoActionSection(
             "Still Open — Position Not Met",
             "Review the next-round position, edit it, or accept the supplier's wording.",
             optionTwoGroups.actionRequired,
             "destructive",
-          )}
-          regressed={optionTwoActionSection(
+          ) : null}
+          regressed={shouldShowComparisonBucket("regressed", optionTwoGroups.regressed) ? optionTwoActionSection(
             "Still Open — Previously agreed, but changed by the supplier",
             "These were met in an earlier round. The supplier's latest wording has weakened your position.",
             optionTwoGroups.regressed,
             "warning",
-          )}
-          acceptedAsIs={optionTwoActionSection(
+          ) : null}
+          acceptedAsIs={shouldShowComparisonBucket("accepted-as-is", optionTwoGroups.acceptedAsIs) ? optionTwoActionSection(
             "Accepted As Is",
             "Supplier position accepted without changes.",
             optionTwoGroups.acceptedAsIs,
             "success",
             { bucket: "closed", showOutcomeActions: false, overrideVerdict: "met" },
-          )}
-          metThisRound={optionTwoActionSection(
+          ) : null}
+          metThisRound={shouldShowComparisonBucket("met-this-round", optionTwoGroups.metThisRound) ? optionTwoActionSection(
             "Positions Met this Round",
             "Newly settled in this round. No further action required",
             optionTwoGroups.metThisRound,
             "success",
             { bucket: "closed", showOutcomeActions: false, overrideVerdict: "met" },
-          )}
-          previouslyMet={
+          ) : null}
+          previouslyMet={shouldShowComparisonBucket("previously-met", optionTwoGroups.previouslyMet) ? (
             <RoundComparisonCollapsedList
               title="Previously met and unchanged"
               description="Settled in a prior round. Kept for audit."
@@ -3332,22 +3359,20 @@ export function ContractResults({
               defaultOpen={false}
               onOpenDetail={setDetailClauseId}
             />
-          }
-          notSelected={
-            optionTwoActionSection(
-              "Previously Met And Unchanged",
-              "Clauses that were met in an earlier round and remain unchanged in the latest analysis.",
-              optionTwoGroups.notSelected,
-              "neutral",
-              {
-                bucket: "closed",
-                showOutcomeActions: false,
-                overrideVerdict: "met",
-                defaultOpen: false,
-                collapseClausesByDefault: true,
-              },
-            )
-          }
+          ) : null}
+          notSelected={shouldShowComparisonBucket("not-selected", optionTwoGroups.notSelected) ? optionTwoActionSection(
+            "Previously Met And Unchanged",
+            "Clauses that were met in an earlier round and remain unchanged in the latest analysis.",
+            optionTwoGroups.notSelected,
+            "neutral",
+            {
+              bucket: "closed",
+              showOutcomeActions: false,
+              overrideVerdict: "met",
+              defaultOpen: false,
+              collapseClausesByDefault: true,
+            },
+          ) : null}
         />
       }
       openItems={
@@ -3578,7 +3603,9 @@ export function ContractResults({
   const dashboardDesignControl = (
     <DashboardDesignControl
       dashboardView={dashboardView}
-      comparisonAvailable={!selectedOutputContext || selectedOutputHasComparison}
+      // Design 2 can compare the contract's available versions even when the
+      // selected output does not carry an explicit previous-analysis link.
+      comparisonAvailable={Boolean(contract?.versions && contract.versions.length >= 2)}
       designOption={designOption}
       showOptionTwo
       onDashboardViewChange={setDashboardView}
@@ -3759,7 +3786,7 @@ export function ContractResults({
                       setNonCompactBulkBannerOpen(false);
                     }}
                     showRecommendationAction={false}
-                    acceptSupplierMode={initialOptionTwoBulkMode}
+                    acceptSupplierMode={outcomeReviewMode || initialOptionTwoBulkMode}
                     onUndoApply={!outcomeReviewMode ? undoAppliedRecommendations : undefined}
                     onSelectedTargetsChange={setBulkBannerSelectedClauseIds}
                     onClose={() => setNonCompactBulkBannerOpen(false)}
@@ -4217,6 +4244,7 @@ export function ContractResults({
         supplierName={supplier.name}
         csvNeedsUpdate={csvNeedsUpdate}
         bulkSummaryMode={firstAnalysisDemo && bulkReviewSummaryMode}
+        allowEmpty
         onSubmit={() => {
           generateRequestedChangesCsv();
         }}
@@ -4831,7 +4859,9 @@ function RecommendationBulkApplyBanner({
   acceptSupplierMode?: boolean;
 }) {
   const [activeAxis, setActiveAxis] = useState<RecommendationBulkBannerAxis>("deviation");
-  const [action, setAction] = useState<RecommendationBulkAction | null>(null);
+  const [action, setAction] = useState<RecommendationBulkAction | null>(
+    acceptSupplierMode ? "keep-current" : null,
+  );
   const [actionDropdownOpen, setActionDropdownOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectionMode, setSelectionMode] = useState<"all" | "scoped">("scoped");
@@ -5025,36 +5055,44 @@ function RecommendationBulkApplyBanner({
         <div className="clauseiq-v6-recommendation-bulk-banner-divider" aria-hidden="true" />
       </div>
       <div className="clauseiq-v6-recommendation-bulk-banner-controls" ref={dropdownRef}>
-        <div className="clauseiq-v6-recommendation-bulk-action-control">
-          <OrbitButton
-            variant="Secondary"
-            size="Medium"
-            state="Default"
-            className="clauseiq-v6-recommendation-bulk-banner-trigger"
-            aria-haspopup="listbox"
-            aria-expanded={actionDropdownOpen}
-            onClick={() => setActionDropdownOpen((current) => !current)}
-            iconRight={<ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", actionDropdownOpen && "rotate-180")} />}
-          >
-            <span className="clauseiq-v6-recommendation-bulk-banner-trigger-label">
-              {action === "recommendation" ? "Apply Recommendation" : action === "keep-current" ? secondaryActionLabel : "Select a type of bulk action…"}
-            </span>
-          </OrbitButton>
-          {actionDropdownOpen && (
-            <div className="clauseiq-v6-recommendation-bulk-action-menu" role="listbox" aria-label="Bulk action type">
-              <Card type="Static" padding="Base" state="Default" indicator={false}>
-                {showRecommendationAction ? (
-                  <OrbitButton variant="Tertiary" size="Medium" state="Default" className="w-full justify-start" onClick={() => { setAction("recommendation"); setActionDropdownOpen(false); setDropdownOpen(false); clearSelection(); }}>
-                    Apply Recommendation
+        {acceptSupplierMode ? (
+          <span className="clauseiq-v6-recommendation-bulk-action-label">Bulk Accept Supplier Positions</span>
+        ) : (
+          <div className="clauseiq-v6-recommendation-bulk-action-control">
+            <OrbitButton
+              variant="Secondary"
+              size="Medium"
+              state="Default"
+              className="clauseiq-v6-recommendation-bulk-banner-trigger"
+              aria-haspopup="listbox"
+              aria-expanded={actionDropdownOpen}
+              onClick={() => setActionDropdownOpen((current) => !current)}
+              iconRight={<ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", actionDropdownOpen && "rotate-180")} />}
+            >
+              <span className="clauseiq-v6-recommendation-bulk-banner-trigger-label">
+                {action === "recommendation"
+                  ? "Apply Recommendation"
+                  : action === "keep-current"
+                    ? secondaryActionLabel
+                    : "Select a type of bulk action…"}
+              </span>
+            </OrbitButton>
+            {actionDropdownOpen && (
+              <div className="clauseiq-v6-recommendation-bulk-action-menu" role="listbox" aria-label="Bulk action type">
+                <Card type="Static" padding="Base" state="Default" indicator={false}>
+                  {showRecommendationAction ? (
+                    <OrbitButton variant="Tertiary" size="Medium" state="Default" className="w-full justify-start" onClick={() => { setAction("recommendation"); setActionDropdownOpen(false); setDropdownOpen(false); clearSelection(); }}>
+                      Apply Recommendation
+                    </OrbitButton>
+                  ) : null}
+                  <OrbitButton variant="Tertiary" size="Medium" state="Default" className="w-full justify-start" onClick={() => { setAction("keep-current"); setActionDropdownOpen(false); setDropdownOpen(false); clearSelection(); }}>
+                    {secondaryActionLabel}
                   </OrbitButton>
-                ) : null}
-                <OrbitButton variant="Tertiary" size="Medium" state="Default" className="w-full justify-start" onClick={() => { setAction("keep-current"); setActionDropdownOpen(false); setDropdownOpen(false); clearSelection(); }}>
-                  {secondaryActionLabel}
-                </OrbitButton>
-              </Card>
-            </div>
-          )}
-        </div>
+                </Card>
+              </div>
+            )}
+          </div>
+        )}
         {action && (
           <div className="clauseiq-v6-recommendation-bulk-scope-control">
             <OrbitButton
@@ -6918,7 +6956,6 @@ function ClauseRequestForm({
   const revertValue = revertText?.trim() ?? "";
   const canRevert = Boolean(revertValue) && requestValue.trim() !== revertValue;
   const requestCharacterLimit = 250;
-  const isRecommendationCopy = requestValue.trim() === revertValue;
 
   return (
     <div
@@ -6942,16 +6979,10 @@ function ClauseRequestForm({
         </div>
       )}
       <div className="flex w-full flex-1 flex-col gap-orbit-base">
-        {comparisonEditing && (
-          <div className="flex items-center gap-orbit-xs text-orbit-xs text-orbit-fg-secondary">
-            <span>{isRecommendationCopy ? "Editing a copy of the recommended position" : "Edited from the recommended position"}</span>
-            <Chip label="Custom" size="Mini" variant="No Status" contrast="Low" />
-          </div>
-        )}
         <div className="space-y-orbit-xs">
           <div className="flex items-center justify-between gap-orbit-s">
             <label className="v6-orbit-text-small v6-orbit-weight-semibold text-orbit-fg-secondary">
-              {comparisonEditing ? "Your position" : "Set Custom Position"}
+              {comparisonEditing ? "Your Custom Position" : "Set Custom Position"}
             </label>
             <div className="flex items-center gap-orbit-s">
               {revertText ? (
@@ -6965,17 +6996,20 @@ function ClauseRequestForm({
                   Revert
                 </button>
               ) : null}
-              <button
-                type="button"
-                className="inline-flex items-center gap-orbit-xxs text-orbit-xs text-orbit-primary hover:underline"
-                onClick={() => setExpanded(true)}
-              >
-                <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                Expand
-              </button>
+              {!comparisonEditing && (
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-orbit-xxs text-orbit-xs text-orbit-primary hover:underline"
+                  onClick={() => setExpanded(true)}
+                >
+                  <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                  Expand
+                </button>
+              )}
             </div>
           </div>
           <Textarea
+            autoFocus={comparisonEditing}
             value={requestValue}
             onChange={(event) => onUpdate({ requestedChange: event.target.value })}
             placeholder={requestPlaceholder}
@@ -7423,7 +7457,11 @@ function ClauseDecisionCard({
             <span className="v6-orbit-weight-semibold text-orbit-fg">Actionability:</span> {actionability}
           </p>
         )}
-        {showExpandedBody && extraContent && <div className="mt-orbit-s">{extraContent}</div>}
+        {showExpandedBody && extraContent && (
+          <div className={useDefaultComparisonCard ? "mt-orbit-base" : "mt-orbit-s"}>
+            {extraContent}
+          </div>
+        )}
 
         {showRequestActions && (
           <div className="mt-orbit-s flex items-center gap-orbit-xs" onClick={(event) => event.stopPropagation()}>
@@ -7954,7 +7992,7 @@ function InitialAnalysisOptionTwoClauseCard({
         </span>
       </button>
       {expanded ? (
-        <div className="border-t border-orbit-border p-orbit-base">
+        <div className="px-orbit-base pb-orbit-base">
           <SimplifiedComparisonContent
             currentLabel={missingClause ? "Missing clause" : (
               <span className="inline-flex items-center gap-orbit-xxs rounded-orbit-sm border border-orbit-border bg-orbit-card px-orbit-s py-orbit-xxs text-orbit-xs text-orbit-fg">
@@ -7966,6 +8004,12 @@ function InitialAnalysisOptionTwoClauseCard({
             target={targetText}
             targetLabel={positionLabel}
             targetContent={draftEditor}
+            onTargetTextClick={
+              canEditPosition && !isDrafting && !bulkSelectionEnabled && onEditPosition
+                ? onEditPosition
+                : undefined
+            }
+            targetTextActionLabel={`Edit recommended next position for ${displayTitleForClause(id, clause.title)}`}
             hideRationaleAction={isDrafting || handled}
             layout="initial-two-card"
             clauseContext={{
@@ -7978,14 +8022,6 @@ function InitialAnalysisOptionTwoClauseCard({
                 <Button variant="outline" className="ml-auto h-8 w-fit px-orbit-base" disabled={bulkSelectionEnabled} onClick={onNoAction}>
                   <Check className="h-3.5 w-3.5" aria-hidden="true" />
                   Accept Supplier Position
-                </Button>
-              ) : undefined
-            }
-            targetFooter={
-              canEditPosition && !isDrafting ? (
-                <Button variant="outline" className="h-8" disabled={bulkSelectionEnabled} onClick={onEditPosition}>
-                  <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                  Set Custom Position
                 </Button>
               ) : undefined
             }
@@ -8039,6 +8075,7 @@ function ResultCardPanel({
   content,
   footer,
   headerAction,
+  textAction,
   footerPushBottom = false,
   padding = "compact",
 }: {
@@ -8049,6 +8086,7 @@ function ResultCardPanel({
   content?: ReactNode;
   footer?: ReactNode;
   headerAction?: ReactNode;
+  textAction?: { label: string; onClick: () => void };
   footerPushBottom?: boolean;
   padding?: "compact" | "base";
 }) {
@@ -8077,12 +8115,29 @@ function ResultCardPanel({
         </div>
         {headerAction ? <div className="shrink-0">{headerAction}</div> : null}
       </div>
-      <p
-        className="mt-orbit-xs v6-orbit-text-body text-orbit-fg"
-        style={{ "--orbit-text-small-leading": "1.5" } as CSSProperties}
-      >
-        {text}
-      </p>
+      {textAction ? (
+        <div
+          className="mt-orbit-xs"
+          onFocusCapture={(event) => {
+            event.stopPropagation();
+            textAction.onClick();
+          }}
+        >
+          <Textarea
+            value={text}
+            rows={3}
+            aria-label={textAction.label}
+            className="min-h-[88px] [&_textarea]:cursor-text"
+          />
+        </div>
+      ) : (
+        <p
+          className="mt-orbit-xs v6-orbit-text-body text-orbit-fg"
+          style={{ "--orbit-text-small-leading": "1.5" } as CSSProperties}
+        >
+          {text}
+        </p>
+      )}
       {content ? <div className="mt-orbit-s flex flex-1 flex-col">{content}</div> : null}
       {footer ? <div className={cn(footerPushBottom ? "mt-auto pt-orbit-s" : "mt-orbit-s", "flex flex-wrap items-center gap-orbit-xs")}>{footer}</div> : null}
     </div>
@@ -8129,27 +8184,29 @@ function RoundComparisonDashboard({
 
   return (
     <div className="space-y-orbit-base">
-      <section className="overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">
-        <div className="flex flex-wrap items-start justify-between gap-orbit-base border-b border-orbit-border p-orbit-base">
-          <div>
-            <h1 className="v6-orbit-heading-strong text-orbit-fg">Latest Analysis</h1>
+      <div className="clauseiq-v6a-round-dashboard">
+        <Card type="Static" padding="Base" state="Default" indicator={false} style={{ width: "100%" }}>
+          <div className="space-y-orbit-base">
+            <div className="flex flex-wrap items-start justify-between gap-orbit-base">
+              <h1 className="v6-orbit-heading-strong text-orbit-fg">Latest Analysis</h1>
+              <div className="shrink-0">{comparisonControl}</div>
+            </div>
+            {banner ? <div className="clauseiq-v6a-summary-banner">{banner}</div> : null}
+            <div className="grid gap-orbit-base md:grid-cols-3">
+              <RoundComparisonMetric
+                icon={<BarChart3 className="h-5 w-5" aria-hidden="true" />}
+                label="Score by round"
+                value={`${previousScore} → ${currentScore}`}
+                detail={`${scoreDelta >= 0 ? "+" : ""}${scoreDelta} vs previous round · playbook`}
+                tone={scoreDelta >= 0 ? "default" : "warning"}
+              />
+              <RoundComparisonMetric icon={<GitCompare className="h-5 w-5" aria-hidden="true" />} label="Convergence" value={`${metCount}/${comparedCount}`} detail="positions met" tone="success" />
+              <RoundComparisonMetric icon={<AlertTriangle className="h-5 w-5" aria-hidden="true" />} label="Still open" value={stillOpenCount} detail="need next-round decision" tone="warning" />
+            </div>
+            <div>{filters}</div>
           </div>
-          <div className="shrink-0">{comparisonControl}</div>
-        </div>
-        {banner ? <div className="border-b border-orbit-border p-orbit-base">{banner}</div> : null}
-        <div className="grid gap-orbit-base border-b border-orbit-border p-orbit-base md:grid-cols-3">
-          <RoundComparisonMetric icon={<GitCompare className="h-5 w-5" aria-hidden="true" />} label="Convergence" value={`${metCount}/${comparedCount}`} detail="positions met" tone="success" />
-          <RoundComparisonMetric
-            icon={<BarChart3 className="h-5 w-5" aria-hidden="true" />}
-            label="Score by round"
-            value={`${previousScore} → ${currentScore}`}
-            detail={`${scoreDelta >= 0 ? "+" : ""}${scoreDelta} vs previous round · playbook`}
-            tone={scoreDelta >= 0 ? "default" : "warning"}
-          />
-          <RoundComparisonMetric icon={<AlertTriangle className="h-5 w-5" aria-hidden="true" />} label="Still open" value={stillOpenCount} detail="need next-round decision" tone="warning" />
-        </div>
-        <div className="border-b border-orbit-border bg-orbit-surface/30 p-orbit-base">{filters}</div>
-      </section>
+        </Card>
+      </div>
       <div className="space-y-orbit-base">
         {bulkBanner}
         {actionRequired}
@@ -8181,21 +8238,17 @@ function RoundComparisonMetric({
     : tone === "warning"
       ? "text-orbit-warning"
       : "text-orbit-fg";
-  const iconClass = tone === "success"
-    ? "bg-orbit-success-surface text-orbit-success"
-    : tone === "warning"
-      ? "bg-orbit-warning-surface text-orbit-warning"
-      : "bg-orbit-info-surface text-orbit-info";
+  const iconClass = "bg-orbit-info-surface text-orbit-info";
 
   return (
-    <div className="rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-base">
+    <Card type="Static" padding="Base" state="Default" indicator={false} style={{ height: "100%" }}>
       <div className="flex items-start justify-between gap-orbit-s">
         <p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wide text-orbit-fg-secondary">{label}</p>
         <span className={cn("inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-orbit-md", iconClass)}>{icon}</span>
       </div>
       <p className={cn("mt-orbit-xs text-orbit-xl v6-orbit-weight-semibold", valueTone)}>{value}</p>
       <p className="mt-orbit-xxs v6-orbit-text-small text-orbit-fg-secondary">{detail}</p>
-    </div>
+    </Card>
   );
 }
 
@@ -8207,6 +8260,8 @@ function RoundComparisonFilterBar({
   onStatusChange,
   onDeviationChange,
   onSectionChange,
+  onClearFilters,
+  hasActiveFilters,
 }: {
   status: RoundDashboardStatusFilter;
   deviation: RoundDashboardDeviationFilter;
@@ -8215,6 +8270,8 @@ function RoundComparisonFilterBar({
   onStatusChange: (value: RoundDashboardStatusFilter) => void;
   onDeviationChange: (value: RoundDashboardDeviationFilter) => void;
   onSectionChange: (value: string) => void;
+  onClearFilters: () => void;
+  hasActiveFilters: boolean;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-x-orbit-base gap-y-orbit-s">
@@ -8244,17 +8301,29 @@ function RoundComparisonFilterBar({
       />
       <span className="hidden h-5 w-px bg-orbit-border sm:block" aria-hidden="true" />
       <label className="flex items-center gap-orbit-s text-orbit-xs text-orbit-fg-secondary">
-        <span className="v6-orbit-weight-semibold">Section</span>
-        <select
-          value={section}
-          aria-label="Section"
-          onChange={(event) => onSectionChange(event.target.value)}
-          className="h-8 min-w-[160px] rounded-orbit-md border border-orbit-border bg-orbit-card px-orbit-s text-orbit-xs text-orbit-fg outline-none focus:border-orbit-primary"
-        >
-          <option value="all">All sections</option>
-          {sections.map((item) => <option key={item.name} value={item.name}>{item.name}</option>)}
-        </select>
+        <span className="v6-orbit-weight-semibold">Clauses</span>
+        <Select value={section} onValueChange={onSectionChange}>
+          <SelectTrigger className="h-8 min-w-[320px] bg-orbit-card text-orbit-xs clauseiq-v6-select-left" aria-label="Section">
+            <SelectValue placeholder="All sections" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All sections</SelectItem>
+            {sections.map((item) => <SelectItem key={item.name} value={item.name}>{item.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </label>
+      {hasActiveFilters ? (
+        <span className="ml-auto shrink-0 [&>a]:!text-orbit-primary">
+          <LinkText
+            label="Clear Filters"
+            href="#clear-filters"
+            onClick={(event) => {
+              event.preventDefault();
+              onClearFilters();
+            }}
+          />
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -8263,6 +8332,8 @@ function FirstAnalysisOptionTwoFilterBar({
   activeMetrics,
   onMetricToggle,
   onClearMetrics,
+  onClearFilters,
+  hasActiveFilters,
   section,
   sections,
   onSectionChange,
@@ -8270,6 +8341,8 @@ function FirstAnalysisOptionTwoFilterBar({
   activeMetrics: Set<FirstAnalysisMetricKey>;
   onMetricToggle: (metric: FirstAnalysisMetricKey) => void;
   onClearMetrics: () => void;
+  onClearFilters: () => void;
+  hasActiveFilters: boolean;
   section: string;
   sections: CategorySidebarItem[];
   onSectionChange: (value: string) => void;
@@ -8285,51 +8358,49 @@ function FirstAnalysisOptionTwoFilterBar({
   return (
     <div className="flex flex-wrap items-center gap-x-orbit-base gap-y-orbit-s">
       <span className="text-orbit-xs v6-orbit-weight-semibold text-orbit-fg-secondary">Filter</span>
-      <div className="flex flex-wrap items-center gap-orbit-xs" role="group" aria-label="Deviation">
+      <div
+        className="flex flex-wrap items-center gap-orbit-xs [&_button[aria-pressed=true]]:!border-orbit-primary"
+        role="group"
+        aria-label="Deviation"
+      >
         <span className="text-orbit-xs text-orbit-fg-secondary">Deviation</span>
-        <button
-          type="button"
-          aria-pressed={activeMetrics.size === 0}
-          onClick={onClearMetrics}
-          className={cn(
-            "rounded-full border px-orbit-s py-orbit-xxs text-orbit-xs v6-orbit-weight-medium transition-colors",
-            activeMetrics.size === 0
-              ? "border-orbit-fg bg-orbit-card text-orbit-fg shadow-orbit-xs"
-              : "border-orbit-border bg-orbit-card text-orbit-fg-secondary hover:border-orbit-fg-secondary hover:text-orbit-fg",
-          )}
-        >
-          All
-        </button>
-        {filters.map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={activeMetrics.has(value)}
-            onClick={() => onMetricToggle(value)}
-            className={cn(
-              "rounded-full border px-orbit-s py-orbit-xxs text-orbit-xs v6-orbit-weight-medium transition-colors",
-              activeMetrics.has(value)
-                ? "border-orbit-fg bg-orbit-card text-orbit-fg shadow-orbit-xs"
-                : "border-orbit-border bg-orbit-card text-orbit-fg-secondary hover:border-orbit-fg-secondary hover:text-orbit-fg",
-            )}
-          >
-            {label}
-          </button>
-        ))}
+        <QuickFilterGroup ariaLabel="Deviation">
+          <QuickFilterItem label="All" selected={activeMetrics.size === 0} onClick={onClearMetrics} />
+          {filters.map(([value, label]) => (
+            <QuickFilterItem
+              key={value}
+              label={label}
+              selected={activeMetrics.has(value)}
+              onClick={() => onMetricToggle(value)}
+            />
+          ))}
+        </QuickFilterGroup>
       </div>
       <span className="hidden h-5 w-px bg-orbit-border sm:block" aria-hidden="true" />
       <label className="flex items-center gap-orbit-s text-orbit-xs text-orbit-fg-secondary">
-        <span className="v6-orbit-weight-semibold">Section</span>
+        <span className="v6-orbit-weight-semibold">Clauses</span>
         <select
           value={section}
           aria-label="Section"
           onChange={(event) => onSectionChange(event.target.value)}
-          className="h-8 min-w-[160px] rounded-orbit-md border border-orbit-border bg-orbit-card px-orbit-s text-orbit-xs text-orbit-fg outline-none focus:border-orbit-primary"
+          className="h-8 min-w-[320px] rounded-orbit-md border border-orbit-border bg-orbit-card px-orbit-s text-left text-orbit-xs text-orbit-fg outline-none focus:border-orbit-primary"
         >
           <option value="all">All sections</option>
           {sections.map((item) => <option key={item.name} value={item.name}>{item.name}</option>)}
         </select>
       </label>
+      {hasActiveFilters ? (
+        <span className="ml-auto shrink-0 [&>a]:!text-orbit-primary">
+          <LinkText
+            label="Clear Filters"
+            href="#clear-filters"
+            onClick={(event) => {
+              event.preventDefault();
+              onClearFilters();
+            }}
+          />
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -8346,24 +8417,18 @@ function RoundComparisonFilterGroup<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-orbit-xs" role="group" aria-label={label}>
+    <div className="flex flex-wrap items-center gap-orbit-xs [&_button[aria-pressed=true]]:!border-orbit-primary">
       <span className="text-orbit-xs text-orbit-fg-secondary">{label}</span>
-      {options.map(([optionValue, optionLabel]) => (
-        <button
-          key={optionValue}
-          type="button"
-          aria-pressed={value === optionValue}
-          onClick={() => onChange(optionValue)}
-          className={cn(
-            "rounded-full border px-orbit-s py-orbit-xxs text-orbit-xs v6-orbit-weight-medium transition-colors",
-            value === optionValue
-              ? "border-orbit-fg bg-orbit-card text-orbit-fg shadow-orbit-xs"
-              : "border-orbit-border bg-orbit-card text-orbit-fg-secondary hover:border-orbit-fg-secondary hover:text-orbit-fg",
-          )}
-        >
-          {optionLabel}
-        </button>
-      ))}
+      <QuickFilterGroup ariaLabel={label}>
+        {options.map(([optionValue, optionLabel]) => (
+          <QuickFilterItem
+            key={optionValue}
+            label={optionLabel}
+            selected={value === optionValue}
+            onClick={() => onChange(optionValue)}
+          />
+        ))}
+      </QuickFilterGroup>
     </div>
   );
 }
@@ -8518,6 +8583,8 @@ function SimplifiedComparisonContent({
   currentFooter,
   targetContent,
   targetFooter,
+  onTargetTextClick,
+  targetTextActionLabel = "Edit recommended next position",
   targetLabel = "Recommended Position",
   hideRationaleAction = false,
   layout = "stacked",
@@ -8532,6 +8599,8 @@ function SimplifiedComparisonContent({
   currentFooter?: ReactNode;
   targetContent?: ReactNode;
   targetFooter?: ReactNode;
+  onTargetTextClick?: () => void;
+  targetTextActionLabel?: string;
   targetLabel?: string;
   hideRationaleAction?: boolean;
   layout?: "stacked" | "thread" | "initial-two-card";
@@ -8585,6 +8654,7 @@ function SimplifiedComparisonContent({
         </span>
       )}
       text={displayedTargetText ?? ""}
+      textAction={onTargetTextClick ? { onClick: onTargetTextClick, label: targetTextActionLabel } : undefined}
       tone={layout === "thread" || layout === "initial-two-card" ? "default" : "primary"}
       footerPushBottom={layout === "thread" || layout === "initial-two-card"}
       padding={layout === "thread" || layout === "initial-two-card" ? "base" : "compact"}
@@ -8628,14 +8698,17 @@ function SimplifiedComparisonContent({
         <div
           className={cn(
             "grid gap-orbit-s lg:items-stretch",
-            targetPanel
-              ? "lg:grid-cols-[minmax(0,1fr)_24px_minmax(0,1fr)_minmax(0,1fr)]"
+            targetPanel && previousPanel
+              ? "lg:grid-cols-[minmax(0,1fr)_24px_minmax(0,1fr)_24px_minmax(0,1fr)]"
+              : targetPanel
+                ? "lg:grid-cols-[minmax(0,1fr)_24px_minmax(0,1fr)]"
               : "lg:grid-cols-2",
           )}
         >
           {previousPanel}
           {previousPanel && targetPanel ? <ArrowRight className="hidden self-center justify-self-center text-orbit-fg-secondary lg:block" aria-hidden="true" /> : null}
           {currentPanel}
+          {targetPanel ? <ArrowRight className="hidden self-center justify-self-center text-orbit-fg-secondary lg:block" aria-hidden="true" /> : null}
           {targetPanel}
         </div>
       ) : layout === "initial-two-card" ? (
@@ -9286,6 +9359,7 @@ function RequestReviewDialog({
   supplierName,
   bulkSummaryMode = false,
   csvNeedsUpdate = false,
+  allowEmpty = false,
   onSubmit,
 }: {
   open: boolean;
@@ -9294,10 +9368,11 @@ function RequestReviewDialog({
   supplierName: string;
   bulkSummaryMode?: boolean;
   csvNeedsUpdate?: boolean;
+  allowEmpty?: boolean;
   onSubmit: () => void;
 }) {
   const requestCount = requests.length;
-  const canGenerate = requestCount > 0 || csvNeedsUpdate;
+  const canGenerate = allowEmpty || requestCount > 0 || csvNeedsUpdate;
 
   useEffect(() => {
     if (!canGenerate && open) onOpenChange(false);
@@ -9308,11 +9383,13 @@ function RequestReviewDialog({
     onSubmit();
     onOpenChange(false);
   };
-  const csvAlertDescription = `${requestCount} selected clause${requestCount === 1 ? "" : "s"} will be included in the supplier negotiation CSV. It records clause IDs, findings, review actions, requested positions, and rationale.${
-    csvNeedsUpdate
-      ? " This will replace the previous download with the latest decision set."
-      : ""
-  }`;
+  const csvAlertDescription = requestCount > 0
+    ? `${requestCount} selected clause${requestCount === 1 ? "" : "s"} will be included in the supplier negotiation CSV. It records clause IDs, findings, review actions, requested positions, and rationale.${
+      csvNeedsUpdate
+        ? " This will replace the previous download with the latest decision set."
+        : ""
+    }`
+    : "No clause decisions have been added yet. You can still generate an empty change log for this analysis.";
 
   return (
     <V6OrbitOverlay
@@ -10032,6 +10109,24 @@ function ComparisonSection(props: {
         const showRecommendedNextPosition = !(
           isRoundDashboard && (bucket === "closed" || bucket === "no-action" || rowVerdict === "met")
         );
+        const canEditRecommendedPosition =
+          isRoundDashboard &&
+          supportsInlineRequest &&
+          showOutcomeActions &&
+          canShowOutcomeFooter &&
+          showRecommendedNextPosition &&
+          !bulkSelectionEnabled &&
+          (isNoneDeviationClause(display) || rowVerdict !== "met");
+        const editRecommendedPosition = () => {
+          if (isNoneDeviationClause(display) || bucket === "closed") {
+            openReviseTargetEditor();
+            return;
+          }
+          openReviseTargetEditor("Chose to revise target", {
+            outcome: "custom",
+            prefill: comparisonBestPractice,
+          });
+        };
         const latestSupplierText = isPureMissingClause(display)
           ? "Missing from contract."
           : r.curr?.deviation ?? "Clause no longer present.";
@@ -10047,7 +10142,7 @@ function ComparisonSection(props: {
               clauseName: displayTitleForClause(r.id, display.title),
               subClauseName: display.subclause,
             }}
-            previousLabel={isRoundDashboard ? "Previous Negotiation Position Sent to Supplier" : `Previous Summary · ${leftLabel}`}
+            previousLabel={isRoundDashboard ? "Previous Supplier Position" : `Previous Summary · ${leftLabel}`}
             previousText={isRoundDashboard ? previousTargetText || r.prev?.deviation || "No earlier position was sent." : r.prev?.deviation ?? "Clause did not exist."}
             currentLabel={isRoundDashboard ? "Latest Supplier Position" : `Current Summary · ${rightLabel}`}
             currentText={latestSupplierText}
@@ -10098,10 +10193,12 @@ function ComparisonSection(props: {
                 />
               ) : undefined
             }
+            onTargetTextClick={canEditRecommendedPosition ? editRecommendedPosition : undefined}
+            targetTextActionLabel={`Edit recommended next position for ${displayTitleForClause(r.id, display.title)}`}
             hideRationaleAction={drafting || completedAction}
             layout={isRoundDashboard ? "thread" : "stacked"}
             targetFooter={
-              showOutcomeActions && canShowOutcomeFooter && isNoneDeviationClause(display) ? (
+              !isRoundDashboard && showOutcomeActions && canShowOutcomeFooter && isNoneDeviationClause(display) ? (
                 <Button
                   variant="outline"
                   className="ml-auto h-8 w-fit v6-orbit-text-small"
@@ -10111,7 +10208,7 @@ function ComparisonSection(props: {
                   <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                   {CLAUSE_ACTION_LABELS.reviseTarget}
                 </Button>
-              ) : showOutcomeActions && canShowOutcomeFooter && bucket === "closed" ? (
+              ) : !isRoundDashboard && showOutcomeActions && canShowOutcomeFooter && bucket === "closed" ? (
                 <Button
                   variant="outline"
                   className="ml-auto h-8 w-fit v6-orbit-text-small"
@@ -10121,7 +10218,7 @@ function ComparisonSection(props: {
                   <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                   {CLAUSE_ACTION_LABELS.editPosition}
                 </Button>
-              ) : showOutcomeActions && canShowOutcomeFooter && rowVerdict !== "met" ? (
+              ) : !isRoundDashboard && showOutcomeActions && canShowOutcomeFooter && rowVerdict !== "met" ? (
                 <>
                   <Button
                     variant={closure === "follow-up" ? "secondary" : "outline"}

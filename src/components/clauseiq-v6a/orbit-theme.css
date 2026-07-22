@@ -78,6 +78,21 @@
   --orbit-color-btn-tertiary-fg: var(--orbit-color-btn-primary-bg);
 }
 
+/* Keep supplier context values left-aligned while allowing the Orbit dropdown
+   menu to escape the surrounding card when it opens. */
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] [data-orbit-adapter="select"].clauseiq-v6-select-left [class*="_trigger_"] {
+  justify-content: flex-start;
+}
+
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] [data-orbit-adapter="select"].clauseiq-v6-select-left [class*="_triggerValue_"] {
+  margin-right: auto;
+  text-align: left;
+}
+
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] [data-orbit-adapter="select"].clauseiq-v6-select-left [class*="_chevron_"] {
+  margin-left: auto;
+}
+
 /* Reserve the alert's right edge for the shared modal close control. */
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6a-review-alert [class*="_banner_"] {
   padding-right: calc(var(--orbit-space-base) + var(--orbit-icon-btn-medium));
@@ -424,6 +439,12 @@ body
   white-space: nowrap;
 }
 
+/* The Orbit dropdown is positioned within its trigger. Let the comparison
+   dashboard card expose that overlay instead of clipping it at the card edge. */
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6a-round-dashboard > div {
+  overflow: visible;
+}
+
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-banner-controls {
   align-items: center;
   display: flex;
@@ -442,6 +463,15 @@ body
 
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-action-control {
   flex: 0 1 300px;
+}
+
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-action-label {
+  color: var(--orbit-color-text-inverse);
+  flex: 0 0 auto;
+  font-size: var(--orbit-text-strong-size);
+  font-weight: var(--orbit-font-weight-semibold);
+  line-height: var(--orbit-text-strong-leading);
+  white-space: nowrap;
 }
 
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-scope-control {
@@ -1041,4 +1071,8 @@ body
   [data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-responsive-testing-sandbox .clauseiq-responsive-dashboard-actions [data-orbit-adapter="select"] button {
     width: 100%;
   }
+}
+/* Keep the initiative picker compact while retaining Orbit's responsive width. */
+body > div:has(> div[role="dialog"] [data-v6-overlay="select-initiative"]) > div[role="dialog"] {
+  max-width: 640px;
 }

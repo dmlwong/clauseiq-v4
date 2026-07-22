@@ -32,6 +32,8 @@ export interface ResultsViewProps {
   higherIsBetter?: boolean;
   analysisParameters?: AnalysisParameterItem[];
   showComparisonStatus?: boolean;
+  highlightSupplierId?: string | null;
+  highlightAnalysisId?: string | null;
   layout?: ResultsLayout;
   outputState?: SupplierOutputsPanelState;
   filteredControls?: FilteredListControls;

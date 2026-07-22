@@ -1,8 +1,21 @@
-import { type ReactNode, type RefObject } from "react";
-import { Check, FileText, Loader2, Search } from "@/components/clauseiq-v6a/v6aIcons";
-import { Card } from "@orbit";
+import { type CSSProperties, type FormEvent, type ReactNode, type RefObject, useState } from "react";
+import {
+  Check,
+  FileText,
+  Loader2,
+  Search,
+} from "@/components/clauseiq-v6a/v6aIcons";
+import { Card, LinkText } from "@orbit";
 
 import { Button } from "@/components/clauseiq-v6a/orbit-ui/button";
+import { Input } from "@/components/clauseiq-v6a/orbit-ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/clauseiq-v6a/orbit-ui/select";
 import { StateCard, type CardState } from "@/components/clauseiq-v6a/StateCard";
 import {
   AnalysisParameterCards,
@@ -22,7 +35,10 @@ import {
   ResultsContent,
   SupplierOutputsPanel,
 } from "@/components/clauseiq-v6a/supplier-results";
-import type { ResultsLayout } from "@/components/clauseiq-v6a/supplier-results/types";
+import type {
+  ResultsLayout,
+  SupplierOutputSelection,
+} from "@/components/clauseiq-v6a/supplier-results/types";
 
 export type ClauseIqJourneyMode = "stacked" | "single-step";
 export type ClauseIqInitiativeMode = "selectable" | "prebound";
@@ -43,7 +59,10 @@ export interface ClauseIqFooterState {
   onClick: () => void;
 }
 
-export const CLAUSEIQ_JOURNEY_STEPS: Array<{ key: ClauseIqWorkflowStep; label: string }> = [
+export const CLAUSEIQ_JOURNEY_STEPS: Array<{
+  key: ClauseIqWorkflowStep;
+  label: string;
+}> = [
   { key: "welcome", label: "Overview" },
   { key: "parameters", label: "Configure" },
   { key: "upload", label: "Upload" },
@@ -79,7 +98,10 @@ export function getClauseIqFooterState(
     return {
       disabled: false,
       label: "Start",
-      onClick: () => workflow.actions.setStep(initiativeMode === "prebound" ? "parameters" : "select"),
+      onClick: () =>
+        workflow.actions.setStep(
+          initiativeMode === "prebound" ? "parameters" : "select",
+        ),
     };
   }
 
@@ -150,7 +172,9 @@ function InitiativeStep({
       className={resultsVisible ? "mx-auto w-full max-w-[640px]" : undefined}
     >
       <h2 className="v6-orbit-heading-5 mb-orbit-base">
-        {initiativeMode === "prebound" ? "Current Initiative" : "Initiative Selected"}
+        {initiativeMode === "prebound"
+          ? "Current Initiative"
+          : "Initiative Selected"}
       </h2>
       <SelectedSummaryRow
         label={selectedLabel ?? "Initiative selected"}
@@ -170,9 +194,12 @@ function UploadStep({
   workflow: ClauseIqWorkflow;
 }) {
   return (
-    <Card type="Static" state="Feature" padding="Base" indicator={false}>
+    <Card type="Static" state="Feature" padding="Base" indicator={false} className="overflow-visible">
       <h2 className="v6-orbit-heading-5 mb-orbit-base">Upload Contract</h2>
-      <PlaybookDisclaimer variant="callout" parameter={workflow.selectedParameter} />
+      <PlaybookDisclaimer
+        variant="callout"
+        parameter={workflow.selectedParameter}
+      />
       <ClauseIqDropzone onFile={workflow.actions.validateAndSetFile} />
       {workflow.file && renderSelectedFileRow ? (
         <div className="mt-orbit-base">
@@ -186,33 +213,39 @@ function UploadStep({
 function ProcessingStep({
   copy = "Finding clauses in your contract...",
   heading = "Analysing Your Contract",
+  completed = false,
   parameter,
   workflow,
 }: {
   copy?: string;
   heading?: string;
+  completed?: boolean;
   parameter: ClauseIqWorkflow["selectedParameter"];
   workflow: ClauseIqWorkflow;
 }) {
   return (
     <Card type="Static" state="Feature" padding="Base" indicator={false}>
-      <h2 className="v6-orbit-heading-5 mb-orbit-base">{heading}</h2>
+      <h2 className="v6-orbit-heading-5 mb-orbit-base">{completed ? "Analysis complete" : heading}</h2>
       <div className="flex items-center justify-between border border-orbit-border rounded-orbit-lg px-orbit-base py-orbit-s mb-orbit-base">
         <div className="flex items-center gap-orbit-s min-w-0">
           <FileText className="h-4 w-4 text-orbit-fg-secondary shrink-0" />
-          <span className="text-orbit-sm truncate">{workflow.file?.name ?? "Contract.pdf"}</span>
+          <span className="text-orbit-sm truncate">
+            {workflow.file?.name ?? "Contract.pdf"}
+          </span>
         </div>
         <span className="text-orbit-xs v6-orbit-weight-medium text-orbit-success inline-flex items-center gap-orbit-xs">
-          <Check className="h-3.5 w-3.5" /> Uploaded
+          <Check className="h-3.5 w-3.5" /> {completed ? "Completed" : "Uploaded"}
         </span>
       </div>
       <div className="flex items-center gap-orbit-base py-orbit-s">
-        <Loader2 className="h-5 w-5 animate-spin text-orbit-primary" />
-        <span className="text-orbit-sm v6-orbit-weight-medium">{copy}</span>
+        {completed ? <Check className="h-5 w-5 text-orbit-success" /> : <Loader2 className="h-5 w-5 animate-spin text-orbit-primary" />}
+        <span className="text-orbit-sm v6-orbit-weight-medium">{completed ? "Analysis complete" : copy}</span>
       </div>
       <PlaybookDisclaimer variant="inline" parameter={parameter} />
       <p className="text-orbit-xs text-orbit-fg-secondary mt-orbit-s">
-        {heading === "Analysing New Contract"
+        {completed
+          ? "ClauseIQ is checking the supplier identity before revealing the output."
+          : heading === "Analysing New Contract"
           ? "The existing analysis history remains available above while this runs."
           : "This may take a moment. We will notify you when the analysis is completed."}
       </p>
@@ -233,17 +266,40 @@ function ResultsStep({
   includeResultBottomSpacer?: boolean;
   latestOutputRef?: RefObject<HTMLDivElement>;
   onStartAnotherInitiative?: () => void;
-  onViewResult: () => void;
+  onViewResult: (selection?: SupplierOutputSelection) => void;
   rerunUploadRef?: RefObject<HTMLDivElement>;
   resultsLayout: ResultsLayout;
   showComparisonStatus?: boolean;
   workflow: ClauseIqWorkflow;
 }) {
-  const rerunJourneyVisible = workflow.rerunUploadVisible || workflow.rerunProcessing;
+  const awaitingSupplierFingerprintResolution = workflow.awaitingSupplierFingerprintResolution;
+  const rerunJourneyVisible =
+    workflow.rerunUploadVisible || workflow.rerunProcessing;
+  const supplierContextSelected = Boolean(workflow.rerunSupplierContext);
   const rerunParameter = workflow.rerunProcessing
-    ? workflow.rerunSelectedParameter ?? workflow.selectedParameter
+    ? (workflow.rerunSelectedParameter ?? workflow.selectedParameter)
     : workflow.rerunSelectedParameter;
   const rerunParametersComplete = hasCompleteAnalysisParameters(rerunParameter);
+
+  if (
+    awaitingSupplierFingerprintResolution &&
+    workflow.supplierFingerprintResolution?.journey === "initial"
+  ) {
+    return (
+      <div className="space-y-orbit-base">
+        {workflow.supplierFingerprintResolution?.journey === "rerun" ? (
+          <ProcessingStep
+            copy="Finding clauses in your new contract..."
+            heading="Analysing New Contract"
+            completed
+            parameter={rerunParameter}
+            workflow={workflow}
+          />
+        ) : null}
+        <SupplierFingerprintConversation workflow={workflow} journey="rerun" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-orbit-base">
@@ -252,56 +308,129 @@ function ResultsStep({
           initiative={workflow.resultsInitiative}
           layout={resultsLayout}
           onRunAgain={workflow.actions.showRunAgainUpload}
-          onDownload={resultsLayout === "output-panel" ? undefined : workflow.actions.handleDownload}
+          onDownload={
+            resultsLayout === "output-panel"
+              ? undefined
+              : workflow.actions.handleDownload
+          }
           onViewResult={onViewResult}
           viewResultPrimary={!workflow.newAnalysisSectionVisible}
           highlightLatestOutput={!workflow.newAnalysisSectionVisible}
           analysisParameters={workflow.selectedAnalysisParameters}
           showComparisonStatus={showComparisonStatus}
+          highlightSupplierId={workflow.latestOutputSupplierId}
+          highlightAnalysisId={workflow.latestOutputAnalysisId}
         />
       </div>
       {workflow.newAnalysisSectionVisible && <NewAnalysisDivider />}
       {rerunJourneyVisible && (
         <div ref={rerunUploadRef} className="space-y-orbit-base">
-          <AnalysisParameterCards
-            selectedParameter={rerunParameter}
-            cardState={workflow.rerunProcessing || rerunParametersComplete ? "default" : "active"}
-            locked={workflow.rerunProcessing}
-            onPlaybookChoiceChange={workflow.actions.handleRerunPlaybookChoiceChange}
-            onBenchmarkConfirm={workflow.actions.handleRerunBenchmarkConfirm}
-            onBenchmarkEdit={workflow.actions.handleRerunBenchmarkEdit}
-            onBenchmarkSkip={workflow.actions.handleRerunBenchmarkSkip}
-            onBasisSelect={workflow.actions.handleRerunBasisSelect}
-            onCategorySelect={workflow.actions.handleRerunCategorySelect}
-            onBasisEdit={workflow.actions.handleRerunBasisEdit}
-            onCategoryEdit={workflow.actions.handleRerunCategoryEdit}
-          />
+          {!supplierContextSelected && !workflow.rerunProcessing ? (
+            <RerunSupplierContextStep workflow={workflow} />
+          ) : (
+            <>
+              {workflow.rerunSupplierContext && !workflow.rerunProcessing && (
+                <Card type="Static" state="Default" padding="Base" indicator={false}>
+                  <h2 className="v6-orbit-heading-5">Select supplier</h2>
+                  <p className="mt-orbit-s text-orbit-sm text-orbit-fg-secondary">
+                    Search the supplier history that should provide context for this
+                    analysis.
+                  </p>
+                  <div className="mt-orbit-base">
+                    <SelectedSummaryRow
+                      label={`Supplier · ${workflow.rerunSupplierContext.name}`}
+                      disabled={false}
+                      actionLabel="Change supplier"
+                      onAction={workflow.actions.clearRerunSupplierContext}
+                    />
+                  </div>
+                </Card>
+              )}
+              <AnalysisParameterCards
+                selectedParameter={rerunParameter}
+                cardState={
+                  workflow.rerunProcessing || rerunParametersComplete
+                    ? "default"
+                    : "active"
+                }
+                locked={workflow.rerunProcessing}
+                onPlaybookChoiceChange={
+                  workflow.actions.handleRerunPlaybookChoiceChange
+                }
+                onBenchmarkConfirm={
+                  workflow.actions.handleRerunBenchmarkConfirm
+                }
+                onBenchmarkEdit={workflow.actions.handleRerunBenchmarkEdit}
+                onBenchmarkSkip={workflow.actions.handleRerunBenchmarkSkip}
+                onBasisSelect={workflow.actions.handleRerunBasisSelect}
+                onCategorySelect={workflow.actions.handleRerunCategorySelect}
+                onBasisEdit={workflow.actions.handleRerunBasisEdit}
+                onCategoryEdit={workflow.actions.handleRerunCategoryEdit}
+              />
 
-          {workflow.rerunUploadVisible && rerunParametersComplete && (
-            <Card type="Static" state="Feature" padding="Base" indicator={false}>
-              <h2 className="v6-orbit-heading-5 mb-orbit-base">Upload Contract</h2>
-              <PlaybookDisclaimer variant="callout" parameter={rerunParameter} />
-              <ClauseIqDropzone onFile={workflow.actions.validateAndSetFile} />
-            </Card>
+              {workflow.rerunUploadVisible && rerunParametersComplete && (
+                <Card
+                  type="Static"
+                  state="Feature"
+                  padding="Base"
+                  indicator={false}
+                >
+                  <h2 className="v6-orbit-heading-5 mb-orbit-base">
+                    Upload Contract
+                  </h2>
+                  <PlaybookDisclaimer
+                    variant="callout"
+                    parameter={rerunParameter}
+                  />
+                  <ClauseIqDropzone
+                    onFile={workflow.actions.validateAndSetFile}
+                  />
+                </Card>
+              )}
+            </>
           )}
         </div>
       )}
       {workflow.rerunProcessing && (
-        <ProcessingStep
-          copy="Finding clauses in your new contract..."
-          heading="Analysing New Contract"
-          parameter={rerunParameter}
-          workflow={workflow}
-        />
+        <div className="space-y-orbit-base">
+          <ProcessingStep
+            copy="Finding clauses in your new contract..."
+            heading="Analysing New Contract"
+            parameter={rerunParameter}
+            workflow={workflow}
+          />
+        </div>
       )}
-      {workflow.completedRerunAnalysis && workflow.rerunSupplier && (
+      {workflow.supplierFingerprintResolution?.journey === "rerun" && (
+        <SupplierFingerprintConversation workflow={workflow} journey="rerun" />
+      )}
+      {workflow.completedRerunAnalysis && workflow.completedRerunSupplier && (
         <div ref={latestOutputRef}>
           <AnalysisCard
             analysis={workflow.completedRerunAnalysis}
-            supplier={workflow.rerunSupplier}
+            supplier={workflow.completedRerunSupplier}
             showSupplier
             onRunAgain={workflow.actions.showRunAgainUpload}
-            onViewResult={onViewResult}
+            onViewResult={() => {
+              const chronological = [
+                ...workflow.completedRerunSupplier.analyses,
+              ].sort(
+                (left, right) =>
+                  Date.parse(left.analysedAt) - Date.parse(right.analysedAt),
+              );
+              const currentIndex = chronological.findIndex(
+                (analysis) =>
+                  analysis.id === workflow.completedRerunAnalysis?.id,
+              );
+              onViewResult({
+                supplier: workflow.completedRerunSupplier,
+                analysis: workflow.completedRerunAnalysis,
+                previousAnalysis:
+                  currentIndex > 0
+                    ? chronological[currentIndex - 1]
+                    : undefined,
+              });
+            }}
             viewResultPrimary
             isLatestOutput
             highlighted
@@ -314,12 +443,238 @@ function ResultsStep({
         <PostAnalysisNextActions
           completedMilestoneIds={workflow.completedMilestoneIds}
           initiativeCompleted={workflow.initiativeCompleted}
-          onStartAnotherInitiative={onStartAnotherInitiative ?? (() => workflow.actions.startAnotherInitiative(false))}
+          onStartAnotherInitiative={
+            onStartAnotherInitiative ??
+            (() => workflow.actions.startAnotherInitiative(false))
+          }
           onMilestoneComplete={workflow.actions.markMilestoneComplete}
           onCompleteInitiative={workflow.actions.completeInitiative}
         />
       )}
-      {includeResultBottomSpacer ? <div className="h-[304px]" aria-hidden="true" /> : null}
+      {includeResultBottomSpacer ? (
+        <div className="h-[304px]" aria-hidden="true" />
+      ) : null}
+    </div>
+  );
+}
+
+export function SupplierFingerprintConversation({
+  workflow,
+  journey,
+}: {
+  workflow: ClauseIqWorkflow;
+  journey: "initial" | "rerun";
+}) {
+  const resolution = workflow.supplierFingerprintResolution;
+  if (!resolution || resolution.journey !== journey) return null;
+
+  return (
+    <Card type="Static" state="Feature" padding="Base" indicator={false}>
+      <h2 className="v6-orbit-heading-5">Found A Supplier Match</h2>
+      <p className="mt-orbit-s text-orbit-sm text-orbit-fg-secondary">
+        We found a likely supplier match. Choose the supplier that should own this completed analysis.
+      </p>
+      <div className="mt-orbit-base flex flex-col items-stretch gap-orbit-s">
+        <Button className="w-full" type="button" variant="secondary" onClick={() => workflow.actions.resolveSupplierFingerprint(false)}>
+          {`Keep “${resolution.enteredName}”`}
+        </Button>
+        <Button className="w-full" type="button" onClick={() => workflow.actions.resolveSupplierFingerprint(true)}>
+          {`Use ${resolution.candidate.name}`}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
+function RerunSupplierContextStep({
+  workflow,
+}: {
+  workflow: ClauseIqWorkflow;
+}) {
+  if (workflow.rerunNewSupplierEntryOpen) {
+    return (
+      <SupplierNameForm
+        heading="Add a new supplier"
+        description="Enter the supplier name before choosing the analysis parameters."
+        submitLabel="Continue"
+        onCancel={workflow.actions.cancelNewRerunSupplierContext}
+        onSubmit={workflow.actions.saveNewRerunSupplierContext}
+      />
+    );
+  }
+
+  return (
+    <Card
+      type="Static"
+      state="Feature"
+      padding="Base"
+      indicator={false}
+      style={{ overflow: "visible", position: "relative", zIndex: 10 }}
+    >
+      <div>
+        <h2 className="v6-orbit-heading-5">Select supplier</h2>
+        <p className="mt-orbit-s text-orbit-sm text-orbit-fg-secondary">
+          Search the supplier history that should provide context for this
+          analysis.
+        </p>
+      </div>
+
+      <div className="mt-orbit-base">
+        <Select onValueChange={workflow.actions.selectRerunSupplier}>
+          <SelectTrigger className="w-full clauseiq-v6-select-left" aria-label="Supplier context">
+            <SelectValue placeholder="Select a supplier" />
+          </SelectTrigger>
+          <SelectContent>
+            {workflow.resultsInitiative.suppliers.map((supplier) => (
+              <SelectItem key={supplier.id} value={supplier.id}>
+                {supplier.name} · {supplier.analyses.length} existing output
+                {supplier.analyses.length === 1 ? "" : "s"}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="mt-orbit-base flex flex-wrap items-center gap-x-orbit-xs gap-y-orbit-xxs text-orbit-sm text-orbit-fg-secondary">
+        <span>Can’t find your supplier?</span>
+        <span style={{ "--orbit-color-btn-tertiary-fg": "var(--orbit-color-btn-primary-bg)" } as CSSProperties}>
+          <LinkText
+            label="Add as new supplier"
+            href="#"
+            onClick={(event) => {
+              event.preventDefault();
+              workflow.actions.beginNewRerunSupplierContext();
+            }}
+          />
+        </span>
+      </div>
+    </Card>
+  );
+}
+
+function SupplierNameForm({
+  heading,
+  description,
+  submitLabel,
+  onCancel,
+  onSubmit,
+}: {
+  heading: string;
+  description: string;
+  submitLabel: string;
+  onCancel?: () => void;
+  onSubmit: (name: string) => void;
+}) {
+  const [supplierName, setSupplierName] = useState("");
+  const [showError, setShowError] = useState(false);
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmedName = supplierName.trim();
+    if (!trimmedName) {
+      setShowError(true);
+      return;
+    }
+    onSubmit(trimmedName);
+  };
+
+  return (
+    <Card type="Static" state="Feature" padding="Base" indicator={false}>
+      <h2 className="v6-orbit-heading-5">{heading}</h2>
+      <p className="mt-orbit-s text-orbit-sm text-orbit-fg-secondary">
+        {description}
+      </p>
+      <form className="mt-orbit-base space-y-orbit-s" onSubmit={handleSubmit}>
+        <Input
+          id="clauseiq-supplier-name"
+          value={supplierName}
+          onChange={(event) => {
+            setSupplierName(event.target.value);
+            setShowError(false);
+          }}
+          placeholder="Enter supplier name"
+          aria-describedby={showError ? "clauseiq-supplier-name-error" : undefined}
+        />
+        {showError && (
+          <p id="clauseiq-supplier-name-error" role="alert" className="text-orbit-sm text-orbit-danger-fg">
+            Enter a supplier name to continue.
+          </p>
+        )}
+        <div className="flex flex-wrap items-center gap-orbit-s">
+          {onCancel && (
+            <Button type="button" variant="secondary" onClick={onCancel}>
+              Cancel
+            </Button>
+          )}
+          <Button type="submit" className="ml-auto">
+            {submitLabel}
+          </Button>
+        </div>
+      </form>
+    </Card>
+  );
+}
+
+function InitialSupplierContextStep({ workflow }: { workflow: ClauseIqWorkflow }) {
+  if (!workflow.initialSupplierName) {
+    return (
+      <SupplierNameForm
+        heading="Enter supplier name"
+        description="Enter the supplier name before selecting the analysis parameters."
+        submitLabel="Continue"
+        onCancel={workflow.actions.startSelect}
+        onSubmit={workflow.actions.saveInitialSupplierName}
+      />
+    );
+  }
+
+  return (
+    <Card type="Static" state="Default" padding="Base" indicator={false}>
+      <h2 className="v6-orbit-heading-5">Supplier</h2>
+      <div className="mt-orbit-base">
+        <SelectedSummaryRow
+          label={`Supplier · ${workflow.initialSupplierName}`}
+          disabled={false}
+          actionLabel="Change supplier"
+          onAction={workflow.actions.clearInitialSupplierName}
+        />
+      </div>
+    </Card>
+  );
+}
+
+function InitialAnalysisParameters({
+  workflow,
+  cardState,
+}: {
+  workflow: ClauseIqWorkflow;
+  cardState?: CardState;
+}) {
+  if (!workflow.initialSupplierName) {
+    return <InitialSupplierContextStep workflow={workflow} />;
+  }
+
+  return (
+    <div className="space-y-orbit-base">
+      <InitialSupplierContextStep workflow={workflow} />
+      <AnalysisParameterCards
+        selectedParameter={workflow.selectedParameter}
+        cardState={
+          cardState ??
+          (hasCompleteAnalysisParameters(workflow.selectedParameter)
+            ? "default"
+            : "active")
+        }
+        locked={workflow.parameterLocked}
+        onPlaybookChoiceChange={workflow.actions.handlePlaybookChoiceChange}
+        onBenchmarkConfirm={workflow.actions.handleBenchmarkConfirm}
+        onBenchmarkEdit={workflow.actions.handleBenchmarkEdit}
+        onBenchmarkSkip={workflow.actions.handleBenchmarkSkip}
+        onBasisSelect={workflow.actions.handleBasisSelect}
+        onCategorySelect={workflow.actions.handleCategorySelect}
+        onBasisEdit={workflow.actions.handleBasisEdit}
+        onCategoryEdit={workflow.actions.handleCategoryEdit}
+      />
     </div>
   );
 }
@@ -368,19 +723,7 @@ function SingleStepJourneyContent({
 
   if (workflow.step === "parameters") {
     return (
-      <AnalysisParameterCards
-        selectedParameter={workflow.selectedParameter}
-        cardState={hasCompleteAnalysisParameters(workflow.selectedParameter) ? "default" : "active"}
-        locked={workflow.parameterLocked}
-        onPlaybookChoiceChange={workflow.actions.handlePlaybookChoiceChange}
-        onBenchmarkConfirm={workflow.actions.handleBenchmarkConfirm}
-        onBenchmarkEdit={workflow.actions.handleBenchmarkEdit}
-        onBenchmarkSkip={workflow.actions.handleBenchmarkSkip}
-        onBasisSelect={workflow.actions.handleBasisSelect}
-        onCategorySelect={workflow.actions.handleCategorySelect}
-        onBasisEdit={workflow.actions.handleBasisEdit}
-        onCategoryEdit={workflow.actions.handleCategoryEdit}
-      />
+      <InitialAnalysisParameters workflow={workflow} />
     );
   }
 
@@ -395,10 +738,14 @@ function SingleStepJourneyContent({
 
   if (workflow.step === "processing") {
     return (
-      <ProcessingStep
-        parameter={workflow.selectedParameter}
-        workflow={workflow}
-      />
+      <div className="space-y-orbit-base">
+        <ProcessingStep
+          completed={workflow.supplierFingerprintResolution?.journey === "initial"}
+          parameter={workflow.selectedParameter}
+          workflow={workflow}
+        />
+        <SupplierFingerprintConversation workflow={workflow} journey="initial" />
+      </div>
     );
   }
 
@@ -431,14 +778,20 @@ function StackedJourneyContent({
   const selectVisible = stepIndex >= 1;
   const parametersVisible = stepIndex >= 2;
   const uploadVisible = stepIndex >= 3;
-  const selectState: CardState = workflow.step === "select" ? "active" : "default";
-  const parametersState: CardState = workflow.step === "parameters" ? "active" : "default";
+  const selectState: CardState =
+    workflow.step === "select" ? "active" : "default";
+  const parametersState: CardState =
+    workflow.step === "parameters" ? "active" : "default";
 
   return (
     <>
       <ClauseIqOverviewCard
         step={workflow.step}
-        onStart={() => workflow.actions.setStep(initiativeMode === "prebound" ? "parameters" : "select")}
+        onStart={() =>
+          workflow.actions.setStep(
+            initiativeMode === "prebound" ? "parameters" : "select",
+          )
+        }
         currentInitiativeCopy={currentInitiativeCopy}
       />
 
@@ -456,34 +809,27 @@ function StackedJourneyContent({
 
       {parametersVisible && !workflow.resultsVisible && (
         <div ref={refs?.parameters} className="space-y-orbit-base">
-          <AnalysisParameterCards
-            selectedParameter={workflow.selectedParameter}
-            cardState={parametersState}
-            locked={workflow.parameterLocked}
-            onPlaybookChoiceChange={workflow.actions.handlePlaybookChoiceChange}
-            onBenchmarkConfirm={workflow.actions.handleBenchmarkConfirm}
-            onBenchmarkEdit={workflow.actions.handleBenchmarkEdit}
-            onBenchmarkSkip={workflow.actions.handleBenchmarkSkip}
-            onBasisSelect={workflow.actions.handleBasisSelect}
-            onCategorySelect={workflow.actions.handleCategorySelect}
-            onBasisEdit={workflow.actions.handleBasisEdit}
-            onCategoryEdit={workflow.actions.handleCategoryEdit}
-          />
+          <InitialAnalysisParameters workflow={workflow} cardState={parametersState} />
         </div>
       )}
 
-      {uploadVisible && hasCompleteAnalysisParameters(workflow.selectedParameter) && workflow.step !== "processing" && workflow.step !== "results" && (
-        <div ref={refs?.upload}>
-          <UploadStep workflow={workflow} />
-        </div>
-      )}
+      {uploadVisible &&
+        hasCompleteAnalysisParameters(workflow.selectedParameter) &&
+        workflow.step !== "processing" &&
+        workflow.step !== "results" && (
+          <div ref={refs?.upload}>
+            <UploadStep workflow={workflow} />
+          </div>
+        )}
 
       {workflow.processingVisible && workflow.step === "processing" && (
-        <div ref={refs?.processing}>
+        <div ref={refs?.processing} className="space-y-orbit-base">
           <ProcessingStep
+            completed={workflow.supplierFingerprintResolution?.journey === "initial"}
             parameter={workflow.selectedParameter}
             workflow={workflow}
           />
+          <SupplierFingerprintConversation workflow={workflow} journey="initial" />
         </div>
       )}
 
@@ -502,7 +848,7 @@ function StackedJourneyContent({
         </div>
       )}
 
-      {showMobileSupplierPanel && (
+      {showMobileSupplierPanel && !workflow.awaitingSupplierFingerprintResolution && (
         <div className="lg:hidden">
           <SupplierOutputsPanel
             initiative={workflow.supplierOutputInitiative}
@@ -526,7 +872,7 @@ interface ClauseIqJourneyContentProps {
   mode: ClauseIqJourneyMode;
   onOpenInitiativeModal?: () => void;
   onStartAnotherInitiative?: () => void;
-  onViewResult: () => void;
+  onViewResult: (selection?: SupplierOutputSelection) => void;
   refs?: ClauseIqJourneyRefs;
   renderSelectedFileRow?: (file: File, onRemove: () => void) => ReactNode;
   resultsLayout?: ResultsLayout;
@@ -540,7 +886,9 @@ export function ClauseIqJourneyContent({
   ...props
 }: ClauseIqJourneyContentProps) {
   if (props.mode === "single-step") {
-    return <SingleStepJourneyContent resultsLayout={resultsLayout} {...props} />;
+    return (
+      <SingleStepJourneyContent resultsLayout={resultsLayout} {...props} />
+    );
   }
 
   return <StackedJourneyContent resultsLayout={resultsLayout} {...props} />;
@@ -575,11 +923,12 @@ export function ClauseIqContextPanel({
     );
   }
 
-  const parameterCopy = workflow.selectedParameter?.playbookChoice === "no"
-    ? benchmarkReadout(workflow.selectedParameter)
-    : workflow.selectedParameter?.basis
-      ? `${workflow.selectedParameter.basis.kind}: ${workflow.selectedParameter.basis.label}`
-      : "Choose how ClauseIQ should benchmark this contract.";
+  const parameterCopy =
+    workflow.selectedParameter?.playbookChoice === "no"
+      ? benchmarkReadout(workflow.selectedParameter)
+      : workflow.selectedParameter?.basis
+        ? `${workflow.selectedParameter.basis.kind}: ${workflow.selectedParameter.basis.label}`
+        : "Choose how ClauseIQ should benchmark this contract.";
 
   return (
     <aside className={assistClassName ?? className}>

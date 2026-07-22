@@ -300,18 +300,18 @@ export function FirstAnalysisDesignOptions({
   if (option === "design-option-2") {
     return (
       <div className="mx-auto w-full max-w-[1800px] space-y-orbit-base px-orbit-base py-orbit-base">
-        <section className="overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">
-          <div className="p-orbit-base">
+        <Card type="Static" padding="Base" state="Default" indicator={false} style={{ width: "100%" }}>
+          <div className="space-y-orbit-base">
             <h1 className="v6-orbit-heading-strong text-orbit-fg">Latest Analysis</h1>
+            {banner ? <div className="clauseiq-v6a-summary-banner">{banner}</div> : null}
+            <div className="grid gap-orbit-base md:grid-cols-3">
+              <InitialAnalysisOptionTwoMetric icon={<ClipboardList className="h-5 w-5" aria-hidden="true" />} label="Review needed" value={metrics.needReview} detail="clauses need a decision" tone="warning" />
+              <InitialAnalysisOptionTwoMetric icon={<Target className="h-5 w-5" aria-hidden="true" />} label="Requested" value={metrics.requested} detail="positions selected" tone="information" />
+              <InitialAnalysisOptionTwoMetric icon={<Sigma className="h-5 w-5" aria-hidden="true" />} label="ClauseIQ score" value={metrics.score} detail={`${metrics.versionLabel.toUpperCase()} initial analysis`} tone="default" />
+            </div>
+            <div>{optionTwoFilters}</div>
           </div>
-          {banner ? <div className="border-t border-orbit-border p-orbit-base">{banner}</div> : null}
-          <div className="grid gap-orbit-base border-t border-orbit-border p-orbit-base md:grid-cols-3">
-            <InitialAnalysisOptionTwoMetric icon={<ClipboardList className="h-5 w-5" aria-hidden="true" />} label="Review needed" value={metrics.needReview} detail="clauses need a decision" tone="warning" />
-            <InitialAnalysisOptionTwoMetric icon={<Target className="h-5 w-5" aria-hidden="true" />} label="Requested" value={metrics.requested} detail="positions selected" tone="information" />
-            <InitialAnalysisOptionTwoMetric icon={<Sigma className="h-5 w-5" aria-hidden="true" />} label="ClauseIQ score" value={metrics.score} detail={`${metrics.versionLabel.toUpperCase()} initial analysis`} tone="default" />
-          </div>
-          <div className="border-t border-orbit-border bg-orbit-surface/30 p-orbit-base">{optionTwoFilters}</div>
-        </section>
+        </Card>
         {optionTwoBulkBanner}
         <FirstAnalysisReviewShell>{clausesToReview}</FirstAnalysisReviewShell>
       </div>
@@ -387,20 +387,16 @@ function InitialAnalysisOptionTwoMetric({
     : tone === "information"
     ? "text-orbit-info"
     : "text-orbit-fg";
-  const iconClass = tone === "warning"
-    ? "bg-orbit-warning-surface text-orbit-warning"
-    : tone === "information"
-      ? "bg-orbit-info-surface text-orbit-info"
-      : "bg-orbit-surface text-orbit-fg-secondary";
+  const iconClass = "bg-orbit-info-surface text-orbit-info";
   return (
-    <div className="rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-base">
+    <Card type="Static" padding="Base" state="Default" indicator={false} style={{ height: "100%" }}>
       <div className="flex items-start justify-between gap-orbit-s">
         <p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wide text-orbit-fg-secondary">{label}</p>
         <span className={cn("inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-orbit-md", iconClass)}>{icon}</span>
       </div>
       <p className={cn("mt-orbit-xs text-orbit-xl v6-orbit-weight-semibold", valueClass)}>{value}</p>
       <p className="mt-orbit-xxs v6-orbit-text-small text-orbit-fg-secondary">{detail}</p>
-    </div>
+    </Card>
   );
 }
 

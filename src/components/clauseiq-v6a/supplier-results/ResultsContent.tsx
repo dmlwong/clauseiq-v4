@@ -13,6 +13,8 @@ interface Props {
   higherIsBetter?: boolean;
   analysisParameters?: AnalysisParameterItem[];
   showComparisonStatus?: boolean;
+  highlightSupplierId?: string | null;
+  highlightAnalysisId?: string | null;
   layout?: ResultsLayout;
 }
 
@@ -26,6 +28,8 @@ export function ResultsContent({
   higherIsBetter,
   analysisParameters,
   showComparisonStatus,
+  highlightSupplierId,
+  highlightAnalysisId,
   layout = "accordion",
 }: Props) {
   if (layout === "output-panel") {
@@ -40,6 +44,8 @@ export function ResultsContent({
         higherIsBetter={higherIsBetter}
         analysisParameters={analysisParameters}
         showComparisonStatus={showComparisonStatus}
+        highlightSupplierId={highlightSupplierId}
+        highlightAnalysisId={highlightAnalysisId}
       />
     );
   }

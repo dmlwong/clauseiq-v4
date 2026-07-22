@@ -134,9 +134,74 @@ describe("ContractResults V6A review controls", () => {
     expect(within(metBucket as HTMLElement).queryByText("Recommended Next Position")).not.toBeInTheDocument();
     const previouslyMetBucket = screen.getByText(/^Previously Met And Unchanged/).closest("button");
     expect(previouslyMetBucket).toHaveAttribute("aria-expanded", "false");
-    expect(screen.getAllByText("Previous Negotiation Position Sent to Supplier").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Previous Supplier Position").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Latest Supplier Position").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Recommended Next Position").length).toBeGreaterThan(0);
+  });
+
+  it("uses Orbit cards for the comparison summary metrics", () => {
+    const { container } = renderContractResults(optionTwoComparisonRoute);
+
+    const summaryHeading = screen.getByText("Latest Analysis");
+    const summaryCard = summaryHeading.closest('[class*="_card_"]');
+
+    expect(summaryCard).toBeTruthy();
+    expect(summaryCard?.querySelectorAll('[class*="_card_"]')).toHaveLength(3);
+    expect(summaryCard?.querySelector(".clauseiq-v6a-summary-banner")).toBeInTheDocument();
+    expect(within(summaryCard as HTMLElement).getByText("Convergence")).toBeInTheDocument();
+    expect(within(summaryCard as HTMLElement).getByText("Score by round")).toBeInTheDocument();
+    expect(within(summaryCard as HTMLElement).getByText("Still open")).toBeInTheDocument();
+    expect(container.querySelector('[role="toolbar"][aria-label="Deviation"]')).toBeInTheDocument();
+  });
+
+  it("filters comparison clauses from the Orbit status and deviation chips", async () => {
+    const { container } = renderContractResults(optionTwoComparisonRoute);
+
+    const statusFilters = () => within(screen.getByRole("toolbar", { name: "Status" }));
+    const deviationFilters = () => within(screen.getByRole("toolbar", { name: "Deviation" }));
+    const visibleClauseRows = () => container.querySelectorAll('[id^="clause-row-"]').length;
+    const before = visibleClauseRows();
+
+    expect(statusFilters().getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
+    expect(deviationFilters().getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByRole("link", { name: "Clear Filters" })).not.toBeInTheDocument();
+
+    fireEvent.click(statusFilters().getByRole("button", { name: "Met" }));
+    await waitFor(() => {
+      expect(statusFilters().getByRole("button", { name: "Met" })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("link", { name: "Clear Filters" })).toBeInTheDocument();
+      expect(visibleClauseRows()).toBeLessThan(before);
+      expect(screen.queryByText("Still Open — Position Not Met")).not.toBeInTheDocument();
+      expect(screen.queryByText("Still Open — Previously agreed, but changed by the supplier")).not.toBeInTheDocument();
+      expect(screen.queryByText("Accepted As Is")).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(statusFilters().getByRole("button", { name: "All" }));
+    await waitFor(() => {
+      expect(statusFilters().getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    fireEvent.click(statusFilters().getByRole("button", { name: "Not met" }));
+    await waitFor(() => {
+      expect(statusFilters().getByRole("button", { name: "Not met" })).toHaveAttribute("aria-pressed", "true");
+      expect(visibleClauseRows()).toBeGreaterThan(0);
+    });
+
+    fireEvent.click(statusFilters().getByRole("button", { name: "All" }));
+
+    fireEvent.click(deviationFilters().getByRole("button", { name: "High" }));
+
+    await waitFor(() => {
+      expect(deviationFilters().getByRole("button", { name: "High" })).toHaveAttribute("aria-pressed", "true");
+      expect(visibleClauseRows()).toBeLessThan(before);
+    });
+
+    fireEvent.click(screen.getByRole("link", { name: "Clear Filters" }));
+    await waitFor(() => {
+      expect(statusFilters().getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
+      expect(deviationFilters().getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.queryByRole("link", { name: "Clear Filters" })).not.toBeInTheDocument();
+    });
   });
 
   it("falls back to option 1 and hides option 2 for initial analysis", () => {
@@ -146,6 +211,27 @@ describe("ContractResults V6A review controls", () => {
     fireEvent.click(screen.getByRole("button", { name: "Design Control" }));
     expect(screen.getByText("Design option 1")).toBeInTheDocument();
     expect(screen.queryByText("Design option 2")).not.toBeInTheDocument();
+  });
+
+  it("filters initial-analysis clauses from the Orbit deviation chips", async () => {
+    const { container } = renderContractResults(firstAnalysisRoute.replace("design=row-scale", "design=design-option-2"));
+    const high = within(screen.getByRole("toolbar", { name: "Deviation" })).getByRole("button", { name: "High" });
+    const clauseButtons = () => Array.from(container.querySelectorAll('section > button[aria-expanded]')).filter((button) => button.textContent?.includes("Deviation"));
+    const before = clauseButtons().length;
+    expect(high).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByRole("link", { name: "Clear Filters" })).not.toBeInTheDocument();
+    fireEvent.click(high);
+    expect(high).toHaveAttribute("aria-pressed", "true");
+    await waitFor(() => {
+      expect(clauseButtons().length).toBeLessThan(before);
+      expect(screen.getByRole("link", { name: "Clear Filters" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("link", { name: "Clear Filters" }));
+    await waitFor(() => {
+      expect(high).toHaveAttribute("aria-pressed", "false");
+      expect(screen.queryByRole("link", { name: "Clear Filters" })).not.toBeInTheDocument();
+    });
   });
 
   it("switches to comparison design option 2 from Design Control", () => {
@@ -229,6 +315,18 @@ describe("ContractResults V6A review controls", () => {
       expect(screen.getByRole("button", { name: /review & generate/i })).toBeEnabled();
       expect(reviewGenerateCount()).toBeGreaterThan(0);
     });
+  });
+
+  it("shows Bulk Accept Supplier Positions without an action dropdown in outcome review", () => {
+    renderContractResults(optionTwoComparisonRoute);
+
+    openRecommendationMenu();
+
+    const banner = screen.getByRole("region", { name: /bulk recommendation filters/i });
+    expect(within(banner).getByText("Bulk Accept Supplier Positions")).toBeInTheDocument();
+    expect(within(banner).getByRole("button", { name: /no clauses selected/i })).toBeInTheDocument();
+    expect(within(banner).queryByRole("button", { name: "Accept Supplier Position" })).not.toBeInTheDocument();
+    expect(within(banner).queryByRole("listbox", { name: "Bulk action type" })).not.toBeInTheDocument();
   });
 
   it("keeps open review clauses free of draft and added-to-review header pills", () => {
@@ -543,6 +641,44 @@ describe("ContractResults V6A review controls", () => {
     expect(acceptedBucket).toBeTruthy();
     expect(within(acceptedBucket as HTMLElement).getByText("Term of Contract")).toBeInTheDocument();
     expect(screen.getAllByText("Term of Contract")).toHaveLength(1);
+  });
+
+  it("edits an initial-analysis Design 2 recommendation by clicking its wording", () => {
+    renderContractResults(firstAnalysisRoute.replace("design=row-scale", "design=design-option-2"));
+
+    const clauseCard = screen.getByText("Term of Contract").closest("section");
+    expect(clauseCard).toBeTruthy();
+
+    const scope = within(clauseCard as HTMLElement);
+    const editPosition = scope.getByRole("textbox", {
+      name: /Edit recommended next position for Term of Contract/i,
+    });
+    expect(scope.queryByRole("button", { name: "Set Custom Position" })).not.toBeInTheDocument();
+    expect(editPosition.tagName).toBe("TEXTAREA");
+
+    fireEvent.focus(editPosition);
+
+    expect(scope.getByText("Your Custom Position")).toBeInTheDocument();
+    expect(scope.getByRole("textbox")).toBeInTheDocument();
+    expect(scope.getByRole("button", { name: "Confirm Custom Position" })).toBeInTheDocument();
+    expect(scope.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
+  it("edits a comparison Design 2 recommendation by clicking its wording without triggering rationale", () => {
+    renderContractResults(optionTwoComparisonRoute);
+
+    const editPosition = screen.getAllByRole("textbox", {
+      name: /Edit recommended next position for/i,
+    })[0];
+    const clauseCard = editPosition.closest("section");
+    expect(clauseCard).toBeTruthy();
+    expect(within(clauseCard as HTMLElement).queryByRole("button", { name: "Set Custom Position" })).not.toBeInTheDocument();
+
+    fireEvent.focus(editPosition);
+
+    expect(within(clauseCard as HTMLElement).getByText("Your Custom Position")).toBeInTheDocument();
+    expect(within(clauseCard as HTMLElement).getByRole("button", { name: "Confirm Custom Position" })).toBeInTheDocument();
+    expect(screen.queryByText("Recommendation rationale")).not.toBeInTheDocument();
   });
 
   it("does not show a recommended position for None deviation clauses in Design 2", () => {

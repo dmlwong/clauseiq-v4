@@ -7,7 +7,7 @@ import { newestFirst, oldestFirst, supplierSeverity } from "@/lib/clauseiq-utils
 import { AnalysisCard } from "./AnalysisCard";
 import { SupplierAvatar } from "./SupplierAvatar";
 import { formatClauseIqTimestamp } from "@/lib/clauseiq-v6a-format";
-import type { ResultsViewProps } from "./types";
+import type { ResultsViewProps, SupplierOutputSelection } from "./types";
 
 export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResult, analysisParameters }: ResultsViewProps) {
   const suppliers = useMemo(() => sortByLatestChange(initiative.suppliers), [initiative.suppliers]);
@@ -85,7 +85,15 @@ export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResu
                           analysis={analysis}
                           onRunAgain={onRunAgain}
                           onDownload={onDownload}
-                          onViewResult={onViewResult}
+                          onViewResult={
+                            onViewResult
+                              ? () => onViewResult({
+                                  supplier,
+                                  analysis,
+                                  previousAnalysis: previousAnalysisForSupplierOutput(supplier, analysis),
+                                })
+                              : undefined
+                          }
                           viewResultPrimary={analysis.id === latestAnalysisId}
                           isLatestOutput={analysis.id === latestAnalysisId}
                           analysisParameters={analysisParameters}
@@ -107,6 +115,15 @@ function latestAnalysis(suppliers: ResultsViewProps["initiative"]["suppliers"]) 
   return suppliers
     .flatMap((supplier) => supplier.analyses)
     .sort((a, b) => Date.parse(b.analysedAt) - Date.parse(a.analysedAt))[0];
+}
+
+function previousAnalysisForSupplierOutput(
+  supplier: ResultsViewProps["initiative"]["suppliers"][number],
+  analysis: SupplierOutputSelection["analysis"],
+) {
+  const chronological = oldestFirst(supplier.analyses);
+  const index = chronological.findIndex((item) => item.id === analysis.id);
+  return index > 0 ? chronological[index - 1] : undefined;
 }
 
 function sortByLatestChange(suppliers: ResultsViewProps["initiative"]["suppliers"]) {

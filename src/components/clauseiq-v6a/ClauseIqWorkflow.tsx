@@ -23,13 +23,13 @@ import {
   Search,
   Sparkles,
 } from "@/components/clauseiq-v6a/v6aIcons";
-import { Card, Dropzone, FA, FaIcon, InlineBanner, Text } from "@orbit";
+import { Card, Chip, Dropzone, FA, FaIcon, InlineBanner, Text } from "@orbit";
 
 import { Button } from "@/components/clauseiq-v6a/orbit-ui/button";
 import { CpInlineBanner } from "@/components/prototype-cp-shared/orbit";
 import { StateCard, type CardState } from "@/components/clauseiq-v6a/StateCard";
 import { showV6OrbitToast as toast } from "@/components/clauseiq-v6a/V6OrbitToast";
-import { mockInitiative, type ClauseAnalysis, type Initiative } from "@/data/mock-clauseiq-v6";
+import { mockInitiative, type ClauseAnalysis, type Initiative, type Supplier } from "@/data/mock-clauseiq-v6";
 import {
   CIQ_DEFAULT_PLAYBOOK,
   CIQ_PARAMETER_OPTIONS,
@@ -39,6 +39,10 @@ import {
   type CiqParameterOption,
 } from "@/lib/clauseiq-v6-data";
 import { cn } from "@/lib/utils";
+import {
+  fingerprintSupplierName,
+  type SupplierFingerprintResult,
+} from "@/lib/clauseiq-v6a-supplier-fingerprint";
 import type {
   AnalysisParameterItem,
   SupplierOutputsPanelState,
@@ -169,8 +173,93 @@ export const FIRST_RUN_MOCK_INITIATIVE: Initiative = {
     analyses: supplier.analyses.slice(0, 1),
   })),
 };
+
+function cloneInitiative(initiative: Initiative): Initiative {
+  return {
+    ...initiative,
+    suppliers: initiative.suppliers.map((supplier) => ({
+      ...supplier,
+      analyses: [...supplier.analyses],
+    })),
+  };
+}
+
+function createResultsInitiative(
+  useFirstRunResults: boolean,
+  useEmptyResults: boolean,
+): Initiative {
+  if (useEmptyResults) return cloneInitiative(EMPTY_MOCK_INITIATIVE);
+  return cloneInitiative(useFirstRunResults ? FIRST_RUN_MOCK_INITIATIVE : mockInitiative);
+}
+
+export interface ExtractedSupplierResult {
+  id: string;
+  name: string;
+  shortCode: string;
+  isNew: boolean;
+}
+
+const NEW_SUPPLIER_CONTEXT_ID = "new-supplier-context";
+function createNewSupplierContext(name: string): Supplier {
+  const shortCode = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "NS";
+
+  return {
+    id: NEW_SUPPLIER_CONTEXT_ID,
+    name,
+    shortCode,
+    analyses: [],
+  };
+}
+
+function createResolvedNewSupplier(name: string): Supplier {
+  const context = createNewSupplierContext(name);
+  const slug = name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "supplier";
+
+  return { ...context, id: `sup-new-${slug}` };
+}
+
+export interface SupplierFingerprintResolution {
+  enteredName: string;
+  candidate: Supplier;
+  analysis: ClauseAnalysis;
+  parameter: AnalysisParameterSelection;
+  journey: "initial" | "rerun";
+}
+
+/** Deterministic prototype extraction, based on contract filename. */
+export function extractSupplierFromContractFile(fileName: string, suppliers: Supplier[]): ExtractedSupplierResult {
+  const name = fileName.toLowerCase();
+  const knownSupplier = suppliers.find((supplier) =>
+    (supplier.id === "sup-001" && /thomson|reuters|\btr\b/.test(name)) ||
+    (supplier.id === "sup-002" && /kira/.test(name)) ||
+    (supplier.id === "sup-003" && /luminance/.test(name)) ||
+    (supplier.id === "sup-004" && /imanage/.test(name)) ||
+    (supplier.id === "sup-005" && /hogan/.test(name)) ||
+    (supplier.id === "sup-006" && /deloitte/.test(name)),
+  );
+
+  if (knownSupplier) {
+    return { ...knownSupplier, isNew: false };
+  }
+
+  return {
+    id: "sup-new-supplier",
+    name: "New Supplier",
+    shortCode: "NS",
+    isNew: true,
+  };
+}
 export const LATEST_V6_RESULTS_ROUTE =
-  "/initiatives-v6a?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=first-analysis";
+  "/initiatives-v6a?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=design-option-2&scenario=first-analysis";
 
 export const createRerunAnalysis = (fileName: string): ClauseAnalysis => ({
   id: "a-rerun-latest",
@@ -231,6 +320,7 @@ interface UseClauseIqWorkflowOptions {
   initialSelectedParameter?: AnalysisParameterSelection | null;
   initialRerunUploadVisible?: boolean;
   useFirstRunResults?: boolean;
+  useEmptyResults?: boolean;
   onProcessingComplete?: () => void;
   onRerunComplete?: () => void;
   onRunAgain?: () => void;
@@ -244,6 +334,7 @@ export function useClauseIqWorkflow({
   initialSelectedParameter = null,
   initialRerunUploadVisible = false,
   useFirstRunResults = false,
+  useEmptyResults = false,
   onProcessingComplete,
   onRerunComplete,
   onRunAgain,
@@ -255,21 +346,51 @@ export function useClauseIqWorkflow({
   const [rerunUploadVisible, setRerunUploadVisible] = useState(initialRerunUploadVisible);
   const [rerunSelectedParameter, setRerunSelectedParameter] = useState<AnalysisParameterSelection | null>(null);
   const rerunSelectedParameterRef = useRef<AnalysisParameterSelection | null>(null);
+  const initialFingerprintRef = useRef<Promise<SupplierFingerprintResult> | null>(null);
+  const rerunFingerprintRef = useRef<Promise<SupplierFingerprintResult> | null>(null);
   const [rerunProcessing, setRerunProcessing] = useState(false);
   const [pendingRerunAnalysis, setPendingRerunAnalysis] = useState<ClauseAnalysis | null>(null);
   const [pendingRerunParameter, setPendingRerunParameter] = useState<AnalysisParameterSelection | null>(null);
+  const [pendingRerunSupplierId, setPendingRerunSupplierId] = useState<string | null>(null);
+  const [pendingExtractedSupplier, setPendingExtractedSupplier] = useState<ExtractedSupplierResult | null>(null);
   const [completedRerunAnalysis, setCompletedRerunAnalysis] = useState<ClauseAnalysis | null>(null);
   const [completedRerunParameter, setCompletedRerunParameter] = useState<AnalysisParameterSelection | null>(null);
+  const [completedRerunSupplierId, setCompletedRerunSupplierId] = useState<string | null>(null);
+  const [completedInitialAnalysis, setCompletedInitialAnalysis] = useState<ClauseAnalysis | null>(null);
+  const [completedInitialSupplierId, setCompletedInitialSupplierId] = useState<string | null>(null);
+  const [rerunSupplierContextId, setRerunSupplierContextId] = useState<string | null>(null);
+  const [newRerunSupplierName, setNewRerunSupplierName] = useState<string | null>(null);
+  const [rerunNewSupplierEntryOpen, setRerunNewSupplierEntryOpen] = useState(false);
+  const [initialSupplierName, setInitialSupplierName] = useState<string | null>(null);
+  const [rerunSupplierMismatch, setRerunSupplierMismatch] = useState<{ selectedName: string; extractedName: string } | null>(null);
+  const [supplierFingerprintResolution, setSupplierFingerprintResolution] = useState<SupplierFingerprintResolution | null>(null);
+  const [resultsInitiative, setResultsInitiative] = useState<Initiative>(() =>
+    createResultsInitiative(useFirstRunResults, useEmptyResults),
+  );
   const [completedMilestoneIds, setCompletedMilestoneIds] = useState<string[]>([]);
   const [initiativeCompleted, setInitiativeCompleted] = useState(false);
 
   const resultsVisible = step === "results";
-  const resultsInitiative = useFirstRunResults ? FIRST_RUN_MOCK_INITIATIVE : mockInitiative;
-  const rerunSupplier = resultsInitiative.suppliers[0];
-  const newAnalysisSectionVisible = rerunUploadVisible || rerunProcessing || completedRerunAnalysis !== null;
+  const rerunSupplierContext =
+    resultsInitiative.suppliers.find((supplier) => supplier.id === rerunSupplierContextId) ??
+    (rerunSupplierContextId === NEW_SUPPLIER_CONTEXT_ID && newRerunSupplierName
+      ? createNewSupplierContext(newRerunSupplierName)
+      : null);
+  const completedRerunSupplier = resultsInitiative.suppliers.find((supplier) => supplier.id === completedRerunSupplierId) ?? null;
+  const latestOutputSupplierId = completedRerunSupplierId ?? completedInitialSupplierId;
+  const latestOutputAnalysisId = completedRerunAnalysis?.id ?? completedInitialAnalysis?.id ?? null;
+  const awaitingSupplierFingerprintResolution = supplierFingerprintResolution !== null;
+  const newAnalysisSectionVisible =
+    rerunUploadVisible ||
+    rerunProcessing ||
+    completedRerunAnalysis !== null ||
+    supplierFingerprintResolution?.journey === "rerun";
   const selectedAnalysisParameters = buildAnalysisParameters(selectedParameter);
   const completedRerunAnalysisParameters = buildAnalysisParameters(completedRerunParameter ?? selectedParameter);
-  const supplierOutputPanelState: SupplierOutputsPanelState = resultsVisible
+  const supplierOutputPanelState: SupplierOutputsPanelState = awaitingSupplierFingerprintResolution &&
+    supplierFingerprintResolution?.journey === "initial"
+    ? "empty"
+    : resultsVisible
     ? "filled"
     : step === "processing" || rerunProcessing
       ? "processing"
@@ -279,7 +400,7 @@ export function useClauseIqWorkflow({
   const initiativeLocked = step === "processing" || step === "results";
   const parameterLocked = step === "processing" || step === "results";
   const processingVisible = step === "processing" || step === "results";
-  const showPostAnalysisActions = resultsVisible && !rerunUploadVisible && !rerunProcessing;
+  const showPostAnalysisActions = resultsVisible && !rerunUploadVisible && !rerunProcessing && !awaitingSupplierFingerprintResolution;
 
   const updateRerunSelectedParameter = useCallback((
     next:
@@ -293,35 +414,111 @@ export function useClauseIqWorkflow({
     return resolved;
   }, []);
 
+  const appendCompletedAnalysis = useCallback((supplier: Supplier, analysis: ClauseAnalysis) => {
+    setResultsInitiative((current) => {
+      const existingSupplier = current.suppliers.find((item) => item.id === supplier.id);
+      if (existingSupplier) {
+        return {
+          ...current,
+          suppliers: current.suppliers.map((item) =>
+            item.id === supplier.id
+              ? { ...item, analyses: [...item.analyses, analysis] }
+              : item,
+          ),
+        };
+      }
+
+      return {
+        ...current,
+        suppliers: [...current.suppliers, { ...supplier, analyses: [analysis] }],
+      };
+    });
+  }, []);
+
   useEffect(() => {
     if (step !== "processing") return undefined;
+    let cancelled = false;
     const timeout = window.setTimeout(() => {
-      setStep("results");
-      onProcessingComplete?.();
+      void (async () => {
+        const enteredName = initialSupplierName?.trim();
+        const fingerprint = await (initialFingerprintRef.current ?? Promise.resolve<SupplierFingerprintResult>({ kind: "none" }));
+        if (cancelled || !enteredName) return;
+
+        const analysis = {
+          ...createRerunAnalysis(file?.name ?? "Contract.pdf"),
+          id: "a-initial-latest",
+          contractName: "Supplier contract",
+        };
+        const parameter = selectedParameter ?? createDefaultParameterSelection();
+        const matchedSupplier = fingerprint.kind === "none"
+          ? null
+          : mockInitiative.suppliers.find((supplier) => supplier.id === fingerprint.supplierId) ?? null;
+
+        if (fingerprint.kind === "fuzzy" && matchedSupplier) {
+          setSupplierFingerprintResolution({ enteredName, candidate: matchedSupplier, analysis, parameter, journey: "initial" });
+          return;
+        }
+
+        const receivingSupplier = matchedSupplier ?? createResolvedNewSupplier(enteredName);
+        appendCompletedAnalysis(receivingSupplier, analysis);
+        setCompletedInitialAnalysis(analysis);
+        setCompletedInitialSupplierId(receivingSupplier.id);
+        setFile(null);
+        setStep("results");
+        onProcessingComplete?.();
+      })();
     }, PROCESSING_MS);
-    return () => window.clearTimeout(timeout);
-  }, [onProcessingComplete, step]);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [appendCompletedAnalysis, file, initialSupplierName, onProcessingComplete, resultsInitiative.suppliers, selectedParameter, step]);
 
   useEffect(() => {
     if (!rerunProcessing) return undefined;
+    let cancelled = false;
     const timeout = window.setTimeout(() => {
-      setRerunProcessing(false);
-      setCompletedRerunAnalysis(pendingRerunAnalysis ?? createRerunAnalysis("New_Contract.pdf"));
-      setCompletedRerunParameter(
-        pendingRerunParameter ??
-          rerunSelectedParameterRef.current ??
-          selectedParameter ??
-          createDefaultParameterSelection(),
-      );
-      setPendingRerunAnalysis(null);
-      setPendingRerunParameter(null);
-      updateRerunSelectedParameter(null);
-      setFile(null);
-      toast.success("New analysis added as latest output.");
-      onRerunComplete?.();
+      void (async () => {
+        const completedAnalysis = pendingRerunAnalysis ?? createRerunAnalysis("New_Contract.pdf");
+        const parameter = pendingRerunParameter ?? rerunSelectedParameterRef.current ?? selectedParameter ?? createDefaultParameterSelection();
+        const isTypedSupplier = pendingRerunSupplierId === NEW_SUPPLIER_CONTEXT_ID && Boolean(newRerunSupplierName);
+        const fingerprint = isTypedSupplier
+          ? await (rerunFingerprintRef.current ?? Promise.resolve<SupplierFingerprintResult>({ kind: "none" }))
+          : null;
+        if (cancelled) return;
+
+        const selectedSupplier = resultsInitiative.suppliers.find((supplier) => supplier.id === pendingRerunSupplierId) ?? null;
+        const matchedSupplier = fingerprint && fingerprint.kind !== "none"
+          ? mockInitiative.suppliers.find((supplier) => supplier.id === fingerprint.supplierId) ?? null
+          : null;
+        const enteredName = newRerunSupplierName?.trim() ?? "New supplier";
+
+        if (fingerprint?.kind === "fuzzy" && matchedSupplier) {
+          setRerunProcessing(false);
+          setSupplierFingerprintResolution({ enteredName, candidate: matchedSupplier, analysis: completedAnalysis, parameter, journey: "rerun" });
+          return;
+        }
+
+        const receivingSupplier = selectedSupplier ?? matchedSupplier ?? createResolvedNewSupplier(enteredName);
+        appendCompletedAnalysis(receivingSupplier, completedAnalysis);
+        setRerunProcessing(false);
+        setCompletedRerunAnalysis(completedAnalysis);
+        setCompletedRerunParameter(parameter);
+        setCompletedRerunSupplierId(receivingSupplier.id);
+        setPendingRerunAnalysis(null);
+        setPendingRerunParameter(null);
+        setPendingRerunSupplierId(null);
+        updateRerunSelectedParameter(null);
+        setFile(null);
+        toast.success("New analysis added as latest output.");
+        onRerunComplete?.();
+      })();
     }, PROCESSING_MS);
-    return () => window.clearTimeout(timeout);
-  }, [onRerunComplete, pendingRerunAnalysis, pendingRerunParameter, rerunProcessing, selectedParameter, updateRerunSelectedParameter]);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [appendCompletedAnalysis, newRerunSupplierName, onRerunComplete, pendingRerunAnalysis, pendingRerunParameter, pendingRerunSupplierId, rerunProcessing, resultsInitiative.suppliers, selectedParameter, updateRerunSelectedParameter]);
 
   const resetRunState = useCallback((clearInitiative = false) => {
     if (clearInitiative) setInitiative(null);
@@ -332,14 +529,26 @@ export function useClauseIqWorkflow({
     setRerunProcessing(false);
     setPendingRerunAnalysis(null);
     setPendingRerunParameter(null);
+    setPendingRerunSupplierId(null);
+    setPendingExtractedSupplier(null);
     setCompletedRerunAnalysis(null);
     setCompletedRerunParameter(null);
+    setCompletedRerunSupplierId(null);
+    setCompletedInitialAnalysis(null);
+    setCompletedInitialSupplierId(null);
+    setRerunSupplierContextId(null);
+    setNewRerunSupplierName(null);
+    setRerunNewSupplierEntryOpen(false);
+    setInitialSupplierName(null);
+    setRerunSupplierMismatch(null);
+    setSupplierFingerprintResolution(null);
     setCompletedMilestoneIds([]);
     setInitiativeCompleted(false);
   }, [updateRerunSelectedParameter]);
 
   const selectInitiative = (nextInitiative: CiqInitiative) => {
     setInitiative(nextInitiative);
+    setInitialSupplierName(null);
     setSelectedParameter(null);
     setFile(null);
     setStep("parameters");
@@ -568,6 +777,10 @@ export function useClauseIqWorkflow({
     }
 
     if (resultsVisible && rerunUploadVisible) {
+      if (!rerunSupplierContextId) {
+        toast.error("Select a supplier context before running the analysis.");
+        return;
+      }
       const parameterForRun =
         rerunSelectedParameterRef.current ??
         rerunSelectedParameter ??
@@ -575,14 +788,57 @@ export function useClauseIqWorkflow({
         createDefaultParameterSelection();
       setPendingRerunAnalysis(createRerunAnalysis(nextFile.name));
       setPendingRerunParameter(parameterForRun);
+      setPendingRerunSupplierId(rerunSupplierContextId);
+      rerunFingerprintRef.current = rerunSupplierContextId === NEW_SUPPLIER_CONTEXT_ID && newRerunSupplierName
+        ? fingerprintSupplierName(newRerunSupplierName, mockInitiative.suppliers)
+        : null;
       setCompletedRerunAnalysis(null);
       setCompletedRerunParameter(null);
+      setCompletedRerunSupplierId(null);
+      setRerunSupplierMismatch(null);
       setRerunUploadVisible(false);
       setRerunProcessing(true);
       return;
     }
 
+    if (!initialSupplierName) {
+      toast.error("Enter a supplier name before running the analysis.");
+      return;
+    }
+
+    initialFingerprintRef.current = fingerprintSupplierName(initialSupplierName, mockInitiative.suppliers);
+    setCompletedInitialAnalysis(null);
+    setCompletedInitialSupplierId(null);
+    setSupplierFingerprintResolution(null);
     setStep("processing");
+  };
+
+  const resolveSupplierFingerprint = (useCandidate: boolean) => {
+    if (!supplierFingerprintResolution) return;
+    const { analysis, candidate, enteredName, journey, parameter } = supplierFingerprintResolution;
+    const receivingSupplier = useCandidate ? candidate : createResolvedNewSupplier(enteredName);
+
+    appendCompletedAnalysis(receivingSupplier, analysis);
+    setSupplierFingerprintResolution(null);
+    setFile(null);
+
+    if (journey === "rerun") {
+      setCompletedRerunAnalysis(analysis);
+      setCompletedRerunParameter(parameter);
+      setCompletedRerunSupplierId(receivingSupplier.id);
+      setPendingRerunAnalysis(null);
+      setPendingRerunParameter(null);
+      setPendingRerunSupplierId(null);
+      updateRerunSelectedParameter(null);
+      toast.success("New analysis added as latest output.");
+      onRerunComplete?.();
+      return;
+    }
+
+    setCompletedInitialAnalysis(analysis);
+    setCompletedInitialSupplierId(receivingSupplier.id);
+    setStep("results");
+    onProcessingComplete?.();
   };
 
   const validateAndSetFile = (nextFile: File | null) => {
@@ -607,8 +863,14 @@ export function useClauseIqWorkflow({
     setRerunProcessing(false);
     setPendingRerunAnalysis(null);
     setPendingRerunParameter(null);
+    setPendingRerunSupplierId(null);
+    setPendingExtractedSupplier(null);
     setCompletedRerunAnalysis(null);
     setCompletedRerunParameter(null);
+    setCompletedRerunSupplierId(null);
+    setRerunSupplierContextId(null);
+    setRerunSupplierMismatch(null);
+    setSupplierFingerprintResolution(null);
     updateRerunSelectedParameter(null);
     setRerunUploadVisible(true);
     onRunAgain?.();
@@ -623,11 +885,19 @@ export function useClauseIqWorkflow({
     initiativeCompleted,
     initiativeLocked,
     newAnalysisSectionVisible,
+    latestOutputSupplierId,
+    latestOutputAnalysisId,
+    initialSupplierName,
     parameterLocked,
     processingVisible,
     rerunProcessing,
     rerunSelectedParameter,
-    rerunSupplier,
+    rerunSupplierContext,
+    rerunNewSupplierEntryOpen,
+    completedRerunSupplier,
+    rerunSupplierMismatch,
+    supplierFingerprintResolution,
+    awaitingSupplierFingerprintResolution,
     rerunUploadVisible,
     resultsInitiative,
     resultsVisible,
@@ -662,6 +932,33 @@ export function useClauseIqWorkflow({
         ));
       },
       resetRunState,
+      resolveSupplierFingerprint,
+      selectRerunSupplier: (supplierId: string) => setRerunSupplierContextId(supplierId),
+      beginNewRerunSupplierContext: () => setRerunNewSupplierEntryOpen(true),
+      saveNewRerunSupplierContext: (name: string) => {
+        const trimmedName = name.trim();
+        if (!trimmedName) return;
+        setNewRerunSupplierName(trimmedName);
+        setRerunSupplierContextId(NEW_SUPPLIER_CONTEXT_ID);
+        setRerunNewSupplierEntryOpen(false);
+      },
+      cancelNewRerunSupplierContext: () => setRerunNewSupplierEntryOpen(false),
+      clearRerunSupplierContext: () => {
+        setRerunSupplierContextId(null);
+        setNewRerunSupplierName(null);
+        setRerunNewSupplierEntryOpen(false);
+        updateRerunSelectedParameter(null);
+        setFile(null);
+      },
+      saveInitialSupplierName: (name: string) => {
+        const trimmedName = name.trim();
+        if (trimmedName) setInitialSupplierName(trimmedName);
+      },
+      clearInitialSupplierName: () => {
+        setInitialSupplierName(null);
+        setSelectedParameter(null);
+        setFile(null);
+      },
       selectInitiative,
       setStep,
       setUploadStep: () => setStep("upload"),
@@ -711,9 +1008,9 @@ export function ClauseIqOverviewCard({
       </p>
       <div className={cn("rounded-orbit-lg bg-orbit-surface/50 border border-orbit-border p-orbit-base space-y-orbit-base", step === "welcome" && "mb-orbit-m")}>
         <div className="text-orbit-sm v6-orbit-weight-medium text-orbit-fg mb-orbit-xs">Summary</div>
-        <SummaryRow icon={<ListChecks className="h-4 w-4 text-orbit-primary" />} text="Reviews every clause against your benchmark playbook." />
-        <SummaryRow icon={<Building2 className="h-4 w-4 text-orbit-primary" />} text={currentInitiativeCopy} />
-        <SummaryRow icon={<FilePlus2 className="h-4 w-4 text-orbit-primary" />} text="Exports a shareable report with severity and actions." />
+        <SummaryRow icon={<ListChecks className="h-4 w-4 text-[var(--orbit-color-header-deliver-from)]" />} text="Reviews every clause against your benchmark playbook." />
+        <SummaryRow icon={<Building2 className="h-4 w-4 text-[var(--orbit-color-header-deliver-from)]" />} text={currentInitiativeCopy} />
+        <SummaryRow icon={<FilePlus2 className="h-4 w-4 text-[var(--orbit-color-header-deliver-from)]" />} text="Exports a shareable report with severity and actions." />
       </div>
       {step === "welcome" && onStart && (
         <Button className="w-full" onClick={onStart}>
@@ -729,9 +1026,7 @@ export function NewAnalysisDivider() {
   return (
     <div className="flex items-center gap-orbit-base py-orbit-xs">
       <div className="h-px flex-1 bg-orbit-border" />
-      <span className="rounded-orbit-md border border-orbit-primary bg-orbit-card px-orbit-base py-orbit-xs text-orbit-sm v6-orbit-weight-medium text-orbit-primary shadow-orbit-sm">
-        New Analysis
-      </span>
+      <Chip label="New Analysis" size="Mini" variant="Information" contrast="Low" />
       <div className="h-px flex-1 bg-orbit-border" />
     </div>
   );

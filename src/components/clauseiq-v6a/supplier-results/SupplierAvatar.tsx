@@ -12,7 +12,7 @@ interface Props {
 
 // Supplier cards do not navigate to a profile, so they must not borrow the
 // interactive indigo treatment used by actionable user identities.
-const SUPPLIER_AVATAR_COLOR = "var(--orbit-color-bg-surface)";
+const SUPPLIER_AVATAR_COLOR = "var(--orbit-color-btn-primary-bg)";
 
 const sizeMap = {
   sm: "Extra Small",

@@ -300,7 +300,13 @@ export function FirstAnalysisDesignOptions({
   if (option === "design-option-2") {
     return (
       <div className="mx-auto w-full max-w-[1800px] space-y-orbit-base px-orbit-base py-orbit-base">
-        <Card type="Static" padding="Base" state="Default" indicator={false} style={{ width: "100%" }}>
+        <Card
+          type="Static"
+          padding="Base"
+          state="Default"
+          indicator={false}
+          style={{ width: "100%", overflow: "visible", zIndex: 1 }}
+        >
           <div className="space-y-orbit-base">
             <h1 className="v6-orbit-heading-strong text-orbit-fg">Latest Analysis</h1>
             {banner ? <div className="clauseiq-v6a-summary-banner">{banner}</div> : null}

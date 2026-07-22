@@ -3257,7 +3257,7 @@ export function ContractResults({
       banner={
         <>
           {(!compactHeader || designOption === "design-option-2") && (
-            <InlineRecommendationReviewBanner description="Review ClauseIQ's findings and decide which positions to take forward. Apply a recommended position, set a custom position, or leave a clause unchanged for now." />
+            <InlineRecommendationReviewBanner description="Review ClauseIQ’s recommendation, set a custom position, or accept the supplier’s position. Your decisions are recorded for use in the next negotiation." />
           )}
           {designOption !== "design-option-2" ? compactBulkBanner : null}
         </>
@@ -3321,7 +3321,7 @@ export function ContractResults({
       optionTwoDashboard={
         <RoundComparisonDashboard
           banner={
-            <InlineRecommendationReviewBanner description="Review the previous, current, and recommended positions. Any clause left unchanged will remain outstanding and must be resolved before progressing." />
+            <InlineRecommendationReviewBanner description="Compare the previous negotiation with the supplier’s current position, review ClauseIQ’s recommendation, and choose to accept supplier position, or set a custom position. Your decisions are recorded for your next negotiation." />
           }
           bulkBanner={compactBulkBanner}
           previousScore={comparisonModel.panel.previous?.score ?? comparisonModel.panel.current.score - comparisonModel.panel.delta}

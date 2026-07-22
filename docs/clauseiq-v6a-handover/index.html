@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ClauseIQ v6a — developer handover</title>
+  <style>
+    :root { --ink:#101828; --muted:#475467; --line:#d0d5dd; --surface:#f8fafc; --brand:#4f46e5; --accent:#ecfdf3; }
+    * { box-sizing:border-box; } body { margin:0; color:var(--ink); background:var(--surface); font:15px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; }
+    header { padding:56px max(24px, calc((100vw - 1120px)/2)); color:white; background:linear-gradient(120deg,#111827,#312e81); }
+    h1 { margin:0; font-size:38px; } h2 { margin:0 0 12px; font-size:25px; } h3 { margin:0; font-size:17px; } p { margin:8px 0; }
+    .eyebrow { color:#c7d2fe; text-transform:uppercase; letter-spacing:.1em; font-size:12px; font-weight:700; } .subtitle { max-width:720px; color:#e0e7ff; font-size:18px; }
+    main { width:min(1120px, calc(100% - 40px)); margin:32px auto 80px; } .notice { padding:16px 18px; border:1px solid #a7f3d0; border-radius:12px; background:var(--accent); }
+    nav { display:flex; flex-wrap:wrap; gap:8px; margin:24px 0; } nav a { padding:7px 11px; border:1px solid var(--line); border-radius:999px; background:white; color:var(--ink); text-decoration:none; font-size:13px; }
+    section { margin:38px 0; } .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; } .card, details { border:1px solid var(--line); border-radius:12px; background:white; }
+    .card { padding:18px; } details { margin:10px 0; overflow:hidden; } summary { cursor:pointer; padding:16px 18px; font-weight:700; } .detail { padding:0 18px 18px; border-top:1px solid var(--line); }
+    .tag { display:inline-block; margin:2px 4px 2px 0; padding:2px 7px; color:#3730a3; background:#eef2ff; border-radius:999px; font-size:12px; font-weight:700; }
+    .route, code { padding:2px 5px; border-radius:4px; background:#f2f4f7; color:#344054; font:12px ui-monospace,SFMono-Regular,monospace; word-break:break-word; }
+    .media { display:grid; grid-template-columns:2fr 1fr; gap:14px; align-items:start; margin-top:16px; } figure { margin:0; } img { width:100%; border:1px solid var(--line); border-radius:8px; background:#eaecf0; } figcaption { margin-top:5px; color:var(--muted); font-size:12px; }
+    .flow { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:14px 0; } .node { padding:9px 12px; border:1px solid #c7d2fe; border-radius:8px; background:#eef2ff; font-weight:600; } .arrow { color:var(--brand); font-size:20px; }
+    label { display:block; margin:20px 0 8px; font-weight:700; } input { width:100%; padding:12px; border:1px solid var(--line); border-radius:8px; font:inherit; } .hidden { display:none; }
+    footer { padding:28px; color:var(--muted); text-align:center; font-size:13px; } @media (max-width:700px) { header { padding:32px 20px; } h1 { font-size:30px; } .media { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">Offline visual functional specification</div>
+    <h1>ClauseIQ v6a handover</h1>
+    <p class="subtitle">Developer-ready reference for the ClauseIQ workflow, supplier-output panel, and linked initiative results dashboard. Captures use deterministic mock data at a 1661 × 1181 desktop viewport.</p>
+  </header>
+  <main>
+    <div class="notice"><strong>Prototype boundary:</strong> analysis, supplier identity matching, uploads, downloads, toasts, and generation actions are deterministic UI simulations. Preserve the visual state changes when wiring real services, but replace their mock sources and timed completion behavior.</div>
+    <nav><a href="#map">Route map</a><a href="#workflow">ClauseIQ workflow</a><a href="#outputs">Outputs & reruns</a><a href="#dashboard">Results dashboard</a><a href="#inventory">Interaction inventory</a></nav>
+
+    <section id="map">
+      <h2>Routes and state map</h2>
+      <div class="grid"><div class="card"><h3>Entry workflow</h3><p class="route">/clauseiq-v6a</p><p>Welcome, initiative selection, supplier identity, benchmark, upload, processing, and first analysis.</p></div><div class="card"><h3>Output-panel states</h3><p class="route">/clauseiq-v6a/output-panel</p><p>First result; add <code>?resultScenario=history</code> for history or <code>?rerun=upload</code> to enter rerun setup.</p></div><div class="card"><h3>Initiative dashboard</h3><p class="route">/initiatives-v6a?view=results…</p><p>Reached from View Result. Parameters select first-analysis or negotiated re-analysis presentation.</p></div></div>
+      <div class="flow"><span class="node">Welcome</span><span class="arrow">→</span><span class="node">Initiative + supplier</span><span class="arrow">→</span><span class="node">Benchmark + upload</span><span class="arrow">→</span><span class="node">Result</span><span class="arrow">→</span><span class="node">Rerun / dashboard</span></div>
+      <div class="flow"><span class="node">Typed supplier</span><span class="arrow">→</span><span class="node">Exact match: attach output</span><span class="arrow">|</span><span class="node">Fuzzy match: decision card</span><span class="arrow">→</span><span class="node">Use suggested / keep typed</span></div>
+    </section>
+
+    <label for="search">Find an interaction or state</label><input id="search" placeholder="e.g. fuzzy match, benchmark, bulk, download" />
+    <section id="workflow"><h2>ClauseIQ workflow</h2>
+      <details open data-search="welcome initiative supplier start cancel"><summary>1. Start, select initiative, and identify the supplier</summary><div class="detail"><p><span class="tag">Entry</span><span class="tag">State change</span> Start reveals initiative selection. Selecting an initiative requests a supplier name; cancel returns to initiative selection. The selected initiative becomes the context for recommendations.</p><p><strong>Expected:</strong> no output history is shown until a completed analysis exists.</p><div class="media"><figure><img src="assets/welcome.png" alt="ClauseIQ welcome state" /><figcaption>Full page — welcome state.</figcaption></figure><figure><img src="assets/welcome-focus.png" alt="ClauseIQ welcome focus" /><figcaption>Focused prototype shell.</figcaption></figure></div></div></details>
+      <details data-search="playbook benchmark category governing law search edit clear skip"><summary>2. Configure a playbook or optional benchmark</summary><div class="detail"><p><span class="tag">Branch</span> “Yes” requires a playbook and advances to upload. “No” exposes suggested optional category and governing-law fields. Users can search, replace, clear, confirm the suggested benchmark, or skip to ClauseIQ’s general standard.</p><p><strong>Expected:</strong> selecting the incompatible branch clears prior choices; upload remains unavailable until the current branch is complete.</p></div></details>
+      <details data-search="upload PDF validation processing first analysis"><summary>3. Upload and run the first analysis</summary><div class="detail"><p><span class="tag">Validation</span> Only PDF files up to 100 MB are accepted. A valid upload starts processing; the supplier panel changes to its processing state. Completion creates exactly one first output—no seeded history is added to a fresh workflow.</p><p><strong>Expected:</strong> exact matches attach to the recognised supplier; unrecognised names create a new supplier.</p></div></details>
+      <details data-search="fuzzy Deloitte supplier match keep use"><summary>4. Resolve a fuzzy supplier match</summary><div class="detail"><p><span class="tag">Decision</span> A fuzzy name such as <code>Deloitteeee</code> shows “Found A Supplier Match”. The completed status card is hidden; existing outputs remain visible. <strong>Keep</strong> creates/uses the typed supplier; <strong>Use Deloitte Legal</strong> attaches the analysis to the suggested supplier.</p><div class="media"><figure><img src="assets/rerun-fuzzy-match.png" alt="Fuzzy supplier match state with existing output visible" /><figcaption>Full page — history stays visible behind the decision.</figcaption></figure><figure><img src="assets/rerun-fuzzy-match-focus.png" alt="Found a supplier match card" /><figcaption>Focused Orbit card and full-width actions.</figcaption></figure></div></div></details>
+    </section>
+
+    <section id="outputs"><h2>Output panel and reruns</h2>
+      <details open data-search="first output score view result download next action"><summary>5. First output and post-analysis actions</summary><div class="detail"><p><span class="tag">Output</span> The first-run route seeds one representative output. View Result opens the first-analysis dashboard; download/Save to Content Search use prototype feedback. Milestones can be completed individually; completing the initiative hides its completion action; “Analyse contract on another initiative” resets the flow.</p><div class="media"><figure><img src="assets/first-result.png" alt="First output panel result" /><figcaption>Full page — first output state.</figcaption></figure><figure><img src="assets/first-result-focus.png" alt="First result panel" /><figcaption>Focused result summary.</figcaption></figure></div></div></details>
+      <details data-search="history search supplier expand sort score delta met not met"><summary>6. Explore supplier output history</summary><div class="detail"><p><span class="tag">History</span> The history scenario shows multiple suppliers and output versions. Expand a supplier, search outputs, open the supplier-history overlay, and sort its records. Existing previous versions expose score deltas and Met / Not Met metadata; a first output does not.</p><div class="media"><figure><img src="assets/history.png" alt="Supplier output history state" /><figcaption>Full page — history scenario.</figcaption></figure><figure><img src="assets/history-focus.png" alt="History result panel" /><figcaption>Focused output panel.</figcaption></figure></div></div></details>
+      <details data-search="rerun new analysis selected supplier add new supplier"><summary>7. Run analysis again</summary><div class="detail"><p><span class="tag">Rerun</span> Choose an existing supplier context or add a new supplier, then configure a playbook or general benchmark and upload. Existing outputs remain above the “New Analysis” divider during processing and after completion. A selected existing supplier remains authoritative even if the upload filename suggests another supplier.</p><div class="media"><figure><img src="assets/rerun-setup.png" alt="Rerun setup state" /><figcaption>Full page — rerun entry state.</figcaption></figure><figure><img src="assets/rerun-setup-focus.png" alt="Rerun output panel context" /><figcaption>Focused prior-output context.</figcaption></figure></div></div></details>
+    </section>
+
+    <section id="dashboard"><h2>Initiative results dashboard</h2>
+      <details open data-search="first analysis view result dashboard filters design control"><summary>8. First-analysis dashboard</summary><div class="detail"><p><span class="tag">Dashboard</span> A first output opens the initial-analysis dashboard. The prototype selects the compatible initial-analysis design, exposes clause/deviation filters, and prevents comparison-only states for outputs that lack a previous version.</p><div class="media"><figure><img src="assets/dashboard-first-analysis.png" alt="First analysis initiative dashboard" /><figcaption>Full page — first-analysis dashboard.</figcaption></figure><figure><img src="assets/dashboard-first-analysis-focus.png" alt="First analysis dashboard focus" /><figcaption>Focused dashboard summary.</figcaption></figure></div></div></details>
+      <details data-search="negotiated reanalysis comparison recommendation bulk review generate CSV"><summary>9. Negotiated re-analysis and outcome review</summary><div class="detail"><p><span class="tag">Comparison</span> A later output opens negotiated re-analysis with previous/current versions. Users can switch dashboard design and view, filter outcome rows, set/apply/revert recommended positions, bulk apply scoped recommendations, clear selections with confirmation, and use Review & Generate. Generated CSV state refreshes after review changes.</p><div class="media"><figure><img src="assets/dashboard-outcome-review.png" alt="Negotiated reanalysis dashboard" /><figcaption>Full page — negotiated outcome review.</figcaption></figure><figure><img src="assets/dashboard-outcome-review-focus.png" alt="Negotiated reanalysis dashboard focus" /><figcaption>Focused dashboard summary.</figcaption></figure></div></div></details>
+    </section>
+
+    <section id="inventory"><h2>State-changing interaction inventory</h2><div class="grid">
+      <div class="card"><h3>Workflow</h3><p>Start; select/cancel initiative; save supplier; select/change playbook; choose/search/edit/clear/confirm/skip benchmark; reject invalid upload; upload PDF; process; exact/fuzzy/unrecognised supplier ownership.</p></div>
+      <div class="card"><h3>Outputs</h3><p>Expand outputs; search; open/sort history; download; toggle content-search simulation; open View Result; mark milestones; complete initiative; reset flow; rerun against existing/new supplier; resolve fuzzy rerun.</p></div>
+      <div class="card"><h3>Dashboard</h3><p>Switch compatible design/view; filter outcome and initial clauses; set/accept/edit/undo positions; bulk apply/revert; confirm selection clearing; update review; generate/refresh CSV; inspect accepted supplier positions.</p></div>
+    </div></section>
+  </main>
+  <footer>Regenerate images with <code>npm run capture:clauseiq-v6a-handover</code>. See README.md for constraints and source coverage.</footer>
+  <script>const input=document.querySelector('#search');input.addEventListener('input',()=>{const q=input.value.toLowerCase().trim();document.querySelectorAll('details').forEach(d=>{const hay=(d.textContent+' '+d.dataset.search).toLowerCase();d.classList.toggle('hidden',!!q&&!hay.includes(q));if(q&&hay.includes(q))d.open=true;});});</script>
+</body>
+</html>

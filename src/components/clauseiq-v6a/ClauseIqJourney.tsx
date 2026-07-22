@@ -525,12 +525,14 @@ function RerunSupplierContextStep({
             <SelectValue placeholder="Select a supplier" />
           </SelectTrigger>
           <SelectContent>
-            {workflow.resultsInitiative.suppliers.map((supplier) => (
-              <SelectItem key={supplier.id} value={supplier.id}>
-                {supplier.name} · {supplier.analyses.length} existing output
-                {supplier.analyses.length === 1 ? "" : "s"}
-              </SelectItem>
-            ))}
+            {workflow.resultsInitiative.suppliers
+              .filter((supplier) => supplier.analyses.length > 0)
+              .map((supplier) => (
+                <SelectItem key={supplier.id} value={supplier.id}>
+                  {supplier.name} · {supplier.analyses.length} existing output
+                  {supplier.analyses.length === 1 ? "" : "s"}
+                </SelectItem>
+              ))}
           </SelectContent>
         </Select>
       </div>
@@ -556,12 +558,14 @@ function SupplierNameForm({
   heading,
   description,
   submitLabel,
+  fullWidthSubmit = false,
   onCancel,
   onSubmit,
 }: {
   heading: string;
   description: string;
   submitLabel: string;
+  fullWidthSubmit?: boolean;
   onCancel?: () => void;
   onSubmit: (name: string) => void;
 }) {
@@ -606,7 +610,7 @@ function SupplierNameForm({
               Cancel
             </Button>
           )}
-          <Button type="submit" className="ml-auto">
+          <Button type="submit" className={fullWidthSubmit ? "w-full" : "ml-auto"}>
             {submitLabel}
           </Button>
         </div>
@@ -622,7 +626,7 @@ function InitialSupplierContextStep({ workflow }: { workflow: ClauseIqWorkflow }
         heading="Enter supplier name"
         description="Enter the supplier name before selecting the analysis parameters."
         submitLabel="Continue"
-        onCancel={workflow.actions.startSelect}
+        fullWidthSubmit
         onSubmit={workflow.actions.saveInitialSupplierName}
       />
     );

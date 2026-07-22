@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "capture:clauseiq-v6a-handover": "node scripts/capture-clauseiq-v6a-handover.mjs"
   },
   "dependencies": {
     "@efficio/orbit": "file:src/vendor/orbit/efficio-orbit-0.0.0.tgz",

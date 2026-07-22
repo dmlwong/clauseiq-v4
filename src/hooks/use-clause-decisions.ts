@@ -92,6 +92,8 @@ export interface ClauseDecisionState {
   verdictConfirmations?: Record<string, ClauseVerdictConfirmation>;
   auditLog?: ClauseAuditEntry[];
   pushFurtherOpen?: boolean;
+  /** Clauses manually returned to the supplier negotiation list for a target round. */
+  reopenedForNegotiation?: Record<string, boolean>;
   acceptedClosed?: boolean;
   alteredAfterAgreement?: boolean;
   simulatedMet?: boolean;

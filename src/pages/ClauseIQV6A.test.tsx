@@ -214,7 +214,7 @@ describe("ClauseIQ V6A flow", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("returns to initiative selection when cancelling supplier-name entry", () => {
+  it("does not offer Cancel when entering a supplier for the first analysis", () => {
     renderClauseIQ();
 
     fireEvent.click(screen.getByRole("button", { name: /get started/i }));
@@ -225,10 +225,8 @@ describe("ClauseIQ V6A flow", () => {
       }),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-
-    expect(screen.queryByRole("heading", { name: "Enter supplier name" })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Initiative Selected" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Enter supplier name" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
   });
 
   it("shows a prefilled optional benchmark when the user selects no playbook", async () => {
@@ -1400,6 +1398,8 @@ describe("ClauseIQ V6A flow", () => {
 
     expect(screen.queryByText("Found A Supplier Match")).not.toBeInTheDocument();
     expect(screen.getAllByText("Deloitte_contract.pdf").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Score 57").length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId("output-score-summary-card").length).toBeGreaterThan(1);
     expect(screen.getAllByText("Supplier Outputs").length).toBeGreaterThan(0);
   });
 

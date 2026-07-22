@@ -396,6 +396,7 @@ export function deriveComparisonModel(
         wasRequestedInPreviousRound: wasRequested,
       });
       const closed = state?.closures?.[rightVersion.version] === "closed";
+      const reopenedForNegotiation = state?.reopenedForNegotiation?.[rightVersion.version] === true;
 
       if (pill.status === "met") changeTracking.met += 1;
       if (pill.status === "not_met") changeTracking.notMet += 1;
@@ -405,7 +406,7 @@ export function deriveComparisonModel(
 
       let bucket: ComparisonBucketKey = "unmarked";
       if (closed) bucket = "closed";
-      else if (wasRequested) bucket = "open_items";
+      else if (reopenedForNegotiation || wasRequested) bucket = "open_items";
       else if (pill.status === "improved" || pill.status === "regressed" || pill.status === "new") {
         bucket = "new_changes";
       }

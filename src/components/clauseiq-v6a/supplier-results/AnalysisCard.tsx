@@ -12,6 +12,7 @@ import { supplierSeverity } from "@/lib/clauseiq-utils";
 import { DeviationPills } from "./DeviationPills";
 import {
   OutputFindingsSummary,
+  getSupplierScorePresentationByAnalysisId,
   OutputScoreLine,
   type OutputScorePresentation,
 } from "./OutputSummaryMetrics";
@@ -62,8 +63,16 @@ export function AnalysisCard({
   const [saveToDocuments, setSaveToDocuments] = useState(false);
   const deviationSummaryId = useId();
   const status = statusCopy[analysis.status];
-  const resolvedShowComparisonStatus = showComparisonStatus ?? outputScore?.hasPreviousOutput ?? false;
-  const showComparisonFindings = resolvedShowComparisonStatus && (outputScore?.hasPreviousOutput ?? false);
+  // Directly rendered cards (for example, a completed rerun) do not receive
+  // the output-panel score map. Resolve it here so they remain consistent
+  // with every other output card.
+  const resolvedOutputScore =
+    outputScore ??
+    getSupplierScorePresentationByAnalysisId(supplier?.analyses ?? [analysis])[analysis.id];
+  const resolvedShowComparisonStatus =
+    showComparisonStatus ?? resolvedOutputScore?.hasPreviousOutput ?? false;
+  const showComparisonFindings =
+    resolvedShowComparisonStatus && (resolvedOutputScore?.hasPreviousOutput ?? false);
 
   return (
     <motion.article
@@ -121,12 +130,12 @@ export function AnalysisCard({
           </div>
 
           <div className="space-y-orbit-base">
-            {outputScore ? (
+            {resolvedOutputScore ? (
               <div data-testid="output-score-summary-card">
                 <Card type="Static" state="Accent" padding="Base" indicator={false}>
                   <div className="flex flex-col gap-orbit-base" role="group" aria-label="Output score and findings summary">
                     <OutputScoreLine
-                      score={outputScore}
+                      score={resolvedOutputScore}
                       deviations={analysis.deviations}
                       higherIsBetter={higherIsBetter}
                       showComparisonStatus={resolvedShowComparisonStatus}

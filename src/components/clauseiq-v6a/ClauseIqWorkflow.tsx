@@ -16,6 +16,7 @@ import {
   Check,
   ChevronUp,
   ClipboardList,
+  ExternalLink,
   FilePlus2,
   ListChecks,
   Pencil,
@@ -1244,6 +1245,19 @@ export function AnalysisParameterCards({
                   onClear={() => onBasisSelect(playbookOption, "")}
                 />
               )}
+              <p className="mt-orbit-base text-orbit-sm text-orbit-fg-secondary">
+                Can’t find your playbook?{" "}
+                <a
+                  href="/clauseiq-v6a?view=playbooks"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-orbit-xxs text-orbit-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary focus-visible:ring-offset-2"
+                >
+                  Add it here
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                </a>
+                .
+              </p>
             </>
           )}
         </div>

@@ -270,6 +270,20 @@ describe("ContractResults V6A review controls", () => {
     expect(screen.getByText("Validate ClauseIQ recommendations before supplier negotiation")).toBeInTheDocument();
   });
 
+  it("omits requested positions from the initial-analysis option 2 summary", () => {
+    renderContractResults(initialAnalysisOnlyRoute.replace("design=row-scale", "design=design-option-2"));
+
+    const summaryCard = screen.getByText("Latest Analysis").closest('[class*="_card_"]');
+    expect(summaryCard).toBeTruthy();
+    expect(within(summaryCard as HTMLElement).getByText("Review needed")).toBeInTheDocument();
+    expect(within(summaryCard as HTMLElement).getByText("ClauseIQ score")).toBeInTheDocument();
+    expect(within(summaryCard as HTMLElement).queryByText("Requested")).not.toBeInTheDocument();
+    const metricCards = summaryCard?.querySelectorAll('[class*="_card_"]');
+    expect(metricCards).toHaveLength(2);
+    expect(metricCards?.[0]).toHaveTextContent("ClauseIQ score");
+    expect(metricCards?.[1]).toHaveTextContent("Review needed");
+  });
+
   it("groups met outcome rows under Met instead of Not Met", () => {
     renderContractResults(outcomeReviewRoute);
 
@@ -632,15 +646,29 @@ describe("ContractResults V6A review controls", () => {
 
   it("moves accepted supplier positions into their own Design 2 bucket", () => {
     renderContractResults(firstAnalysisRoute.replace("design=row-scale", "design=design-option-2"));
+    const onToast = vi.fn();
+    window.addEventListener("clauseiq-v6a:orbit-toast", onToast);
 
-    const clauseCard = screen.getByText("Term of Contract").closest("section");
+    const clauseCard = screen.getByRole("button", {
+      name: "c6 Exit Support and Obligations Term and Termination Deviation High",
+    }).closest("section");
     expect(clauseCard).toBeTruthy();
     fireEvent.click(within(clauseCard as HTMLElement).getByRole("button", { name: "Accept Supplier Position" }));
 
-    const acceptedBucket = screen.getByRole("heading", { name: /accepted supplier position/i }).closest("section");
+    const acceptedBucket = screen.getByRole("heading", { name: /Accepted As Is/ }).closest("section");
     expect(acceptedBucket).toBeTruthy();
-    expect(within(acceptedBucket as HTMLElement).getByText("Term of Contract")).toBeInTheDocument();
-    expect(screen.getAllByText("Term of Contract")).toHaveLength(1);
+    expect(within(acceptedBucket as HTMLElement).getByText("Exit Support and Obligations")).toBeInTheDocument();
+    expect(screen.getAllByText("Exit Support and Obligations")).toHaveLength(1);
+    expect(onToast).toHaveBeenCalledWith(expect.objectContaining({
+      detail: expect.objectContaining({ title: "Supplier position accepted" }),
+    }));
+    fireEvent.click(within(acceptedBucket as HTMLElement).getByRole("button", { name: "Undo" }));
+    expect(screen.queryByRole("heading", { name: /Accepted As Is/ })).not.toBeInTheDocument();
+    expect(screen.getByText("Exit Support and Obligations")).toBeInTheDocument();
+    expect(onToast).toHaveBeenLastCalledWith(expect.objectContaining({
+      detail: expect.objectContaining({ title: "Supplier position restored" }),
+    }));
+    window.removeEventListener("clauseiq-v6a:orbit-toast", onToast);
   });
 
   it("edits an initial-analysis Design 2 recommendation by clicking its wording", () => {
@@ -662,6 +690,23 @@ describe("ContractResults V6A review controls", () => {
     expect(scope.getByRole("textbox")).toBeInTheDocument();
     expect(scope.getByRole("button", { name: "Confirm Custom Position" })).toBeInTheDocument();
     expect(scope.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
+  it("collapses an initial-analysis Design 2 clause after confirming a custom position", () => {
+    renderContractResults(firstAnalysisRoute.replace("design=row-scale", "design=design-option-2"));
+    const clauseCard = screen.getByText("Term of Contract").closest("section");
+    expect(clauseCard).toBeTruthy();
+
+    const scope = within(clauseCard as HTMLElement);
+    fireEvent.focus(scope.getByRole("textbox", { name: /Edit recommended next position for Term of Contract/i }));
+    fireEvent.change(scope.getByRole("textbox"), {
+      target: { value: "Buyer may terminate for convenience on 30 days' written notice." },
+    });
+    fireEvent.click(scope.getByRole("button", { name: "Confirm Custom Position" }));
+
+    expect(scope.getByText("Custom Position Applied")).toBeInTheDocument();
+    expect(scope.queryByText("Current Supplier Position")).not.toBeInTheDocument();
+    expect(scope.getByRole("button", { name: /Term of Contract.*Custom Position Applied/i })).toHaveAttribute("aria-expanded", "false");
   });
 
   it("edits a comparison Design 2 recommendation by clicking its wording without triggering rationale", () => {

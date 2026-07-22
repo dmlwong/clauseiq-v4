@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { ArrowRight, ClipboardList, Columns3, Info, List, Sigma, Target } from "@/components/clauseiq-v6a/v6aIcons";
+import { ArrowRight, ClipboardList, Columns3, Info, List, Sigma } from "@/components/clauseiq-v6a/v6aIcons";
 import {
   Badge,
   Card,
@@ -304,10 +304,9 @@ export function FirstAnalysisDesignOptions({
           <div className="space-y-orbit-base">
             <h1 className="v6-orbit-heading-strong text-orbit-fg">Latest Analysis</h1>
             {banner ? <div className="clauseiq-v6a-summary-banner">{banner}</div> : null}
-            <div className="grid gap-orbit-base md:grid-cols-3">
-              <InitialAnalysisOptionTwoMetric icon={<ClipboardList className="h-5 w-5" aria-hidden="true" />} label="Review needed" value={metrics.needReview} detail="clauses need a decision" tone="warning" />
-              <InitialAnalysisOptionTwoMetric icon={<Target className="h-5 w-5" aria-hidden="true" />} label="Requested" value={metrics.requested} detail="positions selected" tone="information" />
+            <div className="grid gap-orbit-base md:grid-cols-2">
               <InitialAnalysisOptionTwoMetric icon={<Sigma className="h-5 w-5" aria-hidden="true" />} label="ClauseIQ score" value={metrics.score} detail={`${metrics.versionLabel.toUpperCase()} initial analysis`} tone="default" />
+              <InitialAnalysisOptionTwoMetric icon={<ClipboardList className="h-5 w-5" aria-hidden="true" />} label="Review needed" value={metrics.needReview} detail="clauses need a decision" tone="warning" />
             </div>
             <div>{optionTwoFilters}</div>
           </div>

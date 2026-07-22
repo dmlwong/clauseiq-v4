@@ -1247,6 +1247,7 @@ export function ContractResults({
   const [highlightClauseId, setHighlightClauseId] = useState<string | null>(null);
   // R3 DI-16: pinned clause IDs survive across version-pair switches and tab changes.
   const [pinnedClauseIds, setPinnedClauseIds] = useState<Set<string>>(() => new Set());
+  const [acceptedFirstAnalysisClauseIds, setAcceptedFirstAnalysisClauseIds] = useState<Set<string>>(() => new Set());
   const togglePin = (id: string) => {
     setPinnedClauseIds((prev) => {
       const next = new Set(prev);
@@ -1643,13 +1644,15 @@ export function ContractResults({
 
   const scoringModel = useMemo(() => computeContractScoring(versions), [versions]);
 
-  // R3 DI-18: undo helpers use the V6 Orbit toast plus per-row 30s undo affordance.
-  const [recentlyClosed, setRecentlyClosed] = useState<Record<string, number>>({});
+  // Closing a clause remains reversible from the confirmation toast.
   const closeWithUndo = (id: string, label: string, prev: ClosureDecision | undefined) => {
     if (!rightVersion) return;
+    const previousReopenedForNegotiation = stateOf(id).reopenedForNegotiation?.[rightVersion.version] ?? false;
     decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "closed");
-    decisions.patchClauseState(supplierId, decisionContractId, id, { acceptedClosed: true });
-    setRecentlyClosed((m) => ({ ...m, [id]: Date.now() + 30_000 }));
+    decisions.patchClauseState(supplierId, decisionContractId, id, {
+      acceptedClosed: true,
+      reopenedForNegotiation: { ...stateOf(id).reopenedForNegotiation, [rightVersion.version]: false },
+    });
     toast({
       title: `Closed "${label}" for ${rightVersion.version}`,
       description: "You can undo for 30 seconds.",
@@ -1658,23 +1661,16 @@ export function ContractResults({
         label: "Undo",
         onClick: () => {
           decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, prev ?? "keep-open");
-          decisions.patchClauseState(supplierId, decisionContractId, id, { acceptedClosed: false });
-          setRecentlyClosed((m) => { const n = { ...m }; delete n[id]; return n; });
+          decisions.patchClauseState(supplierId, decisionContractId, id, {
+            acceptedClosed: false,
+            reopenedForNegotiation: {
+              ...stateOf(id).reopenedForNegotiation,
+              [rightVersion.version]: previousReopenedForNegotiation,
+            },
+          });
         },
       },
     });
-    setTimeout(() => {
-      setRecentlyClosed((m) => {
-        if (!m[id] || m[id] > Date.now()) return m;
-        const n = { ...m }; delete n[id]; return n;
-      });
-    }, 30_500);
-  };
-  const undoClose = (id: string) => {
-    if (!rightVersion) return;
-    decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open");
-    decisions.patchClauseState(supplierId, decisionContractId, id, { acceptedClosed: false });
-    setRecentlyClosed((m) => { const n = { ...m }; delete n[id]; return n; });
   };
 
   const recordAudit = (clauseId: string, entry: string) => {
@@ -2713,7 +2709,12 @@ export function ContractResults({
     const demonstrationRows = categoryAllRows.length > 0
       ? categoryAllRows
       : Object.values(comparisonModel.buckets).flat();
-    const actionRequired = actionable.filter((row) => !isRegressed(row) && !isAcceptedAsIs(row));
+    const wasReopenedForNegotiation = (row: ComparisonRow) =>
+      Boolean(stateOf(row.id).reopenedForNegotiation?.[rightVersion?.version ?? ""]);
+    const actionRequired = unique([
+      ...actionable.filter((row) => !isRegressed(row) && !isAcceptedAsIs(row)),
+      ...designClosedRows.filter((row) => wasReopenedForNegotiation(row) && !isAcceptedAsIs(row)),
+    ]);
     const hasComparisonDashboardFilter = comparisonStatusFilter !== "all" || comparisonDeviationFilter !== "all";
     const actionRequiredDemo = actionRequired.length > 0 || hasComparisonDashboardFilter
       ? actionRequired
@@ -2745,7 +2746,9 @@ export function ContractResults({
       regressed: regressedDemo,
       acceptedAsIs,
       metThisRound: designClosedRows.filter((row) => !acceptedAsIsIds.has(row.id) && !wasPreviouslyMet(row)),
-      previouslyMet: designClosedRows.filter((row) => !acceptedAsIsIds.has(row.id) && wasPreviouslyMet(row)),
+      previouslyMet: designClosedRows.filter((row) =>
+        !acceptedAsIsIds.has(row.id) && !wasReopenedForNegotiation(row) && wasPreviouslyMet(row),
+      ),
       notSelected: unique([...designNoActionRows, ...designUnmarkedRows]).filter((row) => !acceptedAsIsIds.has(row.id)),
     };
   })();
@@ -2833,8 +2836,6 @@ export function ContractResults({
         stateOf={stateOf}
         pinnedIds={pinnedClauseIds}
         onTogglePin={togglePin}
-        recentlyClosed={recentlyClosed}
-        onUndoClose={undoClose}
         layout="plain"
         presentation="round-dashboard"
         defaultOpen={options?.defaultOpen}
@@ -3177,6 +3178,36 @@ export function ContractResults({
         onClose={() => setCompactBulkBannerOpen(false)}
       />
     ) : null;
+  const acceptFirstAnalysisSupplierPosition = (id: string) => {
+    if (!firstAnalysisVersion) return;
+    const clause = firstAnalysisVersion.clauses.find((item) => item.id === id);
+    setAcceptedFirstAnalysisClauseIds((current) => new Set(current).add(id));
+    decisions.changeDecision(
+      supplierId,
+      decisionContractId,
+      id,
+      firstAnalysisVersion.version,
+      "no-action",
+    );
+    toast({
+      title: "Supplier position accepted",
+      description: `“${clause?.title ?? id.toUpperCase()}” moved to Accepted As Is.`,
+    });
+  };
+  const undoFirstAnalysisSupplierPosition = (id: string) => {
+    if (!firstAnalysisVersion) return;
+    const clause = firstAnalysisVersion.clauses.find((item) => item.id === id);
+    setAcceptedFirstAnalysisClauseIds((current) => {
+      const next = new Set(current);
+      next.delete(id);
+      return next;
+    });
+    decisions.resetClauseReviewState(supplierId, decisionContractId, id, firstAnalysisVersion.version);
+    toast({
+      title: "Supplier position restored",
+      description: `“${clause?.title ?? id.toUpperCase()}” returned to its original bucket.`,
+    });
+  };
   const firstAnalysisReviewList = firstAnalysisVersion ? (
     <ReviewScreen
       version={firstAnalysisVersion}
@@ -3192,18 +3223,14 @@ export function ContractResults({
       hideSubclauseReference
       displayMode={designOption === "design-option-2" ? "initial-option-2" : usesRowScaleDesign ? "row-scale" : "default"}
       defaultExpandClauses
-      onSetNoAction={(id) =>
-        decisions.changeDecision(supplierId, decisionContractId, id, firstAnalysisVersion.version, "no-action")
-      }
+      onSetNoAction={acceptFirstAnalysisSupplierPosition}
       onStartDraft={(id, initialDraft) =>
         decisions.startDraftRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version, initialDraft)
       }
       onUseRecommendation={(id, request) =>
         acceptRecommendedRequestWithToast(id, firstAnalysisVersion.version, request)
       }
-      onUndoDecision={(id) =>
-        decisions.resetClauseReviewState(supplierId, decisionContractId, id, firstAnalysisVersion.version)
-      }
+      onUndoDecision={undoFirstAnalysisSupplierPosition}
       onTrackCurrentPosition={(id, tracked) =>
         decisions.setTrackedCurrentPosition(supplierId, decisionContractId, id, firstAnalysisVersion.version, tracked)
       }
@@ -3221,6 +3248,7 @@ export function ContractResults({
       bulkSelectedClauseIds={bulkBannerSelectedClauseIds}
       onBulkClauseSelectionChange={toggleBulkClauseSelection}
       highlightedId={highlightClauseId}
+      acceptedClauseIds={acceptedFirstAnalysisClauseIds}
     />
   ) : null;
   const firstAnalysisDesignContent = firstAnalysisVersion && mode === "comparison" && versions.length < 2 ? (
@@ -3358,6 +3386,17 @@ export function ContractResults({
               rows={optionTwoGroups.previouslyMet}
               defaultOpen={false}
               onOpenDetail={setDetailClauseId}
+              onAddToStillOpen={(id) => {
+                if (!rightVersion) return;
+                decisions.patchClauseState(supplierId, decisionContractId, id, {
+                  reopenedForNegotiation: {
+                    ...stateOf(id).reopenedForNegotiation,
+                    [rightVersion.version]: true,
+                  },
+                  acceptedClosed: false,
+                });
+                toast.success("Clause added to Still Open.");
+              }}
             />
           ) : null}
           notSelected={shouldShowComparisonBucket("not-selected", optionTwoGroups.notSelected) ? optionTwoActionSection(
@@ -3424,8 +3463,6 @@ export function ContractResults({
             stateOf={stateOf}
             pinnedIds={pinnedClauseIds}
             onTogglePin={togglePin}
-            recentlyClosed={recentlyClosed}
-            onUndoClose={undoClose}
             layout="plain"
             bulkSelectionEnabled={bulkSelectionEnabled}
             bulkSelectedClauseIds={bulkBannerSelectedClauseIds}
@@ -4053,8 +4090,6 @@ export function ContractResults({
                   onConfirmVerdictFromAction={confirmVerdictFromAction}
                   pinnedIds={pinnedClauseIds}
                   onTogglePin={togglePin}
-                  recentlyClosed={recentlyClosed}
-                  onUndoClose={undoClose}
                   overrideVerdict={simplifyComparisonStatus ? "notmet" : undefined}
                 />
                 <ComparisonSection
@@ -7660,6 +7695,7 @@ function ClauseRowScaleCard({
         onUseRecommendation={onUseRecommendation}
         onEditPosition={onRequest}
         onNoAction={onNoAction}
+        onUndoDecision={onUndoDecision}
         onUpdateDraft={onUpdateDraft}
         onCancelDraft={onCancelDraft}
         onSubmitDraft={onSubmitDraft}
@@ -7697,7 +7733,7 @@ function ClauseRowScaleCard({
         <Card type="Static" padding="Base" state={orbitCardState} indicator={false}>
           <div className="flex flex-col gap-orbit-s">
             <div className="flex flex-wrap items-center justify-between gap-orbit-s">
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-orbit-xs">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-orbit-s">
                 {bulkSelectionEnabled && (
                   <Checkbox
                     checked={bulkClauseSelected}
@@ -7706,7 +7742,10 @@ function ClauseRowScaleCard({
                     onCheckedChange={(checked) => onBulkClauseSelectionChange?.(id, checked === true)}
                   />
                 )}
-                <span className="inline-flex w-[168px] shrink-0">
+                <h3 className="v6-orbit-heading-label text-orbit-fg">
+                  <ClauseTitleInline clauseId={id} fallback={clause.title} category={clause.category} />
+                </h3>
+                <span className="inline-flex shrink-0">
                   <Chip
                     label={statusLabel}
                     size="Mini"
@@ -7714,9 +7753,6 @@ function ClauseRowScaleCard({
                     contrast="Low"
                   />
                 </span>
-                <h3 className="v6-orbit-heading-label text-orbit-fg">
-                  <ClauseTitleInline clauseId={id} fallback={clause.title} category={clause.category} />
-                </h3>
               </div>
               <div className="flex shrink-0 flex-wrap items-center justify-end gap-orbit-xs">
                 {missingClause && (
@@ -7906,6 +7942,7 @@ function InitialAnalysisOptionTwoClauseCard({
   onUseRecommendation,
   onEditPosition,
   onNoAction,
+  onUndoDecision,
   onUpdateDraft,
   onCancelDraft,
   onSubmitDraft,
@@ -7927,6 +7964,7 @@ function InitialAnalysisOptionTwoClauseCard({
   onUseRecommendation?: () => void;
   onEditPosition?: () => void;
   onNoAction?: () => void;
+  onUndoDecision?: () => void;
   onUpdateDraft?: (patch: { requestedChange?: string; rationale?: string }) => void;
   onCancelDraft?: () => void;
   onSubmitDraft?: () => void;
@@ -7936,6 +7974,13 @@ function InitialAnalysisOptionTwoClauseCard({
   const requestText = request?.requestedChange?.trim() ?? "";
   const actionabilityText = actionability || requestText;
   const handled = decision === "request-update" || decision === "no-action";
+  const customPositionApplied =
+    !isDrafting && decision === "request-update" && Boolean(requestText) && requestText !== actionabilityText;
+  const recommendationApplied =
+    !isDrafting && decision === "request-update" && Boolean(requestText) && requestText === actionabilityText;
+  useEffect(() => {
+    if (customPositionApplied || recommendationApplied) setExpanded(false);
+  }, [customPositionApplied, recommendationApplied]);
   const positionLabel = decision === "no-action"
     ? "Accepted Supplier Position"
     : requestText && requestText !== actionabilityText
@@ -7984,11 +8029,16 @@ function InitialAnalysisOptionTwoClauseCard({
             <ClauseTitleInline clauseId={id} fallback={clause.title} />
           </span>
           <Chip label={clause.category} size="Mini" variant="No Status" contrast="High" />
+          {customPositionApplied ? (
+            <Chip label="Custom Position Applied" size="Mini" variant="Success" contrast="Low" />
+          ) : recommendationApplied ? (
+            <Chip label="Custom Position Applied" size="Mini" variant="Success" contrast="Low" />
+          ) : null}
         </span>
         <span className="flex shrink-0 items-center gap-orbit-xs">
           <span className="text-orbit-xs text-orbit-fg-secondary">Deviation</span>
           <FirstAnalysisStatusTag status={noneDeviationClause ? "none" : firstAnalysisSeverityStatus[clause.severity]} />
-          <ChevronDown className={cn("h-4 w-4 text-orbit-fg-secondary transition-transform", expanded && "rotate-180")} />
+          <ChevronDown className={cn("ml-orbit-xs h-4 w-4 text-orbit-fg-secondary transition-transform", expanded && "rotate-180")} />
         </span>
       </button>
       {expanded ? (
@@ -8022,6 +8072,10 @@ function InitialAnalysisOptionTwoClauseCard({
                 <Button variant="outline" className="ml-auto h-8 w-fit px-orbit-base" disabled={bulkSelectionEnabled} onClick={onNoAction}>
                   <Check className="h-3.5 w-3.5" aria-hidden="true" />
                   Accept Supplier Position
+                </Button>
+              ) : decision === "no-action" && onUndoDecision ? (
+                <Button variant="outline" className="ml-auto h-8 w-fit px-orbit-base" onClick={onUndoDecision}>
+                  Undo
                 </Button>
               ) : undefined
             }
@@ -8379,15 +8433,15 @@ function FirstAnalysisOptionTwoFilterBar({
       <span className="hidden h-5 w-px bg-orbit-border sm:block" aria-hidden="true" />
       <label className="flex items-center gap-orbit-s text-orbit-xs text-orbit-fg-secondary">
         <span className="v6-orbit-weight-semibold">Clauses</span>
-        <select
-          value={section}
-          aria-label="Section"
-          onChange={(event) => onSectionChange(event.target.value)}
-          className="h-8 min-w-[320px] rounded-orbit-md border border-orbit-border bg-orbit-card px-orbit-s text-left text-orbit-xs text-orbit-fg outline-none focus:border-orbit-primary"
-        >
-          <option value="all">All sections</option>
-          {sections.map((item) => <option key={item.name} value={item.name}>{item.name}</option>)}
-        </select>
+        <Select value={section} onValueChange={onSectionChange}>
+          <SelectTrigger className="h-8 min-w-[320px] bg-orbit-card text-orbit-xs clauseiq-v6-select-left" aria-label="Section">
+            <SelectValue placeholder="All sections" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All sections</SelectItem>
+            {sections.map((item) => <SelectItem key={item.name} value={item.name}>{item.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </label>
       {hasActiveFilters ? (
         <span className="ml-auto shrink-0 [&>a]:!text-orbit-primary">
@@ -8502,12 +8556,14 @@ function RoundComparisonCollapsedList({
   rows,
   defaultOpen,
   onOpenDetail,
+  onAddToStillOpen,
 }: {
   title: string;
   description: string;
   rows: ComparisonRow[];
   defaultOpen: boolean;
   onOpenDetail: (id: string) => void;
+  onAddToStillOpen?: (id: string) => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   if (rows.length === 0) return null;
@@ -8535,16 +8591,29 @@ function RoundComparisonCollapsedList({
           {rows.map((row) => {
             const clause = row.curr ?? row.prev!;
             return (
-              <button
+              <div
                 key={row.id}
-                type="button"
-                onClick={() => onOpenDetail(row.id)}
-                className="flex w-full items-center gap-orbit-s rounded-orbit-md px-orbit-s py-orbit-s text-left hover:bg-orbit-surface"
+                className="flex w-full items-center gap-orbit-s rounded-orbit-md px-orbit-s py-orbit-s hover:bg-orbit-surface"
               >
-                <span className="text-orbit-xs text-orbit-fg-secondary">{row.id}</span>
-                <span className="min-w-0 flex-1 truncate v6-orbit-text-body text-orbit-fg">{displayTitleForClause(row.id, clause.title)}</span>
-                <Chip label={row.pill.status === "met" ? "Met" : "No action"} size="Mini" variant={row.pill.status === "met" ? "Success" : "No Status"} contrast="Low" />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenDetail(row.id)}
+                  className="flex min-w-0 flex-1 items-center gap-orbit-s text-left"
+                >
+                  <span className="text-orbit-xs text-orbit-fg-secondary">{row.id}</span>
+                  <span className="min-w-0 flex-1 truncate v6-orbit-text-body text-orbit-fg">{displayTitleForClause(row.id, clause.title)}</span>
+                  <Chip label={row.pill.status === "met" ? "Met" : "No action"} size="Mini" variant={row.pill.status === "met" ? "Success" : "No Status"} contrast="Low" />
+                </button>
+                {onAddToStillOpen ? (
+                  <Button
+                    variant="outline"
+                    className="h-8 shrink-0 px-orbit-s text-orbit-xs"
+                    onClick={() => onAddToStillOpen(row.id)}
+                  >
+                    Add It To Still Open List
+                  </Button>
+                ) : null}
+              </div>
             );
           })}
         </div>
@@ -9642,6 +9711,7 @@ function ReviewScreen({
   bulkSelectedClauseIds,
   onBulkClauseSelectionChange,
   highlightedId,
+  acceptedClauseIds,
 }: {
   version: ContractVersion;
   stateOf: (id: string) => ClauseDecisionState;
@@ -9670,6 +9740,7 @@ function ReviewScreen({
   bulkSelectedClauseIds?: Set<string>;
   onBulkClauseSelectionChange?: (clauseId: string, selected: boolean) => void;
   highlightedId?: string | null;
+  acceptedClauseIds?: Set<string>;
 }) {
   const [pendingDraftCancelId, setPendingDraftCancelId] = useState<string | null>(null);
   const q = search.trim().toLowerCase();
@@ -9718,15 +9789,17 @@ function ReviewScreen({
     })
     .sort((a, b) => severityRank(b.clause.severity) - severityRank(a.clause.severity) || a.index - b.index)
     .map(({ clause }) => clause);
+  const isAcceptedSupplierPosition = (clauseId: string) =>
+    stateOf(clauseId).roundDecisions[versionLabel] === "no-action" || acceptedClauseIds?.has(clauseId) === true;
   const acceptedSupplierPositionRows = displayMode === "initial-option-2"
-    ? rows.filter((clause) => stateOf(clause.id).roundDecisions[versionLabel] === "no-action")
+    ? rows.filter((clause) => isAcceptedSupplierPosition(clause.id))
     : [];
   const reviewRows = displayMode === "initial-option-2"
-    ? rows.filter((clause) => stateOf(clause.id).roundDecisions[versionLabel] !== "no-action")
+    ? rows.filter((clause) => !isAcceptedSupplierPosition(clause.id))
     : rows;
   const renderClauseCard = (c: ClauseResult, initiallyExpanded = defaultExpandClauses) => {
     const state = stateOf(c.id);
-    const decision = state.roundDecisions[versionLabel];
+    const decision = isAcceptedSupplierPosition(c.id) ? "no-action" : state.roundDecisions[versionLabel];
     const own = state.requests[versionLabel] ?? {};
     const draft = state.draftRequests?.[versionLabel];
     const isDrafting = Boolean(draft);
@@ -9865,7 +9938,7 @@ function ReviewScreen({
             })}
         {acceptedSupplierPositionRows.length > 0 && (
           <FirstAnalysisReviewBucketSection
-            title="Accepted Supplier Position"
+            title="Accepted As Is"
             count={acceptedSupplierPositionRows.length}
             accent="success"
             description="Supplier position accepted without changes."
@@ -9918,8 +9991,6 @@ function ComparisonSection(props: {
   onOpenDetail: (id: string) => void;
   pinnedIds?: Set<string>;
   onTogglePin?: (id: string) => void;
-  recentlyClosed?: Record<string, number>;
-  onUndoClose?: (id: string) => void;
   onUpdateText?: (id: string, patch: { requestedChange?: string; rationale?: string }) => void;
   onCancelDraft?: (id: string) => void;
   onSubmitDraft?: (id: string) => void;
@@ -9945,7 +10016,7 @@ function ComparisonSection(props: {
     closureOf, requestOf, basketRequestOf, onClose, onKeepOpen, onFollowUp, onRemoveRequest, onResetReview, onTrackCurrentPosition, onOpenDetail,
     onContinueWithActionability,
     onReopenAcceptedDecision,
-    pinnedIds, onTogglePin, recentlyClosed, onUndoClose, draftOf,
+    pinnedIds, onTogglePin, draftOf,
     onUpdateText, onCancelDraft, onSubmitDraft, onConfirmVerdictFromAction, stateOf, layout = "collapsible", presentation = "standard", defaultOpen = true, collapseClausesByDefault = false, onAcceptSupplierPosition, overrideVerdict,
     bulkSelectionEnabled = false, bulkSelectedClauseIds, onBulkClauseSelectionChange,
     showKeepCurrentPosition = true,
@@ -10033,8 +10104,6 @@ function ComparisonSection(props: {
         const basketRequest = basketRequestOf?.(r.id) ?? req;
         const closure = closureOf(r.id);
         const isPinned = pinnedIds?.has(r.id) ?? false;
-        const undoExpiresAt = recentlyClosed?.[r.id];
-        const showRowUndo = !!undoExpiresAt && undoExpiresAt > Date.now();
         const requested = (bucket === "new" || bucket === "no-action") && (r.actionState === "requested" || r.actionState === "submitted_request");
         const pendingBasketRequest = basketRequest?.state === "pending" && Boolean(basketRequest.requestedChange?.trim());
         const noAction = (bucket === "new" || bucket === "no-action") && r.actionState === "no_action";
@@ -10144,7 +10213,7 @@ function ComparisonSection(props: {
             }}
             previousLabel={isRoundDashboard ? "Previous Supplier Position" : `Previous Summary · ${leftLabel}`}
             previousText={isRoundDashboard ? previousTargetText || r.prev?.deviation || "No earlier position was sent." : r.prev?.deviation ?? "Clause did not exist."}
-            currentLabel={isRoundDashboard ? "Latest Supplier Position" : `Current Summary · ${rightLabel}`}
+            currentLabel={isRoundDashboard ? "Current Supplier Position" : `Current Summary · ${rightLabel}`}
             currentText={latestSupplierText}
             currentFooter={
               showOutcomeActions && canShowOutcomeFooter && rowVerdict !== "met" ? (
@@ -10305,18 +10374,6 @@ function ComparisonSection(props: {
                   Position block. Lives in extraContent so it disappears once the
                   card condenses, like the rest of the body.
                 */}
-                {showRowUndo && onUndoClose && (
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onUndoClose(r.id);
-                    }}
-                    className="mt-orbit-s inline-flex items-center gap-orbit-xs text-orbit-xs text-orbit-primary hover:underline"
-                  >
-                    <RotateCcw className="h-3 w-3" /> Undo close
-                  </button>
-                )}
               </>
             }
             actions={rowActions}

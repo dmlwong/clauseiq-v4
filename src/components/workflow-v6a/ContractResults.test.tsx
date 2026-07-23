@@ -110,14 +110,6 @@ describe("ContractResults V6A review controls", () => {
     renderContractResults(outcomeReviewRoute);
 
     expect(screen.getByText("Supplier: Thomson Reuters")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Initial Analysis" })).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "Comparison View" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getAllByText("v2").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("v3").length).toBeGreaterThan(0);
-    expect(screen.queryByRole("button", { name: "Compare from version v2" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Compare to version v3" })).not.toBeInTheDocument();
-    expect(screen.queryByText("MSA_ThomsonReuters_v1.pdf")).not.toBeInTheDocument();
-    expect(screen.queryByText("MSA_ThomsonReuters_v2.pdf")).not.toBeInTheDocument();
   });
 
   it("renders the round comparison dashboard only for comparison design option 2", () => {
@@ -135,7 +127,7 @@ describe("ContractResults V6A review controls", () => {
     const previouslyMetBucket = screen.getByText(/^Previously Met And Unchanged/).closest("button");
     expect(previouslyMetBucket).toHaveAttribute("aria-expanded", "false");
     expect(screen.getAllByText("Previous Supplier Position").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Latest Supplier Position").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Current Supplier Position").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Recommended Next Position").length).toBeGreaterThan(0);
   });
 
@@ -204,13 +196,14 @@ describe("ContractResults V6A review controls", () => {
     });
   });
 
-  it("falls back to option 1 and hides option 2 for initial analysis", () => {
+  it("keeps Initial Analysis design options available", () => {
     renderContractResults(firstAnalysisRoute.replace("design=row-scale", "design=design-option-2"));
 
-    expect(screen.queryByText("Latest Analysis")).not.toBeInTheDocument();
+    expect(screen.getByText("Latest Analysis")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Design Control" }));
     expect(screen.getByText("Design option 1")).toBeInTheDocument();
-    expect(screen.queryByText("Design option 2")).not.toBeInTheDocument();
+    expect(screen.getByText("Design option 2")).toBeInTheDocument();
+    expect(screen.getByText("Design option 3")).toBeInTheDocument();
   });
 
   it("filters initial-analysis clauses from the Orbit deviation chips", async () => {
@@ -282,6 +275,82 @@ describe("ContractResults V6A review controls", () => {
     expect(metricCards).toHaveLength(2);
     expect(metricCards?.[0]).toHaveTextContent("ClauseIQ score");
     expect(metricCards?.[1]).toHaveTextContent("Review needed");
+  });
+
+  it("renders the Initial Analysis table as design option 3 only", async () => {
+    renderContractResults(initialAnalysisOnlyRoute.replace("design=row-scale", "design=design-option-3"));
+
+    expect(screen.getByRole("heading", { name: "Recommendations — Current Position" })).toHaveClass("v6-orbit-heading-4");
+    expect(screen.getByRole("heading", { name: "No Recommendations" })).toHaveClass("v6-orbit-heading-4");
+    expect(screen.getByRole("heading", { name: "Accepted As-Is" })).toHaveClass("v6-orbit-heading-4");
+    expect(screen.queryByText("Review ClauseIQ Recommendations")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Bulk Actions" })).not.toBeInTheDocument();
+    const recommendationsTable = screen.getByRole("table", { name: "Initial analysis recommendations" });
+    const noRecommendationsTable = screen.getByRole("table", { name: "Initial analysis no recommendations" });
+    expect(within(recommendationsTable).getByRole("columnheader", { name: "Clause type" })).toBeInTheDocument();
+    expect(within(noRecommendationsTable).getByRole("columnheader", { name: "Your negotiation position" })).toBeInTheDocument();
+    expect(within(recommendationsTable).getByRole("checkbox", { name: "Select all recommendation clauses" })).toBeInTheDocument();
+    const paymentTermsAccordion = within(recommendationsTable).getByRole("button", { name: /Payment terms C31/i });
+    expect(paymentTermsAccordion).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(paymentTermsAccordion);
+    expect(paymentTermsAccordion).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Full clause wording")).toBeInTheDocument();
+    expect(screen.getByText(/Payment terms are shorter than the buyer's preferred cash-flow position/i)).toBeInTheDocument();
+    const liabilityAccordion = within(recommendationsTable).getByRole("button", { name: /Limitation of liability.*C35/i });
+    fireEvent.click(liabilityAccordion);
+    expect(paymentTermsAccordion).toHaveAttribute("aria-expanded", "false");
+    expect(liabilityAccordion).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(liabilityAccordion);
+    expect(liabilityAccordion).toHaveAttribute("aria-expanded", "false");
+    const dataBreachAccordion = within(noRecommendationsTable).getByRole("button", { name: /Data breach notification C50/i });
+    fireEvent.click(dataBreachAccordion);
+    expect(dataBreachAccordion).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText(/current notification commitment aligns with the agreed control framework/i)).toBeInTheDocument();
+    expect(within(recommendationsTable).queryAllByRole("button", { name: "Reset Initial Recommendation" })).toHaveLength(0);
+    const recommendationPosition = within(recommendationsTable).getByRole("textbox", { name: /Negotiation position for Payment terms/i });
+    fireEvent.focus(recommendationPosition);
+    await waitFor(() => expect(within(recommendationPosition.closest("tr") as HTMLElement).getByRole("button", { name: "Reset Initial Recommendation" })).toBeInTheDocument());
+    fireEvent.blur(recommendationPosition);
+    expect(within(recommendationsTable).queryAllByRole("button", { name: "Reset Initial Recommendation" })).toHaveLength(0);
+    fireEvent.click(within(recommendationsTable).getByRole("checkbox", { name: "Bulk selected C31" }));
+    expect(screen.getByText("1 Clause Selected")).toBeInTheDocument();
+    within(recommendationsTable).getAllByRole("button", { name: "Accept supplier position" }).forEach((button) => expect(button).toBeDisabled());
+    fireEvent.click(screen.getByRole("button", { name: "✓ Accept Supplier On Selected" }));
+    expect(screen.queryByText("1 Clause Selected")).not.toBeInTheDocument();
+    within(noRecommendationsTable).getAllByRole("button", { name: "✦ Add to Recommendations" }).forEach((button) => expect(button).toBeDisabled());
+
+    const noRecommendationPosition = within(noRecommendationsTable).getByRole("textbox", { name: /Negotiation position for Data breach notification/i });
+    fireEvent.change(noRecommendationPosition, { target: { value: "Add a 24-hour breach notification obligation." } });
+    fireEvent.click(within(noRecommendationPosition.closest("tr") as HTMLElement).getByRole("button", { name: "✦ Add to Recommendations" }));
+    expect(within(screen.getByRole("table", { name: "Initial analysis recommendations" })).getByText("Data breach notification")).toBeInTheDocument();
+    expect(within(screen.getByRole("table", { name: "Initial analysis no recommendations" })).queryByText("Data breach notification")).not.toBeInTheDocument();
+
+    const promotedRow = within(screen.getByRole("table", { name: "Initial analysis recommendations" })).getByText("Data breach notification").closest("tr") as HTMLElement;
+    fireEvent.focus(within(promotedRow).getByRole("textbox", { name: /Negotiation position for Data breach notification/i }));
+    await waitFor(() => expect(within(promotedRow).getByRole("button", { name: "Remove from Recommendations" })).toBeInTheDocument());
+    fireEvent.click(within(promotedRow).getByRole("button", { name: "Remove from Recommendations" }));
+    expect(within(screen.getByRole("table", { name: "Initial analysis no recommendations" })).getByText("Data breach notification")).toBeInTheDocument();
+
+    expect(screen.getByRole("heading", { name: "Round 2 — measured against your position" })).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole("table", { name: "Initial analysis recommendations" })).getAllByRole("button", { name: "Accept supplier position" })[0]);
+    const acceptedTable = screen.getByRole("table", { name: "Initial analysis accepted as-is" });
+    expect(screen.getByRole("heading", { name: "Accepted As-Is" })).toBeInTheDocument();
+    expect(within(acceptedTable).getAllByText("Supplier position accepted — no counter-position.").length).toBeGreaterThan(0);
+    const acceptedAccordion = within(acceptedTable).getByRole("button", { name: /Payment terms C31/i });
+    fireEvent.click(acceptedAccordion);
+    expect(acceptedAccordion).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(within(acceptedTable).getAllByRole("button", { name: "Reject supplier position" })[0]);
+    expect(within(screen.getByRole("table", { name: "Initial analysis recommendations" })).getAllByRole("button", { name: "Accept supplier position" }).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Design Control" }));
+    expect(screen.getByRole("tab", { name: "Design option 3" })).toBeInTheDocument();
+  });
+
+  it("keeps the table design out of Comparison View", () => {
+    renderContractResults(optionTwoComparisonRoute);
+
+    fireEvent.click(screen.getByRole("button", { name: "Design Control" }));
+    expect(screen.queryByRole("tab", { name: "Design option 3" })).not.toBeInTheDocument();
   });
 
   it("groups met outcome rows under Met instead of Not Met", () => {
@@ -659,6 +728,9 @@ describe("ContractResults V6A review controls", () => {
     expect(acceptedBucket).toBeTruthy();
     expect(within(acceptedBucket as HTMLElement).getByText("Exit Support and Obligations")).toBeInTheDocument();
     expect(screen.getAllByText("Exit Support and Obligations")).toHaveLength(1);
+    expect(within(acceptedBucket as HTMLElement).getByRole("button", {
+      name: "c6 Exit Support and Obligations Term and Termination Deviation High",
+    })).toHaveAttribute("aria-expanded", "false");
     expect(onToast).toHaveBeenCalledWith(expect.objectContaining({
       detail: expect.objectContaining({ title: "Supplier position accepted" }),
     }));

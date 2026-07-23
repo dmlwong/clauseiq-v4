@@ -1,4 +1,7 @@
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] {
+  /* Orbit swatch token used by the Option 3 focused-row state. */
+  --orbit-color-swatch-purple-gray-500: #f1f5f9;
+
   --background: 216 26% 96%;
   --foreground: 0 0% 0%;
 
@@ -387,6 +390,24 @@ body
   top: 0;
   width: 100%;
   z-index: 18;
+}
+
+/* Keep V6A negotiation fields on the Orbit card (white) surface. */
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] [data-orbit-adapter="textarea"] textarea {
+  background-color: var(--orbit-color-bg-card, #ffffff) !important;
+}
+
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] table td:last-child > div > button.mt-orbit-xs.inline-flex {
+  color: var(--orbit-color-btn-primary-bg);
+}
+
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] [role="toolbar"][aria-label="Deviation"] button[aria-pressed="true"] {
+  background-color: var(--orbit-color-btn-primary-bg);
+  border-color: var(--orbit-color-btn-primary-bg);
+}
+
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] [role="toolbar"][aria-label="Deviation"] button[aria-pressed="true"] span {
+  color: var(--orbit-color-btn-primary-fg);
 }
 
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-banner-context {
@@ -1075,4 +1096,48 @@ body
 /* Keep the initiative picker compact while retaining Orbit's responsive width. */
 body > div:has(> div[role="dialog"] [data-v6-overlay="select-initiative"]) > div[role="dialog"] {
   max-width: 640px;
+}
+
+/* Keep prototype controls grouped at the bottom of the v6a side navigation. */
+[data-prototype="clauseiq-v6a"] .clauseiq-v6a-design-control-trigger,
+[data-prototype="clauseiq-v6a"] .clauseiq-v6a-design-control-trigger:hover,
+[data-prototype="clauseiq-v6a"] .clauseiq-v6a-design-control-trigger:focus-visible {
+  background: var(--orbit-color-sidenav-active-bg) !important;
+  color: var(--orbit-color-text-inverse) !important;
+}
+
+[data-prototype="clauseiq-v6a"] [data-orbit-inspector] > button {
+  align-items: center !important;
+  background: var(--orbit-color-sidenav-active-bg) !important;
+  bottom: 72px !important;
+  border: 1px solid var(--orbit-color-sidenav-divider) !important;
+  border-radius: var(--orbit-radius-sm) !important;
+  box-shadow: none !important;
+  color: var(--orbit-color-text-inverse) !important;
+  display: inline-flex !important;
+  font-family: inherit !important;
+  font-size: var(--orbit-text-xs) !important;
+  font-weight: var(--orbit-font-weight-medium) !important;
+  height: 28px !important;
+  justify-content: center !important;
+  left: var(--orbit-space-s) !important;
+  padding: 0 var(--orbit-space-base) !important;
+  right: auto !important;
+  width: calc(var(--orbit-sidenav-width) - var(--orbit-space-base)) !important;
+}
+
+[data-prototype="clauseiq-v6a"] [data-orbit-inspector] > button:hover {
+  background: var(--orbit-color-sidenav-active-bg) !important;
+}
+
+/* The first-run Inspector guidance needs an opaque, high-contrast surface. */
+[data-prototype="clauseiq-v6a"] [data-orbit-inspector] > div[style*="max-width"] {
+  background: var(--orbit-color-sidenav-bg) !important;
+  border-color: var(--orbit-color-sidenav-divider) !important;
+  color: var(--orbit-color-text-inverse) !important;
+}
+
+[data-prototype="clauseiq-v6a"] [data-orbit-inspector] > div[style*="max-width"] strong,
+[data-prototype="clauseiq-v6a"] [data-orbit-inspector] > div[style*="max-width"] button {
+  color: var(--orbit-color-text-inverse) !important;
 }

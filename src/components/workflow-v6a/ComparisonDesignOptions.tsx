@@ -17,7 +17,7 @@ import {
   type FirstAnalysisStatusKey,
 } from "./firstAnalysisStatusTags";
 
-export type ComparisonDesignOption = "evolved" | "side-by-side" | "row-scale" | "design-option-2";
+export type ComparisonDesignOption = "evolved" | "side-by-side" | "row-scale" | "design-option-2" | "design-option-3";
 export type EvidenceMetricKey =
   | "not-met"
   | "met"
@@ -62,6 +62,7 @@ export interface FirstAnalysisMetrics {
 const designOptions: Array<{ value: ComparisonDesignOption; label: string; icon: ReactNode }> = [
   { value: "row-scale", label: "Design option 1", icon: <List className="h-3.5 w-3.5" /> },
   { value: "design-option-2", label: "Design option 2", icon: <Columns3 className="h-3.5 w-3.5" /> },
+  { value: "design-option-3", label: "Design option 3", icon: <List className="h-3.5 w-3.5" /> },
 ];
 
 const distributionColours: Record<keyof DeviationDistribution, string> = {
@@ -88,11 +89,15 @@ function isInitiativesV6Route() {
 export function DesignOptionSwitcher({
   value,
   onChange,
+  showOptionOne = true,
   showOptionTwo = true,
+  showOptionThree = false,
 }: {
   value: ComparisonDesignOption;
   onChange: (value: ComparisonDesignOption) => void;
+  showOptionOne?: boolean;
   showOptionTwo?: boolean;
+  showOptionThree?: boolean;
 }) {
   return (
     <div
@@ -100,7 +105,11 @@ export function DesignOptionSwitcher({
       aria-label="Comparison design"
       className="flex min-w-0 items-center gap-orbit-xs overflow-x-auto rounded-orbit-md border border-orbit-border bg-orbit-card p-orbit-xxs"
     >
-      {designOptions.filter((option) => showOptionTwo || option.value !== "design-option-2").map((option) => {
+      {designOptions.filter((option) =>
+        (showOptionOne || option.value !== "row-scale") &&
+        (showOptionTwo || option.value !== "design-option-2") &&
+        (showOptionThree || option.value !== "design-option-3"),
+      ).map((option) => {
         const active = option.value === value;
         return (
           <button
@@ -277,6 +286,7 @@ export function FirstAnalysisDesignOptions({
   onMetricSelect,
   optionTwoFilters,
   optionTwoBulkBanner,
+  tableContent,
 }: {
   option: ComparisonDesignOption;
   banner?: ReactNode;
@@ -296,7 +306,16 @@ export function FirstAnalysisDesignOptions({
   onMetricSelect?: (metric: FirstAnalysisMetricKey) => void;
   optionTwoFilters?: ReactNode;
   optionTwoBulkBanner?: ReactNode;
+  tableContent?: ReactNode;
 }) {
+  if (option === "design-option-3") {
+    return (
+      <div className="mx-auto w-full max-w-[1800px] px-orbit-base py-orbit-base">
+        {tableContent}
+      </div>
+    );
+  }
+
   if (option === "design-option-2") {
     return (
       <div className="mx-auto w-full max-w-[1800px] space-y-orbit-base px-orbit-base py-orbit-base">

@@ -26,6 +26,8 @@ export interface ClauseResult {
   locations?: string[];
   /** Suggested next action / negotiation step for the buyer. */
   actionability?: string;
+  /** Concise analysis explanation shown in the Option 3 clause-detail accordion. */
+  rationale?: string;
 }
 
 export interface ContractVersion {

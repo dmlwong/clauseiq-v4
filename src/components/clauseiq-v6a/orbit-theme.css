@@ -1130,6 +1130,12 @@ body > div:has(> div[role="dialog"] [data-v6-overlay="select-initiative"]) > div
   background: var(--orbit-color-sidenav-active-bg) !important;
 }
 
+/* The result-scenario control lives above the sidebar footer in v6a. */
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v5-result-scenario-dropdown [class*="_overlay_"] {
+  top: auto;
+  bottom: calc(100% + var(--orbit-space-xs));
+}
+
 /* The first-run Inspector guidance needs an opaque, high-contrast surface. */
 [data-prototype="clauseiq-v6a"] [data-orbit-inspector] > div[style*="max-width"] {
   background: var(--orbit-color-sidenav-bg) !important;

@@ -170,7 +170,7 @@ export function CiqSidebar({ prototype = "v5" }: CiqSidebarProps) {
       />
 
       {showResultScenarioControl ? (
-        <div className="absolute bottom-orbit-mega left-[calc(var(--orbit-space-s)+var(--orbit-space-xs))] right-[calc(var(--orbit-space-s)+var(--orbit-space-xs))] rounded-md border border-[var(--orbit-color-sidenav-divider)] bg-[var(--orbit-color-sidenav-active-bg)] p-orbit-s shadow-sm">
+        <div className="absolute bottom-[calc(var(--orbit-space-mega)+var(--orbit-space-xl)+var(--orbit-space-base))] left-[calc(var(--orbit-space-s)+var(--orbit-space-xs))] right-[calc(var(--orbit-space-s)+var(--orbit-space-xs))] rounded-md border border-[var(--orbit-color-sidenav-divider)] bg-[var(--orbit-color-sidenav-active-bg)] p-orbit-s shadow-sm">
           <Text as="div" size="Small" variant="Inverse">
             Result scenario
           </Text>

@@ -117,18 +117,59 @@ describe("ContractResults V6A review controls", () => {
 
     expect(screen.getByText("Latest Analysis")).toBeInTheDocument();
     expect(screen.getByText("Convergence")).toBeInTheDocument();
-    expect(screen.getByText(/^Still Open — Position Not Met/)).toBeInTheDocument();
-    expect(screen.getByText(/^Still Open — Previously agreed, but changed by the supplier/)).toBeInTheDocument();
-    expect(screen.getByText(/^Positions Met this Round/)).toBeInTheDocument();
+    expect(screen.getByText(/^Action required — position still not met/)).toBeInTheDocument();
+    expect(screen.getByText(/^Regressed — previously agreed, but changed by the supplier/)).toBeInTheDocument();
+    expect(screen.getByText(/^Positions Met This Round/)).toBeInTheDocument();
     expect(screen.getAllByText("Commercial Terms").length).toBeGreaterThan(0);
     expect(screen.queryByText("Sub-clause:")).not.toBeInTheDocument();
-    const metBucket = screen.getByText(/^Positions Met this Round/).closest("section");
+    const metBucket = screen.getByText(/^Positions Met This Round/).closest("section");
     expect(within(metBucket as HTMLElement).queryByText("Recommended Next Position")).not.toBeInTheDocument();
+    expect(within(metBucket as HTMLElement).getByRole("columnheader", { name: "Clause" })).toBeInTheDocument();
+    expect(within(metBucket as HTMLElement).getByRole("columnheader", { name: "Previous Position Sent to Supplier" })).toBeInTheDocument();
+    expect(within(metBucket as HTMLElement).getByRole("columnheader", { name: "Latest Supplier Wording" })).toBeInTheDocument();
+    expect(within(metBucket as HTMLElement).getByRole("columnheader", { name: "Status" })).toBeInTheDocument();
+    expect(within(metBucket as HTMLElement).getAllByText("Met").length).toBeGreaterThan(0);
     const previouslyMetBucket = screen.getByText(/^Previously Met And Unchanged/).closest("button");
     expect(previouslyMetBucket).toHaveAttribute("aria-expanded", "false");
     expect(screen.getAllByText("Previous Supplier Position").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Current Supplier Position").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Recommended Next Position").length).toBeGreaterThan(0);
+  });
+
+  it("uses the outcome table and existing Undo behaviour for accepted supplier positions", async () => {
+    renderContractResults(optionTwoComparisonRoute);
+
+    const clauseRow = screen.getByText("Subcontracting").closest('[id^="clause-row-"]');
+    expect(clauseRow).toBeTruthy();
+    fireEvent.click(within(clauseRow as HTMLElement).getByRole("button", { name: "Accept Supplier Position" }));
+
+    const acceptedTable = await screen.findByRole("heading", { name: /^Accepted As Is/ });
+    const acceptedSection = acceptedTable.closest("section");
+    expect(acceptedSection).toBeTruthy();
+    expect(within(acceptedSection as HTMLElement).getByRole("columnheader", { name: "Actions" })).toBeInTheDocument();
+    expect(within(acceptedSection as HTMLElement).getByRole("columnheader", { name: "Status" })).toBeInTheDocument();
+    expect(within(acceptedSection as HTMLElement).getByText("Accepted as-is")).toBeInTheDocument();
+
+    fireEvent.click(within(acceptedSection as HTMLElement).getByRole("button", { name: "Undo" }));
+    await waitFor(() => expect(screen.queryByRole("heading", { name: /^Accepted As Is/ })).not.toBeInTheDocument());
+    expect(screen.getByText("Subcontracting")).toBeInTheDocument();
+  });
+
+  it("renders Previously Met And Unchanged as a collapsed table with add-back actions", async () => {
+    renderContractResults(optionTwoComparisonRoute);
+
+    const heading = screen.getByRole("heading", { name: /^Previously Met And Unchanged/ });
+    const section = heading.closest("section");
+    expect(section).toBeTruthy();
+    const toggle = within(section as HTMLElement).getByRole("button");
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(toggle);
+    await waitFor(() => {
+      expect(within(section as HTMLElement).getByRole("columnheader", { name: "Status" })).toBeInTheDocument();
+      expect(within(section as HTMLElement).queryByRole("columnheader", { name: "Actions" })).not.toBeInTheDocument();
+      expect(within(section as HTMLElement).queryByRole("button", { name: "Add It To Still Open List" })).not.toBeInTheDocument();
+    });
   });
 
   it("uses Orbit cards for the comparison summary metrics", () => {
@@ -163,8 +204,8 @@ describe("ContractResults V6A review controls", () => {
       expect(statusFilters().getByRole("button", { name: "Met" })).toHaveAttribute("aria-pressed", "true");
       expect(screen.getByRole("link", { name: "Clear Filters" })).toBeInTheDocument();
       expect(visibleClauseRows()).toBeLessThan(before);
-      expect(screen.queryByText("Still Open — Position Not Met")).not.toBeInTheDocument();
-      expect(screen.queryByText("Still Open — Previously agreed, but changed by the supplier")).not.toBeInTheDocument();
+      expect(screen.queryByText("Action required — position still not met")).not.toBeInTheDocument();
+      expect(screen.queryByText("Regressed — previously agreed, but changed by the supplier")).not.toBeInTheDocument();
       expect(screen.queryByText("Accepted As Is")).not.toBeInTheDocument();
     });
 

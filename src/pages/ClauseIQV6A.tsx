@@ -37,7 +37,17 @@ interface ClauseIQV6AProps {
   resultsLayout?: ResultsLayout;
 }
 
-export default function ClauseIQV6A({ forceResults = false, resultsLayout = "output-panel" }: ClauseIQV6AProps) {
+export default function ClauseIQV6A(props: ClauseIQV6AProps) {
+  const [searchParams] = useSearchParams();
+  // The result scenario selects a deterministic mock journey. Remount the
+  // journey when it changes so its workflow seed changes with the selector,
+  // rather than retaining the previous scenario's in-memory output state.
+  const scenarioKey = searchParams.get("resultScenario") === "history" ? "history" : "empty";
+
+  return <ClauseIQV6AContent key={scenarioKey} {...props} />;
+}
+
+function ClauseIQV6AContent({ forceResults = false, resultsLayout = "output-panel" }: ClauseIQV6AProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const resultsFromRoute = forceResults || searchParams.get("view") === "results";

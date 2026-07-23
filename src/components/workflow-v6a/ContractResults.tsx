@@ -2870,6 +2870,26 @@ export function ContractResults({
       />
     );
   };
+  const optionTwoPreviousPositionForRow = (row: ComparisonRow) => {
+    if (!leftVersion || !rightVersion) return "No earlier position was sent.";
+    const display = row.curr ?? row.prev!;
+    const inheritedRequest = getLatestRequest(stateOf(row.id), leftVersion.version)?.request;
+    const currentRequest = stateOf(row.id).requests[rightVersion.version];
+    return (
+      inheritedRequest?.requestedChange?.trim() ||
+      currentRequest?.requestedChange?.trim() ||
+      display.actionability?.trim() ||
+      display.deviation?.trim() ||
+      row.prev?.deviation?.trim() ||
+      "No earlier position was sent."
+    );
+  };
+  const undoOptionTwoAcceptedAsIs = (id: string) => {
+    if (!rightVersion) return;
+    decisions.resetClauseReviewState(supplierId, decisionContractId, id, rightVersion.version);
+    decisions.setTrackedCurrentPosition(supplierId, decisionContractId, id, rightVersion.version, false);
+    toast.success("Clause restored to negotiation.");
+  };
   const firstAnalysisActiveMetrics = Array.from(firstAnalysisMetricFilters);
   const selectFirstAnalysisMetric = (metric: FirstAnalysisMetricKey) => {
     setFirstAnalysisMetricFilters((current) => {
@@ -3391,9 +3411,7 @@ export function ContractResults({
       simplifyStatusMetrics={simplifyComparisonStatus}
       optionTwoDashboard={
         <RoundComparisonDashboard
-          banner={
-            <InlineRecommendationReviewBanner description="Compare the previous negotiation with the supplier’s current position, review ClauseIQ’s recommendation, and choose to accept supplier position, or set a custom position. Your decisions are recorded for your next negotiation." />
-          }
+          banner={null}
           bulkBanner={compactBulkBanner}
           previousScore={comparisonModel.panel.previous?.score ?? comparisonModel.panel.current.score - comparisonModel.panel.delta}
           currentScore={comparisonModel.panel.current.score}
@@ -3425,30 +3443,39 @@ export function ContractResults({
             />
           }
           actionRequired={shouldShowComparisonBucket("action-required", optionTwoGroups.actionRequired) ? optionTwoActionSection(
-            "Still Open — Position Not Met",
+            "Action required — position still not met",
             "Review the next-round position, edit it, or accept the supplier's wording.",
             optionTwoGroups.actionRequired,
             "destructive",
           ) : null}
           regressed={shouldShowComparisonBucket("regressed", optionTwoGroups.regressed) ? optionTwoActionSection(
-            "Still Open — Previously agreed, but changed by the supplier",
+            "Regressed — previously agreed, but changed by the supplier",
             "These were met in an earlier round. The supplier's latest wording has weakened your position.",
             optionTwoGroups.regressed,
             "warning",
           ) : null}
-          acceptedAsIs={shouldShowComparisonBucket("accepted-as-is", optionTwoGroups.acceptedAsIs) ? optionTwoActionSection(
-            "Accepted As Is",
-            "Supplier position accepted without changes.",
-            optionTwoGroups.acceptedAsIs,
-            "success",
-            { bucket: "closed", showOutcomeActions: false, overrideVerdict: "met" },
+          acceptedAsIs={shouldShowComparisonBucket("accepted-as-is", optionTwoGroups.acceptedAsIs) && leftVersion && rightVersion ? (
+            <RoundComparisonOutcomeTable
+              title="Accepted As Is"
+              description="Supplier position accepted without changes."
+              rows={optionTwoGroups.acceptedAsIs}
+              previousPositionForRow={optionTwoPreviousPositionForRow}
+              onOpenDetail={setDetailClauseId}
+              outcome="accepted-as-is"
+              onUndo={undoOptionTwoAcceptedAsIs}
+              collapsible
+            />
           ) : null}
-          metThisRound={shouldShowComparisonBucket("met-this-round", optionTwoGroups.metThisRound) ? optionTwoActionSection(
-            "Positions Met this Round",
-            "Newly settled in this round. No further action required",
-            optionTwoGroups.metThisRound,
-            "success",
-            { bucket: "closed", showOutcomeActions: false, overrideVerdict: "met" },
+          metThisRound={shouldShowComparisonBucket("met-this-round", optionTwoGroups.metThisRound) && leftVersion && rightVersion ? (
+            <RoundComparisonOutcomeTable
+              title="Positions Met This Round"
+              description="Newly settled in this round. No further action required."
+              rows={optionTwoGroups.metThisRound}
+              previousPositionForRow={optionTwoPreviousPositionForRow}
+              onOpenDetail={setDetailClauseId}
+              outcome="met"
+              collapsible
+            />
           ) : null}
           previouslyMet={shouldShowComparisonBucket("previously-met", optionTwoGroups.previouslyMet) ? (
             <RoundComparisonCollapsedList
@@ -3470,18 +3497,29 @@ export function ContractResults({
               }}
             />
           ) : null}
-          notSelected={shouldShowComparisonBucket("not-selected", optionTwoGroups.notSelected) ? optionTwoActionSection(
-            "Previously Met And Unchanged",
-            "Clauses that were met in an earlier round and remain unchanged in the latest analysis.",
-            optionTwoGroups.notSelected,
-            "neutral",
-            {
-              bucket: "closed",
-              showOutcomeActions: false,
-              overrideVerdict: "met",
-              defaultOpen: false,
-              collapseClausesByDefault: true,
-            },
+          notSelected={shouldShowComparisonBucket("not-selected", optionTwoGroups.notSelected) ? (
+            <RoundComparisonOutcomeTable
+              title="Previously Met And Unchanged"
+              description="Clauses that were met in an earlier round and remain unchanged in the latest analysis."
+              rows={optionTwoGroups.notSelected}
+              defaultOpen={false}
+              onOpenDetail={setDetailClauseId}
+              previousPositionForRow={optionTwoPreviousPositionForRow}
+              outcome="previously-met"
+              showActions={false}
+              onAddToStillOpen={(id) => {
+                if (!rightVersion) return;
+                decisions.patchClauseState(supplierId, decisionContractId, id, {
+                  reopenedForNegotiation: {
+                    ...stateOf(id).reopenedForNegotiation,
+                    [rightVersion.version]: true,
+                  },
+                  acceptedClosed: false,
+                });
+                toast.success("Clause added to Still Open.");
+              }}
+              collapsible
+            />
           ) : null}
         />
       }
@@ -7095,6 +7133,7 @@ function ClauseRequestForm({
             className={cn(
               comparisonEditing ? "min-h-[120px]" : "min-h-[64px]",
               compact && !comparisonEditing && "min-h-[58px] text-orbit-xs",
+              comparisonEditing && "[&>div]:!pt-0",
               "text-orbit-sm",
             )}
           />
@@ -7306,20 +7345,9 @@ function ClauseDecisionCard({
     Boolean(changePill?.status) &&
     !stateBadge &&
     !(useV6StatusTags && changePill?.status === "regressed");
-  const severityStatusKey = noneDeviationClause ? "none" : firstAnalysisSeverityStatus[clause.severity];
-  const severityBadgeLabel = useV6StatusTags
-    ? FIRST_ANALYSIS_STATUS_THEME[severityStatusKey].label
-    : noneDeviationClause
-    ? "None"
-    : useFirstAnalysisDeviationStyle
-    ? "High"
-    : clause.severity;
-  const severityBadgeClass = noneDeviationClause
-    ? firstAnalysisNoneDeviationBadgeClass
-    : useFirstAnalysisDeviationStyle
-    ? firstAnalysisDeviationBadgeClass
-    : `${severityTone(clause.severity)} shrink-0 rounded-full px-orbit-xs py-orbit-xxs text-orbit-xs v6-orbit-weight-medium`;
-  const showSeverityBadge = true;
+  // The v6a clause header already has its bucket and filter context. Avoid
+  // repeating a deviation label/status on every individual clause card.
+  const showSeverityBadge = !useV6StatusTags;
   const reviewCardState: OrbitCardState = useV6DeviationCard
     ? firstAnalysisCardStateForClause(clause)
     : useDefaultComparisonCard
@@ -7417,8 +7445,7 @@ function ClauseDecisionCard({
           </div>
           {alteredAfterAgreement && <Chip label="Altered after agreement" size="Mini" variant="Error" contrast="Low" />}
           {verdict && !isMissingClauseCard ? (
-            <span className="inline-flex w-fit min-w-[152px] shrink-0 items-center gap-orbit-xs whitespace-nowrap">
-              <span className="shrink-0 text-orbit-xs text-orbit-fg-secondary">Review status</span>
+            <span className="inline-flex w-fit shrink-0 items-center whitespace-nowrap">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="inline-flex cursor-help">
@@ -7432,8 +7459,7 @@ function ClauseDecisionCard({
             </span>
           ) : showChangePill && changePill ? <ChangePillBadge result={changePill} /> : null}
           {isMissingClauseCard && (
-            <span className="inline-flex w-fit min-w-[152px] shrink-0 items-center gap-orbit-xs whitespace-nowrap">
-              <span className="shrink-0 text-orbit-xs text-orbit-fg-secondary">Review status</span>
+            <span className="inline-flex w-fit shrink-0 items-center whitespace-nowrap">
               {useV6StatusTags ? (
                 <FirstAnalysisStatusTag status="missing" label="Missing" />
               ) : (
@@ -7453,22 +7479,9 @@ function ClauseDecisionCard({
           {showSeverityBadge && (
             <span className="inline-flex w-[120px] shrink-0 items-center gap-orbit-xs">
               <span className="text-orbit-xs text-orbit-fg-secondary">Deviation</span>
-              {useV6StatusTags ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="inline-flex cursor-help">
-                      <FirstAnalysisStatusTag status={severityStatusKey} />
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="left" className="w-[320px]">
-                    <DeviationTooltipContent />
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                <Badge variant="outline" className={severityBadgeClass}>
-                  {severityBadgeLabel}
-                </Badge>
-              )}
+              <Badge variant="outline" className={`${severityTone(clause.severity)} shrink-0 rounded-full px-orbit-xs py-orbit-xxs text-orbit-xs v6-orbit-weight-medium`}>
+                {noneDeviationClause ? "None" : useFirstAnalysisDeviationStyle ? "High" : clause.severity}
+              </Badge>
             </span>
           )}
           {showHandledCompact && (
@@ -8624,65 +8637,140 @@ function RoundComparisonFilterGroup<T extends string>({
   );
 }
 
-function RoundComparisonMetTable({
+function RoundComparisonOutcomeTable({
   title,
   description,
   rows,
-  leftLabel,
-  rightLabel,
   previousPositionForRow,
   onOpenDetail,
+  outcome,
+  onUndo,
+  onAddToStillOpen,
+  collapsible = false,
+  defaultOpen = true,
+  showActions = true,
 }: {
   title: string;
   description: string;
   rows: ComparisonRow[];
-  leftLabel: string;
-  rightLabel: string;
   previousPositionForRow: (row: ComparisonRow) => string;
   onOpenDetail: (id: string) => void;
+  outcome: "met" | "accepted-as-is" | "previously-met";
+  onUndo?: (id: string) => void;
+  onAddToStillOpen?: (id: string) => void;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+  showActions?: boolean;
 }) {
   if (rows.length === 0) return null;
+  const [open, setOpen] = useState(defaultOpen);
+  const acceptsUndo = outcome === "accepted-as-is" && Boolean(onUndo);
+  const supportsAddBack = outcome === "previously-met" && Boolean(onAddToStillOpen);
+  const hasActions = showActions && (acceptsUndo || supportsAddBack);
+
+  const outcomeTable = (
+    <div className="overflow-x-auto rounded-orbit-lg border border-orbit-border bg-orbit-card">
+      <table className="w-full min-w-[920px] border-collapse text-left">
+        <thead className="bg-orbit-surface/60 text-orbit-xs uppercase tracking-wide text-orbit-fg-secondary">
+          <tr>
+            <th className="px-orbit-base py-orbit-s v6-orbit-weight-semibold">Clause</th>
+            <th className="px-orbit-base py-orbit-s v6-orbit-weight-semibold">Previous Position Sent to Supplier</th>
+            <th className="px-orbit-base py-orbit-s v6-orbit-weight-semibold">Latest Supplier Wording</th>
+            <th className="px-orbit-base py-orbit-s v6-orbit-weight-semibold">
+              Status
+            </th>
+            {hasActions ? <th className="px-orbit-base py-orbit-s text-right v6-orbit-weight-semibold">Actions</th> : null}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const clause = row.curr ?? row.prev!;
+            const latestSupplierWording = clause.missingClause
+              ? "Missing from contract."
+              : row.curr?.deviation ?? "Clause no longer present.";
+            return (
+              <tr key={row.id} className="border-t border-orbit-border align-top hover:bg-orbit-surface/30">
+                <td className="min-w-[220px] px-orbit-base py-orbit-base">
+                  <button
+                    type="button"
+                    className="text-left hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary"
+                    onClick={() => onOpenDetail(row.id)}
+                    aria-label={`View details for ${displayTitleForClause(row.id, clause.title)}`}
+                  >
+                    {clause.category ? <span className="block text-orbit-xs uppercase tracking-wide text-orbit-fg-secondary">{clause.category}</span> : null}
+                    <span className="v6-orbit-text-body v6-orbit-weight-semibold text-orbit-fg">{displayTitleForClause(row.id, clause.title)}</span>
+                  </button>
+                </td>
+                <td className="min-w-[280px] whitespace-normal break-words px-orbit-base py-orbit-base v6-orbit-text-small text-orbit-fg-secondary">{previousPositionForRow(row)}</td>
+                <td className="min-w-[280px] whitespace-normal break-words px-orbit-base py-orbit-base v6-orbit-text-small text-orbit-fg">{latestSupplierWording}</td>
+                <td className="px-orbit-base py-orbit-base">
+                  <Chip
+                    label={outcome === "accepted-as-is" ? "Accepted as-is" : "Met"}
+                    size="Mini"
+                    variant="Success"
+                    contrast="Low"
+                  />
+                </td>
+                {hasActions ? (
+                  <td className="px-orbit-base py-orbit-base text-right">
+                    {acceptsUndo ? (
+                      <Button
+                        variant="outline"
+                        className="h-7 px-orbit-s text-orbit-xs"
+                        onClick={() => onUndo?.(row.id)}
+                      >
+                        Undo
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="h-7 px-orbit-s text-orbit-xs"
+                        onClick={() => onAddToStillOpen?.(row.id)}
+                      >
+                        Add It To Still Open List
+                      </Button>
+                    )}
+                  </td>
+                ) : null}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  if (collapsible) {
+    return (
+      <section className="overflow-hidden rounded-orbit-lg border border-orbit-success/30 bg-orbit-card">
+        <button
+          type="button"
+          aria-expanded={open}
+          className="flex w-full items-start gap-orbit-base bg-orbit-success/5 p-orbit-base text-left transition-colors hover:bg-orbit-success/10"
+          onClick={() => setOpen((current) => !current)}
+        >
+          <span className="w-1 self-stretch rounded-orbit-sm bg-orbit-success" aria-hidden="true" />
+          <span className="min-w-0 flex-1">
+            <span role="heading" aria-level={2} className="block v6-orbit-heading-strong text-orbit-success">{title} · <span className="tabular-nums text-orbit-fg">{rows.length}</span></span>
+            <span className="mt-orbit-xs block v6-orbit-text-small text-orbit-fg-secondary">{description}</span>
+          </span>
+          <ChevronDown className={cn("mt-orbit-xs h-4 w-4 shrink-0 text-orbit-fg-secondary transition-transform", open && "rotate-180")} />
+        </button>
+        {open ? <div className="border-t border-orbit-border p-orbit-base">{outcomeTable}</div> : null}
+      </section>
+    );
+  }
 
   return (
-    <section>
-      <div className="mb-orbit-s flex flex-wrap items-baseline gap-orbit-s">
+    <section className="space-y-orbit-s">
+      <div>
         <h2 className="v6-orbit-heading-strong text-orbit-fg">
           <span className="mr-orbit-s inline-block h-2 w-2 rounded-full bg-orbit-success" aria-hidden="true" />
           {title} · {rows.length}
         </h2>
-        <p className="v6-orbit-text-small text-orbit-fg-secondary">{description}</p>
+        <p className="mt-orbit-xxs v6-orbit-text-small text-orbit-fg-secondary">{description}</p>
       </div>
-      <div className="overflow-x-auto rounded-orbit-lg border border-orbit-border">
-        <table className="w-full min-w-[760px] border-collapse text-left">
-          <thead className="bg-orbit-surface/60 text-orbit-xs uppercase tracking-wide text-orbit-fg-secondary">
-            <tr>
-              <th className="px-orbit-base py-orbit-s v6-orbit-weight-semibold">Clause</th>
-              <th className="px-orbit-base py-orbit-s v6-orbit-weight-semibold">Previous position sent to supplier · {leftLabel}</th>
-              <th className="px-orbit-base py-orbit-s v6-orbit-weight-semibold">Latest supplier wording · {rightLabel}</th>
-              <th className="px-orbit-base py-orbit-s text-right v6-orbit-weight-semibold">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => {
-              const clause = row.curr ?? row.prev!;
-              return (
-                <tr key={row.id} className="border-t border-orbit-border align-top hover:bg-orbit-surface/30">
-                  <td className="px-orbit-base py-orbit-base">
-                    <button type="button" className="text-left hover:underline" onClick={() => onOpenDetail(row.id)}>
-                      <span className="block text-orbit-xs text-orbit-fg-secondary">{row.id}</span>
-                      <span className="v6-orbit-text-body v6-orbit-weight-semibold text-orbit-fg">{displayTitleForClause(row.id, clause.title)}</span>
-                      {clause.category ? <span className="mt-orbit-xs block text-orbit-xs text-orbit-fg-secondary">{clause.category}</span> : null}
-                    </button>
-                  </td>
-                  <td className="max-w-[360px] px-orbit-base py-orbit-base v6-orbit-text-small text-orbit-fg-secondary">{previousPositionForRow(row)}</td>
-                  <td className="max-w-[360px] px-orbit-base py-orbit-base v6-orbit-text-small text-orbit-fg">{row.curr?.deviation ?? "Missing from contract."}</td>
-                  <td className="px-orbit-base py-orbit-base text-right"><Chip label="Met" size="Mini" variant="Success" contrast="Low" /></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      {outcomeTable}
     </section>
   );
 }
@@ -10968,8 +11056,7 @@ function ComparisonSection(props: {
             deviationDelta={rowDeviationDelta}
             alteredAfterAgreement={Boolean(rowState?.alteredAfterAgreement)}
             stateBadge={bucket === "no-action" ? (
-              <span className="inline-flex items-center gap-orbit-xs whitespace-nowrap">
-                <span className="shrink-0 text-orbit-xs text-orbit-fg-secondary">Review status</span>
+              <span className="inline-flex items-center whitespace-nowrap">
                 <Chip label="No Further Action" size="Mini" variant="No Status" contrast="Low" />
               </span>
             ) : undefined}

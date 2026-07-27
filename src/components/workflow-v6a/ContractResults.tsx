@@ -1000,10 +1000,12 @@ export function ContractResults({
 }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
   const supplierJourneyId = searchParams.get("supplierJourney");
+  const supplierJourneyKey = supplierJourneyId ?? `dashboard-${supplierId}-${contractId}`;
   const [supplierJourney, setSupplierJourney] = useState<DashboardSupplierJourney | null>(
-    () => getSupplierJourney(supplierJourneyId),
+    () => getSupplierJourney(supplierJourneyKey),
   );
-  useEffect(() => subscribeSupplierJourneys(() => setSupplierJourney(getSupplierJourney(supplierJourneyId))), [supplierJourneyId]);
+  const [supplierPickerOpen, setSupplierPickerOpen] = useState(false);
+  useEffect(() => subscribeSupplierJourneys(() => setSupplierJourney(getSupplierJourney(supplierJourneyKey))), [supplierJourneyKey]);
   const initiative = getInitiative(initiativeId);
   const supplier = getSupplier(initiativeId, supplierId);
   const contract = getContract(initiativeId, supplierId, contractId);
@@ -1044,7 +1046,6 @@ export function ContractResults({
   const firstAnalysisResetKeyRef = useRef<string | null>(null);
   const seededNoActionScenarioRef = useRef<string | null>(null);
   const seededOutcomeReviewRequestsRef = useRef<string | null>(null);
-  const [openInlineRationaleClauseId, setOpenInlineRationaleClauseId] = useState<string | null>(null);
 
   // Local mutable copy of versions so the user can simulate uploading a new
   // round or deleting an existing one without touching shared seed data.
@@ -1481,9 +1482,7 @@ export function ContractResults({
         // Local persistence is best-effort in the prototype.
       }
     }
-    if (outcomeReviewMode) {
-      updateDashboardNegotiationLock({ lastDownloadedAt: new Date().toISOString() });
-    }
+    updateDashboardNegotiationLock({ lastDownloadedAt: new Date().toISOString() });
     setBulkAppliedRecommendationIds([]);
     setBulkAppliedRecommendationScopeLabel(null);
     setBulkReviewSelection(null);
@@ -3388,6 +3387,21 @@ export function ContractResults({
       description: `${selectedIds.length} clause${selectedIds.length === 1 ? "" : "s"} moved to Accepted As Is.`,
     });
   };
+  const firstAnalysisTableFilters = firstAnalysisVersion ? (
+    <InitialAnalysisTableFilterBar
+      activeMetrics={firstAnalysisMetricFilters}
+      onMetricToggle={selectFirstAnalysisMetric}
+      onClearMetrics={clearAllFirstAnalysisMetrics}
+      section={activeCategories.length === 1 ? activeCategories[0] : "all"}
+      sections={comparisonCategoryItems}
+      onSectionChange={(section) => setActiveCategories(section === "all" ? [] : [section])}
+      onClearFilters={() => {
+        clearAllFirstAnalysisMetrics();
+        setActiveCategories([]);
+      }}
+      metrics={firstAnalysisMetrics}
+    />
+  ) : null;
   const firstAnalysisReviewList = firstAnalysisVersion ? (
     <ReviewScreen
       version={firstAnalysisVersion}
@@ -3431,21 +3445,7 @@ export function ContractResults({
       onBulkClauseSelectionChange={toggleBulkClauseSelection}
       highlightedId={highlightClauseId}
       acceptedClauseIds={acceptedFirstAnalysisClauseIds}
-      tableFilters={designOption === "design-option-3" ? (
-        <InitialAnalysisTableFilterBar
-          activeMetrics={firstAnalysisMetricFilters}
-          onMetricToggle={selectFirstAnalysisMetric}
-          onClearMetrics={clearAllFirstAnalysisMetrics}
-          section={activeCategories.length === 1 ? activeCategories[0] : "all"}
-          sections={comparisonCategoryItems}
-          onSectionChange={(section) => setActiveCategories(section === "all" ? [] : [section])}
-          onClearFilters={() => {
-            clearAllFirstAnalysisMetrics();
-            setActiveCategories([]);
-          }}
-          metrics={firstAnalysisMetrics}
-        />
-      ) : undefined}
+      tableFilters={undefined}
     />
   ) : null;
   const firstAnalysisDesignContent = firstAnalysisVersion && mode === "comparison" && versions.length < 2 ? (
@@ -3485,6 +3485,26 @@ export function ContractResults({
           onSectionChange={(section) => setActiveCategories(section === "all" ? [] : [section])}
         />
       }
+      tableControlPanel={firstAnalysisVersion && designOption === "design-option-3" ? (
+        <InitialAnalysisTableControlPanel
+          banner={
+            <ComparisonNegotiationBanner
+              version={firstAnalysisVersion.version}
+              cardState="Default"
+              fallbackLastEditedAt="2026-01-03T16:47:00.000Z"
+              fallbackLastDownloadedAt="2026-01-03T16:35:00.000Z"
+              locked={isDashboardLocked}
+              lockedAt={dashboardNegotiationLock?.lockedAt}
+              lockedBy={dashboardNegotiationLock?.lockedBy}
+              lastEditedAt={lastDashboardEditedAt}
+              lastDownloadedAt={dashboardNegotiationLock?.lastDownloadedAt}
+              onLock={lockComparisonDashboard}
+              onUnlock={unlockComparisonDashboard}
+            />
+          }
+          filters={firstAnalysisTableFilters}
+        />
+      ) : null}
       tableContent={firstAnalysisReviewList}
     />
   ) : null;
@@ -3900,13 +3920,28 @@ export function ContractResults({
       </div>
     ) : null;
 
+  const displayedSupplierJourney = supplierJourney ?? (mode === "comparison" ? {
+    supplierName: supplier.name,
+    corrected: false,
+    context: {
+      outcome: "known" as const,
+      status: "known" as const,
+      supplierId: supplier.id,
+      alias: null,
+      fileName: contract.name ?? "Current contract",
+      roundId: null,
+      grouping: {
+        salesforceId: null,
+        project: initiative.name,
+        initiative: initiative.name,
+        identityKey: supplier.id,
+        displayKey: supplier.name,
+      },
+    },
+  } : null);
+  const displayedSupplierJourneyId = supplierJourneyKey;
+
   return (
-    <InlineRationaleContext.Provider
-      value={{
-        openClauseId: openInlineRationaleClauseId,
-        setOpenClauseId: setOpenInlineRationaleClauseId,
-      }}
-    >
     <BulkClauseSelectionContext.Provider
       value={{
         enabled: bulkSelectionEnabled,
@@ -3916,7 +3951,7 @@ export function ContractResults({
     >
     <div className="min-h-screen">
       {compactHeader ? (
-        <div className="sticky top-0 z-30 border-b border-orbit-border bg-orbit-card">
+        <div className="relative sticky top-0 z-30 border-b border-orbit-border bg-orbit-card">
           <CompactContractTopbar
             backLabel={compactBackLabel}
             onBack={onBack}
@@ -3925,7 +3960,19 @@ export function ContractResults({
             firstAnalysisDemo={firstAnalysisDemo}
             demoAvailable={availableVersions.length >= 2}
             onFirstAnalysisDemoChange={toggleFirstAnalysisDemo}
+            onChangeSupplier={() => setSupplierPickerOpen((open) => !open)}
+            supplierPickerOpen={supplierPickerOpen}
+            supplierChangeDisabled={isDashboardLocked}
           />
+          {displayedSupplierJourney && (
+            <SupplierChangePicker
+              journeyId={displayedSupplierJourneyId}
+              journey={displayedSupplierJourney}
+              open={supplierPickerOpen}
+              onOpenChange={setSupplierPickerOpen}
+              isDashboardLocked={isDashboardLocked}
+            />
+          )}
         </div>
       ) : (
         <>
@@ -4133,13 +4180,6 @@ export function ContractResults({
             }}
           />
         </div>
-      )}
-
-      {supplierJourneyId && supplierJourney && (
-        <DashboardSupplierIdentity
-          journeyId={supplierJourneyId}
-          journey={supplierJourney}
-        />
       )}
 
       {/* Negotiation trend strip — V1 → Vn (TASK-07) */}
@@ -4534,7 +4574,6 @@ export function ContractResults({
       />
     </div>
     </BulkClauseSelectionContext.Provider>
-    </InlineRationaleContext.Provider>
   );
 }
 
@@ -4635,6 +4674,9 @@ function CompactContractTopbar({
   firstAnalysisDemo,
   demoAvailable,
   onFirstAnalysisDemoChange,
+  onChangeSupplier,
+  supplierPickerOpen,
+  supplierChangeDisabled,
 }: {
   backLabel: string;
   onBack: () => void;
@@ -4643,6 +4685,9 @@ function CompactContractTopbar({
   firstAnalysisDemo: boolean;
   demoAvailable: boolean;
   onFirstAnalysisDemoChange: (enabled: boolean) => void;
+  onChangeSupplier: () => void;
+  supplierPickerOpen: boolean;
+  supplierChangeDisabled: boolean;
 }) {
   return (
     <div className="flex min-h-10 items-center gap-orbit-base border-b border-orbit-border px-orbit-base py-orbit-s">
@@ -4655,6 +4700,20 @@ function CompactContractTopbar({
       <div className="h-3.5 w-px bg-orbit-border" aria-hidden />
       <div className="flex min-w-0 flex-1 items-center gap-orbit-s">
         <h1 className="v6-orbit-heading-label min-w-0 truncate text-orbit-fg">{referenceLine}</h1>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0 text-orbit-fg-secondary hover:text-orbit-fg"
+          aria-label="Change supplier"
+          title="Change supplier"
+          aria-expanded={supplierPickerOpen}
+          aria-controls="supplier-change-picker"
+          disabled={supplierChangeDisabled}
+          onClick={onChangeSupplier}
+        >
+          <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+        </Button>
       </div>
       {actions}
     </div>
@@ -6486,8 +6545,8 @@ function CompactDistributionBar({ distribution }: { distribution: DeviationDistr
             }}
           />
         );
-      })}
-    </div>
+        })}
+      </div>
   );
 }
 
@@ -8389,6 +8448,25 @@ function ResultCardPanel({
 type RoundDashboardStatusFilter = "all" | "met" | "not-met";
 type RoundDashboardDeviationFilter = "all" | "high" | "medium" | "low" | "missing";
 
+function InitialAnalysisTableControlPanel({
+  banner,
+  filters,
+}: {
+  banner: ReactNode;
+  filters: ReactNode;
+}) {
+  return (
+    <div className="clauseiq-v6a-round-dashboard">
+      <Card type="Static" padding="Base" state="Default" indicator={false} style={{ width: "100%" }}>
+        <div className="space-y-orbit-base">
+          <div className="clauseiq-v6a-summary-banner">{banner}</div>
+          <div>{filters}</div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 function RoundComparisonDashboard({
   banner,
   bulkBanner,
@@ -8423,12 +8501,9 @@ function RoundComparisonDashboard({
   return (
     <div className="space-y-orbit-base">
       <div className="clauseiq-v6a-round-dashboard">
-        <Card type="Static" padding="Base" state="Default" indicator={false} style={{ width: "100%" }}>
+        <Card type="Static" padding="Base" state="Default" indicator={false} style={{ width: "100%", paddingTop: 0 }}>
           <div className="space-y-orbit-base">
-            <div className="flex flex-wrap items-start justify-between gap-orbit-base">
-              <h1 className="v6-orbit-heading-strong text-orbit-fg">Latest Analysis</h1>
-              <div className="shrink-0">{comparisonControl}</div>
-            </div>
+            <div className="flex justify-end">{comparisonControl}</div>
             {banner ? <div className="clauseiq-v6a-summary-banner">{banner}</div> : null}
             <div className="grid gap-orbit-base md:grid-cols-3">
               <RoundComparisonMetric
@@ -8458,6 +8533,9 @@ function RoundComparisonDashboard({
 
 function ComparisonNegotiationBanner({
   version,
+  cardState = "Warning",
+  fallbackLastEditedAt,
+  fallbackLastDownloadedAt,
   locked,
   lockedAt,
   lockedBy,
@@ -8467,6 +8545,9 @@ function ComparisonNegotiationBanner({
   onUnlock,
 }: {
   version: string;
+  cardState?: "Default" | "Warning";
+  fallbackLastEditedAt?: string;
+  fallbackLastDownloadedAt?: string;
   locked: boolean;
   lockedAt?: string;
   lockedBy?: string;
@@ -8476,47 +8557,44 @@ function ComparisonNegotiationBanner({
   onUnlock: () => void;
 }) {
   const activityTimestamp = (value?: string | null) => {
-    if (!value) return "Not downloaded";
+    if (!value) return "Not recorded";
     const formatted = formatClauseIqTimestamp(value);
     const [date, time] = formatted.split(" · ");
     const today = formatClauseIqTimestamp(new Date().toISOString()).split(" · ")[0];
     return date === today ? `today, ${time}` : formatted;
   };
-  const stateLabel = locked ? "Locked" : "Revising";
-  const stateVariant = locked ? "Warning" : "Warning";
-
+  const editedAt = lastEditedAt ?? fallbackLastEditedAt;
+  const downloadedAt = lastDownloadedAt ?? fallbackLastDownloadedAt;
   return (
-    <Card type="Static" padding="Base" state="Default" indicator={false}>
-      <div className="flex flex-wrap items-start justify-between gap-orbit-base">
-        <div className="flex min-w-0 flex-1 basis-[34rem] items-start gap-orbit-s">
-          <FaIcon icon={FA.file} size={18} fontWeight={400} className="mt-orbit-xxs shrink-0 text-orbit-fg" />
-          <div className="min-w-0 space-y-orbit-s">
-            <div className="flex flex-wrap items-center gap-orbit-s">
-              <Headings size="Heading 5">Negotiation Position</Headings>
-              <Chip label={version} size="Mini" variant="Information" />
-              <Chip label={stateLabel} size="Mini" variant={stateVariant} />
-            </div>
-            <Text as="p" size="Small" variant="Secondary">
-              {locked
-                ? `This position is shared with the supplier and locked${lockedBy ? ` by ${lockedBy}` : ""}. Review and download it, but do not change clauses until the negotiation round resumes.`
-                : "Edit, accept, or reject positions freely, and download to review with your team. Once the guide is shared with the supplier, lock it — the next round is compared against this position."}
-            </Text>
-          </div>
-        </div>
-        <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-orbit-s">
-          <Text as="p" size="Small" variant="Secondary" className="whitespace-nowrap">
-            Edited {activityTimestamp(lastEditedAt)} · {activityTimestamp(lastDownloadedAt)}
+    <Card type="Static" padding="Base" state={cardState} indicator={false}>
+      <div className="flex flex-wrap items-center gap-orbit-s">
+        <FaIcon icon={FA.file} size={18} fontWeight={400} className="shrink-0 text-orbit-fg" />
+        <Headings size="Heading 5">Negotiation Position</Headings>
+        <Chip label={version} size="Mini" variant="Information" />
+        <div className="ml-auto">
+          <Text as="p" size="Small" variant="Secondary">
+            Edited {activityTimestamp(editedAt)} · Downloaded {activityTimestamp(downloadedAt)}
             {lockedAt ? ` · Locked ${activityTimestamp(lockedAt)}` : ""}
           </Text>
-          <OrbitButton
-            variant="Secondary"
-            size="Medium"
-            icon={<FaIcon icon={"\uf023"} size={14} fontWeight={900} />}
-            onClick={locked ? onUnlock : onLock}
-          >
-            {locked ? "Unlock Dashboard" : "Lock position"}
-          </OrbitButton>
         </div>
+        <OrbitButton
+          variant="Secondary"
+          size="Medium"
+          className={cn(
+            !locked && "!border-orbit-warning-border !bg-orbit-warning-surface !text-orbit-warning hover:!bg-orbit-warning-surface/80 [&>span]:!text-orbit-warning",
+          )}
+          icon={<FaIcon icon={"\uf023"} size={14} fontWeight={900} />}
+          onClick={locked ? onUnlock : onLock}
+        >
+          {locked ? "Unlock Dashboard" : "Lock position"}
+        </OrbitButton>
+      </div>
+      <div className="mt-orbit-s">
+        <Text as="p" size="Small" variant="Secondary">
+          {locked
+            ? `This position is shared with the supplier and locked${lockedBy ? ` by ${lockedBy}` : ""}. Review and download it, but do not change clauses until the negotiation round resumes.`
+            : "Edit, accept, or reject positions freely, and download to review with your team. Once the guide is shared with the supplier, lock it — the next round is compared against this position."}
+        </Text>
       </div>
     </Card>
   );
@@ -9040,13 +9118,6 @@ function truncateToWordLimit(text: string, limit: number) {
   return summary.trim() || `${words.slice(0, limit).join(" ")}.`;
 }
 
-type InlineRationaleContextValue = {
-  openClauseId: string | null;
-  setOpenClauseId: (clauseId: string | null) => void;
-};
-
-const InlineRationaleContext = createContext<InlineRationaleContextValue | null>(null);
-
 function SimplifiedComparisonContent({
   target,
   rationale,
@@ -9063,7 +9134,6 @@ function SimplifiedComparisonContent({
   targetTextActionLabel = "Edit recommended next position",
   targetLabel = "Recommended Position",
   hideRationaleAction = false,
-  inlineRationale = false,
   layout = "stacked",
 }: {
   target?: string;
@@ -9081,24 +9151,12 @@ function SimplifiedComparisonContent({
   targetTextActionLabel?: string;
   targetLabel?: string;
   hideRationaleAction?: boolean;
-  inlineRationale?: boolean;
   layout?: "stacked" | "thread" | "initial-two-card";
 }) {
   const targetText = target?.trim();
   const displayedTargetText = targetText ? truncateToWordLimit(targetText, 20) : undefined;
   const hasPrevious = Boolean(previousLabel && previousText);
-  const [localRationaleOpen, setLocalRationaleOpen] = useState(false);
-  const inlineRationaleContext = useContext(InlineRationaleContext);
-  const rationaleOpen = inlineRationale && inlineRationaleContext
-    ? inlineRationaleContext.openClauseId === clauseContext?.clauseId
-    : localRationaleOpen;
-  const setRationaleOpen = (open: boolean) => {
-    if (inlineRationale && inlineRationaleContext && clauseContext?.clauseId) {
-      inlineRationaleContext.setOpenClauseId(open ? clauseContext.clauseId : null);
-      return;
-    }
-    setLocalRationaleOpen(open);
-  };
+  const [rationaleOpen, setRationaleOpen] = useState(false);
   const recommendationRationale = rationale ?? (targetText ? getRecommendationRationale(undefined, targetText) : undefined);
   const previousPanel = hasPrevious ? (
     <ResultCardPanel
@@ -9222,11 +9280,7 @@ function SimplifiedComparisonContent({
           {targetPanel}
         </>
       )}
-      {recommendationRationale && inlineRationale && rationaleOpen ? (
-        <RecommendationRationaleCard
-          rationale={recommendationRationale}
-        />
-      ) : recommendationRationale ? (
+      {recommendationRationale ? (
         <RecommendationRationaleDialog
           open={rationaleOpen}
           onOpenChange={setRationaleOpen}
@@ -9269,6 +9323,23 @@ function getRecommendationRationale(clauseId: string | undefined, recommendation
     };
   }
 
+  if (clauseId === "c3") {
+    return {
+      title: "Payment Term — Instalment Schedule",
+      explanation: [
+        "Buyer, its Affiliates and/or their designated agents and/or auditors (internal and external – bound to the confidentiality requirements and where the external auditors are not direct or indirect competitors to the Supplier), shall have the right to inspect, examine and audit the systems, records, data, service locations, practices, processes and procedures of Supplier, that are relevant to provide the Deliverable(s), so that compliance with all the applicable legal, regulatory and contractual obligations can be verified (including for example information security, data protection, privacy protection, quality, supply chain, Supplier Code of Conduct, etc.) and/or for enabling Buyer to demonstrate adequate supplier management in case of audits and/or inspections at Buyer.",
+        "Audits shall be conducted in line with good auditing practices. Audits may be performed periodically, however not more frequently than once every twelve (12) months, except if and when required for legal or regulatory purposes or due to an incident (e.g. security, data protection, data privacy) with suspected or confirmed relevance to Buyer. As per decision by Buyer, audits may be organized as virtual/remote audits and/or on the Supplier's premises during business hours and upon prior written notice to the Supplier.",
+        "To request an audit, Buyer shall submit a detailed audit plan at least 30 days in advance of the proposed audit date to the Supplier describing the proposed scope, duration, and start date of the audit. Supplier shall review the audit plan and provide Buyer with any concerns or questions. Both parties shall work in good faith to resolve any questions or concerns. The Supplier shall not be permitted to object to an audit within the proposed time frame. Audits by authorities (for example regulatory and/or data protection authorities), emergency and security audits (e.g. as it has been mentioned above) may be conducted without prior notice. Supplier shall permit such authorities access to its business premises as required by applicable laws and regulations. If such a visit by authorities is of relevance for Buyer, Buyer representatives may participate in the visit by authorities.",
+        "Supplier shall fully cooperate with Buyer, its auditors and regulators in conducting audits: provide such assistance as they reasonably require to carry out the audits; provide sufficient access to and disclose any information related to the Deliverable(s) provided to Buyer and its Affiliates needed for such audits, including copies of relevant or requested documents and information which they may require; provide and disclose information on its internal controls and procedures related to the provision of the Deliverable(s) to Buyer and its Affiliates; and provide sufficient access and disclose any information required to determine compliance with this Agreement, including but not limited to Section 5 of this Agreement.",
+        "The scope of audit under this section shall not include Supplier's internal cost record or any information that belongs to other customers of Supplier. In general, such audit shall not include physical access to Supplier’s systems or to the third-party data centre in which the Cloud Solution(s) (e.g. SaaS, PaaS, IaaS, etc.) are hosted, unless such access is mandated by an applicable supervisory authority and/or legal and/or compliance requirements.",
+        "Buyer will document the results of such audits and inspections and present them to the Supplier for mutual agreement, unless prohibited by law. If Supplier objects to any request, it shall advise Buyer of its objections, the reasons for objecting, and work with Buyer to address such concerns to the extent reasonable under the requirements of relevant data protection laws (including but not limited to GDPR, CCPA, etc.), industry standards and good practices for information security.",
+        "In the event Buyer determines that Supplier's procedures and practices are not compliant with Supplier's contractual obligations to Buyer or not compliant with applicable laws and regulations, Supplier will be found in material breach of this Agreement. Supplier shall take, at its own expense, all actions reasonable under the requirements of this Agreement and/or the applicable laws and regulations (including for example to GDPR, CCPA, etc.), industry standards and good practices (e.g. for information security and/or quality) to address the issues and/or non-conformities within a reasonable time frame.",
+        "Each party shall bear its own audit costs unless the audit shows a material breach of any obligation under this Agreement by Supplier. In such case, the audit costs and any further reasonable costs in connection with this material breach shall be borne by Supplier.",
+      ],
+      guidance: "Use this audit-rights position as the negotiation baseline and confirm the final wording against the applicable playbook before accepting the supplier position.",
+    };
+  }
+
   return {
     title: "Recommended position rationale",
     explanation: [
@@ -9296,6 +9367,7 @@ function RecommendationRationaleDialog({
       onOpenChange={onOpenChange}
       title="Rationale"
       size="Large"
+      maxWidth={672}
       modalKey="recommendation-rationale"
       footer={
         <div className="flex justify-end">
@@ -9334,31 +9406,6 @@ function RecommendationRationaleDialog({
         )}
       </div>
     </V6OrbitOverlay>
-  );
-}
-
-function RecommendationRationaleCard({
-  rationale,
-}: {
-  rationale: RecommendationRationale;
-}) {
-  return (
-    <Card type="Static" padding="Base" state="Default" indicator={false}>
-      <div id="rationale" role="region" aria-label="Recommendation rationale">
-      <div className="mt-orbit-s space-y-orbit-s">
-        <p className="v6-orbit-text-body v6-orbit-weight-semibold text-orbit-fg">Recommend Position&apos;s Rationale</p>
-        {rationale.explanation.map((paragraph) => (
-          <p key={paragraph} className="v6-orbit-text-body text-orbit-fg">{paragraph}</p>
-        ))}
-        {rationale.playbookWording && (
-          <div className="rounded-orbit-md border border-orbit-border bg-orbit-card p-orbit-base">
-            <p className="v6-orbit-text-small v6-orbit-weight-semibold text-orbit-fg">Exact wording from playbook</p>
-            <p className="mt-orbit-s whitespace-pre-line v6-orbit-text-small text-orbit-fg">{rationale.playbookWording}</p>
-          </div>
-        )}
-      </div>
-      </div>
-    </Card>
   );
 }
 
@@ -10443,7 +10490,7 @@ function ReviewScreen({
 
 type InitialAnalysisSortColumn = "category" | "clause" | "deviation";
 type InitialAnalysisSortDirection = "asc" | "desc";
-type InitialAnalysisTableKey = "recommendations" | "no-recommendations" | "accepted";
+type InitialAnalysisTableKey = "position-not-met" | "position-met";
 
 interface InitialAnalysisSortState {
   column: InitialAnalysisSortColumn;
@@ -10492,19 +10539,9 @@ function InitialAnalysisRecommendationTable({
   const [expandedClauseId, setExpandedClauseId] = useState<string | null>(null);
   const [sortByTable, setSortByTable] = useState<Partial<Record<InitialAnalysisTableKey, InitialAnalysisSortState>>>({});
   const [openTableSections, setOpenTableSections] = useState<Record<InitialAnalysisTableKey, boolean>>({
-    recommendations: true,
-    "no-recommendations": true,
-    accepted: true,
+    "position-not-met": true,
+    "position-met": true,
   });
-  const recommendationsSectionRef = useRef<HTMLElement>(null);
-  const noRecommendationsSectionRef = useRef<HTMLElement>(null);
-  const acceptedSectionRef = useRef<HTMLElement>(null);
-  const tableScrollAnimationFrameRef = useRef<number | null>(null);
-  useEffect(() => () => {
-    if (tableScrollAnimationFrameRef.current !== null) {
-      window.cancelAnimationFrame(tableScrollAnimationFrameRef.current);
-    }
-  }, []);
   const promoted = (clause: ClauseResult) => {
     const state = stateOf(clause.id);
     return !isNoneDeviationClause(clause) || (
@@ -10519,6 +10556,7 @@ function InitialAnalysisRecommendationTable({
   const activeRows = rows.filter((clause) => !acceptedRows.some((accepted) => accepted.id === clause.id));
   const recommendationRows = activeRows.filter(promoted);
   const noRecommendationRows = activeRows.filter((clause) => !promoted(clause));
+  const positionMetRows = [...noRecommendationRows, ...acceptedRows];
   const selectableRecommendationRows = recommendationRows.filter((clause) => {
     const state = stateOf(clause.id);
     return state.roundDecisions[versionLabel] !== "no-action" && !acceptedClauseIds?.has(clause.id);
@@ -10527,65 +10565,6 @@ function InitialAnalysisRecommendationTable({
   const allRecommendationsSelected = selectableRecommendationRows.length > 0 && selectedRecommendationIds.length === selectableRecommendationRows.length;
   const toggleTableSection = (tableKey: InitialAnalysisTableKey) => {
     setOpenTableSections((current) => ({ ...current, [tableKey]: !current[tableKey] }));
-  };
-
-  const navigateToTable = (value: string) => {
-    const target = value === "no-recommendations"
-      ? noRecommendationsSectionRef
-      : value === "accepted"
-        ? acceptedSectionRef
-        : recommendationsSectionRef;
-    window.requestAnimationFrame(() => {
-      const section = target.current;
-      const scrollContainer = section?.closest<HTMLElement>("main.v4-hover-scrollbar");
-      const tableTabs = document.querySelector<HTMLElement>('[aria-label="Initial analysis tables"]')?.parentElement;
-
-      if (!section || !scrollContainer || !tableTabs) {
-        section?.scrollIntoView({ behavior: "smooth", block: "start" });
-        return;
-      }
-
-      const containerRect = scrollContainer.getBoundingClientRect();
-      const tabsRect = tableTabs.getBoundingClientRect();
-      const headerOffset = Math.max(0, tabsRect.top - containerRect.top);
-      const stickyOffset = headerOffset + tabsRect.height + 8;
-      const destination = scrollContainer.scrollTop
-        + section.getBoundingClientRect().top
-        - containerRect.top
-        - stickyOffset;
-      const end = Math.min(
-        Math.max(0, destination),
-        scrollContainer.scrollHeight - scrollContainer.clientHeight,
-      );
-      const start = scrollContainer.scrollTop;
-      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-      if (tableScrollAnimationFrameRef.current !== null) {
-        window.cancelAnimationFrame(tableScrollAnimationFrameRef.current);
-      }
-
-      const keepHeaderFixed = () => window.scrollTo({ top: 0, behavior: "auto" });
-      if (prefersReducedMotion || Math.abs(end - start) < 1) {
-        scrollContainer.scrollTop = end;
-        keepHeaderFixed();
-        return;
-      }
-
-      const duration = 320;
-      const startedAt = performance.now();
-      const animate = (now: number) => {
-        const progress = Math.min((now - startedAt) / duration, 1);
-        const easedProgress = 1 - Math.pow(1 - progress, 3);
-        scrollContainer.scrollTop = start + ((end - start) * easedProgress);
-        keepHeaderFixed();
-        if (progress < 1) {
-          tableScrollAnimationFrameRef.current = window.requestAnimationFrame(animate);
-        } else {
-          tableScrollAnimationFrameRef.current = null;
-        }
-      };
-      tableScrollAnimationFrameRef.current = window.requestAnimationFrame(animate);
-    });
   };
 
   const sectionHeader = (
@@ -10609,20 +10588,14 @@ function InitialAnalysisRecommendationTable({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-orbit-s">
               <h2 className="v6-orbit-heading-strong text-orbit-fg">{title}</h2>
-              <div className="ml-auto flex flex-wrap items-center gap-orbit-s">
-                <span className="text-orbit-xs v6-orbit-weight-medium text-orbit-fg-secondary">Showing {count} of {version.clauses.length} Rows</span>
-                <span className="h-4 w-px bg-orbit-border" aria-hidden="true" />
-                <span className="flex items-center gap-orbit-xs text-orbit-xs text-orbit-fg-secondary"><Clock className="h-4 w-4" aria-hidden="true" />Last Updated {formatClauseIqTimestamp(version.uploadedAt)}</span>
-                <Chip label="Editing" size="Mini" variant="Information" contrast="Low" />
-              </div>
             </div>
+            {description ? <p className="mt-orbit-xs v6-orbit-text-small text-orbit-fg-secondary">{description}</p> : null}
           </div>
           <ChevronDown className={cn("mt-orbit-xs h-4 w-4 shrink-0 text-orbit-fg-secondary transition-transform", open && "rotate-180")} aria-hidden="true" />
         </button>
         {open ? (
           <div className="space-y-orbit-base">
             {showFilters ? <div className="px-orbit-base py-orbit-base">{filters}</div> : null}
-            {description ? <p className="flex items-start gap-orbit-xs px-orbit-base text-orbit-sm text-orbit-fg-secondary"><span aria-hidden="true">ⓘ</span><span>{description}</span></p> : null}
           </div>
         ) : null}
       </>
@@ -10650,7 +10623,8 @@ function InitialAnalysisRecommendationTable({
       .map(({ clause }) => clause);
   };
 
-  const renderTable = (tableRows: ClauseResult[], tableKey: InitialAnalysisTableKey, noRecommendations = false, acceptedAsIs = false) => {
+  const renderTable = (tableRows: ClauseResult[], tableKey: InitialAnalysisTableKey, mode: "position-not-met" | "position-met") => {
+    const isPositionMet = mode === "position-met";
     const sort = sortByTable[tableKey];
     const sortedRows = sortTableRows(tableRows, sort);
     const toggleSort = (column: InitialAnalysisSortColumn) => {
@@ -10668,36 +10642,37 @@ function InitialAnalysisRecommendationTable({
 
     return (
     <div id={`initial-analysis-${tableKey}-content`} className="overflow-x-auto">
-      <table className="w-full min-w-[1120px] border-collapse text-left" aria-label={acceptedAsIs ? "Initial analysis accepted as-is" : noRecommendations ? "Initial analysis no recommendations" : "Initial analysis recommendations"}>
-        <thead className="bg-orbit-surface/60 text-orbit-xs uppercase tracking-wide text-orbit-fg-secondary"><tr className="border-y border-orbit-border">{!noRecommendations && !acceptedAsIs ? <th className="w-12 px-orbit-base py-orbit-s"><Checkbox checked={allRecommendationsSelected} disabled={!bulkSelectionEnabled || selectableRecommendationRows.length === 0} aria-label="Select all recommendation clauses" onCheckedChange={(checked) => selectableRecommendationRows.forEach((clause) => onBulkClauseSelectionChange?.(clause.id, checked === true))} /></th> : null}{sortHeader("category", "Clause type", "w-36 px-orbit-base py-orbit-s")}{sortHeader("clause", "Clause", "w-56 px-orbit-base py-orbit-s")}<th className="min-w-[320px] px-orbit-base py-orbit-s">Current supplier position</th>{sortHeader("deviation", "Deviation", "w-32 px-orbit-base py-orbit-s")}<th className="min-w-[340px] px-orbit-base py-orbit-s">Your negotiation position</th></tr></thead>
+      <table className="w-full min-w-[1120px] border-collapse text-left" aria-label={`Initial analysis ${isPositionMet ? "position met" : "position not met"}`}>
+        <thead className="bg-orbit-surface/60 text-orbit-xs uppercase tracking-wide text-orbit-fg-secondary"><tr className="border-y border-orbit-border">{!isPositionMet ? <th className="w-12 px-orbit-base py-orbit-s"><Checkbox checked={allRecommendationsSelected} disabled={!bulkSelectionEnabled || selectableRecommendationRows.length === 0} aria-label="Select all position not met clauses" onCheckedChange={(checked) => selectableRecommendationRows.forEach((clause) => onBulkClauseSelectionChange?.(clause.id, checked === true))} /></th> : null}{sortHeader("category", "Clause type", "w-36 px-orbit-base py-orbit-s")}{sortHeader("clause", "Clause", "w-56 px-orbit-base py-orbit-s")}<th className="min-w-[320px] px-orbit-base py-orbit-s">Current supplier position</th>{sortHeader("deviation", "Deviation", "w-32 px-orbit-base py-orbit-s")}<th className="min-w-[340px] px-orbit-base py-orbit-s">Your negotiation position</th></tr></thead>
         <tbody>
           {sortedRows.map((clause) => {
             const state = stateOf(clause.id);
             const draft = state.draftRequests?.[versionLabel];
             const request = state.requests[versionLabel];
             const accepted = state.roundDecisions[versionLabel] === "no-action" || acceptedClauseIds?.has(clause.id) === true;
+            const noRecommendation = isPositionMet && !accepted;
             const missing = Boolean(missingClauseIds?.has(clause.id) || clause.missingClause);
-            const position = draft?.requestedChange ?? request?.requestedChange ?? (noRecommendations ? "" : clause.actionability ?? "");
+            const position = draft?.requestedChange ?? request?.requestedChange ?? (noRecommendation ? "" : clause.actionability ?? "");
             const severityStatus = missing ? "missing" : isNoneDeviationClause(clause) ? "none" : firstAnalysisSeverityStatus[clause.severity];
-            const customPromoted = noRecommendations === false && isNoneDeviationClause(clause) && promoted(clause);
+            const customPromoted = !noRecommendation && isNoneDeviationClause(clause) && promoted(clause);
             const saveDraft = (value: string) => draft ? onUpdateDraft(clause.id, { requestedChange: value }) : onStartDraft(clause.id, { requestedChange: value, rationale: request?.rationale ?? "" });
             const selected = bulkSelectedClauseIds?.has(clause.id) ?? false;
             const expanded = expandedClauseId === clause.id;
             const detailId = `clause-detail-${clause.id}`;
-            const columnCount = noRecommendations || acceptedAsIs ? 5 : 6;
+            const columnCount = isPositionMet ? 5 : 6;
             return <Fragment key={clause.id}>
             <tr className={cn("align-top border-b border-orbit-border transition-colors", focusedClauseId === clause.id && "bg-[var(--orbit-color-swatch-purple-gray-500)]")}>
-              {!noRecommendations && !acceptedAsIs ? <td className="px-orbit-base pt-orbit-base pb-orbit-s"><Checkbox checked={selected} disabled={!bulkSelectionEnabled || accepted} aria-label={`Bulk selected ${clause.id.toUpperCase()}`} onCheckedChange={(checked) => onBulkClauseSelectionChange?.(clause.id, checked === true)} /></td> : null}
+              {!isPositionMet ? <td className="px-orbit-base pt-orbit-base pb-orbit-s"><Checkbox checked={selected} disabled={!bulkSelectionEnabled || accepted} aria-label={`Bulk selected ${clause.id.toUpperCase()}`} onCheckedChange={(checked) => onBulkClauseSelectionChange?.(clause.id, checked === true)} /></td> : null}
               <td className="px-orbit-base pt-orbit-base pb-orbit-s"><Chip label={clause.category} size="Mini" variant="No Status" contrast="Low" /></td>
               <td className="px-orbit-base pt-orbit-base pb-orbit-s"><button type="button" className="flex w-full items-start gap-orbit-s text-left" aria-expanded={expanded} aria-controls={detailId} onClick={() => setExpandedClauseId((current) => current === clause.id ? null : clause.id)}><span className={cn("mt-px text-orbit-fg-secondary transition-transform", expanded && "rotate-90")} aria-hidden="true">›</span><span><span className="block v6-orbit-heading-label text-orbit-fg">{displayTitleForClause(clause.id, clause.title)}</span><span className="mt-orbit-xxs block text-orbit-xs text-orbit-fg-secondary">{clause.id.toUpperCase()}</span></span></button></td>
-              <td className="px-orbit-base pt-orbit-base pb-orbit-s">{missing ? <div><Chip label="Missing from contract" size="Mini" variant="Error" contrast="Low" /><p className="mt-orbit-s italic text-orbit-sm text-orbit-fg-secondary">No wording in the supplier’s contract — this term should be negotiated in.</p></div> : <div><p className="text-orbit-sm leading-6 text-orbit-fg">{clause.excerpt || clause.deviation}</p>{!noRecommendations ? <div className="mt-orbit-s">{acceptedAsIs ? <Button variant="outline" className="h-8 px-orbit-base" onClick={() => onUndoDecision(clause.id)}><X className="h-3.5 w-3.5" aria-hidden="true" />Reject supplier position</Button> : accepted ? <Button variant="outline" className="h-8 px-orbit-base" onClick={() => onUndoDecision(clause.id)}>Undo</Button> : <Button variant="outline" className="h-8 px-orbit-base" disabled={selectedRecommendationIds.length > 0} onClick={() => onSetNoAction(clause.id)}><Check className="h-3.5 w-3.5" aria-hidden="true" />Accept supplier position</Button>}</div> : null}</div>}</td>
+              <td className="px-orbit-base pt-orbit-base pb-orbit-s">{missing ? <div><Chip label="Missing from contract" size="Mini" variant="Error" contrast="Low" /><p className="mt-orbit-s italic text-orbit-sm text-orbit-fg-secondary">No wording in the supplier’s contract — this term should be negotiated in.</p></div> : <div><p className="text-orbit-sm leading-6 text-orbit-fg">{clause.excerpt || clause.deviation}</p>{!noRecommendation ? <div className="mt-orbit-s">{isPositionMet && accepted ? <Button variant="outline" className="h-8 px-orbit-base" onClick={() => onUndoDecision(clause.id)}><X className="h-3.5 w-3.5" aria-hidden="true" />Reject supplier position</Button> : accepted ? <Button variant="outline" className="h-8 px-orbit-base" onClick={() => onUndoDecision(clause.id)}>Undo</Button> : <Button variant="outline" className="h-8 px-orbit-base" disabled={selectedRecommendationIds.length > 0} onClick={() => onSetNoAction(clause.id)}><Check className="h-3.5 w-3.5" aria-hidden="true" />Accept supplier position</Button>}</div> : null}</div>}</td>
               <td className="px-orbit-base pt-orbit-base pb-orbit-s"><FirstAnalysisStatusTag status={severityStatus} /></td>
-              <td className="px-orbit-base pt-orbit-base pb-orbit-s">{accepted ? (acceptedAsIs ? <p className="pt-orbit-xs text-orbit-sm italic text-orbit-fg-secondary">Supplier position accepted — no counter-position.</p> : <div className="rounded-orbit-md border border-orbit-success/30 bg-orbit-success/5 p-orbit-base text-orbit-sm text-orbit-success">Supplier position accepted.</div>) : <div><Textarea value={position} rows={4} aria-label={`Negotiation position for ${displayTitleForClause(clause.id, clause.title)}`} placeholder={noRecommendations ? "Type a recommendation for this clause..." : undefined} className="min-h-[116px] resize-y bg-transparent text-orbit-sm [&>div]:!pt-0 [&>div>textarea]:!bg-transparent" onFocus={() => { setFocusedClauseId(clause.id); if (!draft) onStartDraft(clause.id, { requestedChange: position, rationale: request?.rationale ?? "" }); }} onChange={(event) => saveDraft(event.target.value)} onBlur={() => { setFocusedClauseId(null); if (!noRecommendations && (draft?.requestedChange ?? position).trim()) onSubmitDraft(clause.id); }} />{noRecommendations ? <><p className="mt-orbit-xxs text-orbit-xs text-orbit-fg-secondary">AI had no recommendation — add your own.</p><Button variant="outline" className="mt-orbit-xs h-8 w-full justify-center" disabled={!position.trim()} onClick={() => onSubmitDraft(clause.id)}>✦ Add to Recommendations</Button></> : focusedClauseId === clause.id ? <button type="button" className="mt-orbit-xs inline-flex items-center gap-orbit-xs text-orbit-xs text-orbit-fg-secondary underline-offset-2 hover:text-orbit-fg hover:underline" onMouseDown={(event) => event.preventDefault()} onClick={() => onResetRecommendation(clause.id)}><RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />{customPromoted ? "Remove from Recommendations" : "Reset Initial Recommendation"}</button> : null}</div>}</td>
+              <td className="px-orbit-base pt-orbit-base pb-orbit-s">{accepted ? (isPositionMet ? <p className="pt-orbit-xs text-orbit-sm italic text-orbit-fg-secondary">Supplier position accepted — no counter-position.</p> : <div className="rounded-orbit-md border border-orbit-success/30 bg-orbit-success/5 p-orbit-base text-orbit-sm text-orbit-success">Supplier position accepted.</div>) : <div><Textarea value={position} rows={4} aria-label={`Negotiation position for ${displayTitleForClause(clause.id, clause.title)}`} placeholder={noRecommendation ? "Type a recommendation for this clause..." : undefined} className="min-h-[116px] resize-y bg-transparent text-orbit-sm [&>div]:!pt-0 [&>div>textarea]:!bg-transparent" onFocus={() => { setFocusedClauseId(clause.id); if (!draft) onStartDraft(clause.id, { requestedChange: position, rationale: request?.rationale ?? "" }); }} onChange={(event) => saveDraft(event.target.value)} onBlur={() => { setFocusedClauseId(null); if (!noRecommendation && (draft?.requestedChange ?? position).trim()) onSubmitDraft(clause.id); }} />{noRecommendation ? <><p className="mt-orbit-xxs text-orbit-xs text-orbit-fg-secondary">AI had no recommendation — add your own.</p><Button variant="outline" className="mt-orbit-xs h-8 w-full justify-center" disabled={!position.trim()} onClick={() => onSubmitDraft(clause.id)}>✦ Add to Position Not Met</Button></> : focusedClauseId === clause.id ? <button type="button" className="mt-orbit-xs inline-flex items-center gap-orbit-xs text-orbit-xs text-orbit-fg-secondary underline-offset-2 hover:text-orbit-fg hover:underline" onMouseDown={(event) => event.preventDefault()} onClick={() => onResetRecommendation(clause.id)}><RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />{customPromoted ? "Move to Position Met" : "Reset Initial Recommendation"}</button> : null}</div>}</td>
             </tr>
             {expanded ? <tr id={detailId} className="border-b border-orbit-border bg-orbit-surface/30"><td colSpan={columnCount} className="px-orbit-base py-orbit-base"><div className="grid gap-orbit-xl md:grid-cols-2"><div className="max-w-[704px]"><p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wide text-orbit-fg-secondary">Full clause wording</p><p className="mt-orbit-s text-orbit-sm leading-6 text-orbit-fg">{missing ? "No wording in the supplier’s contract — this term should be negotiated in." : clause.excerpt || clause.deviation}</p></div><div><p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wide text-orbit-fg-secondary">Rationale</p><p className="mt-orbit-s text-orbit-sm leading-6 text-orbit-fg">{clause.rationale ?? "The recommendation addresses the identified gap between the supplier wording and the applicable benchmark."}</p></div></div></td></tr> : null}
             </Fragment>;
           })}
-          {tableRows.length === 0 ? <tr><td colSpan={noRecommendations || acceptedAsIs ? 5 : 6} className="p-orbit-base">{emptyState}</td></tr> : null}
+          {tableRows.length === 0 ? <tr><td colSpan={isPositionMet ? 5 : 6} className="p-orbit-base">{emptyState}</td></tr> : null}
         </tbody>
       </table>
     </div>
@@ -10705,28 +10680,14 @@ function InitialAnalysisRecommendationTable({
   };
 
   return <div className="space-y-orbit-base">
-    <div
-      className="sticky top-14 z-20 -mx-orbit-base -mt-orbit-base border-y border-orbit-border bg-orbit-card/95 px-orbit-base shadow-orbit-sm backdrop-blur-sm"
-      style={{ paddingTop: "var(--orbit-space-s)", paddingBottom: "var(--orbit-space-s)" }}
-    >
-      <MultiStateGroup ariaLabel="Initial analysis tables" defaultValue="recommendations" onValueChange={navigateToTable}>
-        <MultiStateButton value="recommendations" label="Recommendations" leftIcon={FA.star} />
-        <MultiStateButton value="no-recommendations" label="No Recommendations" leftIcon={FA.circleInfo} />
-        <MultiStateButton value="accepted" label="Accepted As-Is" leftIcon={FA.circleCheck} />
-      </MultiStateGroup>
-    </div>
     {selectedRecommendationIds.length > 0 ? <div className="flex items-center justify-between gap-orbit-base rounded-orbit-md border border-orbit-border bg-orbit-heading px-orbit-base py-orbit-s text-orbit-inverse"><span className="font-medium">{selectedRecommendationIds.length} Clause{selectedRecommendationIds.length === 1 ? "" : "s"} Selected</span><div className="flex items-center gap-orbit-xs"><Button variant="secondary" className="h-8" onClick={() => selectedRecommendationIds.forEach((id) => onBulkClauseSelectionChange?.(id, false))}>Clear</Button><Button className="h-8" onClick={onAcceptSelected}>✓ Accept Supplier On Selected</Button><Button variant="ghost" size="icon" aria-label="Close bulk selection" title="Close bulk selection" className="text-orbit-inverse hover:bg-orbit-card/20" onClick={() => selectedRecommendationIds.forEach((id) => onBulkClauseSelectionChange?.(id, false))}><X className="h-4 w-4" aria-hidden="true" /></Button></div></div> : null}
-    <section ref={recommendationsSectionRef} className="scroll-mt-24 overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">
-      {sectionHeader("recommendations", "Recommendations — Current Position", recommendationRows.length)}
-      {openTableSections.recommendations ? renderTable(recommendationRows, "recommendations") : null}
+    <section className="overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">
+      {sectionHeader("position-not-met", "Position Not Met", recommendationRows.length, "After analysing the latest supplier contract, ClauseIQ has flagged these clauses for further negotiation. Review the table below to see where the supplier deviates from your preferred standards, then download your current position to negotiate a new round — or accept the supplier's wording to close a clause out.", Boolean(filters))}
+      {openTableSections["position-not-met"] ? renderTable(recommendationRows, "position-not-met", "position-not-met") : null}
     </section>
-    <section ref={noRecommendationsSectionRef} className="scroll-mt-24 overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">
-      {sectionHeader("no-recommendations", "No Recommendations", noRecommendationRows.length, "Clauses the AI reviewed but had no changes to suggest — hidden from your saved guide by default. Add a recommendation to any row to promote it into your Recommendations list.", false)}
-      {openTableSections["no-recommendations"] ? renderTable(noRecommendationRows, "no-recommendations", true) : null}
-    </section>
-    <section ref={acceptedSectionRef} className="scroll-mt-24 overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">
-      {sectionHeader("accepted", "Accepted As-Is", acceptedRows.length, "Clauses where you've accepted the supplier's wording — dropped from active negotiation. Reject any row to add your counter-position and move it back into Recommendations.", false)}
-      {openTableSections.accepted ? (acceptedRows.length > 0 ? renderTable(acceptedRows, "accepted", false, true) : <div id="initial-analysis-accepted-content" className="flex min-h-24 items-center justify-center px-orbit-base py-orbit-xxl text-orbit-sm text-orbit-fg-secondary">Nothing accepted yet. Accepted clauses will appear here so you can restore them.</div>) : null}
+    <section className="overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">
+      {sectionHeader("position-met", "Position Met", positionMetRows.length, "These clauses already meet your position, have no recommended change, or have been accepted as-is. You can add a counter-position to move a clause back into Position Not Met.", false)}
+      {openTableSections["position-met"] ? renderTable(positionMetRows, "position-met", "position-met") : null}
     </section>
     <InitialAnalysisNextRoundGuide />
   </div>;
@@ -11283,7 +11244,6 @@ function ComparisonSection(props: {
             onTargetTextClick={canEditRecommendedPosition ? editRecommendedPosition : undefined}
             targetTextActionLabel={`Edit recommended next position for ${displayTitleForClause(r.id, display.title)}`}
             hideRationaleAction={drafting || completedAction}
-            inlineRationale
             layout={isRoundDashboard ? "thread" : "stacked"}
             targetFooter={
               !isRoundDashboard && showOutcomeActions && canShowOutcomeFooter && isNoneDeviationClause(display) ? (
@@ -11642,7 +11602,6 @@ function UnmarkedSection({
                         extraContent={
                           <SimplifiedComparisonContent
                             target={display.actionability?.trim() || req.requestedChange}
-                            inlineRationale
                             clauseContext={{
                               clauseId: r.id,
                               clauseName: displayTitleForClause(r.id, display.title),
@@ -12638,10 +12597,10 @@ function ClauseDetailPanel({
                 </>
               )}
             </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
   );
 }
 
@@ -12691,13 +12650,80 @@ function LocationsList({ items }: { items?: string[] }) {
 
 // ---- Supplier grouping provenance popover (TASK-04) ------------------------
 
-function DashboardSupplierIdentity({ journeyId, journey }: { journeyId: string; journey: DashboardSupplierJourney }) {
+function DashboardSupplierIdentity({
+  journey,
+  isDashboardLocked,
+  onChangeSupplier,
+}: {
+  journey: DashboardSupplierJourney;
+  isDashboardLocked: boolean;
+  onChangeSupplier: () => void;
+}) {
+  const context = journey.context;
+  const unresolved = context.status === "unknown";
+
+  const mappedName = journey.supplierName || context.alias || "Unknown supplier";
+  const statusCopy = unresolved
+    ? `Supplier not recognised — currently shown as “${mappedName}”`
+    : `Mapped to ${mappedName}`;
+  const helperCopy = unresolved
+    ? "Map this contract to a known supplier or add a new one. All future rounds will be added to the selected supplier."
+    : "Future rounds will be added here.";
+
+  return (
+    <section
+      className={`mx-auto mt-orbit-base max-w-[1600px] rounded-orbit-lg border px-orbit-base py-orbit-s ${unresolved ? "border-orbit-warning bg-orbit-warning/5" : "border-orbit-border bg-orbit-card"}`}
+      aria-label="Supplier mapping"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-orbit-s">
+        <Text size="small" className={`flex min-w-0 items-center gap-orbit-xs ${unresolved ? "text-orbit-warning" : "text-orbit-fg-secondary"}`}>
+          <FaIcon icon={unresolved ? FA.circleQuestion : FA.circleCheck} size={14} className="shrink-0" />
+          <span className="truncate"><span className="v6-orbit-weight-semibold">{statusCopy}</span>{!unresolved && <span> — {helperCopy}</span>}</span>
+        </Text>
+        <OrbitButton
+          variant={unresolved ? "Secondary" : "Tertiary"}
+          size="Small"
+          state="Default"
+          disabled={isDashboardLocked}
+          onClick={onChangeSupplier}
+          aria-label={unresolved ? "Map supplier" : "Change supplier"}
+          className="shrink-0"
+        >
+          {unresolved ? `${mappedName} · click to map` : "Change supplier"}
+        </OrbitButton>
+      </div>
+      {unresolved && <Text size="small" className="mt-orbit-xs text-orbit-fg-secondary">{helperCopy}</Text>}
+    </section>
+  );
+}
+
+function SupplierChangePicker({
+  journeyId,
+  journey,
+  open,
+  onOpenChange,
+  isDashboardLocked,
+}: {
+  journeyId: string;
+  journey: DashboardSupplierJourney;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  isDashboardLocked: boolean;
+}) {
   const [alias, setAlias] = useState("");
+  const [search, setSearch] = useState("");
   const context = journey.context;
   const unresolved = context.status === "unknown";
   const pendingAlias = context.status === "pending-alias";
   const masterSuppliers = clauseIqV6MockInitiative.suppliers;
+  const filteredSuppliers = masterSuppliers.filter((item) => item.name.toLowerCase().includes(search.trim().toLowerCase()));
+  const close = () => {
+    setAlias("");
+    setSearch("");
+    onOpenChange(false);
+  };
   const updateMaster = (supplierId: string) => {
+    if (isDashboardLocked) return;
     const supplier = masterSuppliers.find((item) => item.id === supplierId);
     if (!supplier) return;
     saveSupplierJourney(journeyId, {
@@ -12705,9 +12731,11 @@ function DashboardSupplierIdentity({ journeyId, journey }: { journeyId: string; 
       corrected: context.outcome === "wrong-match" || journey.corrected,
       context: { ...context, outcome: "known", status: "known", supplierId, alias: null, roundId: null, grouping: { ...context.grouping, identityKey: supplierId } },
     });
+    close();
   };
   const registerAlias = () => {
-    const name = alias.trim();
+    if (isDashboardLocked) return;
+    const name = alias.trim() || search.trim();
     if (!name) return;
     const supplierId = `sup-new-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
     saveSupplierJourney(journeyId, {
@@ -12719,32 +12747,34 @@ function DashboardSupplierIdentity({ journeyId, journey }: { journeyId: string; 
       const latest = getSupplierJourney(journeyId);
       if (latest?.context.supplierId === supplierId) saveSupplierJourney(journeyId, { ...latest, context: { ...latest.context, status: "fingerprinted-alias" } });
     }, 700);
-    setAlias("");
+    close();
   };
-  const showAlias = unresolved || pendingAlias;
+
+  if (!open || isDashboardLocked) return null;
   return (
-    <section className={`mx-auto mt-orbit-base max-w-[1600px] rounded-orbit-lg border px-orbit-base py-orbit-s ${unresolved ? "border-amber-400 bg-amber-50" : "border-orbit-border bg-orbit-card"}`} aria-label="Supplier identity">
-      <div className="flex flex-wrap items-center justify-between gap-orbit-s">
-        <div>
-          <p className="v6-orbit-weight-semibold text-orbit-sm">{unresolved ? "No supplier detected" : "Supplier"}</p>
-          <p className="mt-0.5 text-orbit-xs text-orbit-fg-secondary">
-            {unresolved ? `${journey.supplierName} from ${context.fileName}` : context.status === "fingerprinted-alias" ? "New supplier · alias (this workspace only)" : pendingAlias ? "Registering supplier alias…" : journey.corrected ? "Supplier updated — grouping corrected before round 2." : "DUNS master · matched"}
-          </p>
+    <div className="absolute left-0 top-full z-40 w-full">
+      <div className="mx-auto w-full max-w-[1600px] px-orbit-base">
+        <div id="supplier-change-picker" className="mt-orbit-s max-w-[360px] rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-s shadow-orbit-md" role="dialog" aria-label="Change mapped supplier">
+          <Text size="small" className="v6-orbit-weight-semibold">Change mapped supplier</Text>
+          <Text size="small" className="mt-orbit-xs text-orbit-fg-secondary">Search a known supplier or add a new one. Future rounds will be added here.</Text>
+          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search or type new supplier name" className="mt-orbit-s h-9" aria-label="Search or type new supplier name" autoFocus />
+          <div className="mt-orbit-xs max-h-52 overflow-y-auto">
+            {filteredSuppliers.map((supplier) => (
+              <OrbitButton key={supplier.id} variant="Tertiary" size="Small" state="Default" className="w-full justify-start" onClick={() => updateMaster(supplier.id)}>
+                <span className="flex w-full items-center justify-between">{supplier.name}{context.supplierId === supplier.id && <FaIcon icon={FA.check} size={12} />}</span>
+              </OrbitButton>
+            ))}
+            {search.trim() && filteredSuppliers.length === 0 && <OrbitButton variant="Secondary" size="Small" state="Default" className="mt-orbit-xs w-full" onClick={registerAlias}>Add “{search.trim()}” as new supplier</OrbitButton>}
+          </div>
+          {(unresolved || pendingAlias) && (
+            <div className="mt-orbit-s border-t border-orbit-border pt-orbit-s">
+              <Input value={alias} onChange={(event) => setAlias(event.target.value)} placeholder="New supplier name" className="h-9" aria-label="New supplier alias" />
+              <OrbitButton variant="Secondary" size="Small" state="Default" className="mt-orbit-xs w-full" disabled={!alias.trim()} onClick={registerAlias}>Add as new</OrbitButton>
+            </div>
+          )}
         </div>
-        {!showAlias && (
-          <Select value={context.supplierId ?? ""} onValueChange={updateMaster}>
-            <SelectTrigger className="w-[260px] clauseiq-v6-select-left" aria-label="Dashboard supplier"><SelectValue /></SelectTrigger>
-            <SelectContent>{masterSuppliers.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent>
-          </Select>
-        )}
       </div>
-      {showAlias && <div className="mt-orbit-s flex flex-wrap items-center gap-orbit-s">
-        {unresolved && <Select value="" onValueChange={updateMaster}><SelectTrigger className="w-[260px] clauseiq-v6-select-left" aria-label="Assign master supplier"><SelectValue placeholder="Search master suppliers" /></SelectTrigger><SelectContent>{masterSuppliers.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent></Select>}
-        <Input value={alias} onChange={(event) => setAlias(event.target.value)} placeholder="New supplier name" className="h-8 w-[220px]" aria-label="New supplier alias" />
-        <Button className="h-8" onClick={registerAlias}>Add as new</Button>
-      </div>}
-      <p className="mt-orbit-s text-orbit-xs text-orbit-fg-secondary">{unresolved ? "This analysis remains grouped as Unknown until a supplier is assigned." : context.status === "fingerprinted-alias" ? "Grouped using this workspace-only supplier alias." : pendingAlias ? "Supplier grouping will update when registration completes." : journey.corrected ? "Grouped under the corrected supplier." : "Matched to the DUNS master supplier."}</p>
-    </section>
+    </div>
   );
 }
 

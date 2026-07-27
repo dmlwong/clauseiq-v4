@@ -14,6 +14,7 @@ interface V6OrbitOverlayProps {
   size?: "Default" | "Large";
   height?: "Viewport" | "Content";
   modalKey?: string;
+  maxWidth?: number;
 }
 
 export function V6OrbitOverlay({
@@ -26,6 +27,7 @@ export function V6OrbitOverlay({
   size = "Default",
   height = "Content",
   modalKey,
+  maxWidth,
 }: V6OrbitOverlayProps) {
   const fullBleedSeparatorStyle = { left: -2, right: -2 };
 
@@ -45,6 +47,8 @@ export function V6OrbitOverlay({
           color: "var(--orbit-color-text-primary)",
           fontFamily: "var(--orbit-font-family-sans)",
           width: "100%",
+          maxWidth: maxWidth ? `${maxWidth}px` : undefined,
+          marginInline: maxWidth ? "auto" : undefined,
         }}
       >
         <Card type="Static" padding="Base" state="Default" style={{ padding: 0 }}>

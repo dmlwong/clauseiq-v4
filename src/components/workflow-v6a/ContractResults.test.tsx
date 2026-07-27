@@ -115,7 +115,6 @@ describe("ContractResults V6A review controls", () => {
   it("renders the round comparison dashboard only for comparison design option 2", () => {
     renderContractResults(optionTwoComparisonRoute);
 
-    expect(screen.getByText("Latest Analysis")).toBeInTheDocument();
     expect(screen.getByText("Convergence")).toBeInTheDocument();
     expect(screen.getByText(/^Action required — position still not met/)).toBeInTheDocument();
     expect(screen.getByText(/^Regressed — previously agreed, but changed by the supplier/)).toBeInTheDocument();
@@ -140,24 +139,39 @@ describe("ContractResults V6A review controls", () => {
     const rendered = renderContractResults(optionTwoComparisonRoute);
 
     expect(screen.getByText("Negotiation Position")).toBeInTheDocument();
-    expect(screen.getByText("Revising")).toBeInTheDocument();
+    expect(screen.queryByText("Revising")).not.toBeInTheDocument();
     expect(screen.getByText("Not downloaded", { exact: false })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Download Current Position" }));
     expect(mocks.downloadCsv).toHaveBeenCalledTimes(1);
     expect(screen.queryByText("Not downloaded", { exact: false })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Lock position" }));
 
-    expect(screen.getByText("Locked")).toBeInTheDocument();
+    expect(screen.getByText(/This position is shared with the supplier and locked/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Unlock Dashboard" })).toBeInTheDocument();
     const clauseRow = screen.getByText("Subcontracting").closest('[id^="clause-row-"]');
     expect(within(clauseRow as HTMLElement).getByRole("button", { name: "Accept Supplier Position" })).toBeDisabled();
 
     rendered.unmount();
     renderContractResults(optionTwoComparisonRoute);
-    expect(screen.getByText("Locked")).toBeInTheDocument();
+    expect(screen.getByText(/This position is shared with the supplier and locked/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Unlock Dashboard" }));
-    expect(screen.getByText("Revising")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Lock position" })).toBeInTheDocument();
+  });
+
+  it("opens rationale in a 672px Orbit modal instead of expanding inline", () => {
+    renderContractResults(optionTwoComparisonRoute);
+
+    fireEvent.click(screen.getAllByText("View Rationale")[0]);
+
+    const dialog = screen.getByRole("dialog", { name: "Rationale" });
+    expect(dialog).toBeInTheDocument();
+    expect(dialog.querySelector('[data-v6-overlay="recommendation-rationale"]')).toHaveStyle({ maxWidth: "672px" });
+    expect(within(dialog).getByText("Recommend Position's Rationale")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Recommendation rationale" })).not.toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close modal" }));
+    expect(screen.queryByRole("dialog", { name: "Rationale" })).not.toBeInTheDocument();
   });
 
   it("uses the outcome table and existing Undo behaviour for accepted supplier positions", async () => {
@@ -195,11 +209,10 @@ describe("ContractResults V6A review controls", () => {
   it("uses Orbit cards for the comparison summary metrics", () => {
     const { container } = renderContractResults(optionTwoComparisonRoute);
 
-    const summaryHeading = screen.getByText("Latest Analysis");
-    const summaryCard = summaryHeading.closest('[class*="_card_"]');
+    const summaryCard = screen.getByText("Convergence").closest(".clauseiq-v6a-round-dashboard");
 
     expect(summaryCard).toBeTruthy();
-    expect(summaryCard?.querySelectorAll('[class*="_card_"]')).toHaveLength(3);
+    expect(summaryCard?.querySelectorAll('[class*="_card_"]').length).toBeGreaterThanOrEqual(3);
     expect(summaryCard?.querySelector(".clauseiq-v6a-summary-banner")).toBeInTheDocument();
     expect(within(summaryCard as HTMLElement).getByText("Convergence")).toBeInTheDocument();
     expect(within(summaryCard as HTMLElement).getByText("Score by round")).toBeInTheDocument();
@@ -260,7 +273,6 @@ describe("ContractResults V6A review controls", () => {
   it("keeps Initial Analysis design options available", () => {
     renderContractResults(firstAnalysisRoute.replace("design=row-scale", "design=design-option-2"));
 
-    expect(screen.getByText("Latest Analysis")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Design Control" }));
     expect(screen.getByText("Design option 1")).toBeInTheDocument();
     expect(screen.getByText("Design option 2")).toBeInTheDocument();
@@ -294,7 +306,7 @@ describe("ContractResults V6A review controls", () => {
     fireEvent.click(screen.getByRole("button", { name: "Design Control" }));
     fireEvent.click(screen.getByRole("tab", { name: "Design option 2" }));
 
-    expect(screen.getByText("Latest Analysis")).toBeInTheDocument();
+    expect(screen.getByText("Convergence")).toBeInTheDocument();
   });
 
   it("switches the dashboard between initial-analysis and comparison views", () => {
@@ -327,7 +339,7 @@ describe("ContractResults V6A review controls", () => {
   it("omits requested positions from the initial-analysis option 2 summary", () => {
     renderContractResults(initialAnalysisOnlyRoute.replace("design=row-scale", "design=design-option-2"));
 
-    const summaryCard = screen.getByText("Latest Analysis").closest('[class*="_card_"]');
+    const summaryCard = document.querySelector(".clauseiq-v6a-round-dashboard");
     expect(summaryCard).toBeTruthy();
     expect(within(summaryCard as HTMLElement).getByText("Review needed")).toBeInTheDocument();
     expect(within(summaryCard as HTMLElement).getByText("ClauseIQ score")).toBeInTheDocument();

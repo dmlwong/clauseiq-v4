@@ -287,6 +287,7 @@ export function FirstAnalysisDesignOptions({
   optionTwoFilters,
   optionTwoBulkBanner,
   tableContent,
+  tableControlPanel,
 }: {
   option: ComparisonDesignOption;
   banner?: ReactNode;
@@ -307,10 +308,12 @@ export function FirstAnalysisDesignOptions({
   optionTwoFilters?: ReactNode;
   optionTwoBulkBanner?: ReactNode;
   tableContent?: ReactNode;
+  tableControlPanel?: ReactNode;
 }) {
   if (option === "design-option-3") {
     return (
-      <div className="mx-auto w-full max-w-[1800px] px-orbit-base py-orbit-base">
+      <div className="mx-auto w-full max-w-[1800px] space-y-orbit-base px-orbit-base py-orbit-base">
+        {tableControlPanel}
         {tableContent}
       </div>
     );

@@ -19,6 +19,7 @@ import { SupplierOutputsPanel } from "@/components/clauseiq-v6a/supplier-results
 import type { ResultsLayout, SupplierOutputSelection } from "@/components/clauseiq-v6a/supplier-results/types";
 import {
   ClauseIqJourneyContent,
+  PrototypeControl,
   type ClauseIqJourneyRefs,
 } from "@/components/clauseiq-v6a/ClauseIqJourney";
 import {
@@ -27,6 +28,7 @@ import {
   useClauseIqWorkflow,
   type ClauseIqWorkflowStep,
 } from "@/components/clauseiq-v6a/ClauseIqWorkflow";
+import { getSupplierJourney, saveSupplierJourney } from "@/components/clauseiq-v6a/supplierJourneyStore";
 import {
   getSupplierOutputComparisonContext,
   mockInitiative,
@@ -66,6 +68,8 @@ function ClauseIQV6AContent({ forceResults = false, resultsLayout = "output-pane
   const processingRef = useRef<HTMLDivElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const latestOutputRef = useRef<HTMLDivElement>(null);
+  const supplierJourneyIdRef = useRef(`supplier-journey-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`);
+  const restoredSupplierJourneyRef = useRef(false);
 
   const scrollLatestOutputIntoView = useCallback((delay = 120) => {
     window.setTimeout(() => {
@@ -109,6 +113,18 @@ function ClauseIQV6AContent({ forceResults = false, resultsLayout = "output-pane
     onProcessingComplete: handleProcessingComplete,
     onRunAgain: handleRunAgain,
   });
+
+  useEffect(() => {
+    const journeyId = searchParams.get("supplierJourney");
+    const journey = getSupplierJourney(journeyId);
+    if (!journey || restoredSupplierJourneyRef.current || !workflow.supplierDetectionContext) return;
+    restoredSupplierJourneyRef.current = true;
+    supplierJourneyIdRef.current = journeyId!;
+    workflow.actions.setDetectionOutcome(journey.context.outcome);
+    if (journey.context.status === "known" && journey.context.supplierId) {
+      workflow.actions.assignDetectedSupplier(journey.context.supplierId);
+    }
+  }, [searchParams, workflow.actions, workflow.supplierDetectionContext]);
 
   const { step } = workflow;
   const resultsVisible = workflow.resultsVisible;
@@ -261,6 +277,18 @@ function ClauseIQV6AContent({ forceResults = false, resultsLayout = "output-pane
       to: isFirstRunOutput ? "v1" : context.selectedVersionLabel,
     });
 
+    if (workflow.supplierDetectionContext) {
+      const supplier = workflow.resultsInitiative.suppliers.find(
+        (item) => item.id === workflow.supplierDetectionContext?.supplierId,
+      );
+      saveSupplierJourney(supplierJourneyIdRef.current, {
+        context: workflow.supplierDetectionContext,
+        supplierName: supplier?.name ?? workflow.supplierDetectionContext.alias ?? "Unknown supplier",
+        corrected: workflow.supplierCorrectionNotice,
+      });
+      params.set("supplierJourney", supplierJourneyIdRef.current);
+    }
+
     if (!isFirstRunOutput && context.previousAnalysis && context.previousVersionLabel) {
       params.set("scenario", "negotiated-reanalysis");
       params.set("resultMode", "outcome");
@@ -305,6 +333,7 @@ function ClauseIQV6AContent({ forceResults = false, resultsLayout = "output-pane
       rightPanelClassName={
         outputPanelResultsVisible ? "w-[448px]" : undefined
       }
+      sidebarOverlay={<PrototypeControl workflow={workflow} />}
     >
       <div
         className={cn(

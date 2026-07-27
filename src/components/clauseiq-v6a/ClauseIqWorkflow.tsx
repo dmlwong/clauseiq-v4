@@ -200,6 +200,50 @@ export interface ExtractedSupplierResult {
   isNew: boolean;
 }
 
+export type SupplierDetectionOutcome = "known" | "wrong-match" | "new" | "missing";
+export type SupplierIdentityStatus = "known" | "pending-alias" | "fingerprinted-alias" | "unknown";
+
+/** In-memory equivalent of the grouping payload sent with an analysis. */
+export interface SupplierDetectionContext {
+  outcome: SupplierDetectionOutcome;
+  status: SupplierIdentityStatus;
+  supplierId: string | null;
+  alias: string | null;
+  fileName: string;
+  roundId: string | null;
+  grouping: {
+    salesforceId: string;
+    project: string;
+    initiative: string;
+    identityKey: string;
+    displayKey: string;
+  };
+}
+
+const detectionLabels: Record<SupplierDetectionOutcome, string> = {
+  known: "A — Detected & known",
+  "wrong-match": "A′ — Detected, wrong match",
+  new: "B — Detected, not in master list",
+  missing: "C — No supplier detected",
+};
+export { detectionLabels };
+
+function buildGroupingContext(
+  outcome: SupplierDetectionOutcome,
+  status: SupplierIdentityStatus,
+  fileName: string,
+  supplierId: string | null,
+  alias: string | null,
+  roundId: string | null,
+): SupplierDetectionContext {
+  const identityKey = supplierId ?? roundId ?? "pending";
+  const fields = ["sf-init-001", "Legal Tech Platform Upgrade", "ClauseIQ", identityKey];
+  return { outcome, status, supplierId, alias, fileName, roundId, grouping: {
+    salesforceId: fields[0], project: fields[1], initiative: fields[2], identityKey,
+    displayKey: fields.join(" · "),
+  } };
+}
+
 const NEW_SUPPLIER_CONTEXT_ID = "new-supplier-context";
 function createNewSupplierContext(name: string): Supplier {
   const shortCode = name
@@ -363,6 +407,13 @@ export function useClauseIqWorkflow({
   const [newRerunSupplierName, setNewRerunSupplierName] = useState<string | null>(null);
   const [rerunNewSupplierEntryOpen, setRerunNewSupplierEntryOpen] = useState(false);
   const [initialSupplierName, setInitialSupplierName] = useState<string | null>(null);
+  const [detectionOutcome, setDetectionOutcome] = useState<SupplierDetectionOutcome>("known");
+  const [supplierDetectionContext, setSupplierDetectionContext] = useState<SupplierDetectionContext | null>(null);
+  const [unknownCount, setUnknownCount] = useState(0);
+  const [pendingAliasEntry, setPendingAliasEntry] = useState(false);
+  const [registeredAliases, setRegisteredAliases] = useState<Supplier[]>([]);
+  const [aliasRegistrationPending, setAliasRegistrationPending] = useState(false);
+  const [supplierCorrectionNotice, setSupplierCorrectionNotice] = useState(false);
   const [rerunSupplierMismatch, setRerunSupplierMismatch] = useState<{ selectedName: string; extractedName: string } | null>(null);
   const [supplierFingerprintResolution, setSupplierFingerprintResolution] = useState<SupplierFingerprintResolution | null>(null);
   const [resultsInitiative, setResultsInitiative] = useState<Initiative>(() =>
@@ -441,9 +492,7 @@ export function useClauseIqWorkflow({
     let cancelled = false;
     const timeout = window.setTimeout(() => {
       void (async () => {
-        const enteredName = initialSupplierName?.trim();
-        const fingerprint = await (initialFingerprintRef.current ?? Promise.resolve<SupplierFingerprintResult>({ kind: "none" }));
-        if (cancelled || !enteredName) return;
+        if (cancelled) return;
 
         const analysis = {
           ...createRerunAnalysis(file?.name ?? "Contract.pdf"),
@@ -451,16 +500,26 @@ export function useClauseIqWorkflow({
           contractName: "Supplier contract",
         };
         const parameter = selectedParameter ?? createDefaultParameterSelection();
-        const matchedSupplier = fingerprint.kind === "none"
-          ? null
-          : mockInitiative.suppliers.find((supplier) => supplier.id === fingerprint.supplierId) ?? null;
-
-        if (fingerprint.kind === "fuzzy" && matchedSupplier) {
-          setSupplierFingerprintResolution({ enteredName, candidate: matchedSupplier, analysis, parameter, journey: "initial" });
-          return;
-        }
-
-        const receivingSupplier = matchedSupplier ?? createResolvedNewSupplier(enteredName);
+        const nextUnknown = unknownCount + 1;
+        const roundId = detectionOutcome === "missing" ? `round-unknown-${nextUnknown}` : null;
+        const detectedSupplier = detectionOutcome === "known" && registeredAliases.length
+          ? registeredAliases[registeredAliases.length - 1]
+          : detectionOutcome === "wrong-match"
+          ? mockInitiative.suppliers.find((supplier) => supplier.id === "sup-002")!
+          : mockInitiative.suppliers.find((supplier) => supplier.id === "sup-001")!;
+        const receivingSupplier = detectionOutcome === "missing"
+          ? { id: roundId!, name: `Unknown ${nextUnknown}`, shortCode: `U${nextUnknown}`, analyses: [] }
+          : detectionOutcome === "new"
+            ? createResolvedNewSupplier("Northstar Legal Ltd")
+            : detectedSupplier;
+        const status: SupplierIdentityStatus = detectionOutcome === "missing"
+          ? "unknown"
+          : detectionOutcome === "new" ? "pending-alias" : "known";
+        setSupplierDetectionContext(buildGroupingContext(
+          detectionOutcome, status, file?.name ?? "Contract.pdf", receivingSupplier.id,
+          detectionOutcome === "new" ? "Northstar Legal Ltd" : null, roundId,
+        ));
+        if (detectionOutcome === "missing") setUnknownCount(nextUnknown);
         appendCompletedAnalysis(receivingSupplier, analysis);
         setCompletedInitialAnalysis(analysis);
         setCompletedInitialSupplierId(receivingSupplier.id);
@@ -473,7 +532,7 @@ export function useClauseIqWorkflow({
       cancelled = true;
       window.clearTimeout(timeout);
     };
-  }, [appendCompletedAnalysis, file, initialSupplierName, onProcessingComplete, resultsInitiative.suppliers, selectedParameter, step]);
+  }, [appendCompletedAnalysis, detectionOutcome, file, onProcessingComplete, registeredAliases, selectedParameter, step, unknownCount]);
 
   useEffect(() => {
     if (!rerunProcessing) return undefined;
@@ -541,6 +600,11 @@ export function useClauseIqWorkflow({
     setNewRerunSupplierName(null);
     setRerunNewSupplierEntryOpen(false);
     setInitialSupplierName(null);
+    setSupplierDetectionContext(null);
+    setPendingAliasEntry(false);
+    setRegisteredAliases([]);
+    setAliasRegistrationPending(false);
+    setSupplierCorrectionNotice(false);
     setRerunSupplierMismatch(null);
     setSupplierFingerprintResolution(null);
     setCompletedMilestoneIds([]);
@@ -802,12 +866,6 @@ export function useClauseIqWorkflow({
       return;
     }
 
-    if (!initialSupplierName) {
-      toast.error("Enter a supplier name before running the analysis.");
-      return;
-    }
-
-    initialFingerprintRef.current = fingerprintSupplierName(initialSupplierName, mockInitiative.suppliers);
     setCompletedInitialAnalysis(null);
     setCompletedInitialSupplierId(null);
     setSupplierFingerprintResolution(null);
@@ -877,6 +935,61 @@ export function useClauseIqWorkflow({
     onRunAgain?.();
   };
 
+  // The prototype control is intentionally live: it lets reviewers swap the
+  // simulated backend response on the latest completed output without having
+  // to repeat the full upload flow.
+  const previewDetectionOutcome = (outcome: SupplierDetectionOutcome) => {
+    setDetectionOutcome(outcome);
+    setSupplierCorrectionNotice(false);
+    if (!completedInitialAnalysis || !supplierDetectionContext) return;
+
+    const nextUnknown = unknownCount + 1;
+    const roundId = outcome === "missing" ? `round-unknown-${nextUnknown}` : null;
+    const knownSupplier = registeredAliases.length
+      ? registeredAliases[registeredAliases.length - 1]
+      : mockInitiative.suppliers.find((supplier) => supplier.id === "sup-001")!;
+    const receivingSupplier = outcome === "missing"
+      ? { id: roundId!, name: `Unknown ${nextUnknown}`, shortCode: `U${nextUnknown}`, analyses: [] }
+      : outcome === "new"
+        ? createResolvedNewSupplier("Northstar Legal Ltd")
+        : outcome === "wrong-match"
+          ? mockInitiative.suppliers.find((supplier) => supplier.id === "sup-002")!
+          : knownSupplier;
+    const status: SupplierIdentityStatus = outcome === "missing"
+      ? "unknown"
+      : outcome === "new" ? "pending-alias" : "known";
+
+    setResultsInitiative((current) => {
+      const withoutLatest = current.suppliers.map((supplier) => ({
+        ...supplier,
+        analyses: supplier.id === supplierDetectionContext.supplierId
+          ? supplier.analyses.filter((analysis) => analysis.id !== completedInitialAnalysis.id)
+          : supplier.analyses,
+      }));
+      const targetExists = withoutLatest.some((supplier) => supplier.id === receivingSupplier.id);
+      return {
+        ...current,
+        suppliers: targetExists
+          ? withoutLatest.map((supplier) => supplier.id === receivingSupplier.id
+            ? { ...supplier, analyses: supplier.analyses.some((analysis) => analysis.id === completedInitialAnalysis.id)
+              ? supplier.analyses
+              : [...supplier.analyses, completedInitialAnalysis] }
+            : supplier)
+          : [...withoutLatest, { ...receivingSupplier, analyses: [completedInitialAnalysis] }],
+      };
+    });
+    if (outcome === "missing") setUnknownCount(nextUnknown);
+    setCompletedInitialSupplierId(receivingSupplier.id);
+    setSupplierDetectionContext(buildGroupingContext(
+      outcome,
+      status,
+      completedInitialAnalysis.fileName,
+      receivingSupplier.id,
+      outcome === "new" ? "Northstar Legal Ltd" : null,
+      roundId,
+    ));
+  };
+
   return {
     completedMilestoneIds,
     completedRerunAnalysis,
@@ -889,6 +1002,11 @@ export function useClauseIqWorkflow({
     latestOutputSupplierId,
     latestOutputAnalysisId,
     initialSupplierName,
+    detectionOutcome,
+    supplierDetectionContext,
+    pendingAliasEntry,
+    aliasRegistrationPending,
+    supplierCorrectionNotice,
     parameterLocked,
     processingVisible,
     rerunProcessing,
@@ -959,6 +1077,45 @@ export function useClauseIqWorkflow({
         setInitialSupplierName(null);
         setSelectedParameter(null);
         setFile(null);
+      },
+      setDetectionOutcome: previewDetectionOutcome,
+      beginAliasEntry: () => setPendingAliasEntry(true),
+      cancelAliasEntry: () => setPendingAliasEntry(false),
+      saveDetectedAlias: (name: string) => {
+        const alias = name.trim();
+        if (!alias || !supplierDetectionContext || !completedInitialAnalysis) return;
+        const supplier = createResolvedNewSupplier(alias);
+        setRegisteredAliases((current) => current.some((item) => item.id === supplier.id) ? current : [...current, supplier]);
+        setDetectionOutcome("known");
+        setResultsInitiative((current) => ({ ...current, suppliers: [
+          ...current.suppliers.filter((item) => item.id !== supplierDetectionContext.supplierId),
+          { ...supplier, analyses: [completedInitialAnalysis] },
+        ] }));
+        setCompletedInitialSupplierId(supplier.id);
+        setSupplierDetectionContext(buildGroupingContext("new", "pending-alias", supplierDetectionContext.fileName, supplier.id, alias, null));
+        setAliasRegistrationPending(true);
+        window.setTimeout(() => {
+          setSupplierDetectionContext((current) => current && current.supplierId === supplier.id
+            ? buildGroupingContext("new", "fingerprinted-alias", current.fileName, supplier.id, alias, null)
+            : current);
+          setAliasRegistrationPending(false);
+        }, 700);
+        setPendingAliasEntry(false);
+      },
+      assignDetectedSupplier: (supplierId: string) => {
+        if (!supplierDetectionContext || !completedInitialAnalysis) return;
+        const supplier = mockInitiative.suppliers.find((item) => item.id === supplierId);
+        if (!supplier) return;
+        setResultsInitiative((current) => ({ ...current, suppliers: current.suppliers.map((item) => ({
+          ...item,
+          analyses: item.id === supplierDetectionContext.supplierId
+            ? item.analyses.filter((analysis) => analysis.id !== completedInitialAnalysis.id)
+            : item.id === supplier.id && !item.analyses.some((analysis) => analysis.id === completedInitialAnalysis.id)
+              ? [...item.analyses, completedInitialAnalysis] : item.analyses,
+        })) }));
+        setCompletedInitialSupplierId(supplier.id);
+        setSupplierDetectionContext(buildGroupingContext("known", "known", supplierDetectionContext.fileName, supplier.id, null, null));
+        setSupplierCorrectionNotice(supplierDetectionContext.outcome === "wrong-match");
       },
       selectInitiative,
       setStep,

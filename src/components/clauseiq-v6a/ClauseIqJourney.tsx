@@ -287,16 +287,7 @@ function ResultsStep({
   ) {
     return (
       <div className="space-y-orbit-base">
-        {workflow.supplierFingerprintResolution?.journey === "rerun" ? (
-          <ProcessingStep
-            copy="Finding clauses in your new contract..."
-            heading="Analysing New Contract"
-            completed
-            parameter={rerunParameter}
-            workflow={workflow}
-          />
-        ) : null}
-        <SupplierFingerprintConversation workflow={workflow} journey="rerun" />
+        <SupplierFingerprintConversation workflow={workflow} journey="initial" />
       </div>
     );
   }
@@ -320,6 +311,7 @@ function ResultsStep({
           showComparisonStatus={showComparisonStatus}
           highlightSupplierId={workflow.latestOutputSupplierId}
           highlightAnalysisId={workflow.latestOutputAnalysisId}
+          supplierIdentityContent={<SupplierDetectionResult workflow={workflow} />}
         />
       </div>
       {workflow.newAnalysisSectionVisible && <NewAnalysisDivider />}
@@ -451,11 +443,59 @@ function ResultsStep({
           onCompleteInitiative={workflow.actions.completeInitiative}
         />
       )}
+      <DesignNotes />
       {includeResultBottomSpacer ? (
         <div className="h-[304px]" aria-hidden="true" />
       ) : null}
     </div>
   );
+}
+
+function SupplierDetectionResult({ workflow }: { workflow: ClauseIqWorkflow }) {
+  const context = workflow.supplierDetectionContext;
+  if (!context) return null;
+  const selected = context.supplierId ?? "";
+  const isUnknown = context.status === "unknown";
+  const isNew = context.outcome === "new" || context.status === "pending-alias" || context.status === "fingerprinted-alias";
+  const detectedName = workflow.resultsInitiative.suppliers.find((supplier) => supplier.id === context.supplierId)?.name ?? context.alias;
+  return <section className={`rounded-orbit-lg border p-orbit-base ${isUnknown ? "border-amber-400 bg-amber-50" : "border-orbit-border bg-orbit-surface/30"}`} aria-label="Supplier">
+    <div className="flex flex-wrap items-center gap-orbit-s"><h3 className="v6-orbit-heading-5">{isUnknown ? "No supplier detected" : "Supplier"}</h3>{!isUnknown && !isNew && <span className="rounded-full bg-orbit-success/15 px-2 py-0.5 text-orbit-xs v6-orbit-weight-medium text-orbit-success">DUNS master · matched</span>}{isNew && <span className="rounded-full bg-orbit-warning/15 px-2 py-0.5 text-orbit-xs v6-orbit-weight-medium text-orbit-fg">{context.status === "fingerprinted-alias" ? "New supplier · alias (this workspace only)" : "Not in master list"}</span>}</div>
+    <p className="mt-orbit-s text-orbit-sm text-orbit-fg-secondary">{isUnknown ? "Assign a supplier to group future rounds. Your analysis has completed regardless." : isNew ? "Detected, but not in the master supplier list." : "Detected automatically — editable, no confirmation needed."}</p>
+    {!isNew && <div className="mt-orbit-base"><Select value={isUnknown ? "" : selected} onValueChange={workflow.actions.assignDetectedSupplier}><SelectTrigger className="w-full clauseiq-v6-select-left" aria-label="Supplier"><SelectValue placeholder={isUnknown ? "Search master suppliers" : undefined} /></SelectTrigger><SelectContent>{mockSupplierOptions().map((supplier) => <SelectItem key={supplier.id} value={supplier.id}>{supplier.name}</SelectItem>)}</SelectContent></Select></div>}
+    {isNew && <p className="mt-orbit-base text-orbit-sm v6-orbit-weight-medium text-orbit-fg">{detectedName}</p>}
+    {isUnknown && <p className="mt-orbit-base text-orbit-sm v6-orbit-weight-medium text-orbit-fg">{detectedName} <span className="v6-orbit-weight-regular text-orbit-fg-secondary">from {context.fileName}</span></p>}
+    {(isNew || isUnknown) && !workflow.pendingAliasEntry && context.status !== "fingerprinted-alias" && <div className="mt-orbit-base flex flex-wrap gap-orbit-s"><Button variant={isUnknown ? "default" : "secondary"} onClick={workflow.actions.beginAliasEntry}>{isUnknown ? "Add as new" : "Add as new supplier"}</Button>{isUnknown && <span className="self-center text-orbit-xs text-orbit-fg-secondary">You can keep working as {detectedName} and assign a supplier later.</span>}</div>}
+    {workflow.pendingAliasEntry && <div className="mt-orbit-base"><SupplierNameForm heading="Add supplier alias" description="This alias is available only in this workspace." submitLabel="Confirm" onCancel={workflow.actions.cancelAliasEntry} onSubmit={workflow.actions.saveDetectedAlias} /></div>}
+    {workflow.aliasRegistrationPending && <p className="mt-orbit-s text-orbit-xs text-orbit-fg-secondary">Registering… rounds still group correctly.</p>}
+    {context.status === "fingerprinted-alias" && <p className="mt-orbit-s text-orbit-xs text-orbit-fg-secondary">Will auto-detect on future contracts once registered.</p>}
+    {workflow.supplierCorrectionNotice && <p className="mt-orbit-s text-orbit-xs text-orbit-success">Supplier updated — grouping corrected before round 2.</p>}
+    <p className="mt-orbit-s text-orbit-xs text-orbit-fg-secondary">{isUnknown ? "Grouped by round ID until a supplier is assigned." : isNew ? "Rounds group by new supplier ID." : "Rounds group by supplier ID."}</p>
+  </section>;
+}
+
+export function PrototypeControl({ workflow }: { workflow: ClauseIqWorkflow }) {
+  const [open, setOpen] = useState(false);
+  const openInspector = () => {
+    document.querySelector<HTMLButtonElement>("[data-orbit-inspector] > button")?.click();
+    setOpen(false);
+  };
+
+  return <div className="relative" aria-label="Prototype tools">
+    {open && <div className="absolute bottom-9 left-0 w-full rounded-orbit-md border border-[var(--orbit-color-sidenav-divider)] bg-[var(--orbit-color-sidenav-active-bg)] p-orbit-s text-[var(--orbit-color-sidenav-text)] shadow-lg"><label className="block text-orbit-xs v6-orbit-weight-medium text-orbit-inverse" htmlFor="supplier-detection-sim">Supplier detection preview</label><Select value={workflow.detectionOutcome} onValueChange={(value) => workflow.actions.setDetectionOutcome(value as typeof workflow.detectionOutcome)}><SelectTrigger id="supplier-detection-sim" className="mt-orbit-xs h-8 w-full bg-orbit-card text-orbit-xs clauseiq-v6-select-left clauseiq-v6a-simulation-select" aria-label="Supplier detection simulation"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="known">A · detected & known</SelectItem><SelectItem value="wrong-match">A′ · wrong match</SelectItem><SelectItem value="new">B · detected, not in list</SelectItem><SelectItem value="missing">C · not detected</SelectItem></SelectContent></Select><Button type="button" variant="outline" className="mt-orbit-s h-8 w-full border-[var(--orbit-color-sidenav-divider)] bg-transparent text-orbit-inverse hover:bg-[var(--orbit-color-sidenav-hover-bg)]" onClick={openInspector}>Inspect layout</Button></div>}
+    <Button type="button" variant="outline" className="clauseiq-v6a-design-control-trigger h-7 w-full justify-center gap-orbit-xs border-[var(--orbit-color-sidenav-divider)] px-orbit-base text-orbit-xs text-orbit-inverse" onClick={() => setOpen((current) => !current)} aria-expanded={open}>Prototype tools</Button>
+  </div>;
+}
+
+function DesignNotes() {
+  return <details className="rounded-orbit-lg border border-dashed border-orbit-border bg-orbit-surface/30 p-orbit-base text-orbit-xs text-orbit-fg-secondary"><summary className="cursor-pointer v6-orbit-weight-medium text-orbit-fg">Design notes</summary><div className="mt-orbit-s space-y-orbit-xs"><p>C1 — confirm whether resolving an Unknown retains its round UUID or remaps to supplier ID and re-links earlier rounds.</p><p>C4 — confirm unresolved Unknown round behaviour: UUID revisions, fresh no-detection creates the next Unknown, or resolution required before round 2.</p><p>C5 — confirm whether corrections are sent immediately or with the next analysis run.</p></div></details>;
+}
+
+function mockSupplierOptions() {
+  return [
+    { id: "sup-001", name: "Thomson Reuters" }, { id: "sup-002", name: "Kira Systems" },
+    { id: "sup-003", name: "Luminance AI" }, { id: "sup-004", name: "iManage" },
+    { id: "sup-005", name: "Hogan Lovells" }, { id: "sup-006", name: "Deloitte Legal" },
+  ];
 }
 
 export function SupplierFingerprintConversation({
@@ -633,7 +673,7 @@ function InitialSupplierContextStep({ workflow }: { workflow: ClauseIqWorkflow }
   }
 
   return (
-    <Card type="Static" state="Default" padding="Base" indicator={false}>
+    <StateCard state="default">
       <h2 className="v6-orbit-heading-5">Supplier</h2>
       <div className="mt-orbit-base">
         <SelectedSummaryRow
@@ -643,7 +683,7 @@ function InitialSupplierContextStep({ workflow }: { workflow: ClauseIqWorkflow }
           onAction={workflow.actions.clearInitialSupplierName}
         />
       </div>
-    </Card>
+    </StateCard>
   );
 }
 
@@ -654,13 +694,8 @@ function InitialAnalysisParameters({
   workflow: ClauseIqWorkflow;
   cardState?: CardState;
 }) {
-  if (!workflow.initialSupplierName) {
-    return <InitialSupplierContextStep workflow={workflow} />;
-  }
-
   return (
     <div className="space-y-orbit-base">
-      <InitialSupplierContextStep workflow={workflow} />
       <AnalysisParameterCards
         selectedParameter={workflow.selectedParameter}
         cardState={
@@ -732,22 +767,18 @@ function SingleStepJourneyContent({
   }
 
   if (workflow.step === "upload") {
-    return (
-      <UploadStep
-        renderSelectedFileRow={renderSelectedFileRow}
-        workflow={workflow}
-      />
-    );
+    return <UploadStep renderSelectedFileRow={renderSelectedFileRow} workflow={workflow} />;
   }
 
   if (workflow.step === "processing") {
     return (
       <div className="space-y-orbit-base">
-        <ProcessingStep
-          completed={workflow.supplierFingerprintResolution?.journey === "initial"}
-          parameter={workflow.selectedParameter}
-          workflow={workflow}
-        />
+        {!workflow.awaitingSupplierFingerprintResolution && (
+          <ProcessingStep
+            parameter={workflow.selectedParameter}
+            workflow={workflow}
+          />
+        )}
         <SupplierFingerprintConversation workflow={workflow} journey="initial" />
       </div>
     );
@@ -821,18 +852,17 @@ function StackedJourneyContent({
         hasCompleteAnalysisParameters(workflow.selectedParameter) &&
         workflow.step !== "processing" &&
         workflow.step !== "results" && (
-          <div ref={refs?.upload}>
-            <UploadStep workflow={workflow} />
-          </div>
+        <div ref={refs?.upload}><UploadStep workflow={workflow} /></div>
         )}
 
       {workflow.processingVisible && workflow.step === "processing" && (
         <div ref={refs?.processing} className="space-y-orbit-base">
-          <ProcessingStep
-            completed={workflow.supplierFingerprintResolution?.journey === "initial"}
-            parameter={workflow.selectedParameter}
-            workflow={workflow}
-          />
+          {!workflow.awaitingSupplierFingerprintResolution && (
+            <ProcessingStep
+              parameter={workflow.selectedParameter}
+              workflow={workflow}
+            />
+          )}
           <SupplierFingerprintConversation workflow={workflow} journey="initial" />
         </div>
       )}

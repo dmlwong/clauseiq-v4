@@ -16,6 +16,7 @@ interface Props {
   sidePanel?: ReactNode;
   rightPanel?: ReactNode;
   rightPanelClassName?: string;
+  sidebarOverlay?: ReactNode;
   children: ReactNode;
 }
 
@@ -32,6 +33,7 @@ export function V6Shell({
   sidePanel,
   rightPanel,
   rightPanelClassName,
+  sidebarOverlay,
   children,
 }: Props) {
   const headerIcon = titleIcon ? "\uf013" : "\uf15b";
@@ -51,6 +53,11 @@ export function V6Shell({
             <CiqSidebar prototype="v6a" />
           </div>
         </div>
+        {sidebarOverlay ? (
+          <div className="fixed bottom-[72px] left-0 z-[2147483601] hidden w-[var(--orbit-sidenav-width)] px-2 md:block">
+            {sidebarOverlay}
+          </div>
+        ) : null}
         <div className="flex-1 flex flex-col min-w-0 h-screen">
           {(title || headerRight) && (
             <header className="relative shrink-0 bg-[var(--orbit-color-card-bg-default)]">

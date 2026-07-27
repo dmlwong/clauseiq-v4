@@ -68,6 +68,12 @@ import {
   getSupplierOutputComparisonContext,
   mockInitiative as clauseIqV6MockInitiative,
 } from "@/data/mock-clauseiq-v6";
+import {
+  getSupplierJourney,
+  saveSupplierJourney,
+  subscribeSupplierJourneys,
+  type DashboardSupplierJourney,
+} from "@/components/clauseiq-v6a/supplierJourneyStore";
 import { ACME_DEFAULT_FOCUS_IDS, ACME_DEFAULT_REQUEST_TEXTS, makeSyntheticVersion } from "@/lib/clauses-data";
 import { SWITCHED_ON_FIRST_ANALYSIS_VERSION } from "@/lib/switched-on-analysis-data";
 import { V6A_DESIGN_OPTION_3_FIRST_ANALYSIS_VERSION } from "@/lib/v6a-design-option-3-data";
@@ -967,6 +973,19 @@ function wasRequestedByVersion(
 
 type DashboardViewMode = "initial-analysis" | "comparison";
 
+type DashboardNegotiationLock = {
+  locked: boolean;
+  lockedAt?: string;
+  lockedBy?: string;
+  lastDownloadedAt?: string;
+};
+
+const DASHBOARD_NEGOTIATION_LOCK_PREFIX = "ciq-v6a-dashboard-negotiation-lock:";
+
+function dashboardNegotiationLockKey(supplierId: string, contractId: string, version: string) {
+  return `${DASHBOARD_NEGOTIATION_LOCK_PREFIX}${supplierId}:${contractId}:${version}`;
+}
+
 function normalizeDashboardView(value: string | null): DashboardViewMode | null {
   return value === "initial-analysis" || value === "comparison" ? value : null;
 }
@@ -980,6 +999,11 @@ export function ContractResults({
   compactHeader = false,
 }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const supplierJourneyId = searchParams.get("supplierJourney");
+  const [supplierJourney, setSupplierJourney] = useState<DashboardSupplierJourney | null>(
+    () => getSupplierJourney(supplierJourneyId),
+  );
+  useEffect(() => subscribeSupplierJourneys(() => setSupplierJourney(getSupplierJourney(supplierJourneyId))), [supplierJourneyId]);
   const initiative = getInitiative(initiativeId);
   const supplier = getSupplier(initiativeId, supplierId);
   const contract = getContract(initiativeId, supplierId, contractId);
@@ -1020,6 +1044,7 @@ export function ContractResults({
   const firstAnalysisResetKeyRef = useRef<string | null>(null);
   const seededNoActionScenarioRef = useRef<string | null>(null);
   const seededOutcomeReviewRequestsRef = useRef<string | null>(null);
+  const [openInlineRationaleClauseId, setOpenInlineRationaleClauseId] = useState<string | null>(null);
 
   // Local mutable copy of versions so the user can simulate uploading a new
   // round or deleting an existing one without touching shared seed data.
@@ -1320,6 +1345,40 @@ export function ContractResults({
   const stateOf = (id: string): ClauseDecisionState =>
     allDecisions[id] ?? { roundDecisions: {}, closures: {}, requests: {}, updatedAt: "" };
   const activeRequestVersion = mode === "comparison" ? (rightVersion ?? reviewVersion ?? latest ?? v1) : null;
+  const dashboardLockStorageKey = outcomeReviewMode && activeRequestVersion
+    ? dashboardNegotiationLockKey(supplierId, decisionContractId, activeRequestVersion.version)
+    : null;
+  const [dashboardNegotiationLock, setDashboardNegotiationLock] = useState<DashboardNegotiationLock | null>(null);
+  useEffect(() => {
+    if (!dashboardLockStorageKey) {
+      setDashboardNegotiationLock(null);
+      return;
+    }
+    try {
+      const stored = localStorage.getItem(dashboardLockStorageKey);
+      setDashboardNegotiationLock(stored ? JSON.parse(stored) as DashboardNegotiationLock : { locked: false });
+    } catch {
+      setDashboardNegotiationLock({ locked: false });
+    }
+  }, [dashboardLockStorageKey]);
+  const isDashboardLocked = Boolean(dashboardNegotiationLock?.locked);
+  const updateDashboardNegotiationLock = useCallback((patch: Partial<DashboardNegotiationLock>) => {
+    if (!dashboardLockStorageKey) return;
+    setDashboardNegotiationLock((current) => {
+      const next = { locked: false, ...current, ...patch };
+      try {
+        localStorage.setItem(dashboardLockStorageKey, JSON.stringify(next));
+      } catch {
+        // Local persistence is best-effort in the prototype.
+      }
+      return next;
+    });
+  }, [dashboardLockStorageKey]);
+  const lastDashboardEditedAt = useMemo(() => Object.values(allDecisions)
+    .map((state) => state.updatedAt)
+    .filter(Boolean)
+    .sort()
+    .at(-1) ?? null, [allDecisions]);
   const pendingRequestItems = useMemo<BasketRequestItem[]>(() => {
     if (mode !== "comparison" || !activeRequestVersion) return [];
     return decisions.getPendingRequests(supplierId, decisionContractId, activeRequestVersion.version).map((item) => {
@@ -1422,6 +1481,9 @@ export function ContractResults({
         // Local persistence is best-effort in the prototype.
       }
     }
+    if (outcomeReviewMode) {
+      updateDashboardNegotiationLock({ lastDownloadedAt: new Date().toISOString() });
+    }
     setBulkAppliedRecommendationIds([]);
     setBulkAppliedRecommendationScopeLabel(null);
     setBulkReviewSelection(null);
@@ -1431,6 +1493,22 @@ export function ContractResults({
         ? `${reviewGenerateItems.length} review decision${reviewGenerateItems.length === 1 ? "" : "s"} exported for supplier negotiation.`
         : "No review decisions remain. The generated CSV reflects the latest review decisions.",
     });
+  };
+  const lockComparisonDashboard = () => {
+    if (!activeRequestVersion) return;
+    updateDashboardNegotiationLock({
+      locked: true,
+      lockedAt: new Date().toISOString(),
+      lockedBy: CURRENT_USER_LABEL,
+    });
+    setCompactBulkBannerOpen(false);
+    setNonCompactBulkBannerOpen(false);
+    setBulkBannerSelectedClauseIds(new Set());
+    toast.success("Dashboard locked for supplier negotiation.");
+  };
+  const unlockComparisonDashboard = () => {
+    updateDashboardNegotiationLock({ locked: false, lockedAt: undefined, lockedBy: undefined });
+    toast.success("Dashboard unlocked. You can update negotiation positions again.");
   };
   const bulkReviewClauseIdSet = new Set(bulkReviewSelection?.clauseIds ?? []);
   const bulkReviewSummaryMode = Boolean(
@@ -2146,7 +2224,7 @@ export function ContractResults({
     quickFilter !== "met" &&
     quickFilter !== "no-action";
   const compactBackLabel = backLabel ?? `Back to ${supplier.name}`;
-  const dashboardSupplierName = searchParams.get("source") === "clauseiq" ? "Thomson Reuters" : supplier.name;
+  const dashboardSupplierName = supplierJourney?.supplierName ?? (searchParams.get("source") === "clauseiq" ? "Thomson Reuters" : supplier.name);
   const dashboardReferenceLine = `Supplier: ${dashboardSupplierName}`;
   const switchMode = (nextMode: ClauseIqMode) => {
     const params = new URLSearchParams(searchParams);
@@ -2788,6 +2866,18 @@ export function ContractResults({
     }
     return rows.length > 0;
   };
+  const optionTwoPreviouslyMetIds = new Set([
+    ...optionTwoGroups.previouslyMet,
+    ...optionTwoGroups.notSelected,
+  ].map((row) => row.id));
+  const optionTwoMetPositionRows = Array.from(new Map([
+    ...optionTwoGroups.metThisRound,
+    ...optionTwoGroups.previouslyMet,
+    ...optionTwoGroups.notSelected,
+  ].map((row) => [row.id, row])).values());
+  const shouldShowOptionTwoMetPositions = optionTwoMetPositionRows.length > 0 && (
+    !comparisonBucketFilterActive || comparisonStatusFilter !== "not-met"
+  );
   const optionTwoComparedCount =
     optionTwoGroups.actionRequired.length +
     optionTwoGroups.regressed.length +
@@ -2807,6 +2897,10 @@ export function ContractResults({
       overrideVerdict?: ClauseVerdict | null;
       defaultOpen?: boolean;
       collapseClausesByDefault?: boolean;
+      cardContextLabel?: (row: ComparisonRow) => string | undefined;
+      rowPriority?: (row: ComparisonRow) => number;
+      canAddToStillOpen?: (row: ComparisonRow) => boolean;
+      onAddToStillOpen?: (id: string) => void;
     },
   ) => {
     if (!leftVersion || !rightVersion) return null;
@@ -2833,23 +2927,28 @@ export function ContractResults({
         basketRequestOf={(id) => stateOf(id).requests[rightVersion.version]}
         draftOf={(id) => stateOf(id).draftRequests?.[rightVersion.version] ?? {}}
         onClose={(id) => {
+          if (isDashboardLocked) return;
           const display = leftVersion.clauses.find((clause) => clause.id === id) ?? rightVersion.clauses.find((clause) => clause.id === id);
           closeWithUndo(id, display?.title ?? id.toUpperCase(), stateOf(id).closures[rightVersion.version]);
         }}
-        onKeepOpen={(id) => decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open")}
+        onKeepOpen={(id) => {
+          if (!isDashboardLocked) decisions.setClosure(supplierId, decisionContractId, id, rightVersion.version, "keep-open");
+        }}
         onContinueWithActionability={continueWithActionability}
         onReopenAcceptedDecision={(id) => {
+          if (isDashboardLocked) return;
           clearClosureDecision(id, rightVersion.version);
           decisions.patchClauseState(supplierId, decisionContractId, id, { acceptedClosed: false });
         }}
-        onFollowUp={(id) => decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version, { requestedChange: "", rationale: "" })}
-        onUpdateText={(id, patch) => decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch)}
-        onCancelDraft={(id) => decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version)}
-        onSubmitDraft={(id) => submitDraftRequestWithToast(id, rightVersion.version, { followUp: true })}
-        onRemoveRequest={(id) => decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version)}
-        onResetReview={(id) => decisions.resetClauseReviewState(supplierId, decisionContractId, id, rightVersion.version)}
-        onTrackCurrentPosition={(id, tracked) => decisions.setTrackedCurrentPosition(supplierId, decisionContractId, id, rightVersion.version, tracked)}
+        onFollowUp={(id) => { if (!isDashboardLocked) decisions.startDraftRequest(supplierId, decisionContractId, id, rightVersion.version, { requestedChange: "", rationale: "" }); }}
+        onUpdateText={(id, patch) => { if (!isDashboardLocked) decisions.updateDraftRequestText(supplierId, decisionContractId, id, rightVersion.version, patch); }}
+        onCancelDraft={(id) => { if (!isDashboardLocked) decisions.cancelDraftRequest(supplierId, decisionContractId, id, rightVersion.version); }}
+        onSubmitDraft={(id) => { if (!isDashboardLocked) submitDraftRequestWithToast(id, rightVersion.version, { followUp: true }); }}
+        onRemoveRequest={(id) => { if (!isDashboardLocked) decisions.removePendingRequest(supplierId, decisionContractId, id, rightVersion.version); }}
+        onResetReview={(id) => { if (!isDashboardLocked) decisions.resetClauseReviewState(supplierId, decisionContractId, id, rightVersion.version); }}
+        onTrackCurrentPosition={(id, tracked) => { if (!isDashboardLocked) decisions.setTrackedCurrentPosition(supplierId, decisionContractId, id, rightVersion.version, tracked); }}
         onAcceptSupplierPosition={(id) => {
+          if (isDashboardLocked) return;
           const display = leftVersion.clauses.find((clause) => clause.id === id) ?? rightVersion.clauses.find((clause) => clause.id === id);
           closeWithUndo(id, display?.title ?? id.toUpperCase(), stateOf(id).closures[rightVersion.version]);
         }}
@@ -2867,6 +2966,11 @@ export function ContractResults({
         bulkSelectedClauseIds={bulkBannerSelectedClauseIds}
         onBulkClauseSelectionChange={toggleBulkClauseSelection}
         overrideVerdict={options?.overrideVerdict ?? (simplifyComparisonStatus ? "notmet" : undefined)}
+        cardContextLabel={options?.cardContextLabel}
+        rowPriority={options?.rowPriority}
+        canAddToStillOpen={options?.canAddToStillOpen}
+        onAddToStillOpen={options?.onAddToStillOpen}
+        isDashboardLocked={isDashboardLocked}
       />
     );
   };
@@ -2885,7 +2989,7 @@ export function ContractResults({
     );
   };
   const undoOptionTwoAcceptedAsIs = (id: string) => {
-    if (!rightVersion) return;
+    if (!rightVersion || isDashboardLocked) return;
     decisions.resetClauseReviewState(supplierId, decisionContractId, id, rightVersion.version);
     decisions.setTrackedCurrentPosition(supplierId, decisionContractId, id, rightVersion.version, false);
     toast.success("Clause restored to negotiation.");
@@ -3076,7 +3180,7 @@ export function ContractResults({
     recommendationMetadataCategories,
   );
   const applyOutcomeRecommendations = (targets: RecommendationTargetItem[], scope?: RecommendationApplyScopeMeta) => {
-    if (!outcomeReviewMode || targets.length === 0) return;
+    if (!outcomeReviewMode || isDashboardLocked || targets.length === 0) return;
     targets.forEach((target) => {
       decisions.resetClauseReviewState(supplierId, decisionContractId, target.id, rightVersion?.version ?? "v1");
       continueWithActionability(target.id, target.request, { suppressToast: true });
@@ -3127,17 +3231,20 @@ export function ContractResults({
     }
   }, [compactBulkCanChooseRecommendationScope, compactHeader]);
   const bulkSelectionEnabled =
-    compactBulkBannerOpen ||
-    nonCompactBulkBannerOpen ||
-    (firstAnalysisDemo && designOption === "design-option-3");
+    !isDashboardLocked && (
+      compactBulkBannerOpen ||
+      nonCompactBulkBannerOpen ||
+      (firstAnalysisDemo && designOption === "design-option-3")
+    );
   const toggleBulkClauseSelection = useCallback((clauseId: string, selected: boolean) => {
+    if (isDashboardLocked) return;
     setBulkBannerSelectedClauseIds((current) => {
       const next = new Set(current);
       if (selected) next.add(clauseId);
       else next.delete(clauseId);
       return next;
     });
-  }, []);
+  }, [isDashboardLocked]);
   useEffect(() => {
     if (!bulkSelectionEnabled) {
       setBulkBannerSelectedClauseIds(new Set());
@@ -3172,7 +3279,7 @@ export function ContractResults({
   };
   const keepCurrentSummaries = (targets: RecommendationTargetItem[]) => {
     const version = outcomeReviewMode ? rightVersion : firstAnalysisVersion;
-    if (!version || targets.length === 0) return;
+    if (!version || (outcomeReviewMode && isDashboardLocked) || targets.length === 0) return;
 
     targets.forEach((target) => {
       decisions.resetClauseReviewState(supplierId, decisionContractId, target.id, version.version);
@@ -3411,7 +3518,20 @@ export function ContractResults({
       simplifyStatusMetrics={simplifyComparisonStatus}
       optionTwoDashboard={
         <RoundComparisonDashboard
-          banner={null}
+          banner={
+            activeRequestVersion ? (
+              <ComparisonNegotiationBanner
+                version={activeRequestVersion.version}
+                locked={isDashboardLocked}
+                lockedAt={dashboardNegotiationLock?.lockedAt}
+                lockedBy={dashboardNegotiationLock?.lockedBy}
+                lastEditedAt={lastDashboardEditedAt}
+                lastDownloadedAt={dashboardNegotiationLock?.lastDownloadedAt}
+                onLock={lockComparisonDashboard}
+                onUnlock={unlockComparisonDashboard}
+              />
+            ) : null
+          }
           bulkBanner={compactBulkBanner}
           previousScore={comparisonModel.panel.previous?.score ?? comparisonModel.panel.current.score - comparisonModel.panel.delta}
           currentScore={comparisonModel.panel.current.score}
@@ -3464,28 +3584,23 @@ export function ContractResults({
               outcome="accepted-as-is"
               onUndo={undoOptionTwoAcceptedAsIs}
               collapsible
+              locked={isDashboardLocked}
             />
           ) : null}
-          metThisRound={shouldShowComparisonBucket("met-this-round", optionTwoGroups.metThisRound) && leftVersion && rightVersion ? (
-            <RoundComparisonOutcomeTable
-              title="Positions Met This Round"
-              description="Newly settled in this round. No further action required."
-              rows={optionTwoGroups.metThisRound}
-              previousPositionForRow={optionTwoPreviousPositionForRow}
-              onOpenDetail={setDetailClauseId}
-              outcome="met"
-              collapsible
-            />
-          ) : null}
-          previouslyMet={shouldShowComparisonBucket("previously-met", optionTwoGroups.previouslyMet) ? (
-            <RoundComparisonCollapsedList
-              title="Previously met and unchanged"
-              description="Settled in a prior round. Kept for audit."
-              rows={optionTwoGroups.previouslyMet}
-              defaultOpen={false}
-              onOpenDetail={setDetailClauseId}
-              onAddToStillOpen={(id) => {
-                if (!rightVersion) return;
+          metPositions={shouldShowOptionTwoMetPositions ? optionTwoActionSection(
+            "Met Positions",
+            "Positions that meet your required negotiation position.",
+            optionTwoMetPositionRows,
+            "success",
+            {
+              bucket: "closed",
+              showOutcomeActions: false,
+              overrideVerdict: "met",
+              cardContextLabel: (row) => optionTwoPreviouslyMetIds.has(row.id) ? "Previously Met" : "Met This Round",
+              rowPriority: (row) => optionTwoPreviouslyMetIds.has(row.id) ? 1 : 0,
+              canAddToStillOpen: (row) => optionTwoPreviouslyMetIds.has(row.id),
+              onAddToStillOpen: (id) => {
+                if (!rightVersion || isDashboardLocked) return;
                 decisions.patchClauseState(supplierId, decisionContractId, id, {
                   reopenedForNegotiation: {
                     ...stateOf(id).reopenedForNegotiation,
@@ -3494,32 +3609,8 @@ export function ContractResults({
                   acceptedClosed: false,
                 });
                 toast.success("Clause added to Still Open.");
-              }}
-            />
-          ) : null}
-          notSelected={shouldShowComparisonBucket("not-selected", optionTwoGroups.notSelected) ? (
-            <RoundComparisonOutcomeTable
-              title="Previously Met And Unchanged"
-              description="Clauses that were met in an earlier round and remain unchanged in the latest analysis."
-              rows={optionTwoGroups.notSelected}
-              defaultOpen={false}
-              onOpenDetail={setDetailClauseId}
-              previousPositionForRow={optionTwoPreviousPositionForRow}
-              outcome="previously-met"
-              showActions={false}
-              onAddToStillOpen={(id) => {
-                if (!rightVersion) return;
-                decisions.patchClauseState(supplierId, decisionContractId, id, {
-                  reopenedForNegotiation: {
-                    ...stateOf(id).reopenedForNegotiation,
-                    [rightVersion.version]: true,
-                  },
-                  acceptedClosed: false,
-                });
-                toast.success("Clause added to Still Open.");
-              }}
-              collapsible
-            />
+              },
+            },
           ) : null}
         />
       }
@@ -3780,6 +3871,7 @@ export function ContractResults({
               aria-label="Bulk Actions"
               aria-expanded={compactBulkBannerOpen}
               aria-controls="clauseiq-v6-recommendation-bulk-banner"
+              disabled={isDashboardLocked}
               onClick={() => setCompactBulkBannerOpen((current) => !current)}
             >
               <FaIcon icon={BULK_ACTION_FA_ICON} size={14} color="currentColor" />
@@ -3809,6 +3901,12 @@ export function ContractResults({
     ) : null;
 
   return (
+    <InlineRationaleContext.Provider
+      value={{
+        openClauseId: openInlineRationaleClauseId,
+        setOpenClauseId: setOpenInlineRationaleClauseId,
+      }}
+    >
     <BulkClauseSelectionContext.Provider
       value={{
         enabled: bulkSelectionEnabled,
@@ -3865,10 +3963,11 @@ export function ContractResults({
                           !nonCompactBulkBannerOpen && "bg-orbit-card",
                           isResponsiveTestingRoute && "clauseiq-responsive-apply-trigger",
                         )}
-                        aria-label="Bulk Actions"
-                        aria-expanded={nonCompactBulkBannerOpen}
-                        aria-controls="clauseiq-v6-recommendation-bulk-banner"
-                        onClick={() => setNonCompactBulkBannerOpen((current) => !current)}
+              aria-label="Bulk Actions"
+              aria-expanded={nonCompactBulkBannerOpen}
+              aria-controls="clauseiq-v6-recommendation-bulk-banner"
+              disabled={isDashboardLocked}
+              onClick={() => setNonCompactBulkBannerOpen((current) => !current)}
                       >
                         <FaIcon icon={BULK_ACTION_FA_ICON} size={14} color="currentColor" />
                         <span>Bulk Actions</span>
@@ -4034,6 +4133,13 @@ export function ContractResults({
             }}
           />
         </div>
+      )}
+
+      {supplierJourneyId && supplierJourney && (
+        <DashboardSupplierIdentity
+          journeyId={supplierJourneyId}
+          journey={supplierJourney}
+        />
       )}
 
       {/* Negotiation trend strip — V1 → Vn (TASK-07) */}
@@ -4428,6 +4534,7 @@ export function ContractResults({
       />
     </div>
     </BulkClauseSelectionContext.Provider>
+    </InlineRationaleContext.Provider>
   );
 }
 
@@ -6623,7 +6730,7 @@ function HybridResolutionRows({ score }: { score: ContractScore }) {
   return (
     <div>
       <OverviewSectionLabel>Resolution progress</OverviewSectionLabel>
-      <div className="mt-orbit-s space-y-orbit-s">
+      <div className="space-y-orbit-s">
         {rows.map((row) => {
           const identified = score.identified[row.key];
           const total = Math.max(1, identified);
@@ -7221,6 +7328,7 @@ function ClauseDecisionCard({
   missingClause,
   showClauseType = false,
   suppressChangePill = false,
+  hideHeaderStatus = false,
   defaultDetailsExpanded = true,
   hideSubclauseReference,
   displayMode = "default",
@@ -7277,6 +7385,8 @@ function ClauseDecisionCard({
   missingClause?: boolean;
   showClauseType?: boolean;
   suppressChangePill?: boolean;
+  /** Round-comparison cards show their combined status in the current-position panel. */
+  hideHeaderStatus?: boolean;
   defaultDetailsExpanded?: boolean;
   hideSubclauseReference?: boolean;
   displayMode?: "default" | "row-scale" | "initial-option-2";
@@ -7444,7 +7554,7 @@ function ClauseDecisionCard({
             </div>
           </div>
           {alteredAfterAgreement && <Chip label="Altered after agreement" size="Mini" variant="Error" contrast="Low" />}
-          {verdict && !isMissingClauseCard ? (
+          {!hideHeaderStatus && verdict && !isMissingClauseCard ? (
             <span className="inline-flex w-fit shrink-0 items-center whitespace-nowrap">
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -7458,7 +7568,7 @@ function ClauseDecisionCard({
               </Tooltip>
             </span>
           ) : showChangePill && changePill ? <ChangePillBadge result={changePill} /> : null}
-          {isMissingClauseCard && (
+          {!hideHeaderStatus && isMissingClauseCard && (
             <span className="inline-flex w-fit shrink-0 items-center whitespace-nowrap">
               {useV6StatusTags ? (
                 <FirstAnalysisStatusTag status="missing" label="Missing" />
@@ -8292,9 +8402,7 @@ function RoundComparisonDashboard({
   actionRequired,
   regressed,
   acceptedAsIs,
-  metThisRound,
-  previouslyMet,
-  notSelected,
+  metPositions,
 }: {
   banner: ReactNode;
   bulkBanner?: ReactNode;
@@ -8308,9 +8416,7 @@ function RoundComparisonDashboard({
   actionRequired: ReactNode;
   regressed: ReactNode;
   acceptedAsIs: ReactNode;
-  metThisRound: ReactNode;
-  previouslyMet: ReactNode;
-  notSelected: ReactNode;
+  metPositions: ReactNode;
 }) {
   const scoreDelta = currentScore - previousScore;
 
@@ -8344,11 +8450,75 @@ function RoundComparisonDashboard({
         {actionRequired}
         {regressed}
         {acceptedAsIs}
-        {metThisRound}
-        {previouslyMet}
-        {notSelected}
+        {metPositions}
       </div>
     </div>
+  );
+}
+
+function ComparisonNegotiationBanner({
+  version,
+  locked,
+  lockedAt,
+  lockedBy,
+  lastEditedAt,
+  lastDownloadedAt,
+  onLock,
+  onUnlock,
+}: {
+  version: string;
+  locked: boolean;
+  lockedAt?: string;
+  lockedBy?: string;
+  lastEditedAt: string | null;
+  lastDownloadedAt?: string;
+  onLock: () => void;
+  onUnlock: () => void;
+}) {
+  const activityTimestamp = (value?: string | null) => {
+    if (!value) return "Not downloaded";
+    const formatted = formatClauseIqTimestamp(value);
+    const [date, time] = formatted.split(" · ");
+    const today = formatClauseIqTimestamp(new Date().toISOString()).split(" · ")[0];
+    return date === today ? `today, ${time}` : formatted;
+  };
+  const stateLabel = locked ? "Locked" : "Revising";
+  const stateVariant = locked ? "Warning" : "Warning";
+
+  return (
+    <Card type="Static" padding="Base" state="Default" indicator={false}>
+      <div className="flex flex-wrap items-start justify-between gap-orbit-base">
+        <div className="flex min-w-0 flex-1 basis-[34rem] items-start gap-orbit-s">
+          <FaIcon icon={FA.file} size={18} fontWeight={400} className="mt-orbit-xxs shrink-0 text-orbit-fg" />
+          <div className="min-w-0 space-y-orbit-s">
+            <div className="flex flex-wrap items-center gap-orbit-s">
+              <Headings size="Heading 5">Negotiation Position</Headings>
+              <Chip label={version} size="Mini" variant="Information" />
+              <Chip label={stateLabel} size="Mini" variant={stateVariant} />
+            </div>
+            <Text as="p" size="Small" variant="Secondary">
+              {locked
+                ? `This position is shared with the supplier and locked${lockedBy ? ` by ${lockedBy}` : ""}. Review and download it, but do not change clauses until the negotiation round resumes.`
+                : "Edit, accept, or reject positions freely, and download to review with your team. Once the guide is shared with the supplier, lock it — the next round is compared against this position."}
+            </Text>
+          </div>
+        </div>
+        <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-orbit-s">
+          <Text as="p" size="Small" variant="Secondary" className="whitespace-nowrap">
+            Edited {activityTimestamp(lastEditedAt)} · {activityTimestamp(lastDownloadedAt)}
+            {lockedAt ? ` · Locked ${activityTimestamp(lockedAt)}` : ""}
+          </Text>
+          <OrbitButton
+            variant="Secondary"
+            size="Medium"
+            icon={<FaIcon icon={"\uf023"} size={14} fontWeight={900} />}
+            onClick={locked ? onUnlock : onLock}
+          >
+            {locked ? "Unlock Dashboard" : "Lock position"}
+          </OrbitButton>
+        </div>
+      </div>
+    </Card>
   );
 }
 
@@ -8649,6 +8819,7 @@ function RoundComparisonOutcomeTable({
   collapsible = false,
   defaultOpen = true,
   showActions = true,
+  locked = false,
 }: {
   title: string;
   description: string;
@@ -8661,6 +8832,7 @@ function RoundComparisonOutcomeTable({
   collapsible?: boolean;
   defaultOpen?: boolean;
   showActions?: boolean;
+  locked?: boolean;
 }) {
   if (rows.length === 0) return null;
   const [open, setOpen] = useState(defaultOpen);
@@ -8717,6 +8889,7 @@ function RoundComparisonOutcomeTable({
                       <Button
                         variant="outline"
                         className="h-7 px-orbit-s text-orbit-xs"
+                        disabled={locked}
                         onClick={() => onUndo?.(row.id)}
                       >
                         Undo
@@ -8725,6 +8898,7 @@ function RoundComparisonOutcomeTable({
                       <Button
                         variant="outline"
                         className="h-7 px-orbit-s text-orbit-xs"
+                        disabled={locked}
                         onClick={() => onAddToStillOpen?.(row.id)}
                       >
                         Add It To Still Open List
@@ -8866,6 +9040,13 @@ function truncateToWordLimit(text: string, limit: number) {
   return summary.trim() || `${words.slice(0, limit).join(" ")}.`;
 }
 
+type InlineRationaleContextValue = {
+  openClauseId: string | null;
+  setOpenClauseId: (clauseId: string | null) => void;
+};
+
+const InlineRationaleContext = createContext<InlineRationaleContextValue | null>(null);
+
 function SimplifiedComparisonContent({
   target,
   rationale,
@@ -8874,6 +9055,7 @@ function SimplifiedComparisonContent({
   previousText,
   currentLabel,
   currentText,
+  currentHeaderAction,
   currentFooter,
   targetContent,
   targetFooter,
@@ -8881,6 +9063,7 @@ function SimplifiedComparisonContent({
   targetTextActionLabel = "Edit recommended next position",
   targetLabel = "Recommended Position",
   hideRationaleAction = false,
+  inlineRationale = false,
   layout = "stacked",
 }: {
   target?: string;
@@ -8890,6 +9073,7 @@ function SimplifiedComparisonContent({
   previousText?: string;
   currentLabel: ReactNode;
   currentText: string;
+  currentHeaderAction?: ReactNode;
   currentFooter?: ReactNode;
   targetContent?: ReactNode;
   targetFooter?: ReactNode;
@@ -8897,12 +9081,24 @@ function SimplifiedComparisonContent({
   targetTextActionLabel?: string;
   targetLabel?: string;
   hideRationaleAction?: boolean;
+  inlineRationale?: boolean;
   layout?: "stacked" | "thread" | "initial-two-card";
 }) {
   const targetText = target?.trim();
   const displayedTargetText = targetText ? truncateToWordLimit(targetText, 20) : undefined;
   const hasPrevious = Boolean(previousLabel && previousText);
-  const [rationaleOpen, setRationaleOpen] = useState(false);
+  const [localRationaleOpen, setLocalRationaleOpen] = useState(false);
+  const inlineRationaleContext = useContext(InlineRationaleContext);
+  const rationaleOpen = inlineRationale && inlineRationaleContext
+    ? inlineRationaleContext.openClauseId === clauseContext?.clauseId
+    : localRationaleOpen;
+  const setRationaleOpen = (open: boolean) => {
+    if (inlineRationale && inlineRationaleContext && clauseContext?.clauseId) {
+      inlineRationaleContext.setOpenClauseId(open ? clauseContext.clauseId : null);
+      return;
+    }
+    setLocalRationaleOpen(open);
+  };
   const recommendationRationale = rationale ?? (targetText ? getRecommendationRationale(undefined, targetText) : undefined);
   const previousPanel = hasPrevious ? (
     <ResultCardPanel
@@ -8924,7 +9120,7 @@ function SimplifiedComparisonContent({
       text={currentText === "Missing from contract."
         ? <Chip label="Missing from contract" size="Mini" variant="Error" contrast="Low" />
         : currentText}
-      headerAction={layout === "thread" || layout === "initial-two-card" ? undefined : currentFooter}
+      headerAction={currentHeaderAction ?? (layout === "thread" || layout === "initial-two-card" ? undefined : currentFooter)}
       footer={layout === "thread" || layout === "initial-two-card" ? currentFooter : undefined}
       footerPushBottom={layout === "thread" || layout === "initial-two-card"}
       padding={layout === "thread" || layout === "initial-two-card" ? "base" : "compact"}
@@ -8958,12 +9154,16 @@ function SimplifiedComparisonContent({
           )}
         >
           {!hideRationaleAction && recommendationRationale && (
-            <span className="[&>a]:!text-orbit-primary">
-              <LinkText
-                label="View Rationale"
-                href="#rationale"
-                onClick={() => setRationaleOpen(true)}
-              />
+            <span className="inline-flex items-center gap-orbit-xxs [&>a]:!text-orbit-primary">
+                <LinkText
+                  label="View Rationale"
+                  href="#rationale"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setRationaleOpen(!rationaleOpen);
+                  }}
+                />
+                <ArrowRight className="h-3.5 w-3.5 text-orbit-primary" aria-hidden="true" />
             </span>
           )}
           {targetFooter && (
@@ -9022,14 +9222,18 @@ function SimplifiedComparisonContent({
           {targetPanel}
         </>
       )}
-      {recommendationRationale && (
+      {recommendationRationale && inlineRationale && rationaleOpen ? (
+        <RecommendationRationaleCard
+          rationale={recommendationRationale}
+        />
+      ) : recommendationRationale ? (
         <RecommendationRationaleDialog
           open={rationaleOpen}
           onOpenChange={setRationaleOpen}
           rationale={recommendationRationale}
           clauseContext={clauseContext}
         />
-      )}
+      ) : null}
     </div>
   );
 }
@@ -9059,8 +9263,7 @@ function getRecommendationRationale(clauseId: string | undefined, recommendation
     return {
       title: "Payment Terms",
       explanation: [
-        "The latest analysis shows payment terms at Net 45. That is closer to the benchmark but remains short of the Net 60 position used by the group treasury policy.",
-        "Moving to Net 60 improves working-capital protection and gives the Buyer a consistent payment position across comparable supplier arrangements.",
+        "The contract already provides robust step-in rights with supplier cost responsibility capped at 115% of charges and mandatory cooperation at no charge. To further strengthen the buyer's position, negotiate to: (1) remove or increase the 115% cost cap to ensure full cost recovery for all step-in expenses including management overhead, (2) clarify that 'reasonable cure period' means a specific timeframe (e.g., 5-10 business days) to prevent supplier delays in triggering step-in rights, and (3) add explicit language that the supplier remains liable for all consequential damages and service level failures during the step-in period, not just direct restoration costs.",
       ],
       guidance: "Use the recommended position as the starting point for negotiation and retain the benchmark reference PT-01 if the Supplier proposes a shorter period.",
     };
@@ -9131,6 +9334,31 @@ function RecommendationRationaleDialog({
         )}
       </div>
     </V6OrbitOverlay>
+  );
+}
+
+function RecommendationRationaleCard({
+  rationale,
+}: {
+  rationale: RecommendationRationale;
+}) {
+  return (
+    <Card type="Static" padding="Base" state="Default" indicator={false}>
+      <div id="rationale" role="region" aria-label="Recommendation rationale">
+      <div className="mt-orbit-s space-y-orbit-s">
+        <p className="v6-orbit-text-body v6-orbit-weight-semibold text-orbit-fg">Recommend Position&apos;s Rationale</p>
+        {rationale.explanation.map((paragraph) => (
+          <p key={paragraph} className="v6-orbit-text-body text-orbit-fg">{paragraph}</p>
+        ))}
+        {rationale.playbookWording && (
+          <div className="rounded-orbit-md border border-orbit-border bg-orbit-card p-orbit-base">
+            <p className="v6-orbit-text-small v6-orbit-weight-semibold text-orbit-fg">Exact wording from playbook</p>
+            <p className="mt-orbit-s whitespace-pre-line v6-orbit-text-small text-orbit-fg">{rationale.playbookWording}</p>
+          </div>
+        )}
+      </div>
+      </div>
+    </Card>
   );
 }
 
@@ -10263,6 +10491,11 @@ function InitialAnalysisRecommendationTable({
   const [focusedClauseId, setFocusedClauseId] = useState<string | null>(null);
   const [expandedClauseId, setExpandedClauseId] = useState<string | null>(null);
   const [sortByTable, setSortByTable] = useState<Partial<Record<InitialAnalysisTableKey, InitialAnalysisSortState>>>({});
+  const [openTableSections, setOpenTableSections] = useState<Record<InitialAnalysisTableKey, boolean>>({
+    recommendations: true,
+    "no-recommendations": true,
+    accepted: true,
+  });
   const recommendationsSectionRef = useRef<HTMLElement>(null);
   const noRecommendationsSectionRef = useRef<HTMLElement>(null);
   const acceptedSectionRef = useRef<HTMLElement>(null);
@@ -10292,6 +10525,10 @@ function InitialAnalysisRecommendationTable({
   });
   const selectedRecommendationIds = selectableRecommendationRows.filter((clause) => bulkSelectedClauseIds?.has(clause.id)).map((clause) => clause.id);
   const allRecommendationsSelected = selectableRecommendationRows.length > 0 && selectedRecommendationIds.length === selectableRecommendationRows.length;
+  const toggleTableSection = (tableKey: InitialAnalysisTableKey) => {
+    setOpenTableSections((current) => ({ ...current, [tableKey]: !current[tableKey] }));
+  };
+
   const navigateToTable = (value: string) => {
     const target = value === "no-recommendations"
       ? noRecommendationsSectionRef
@@ -10316,7 +10553,6 @@ function InitialAnalysisRecommendationTable({
         + section.getBoundingClientRect().top
         - containerRect.top
         - stickyOffset;
-
       const end = Math.min(
         Math.max(0, destination),
         scrollContainer.scrollHeight - scrollContainer.clientHeight,
@@ -10342,34 +10578,56 @@ function InitialAnalysisRecommendationTable({
         const easedProgress = 1 - Math.pow(1 - progress, 3);
         scrollContainer.scrollTop = start + ((end - start) * easedProgress);
         keepHeaderFixed();
-
         if (progress < 1) {
           tableScrollAnimationFrameRef.current = window.requestAnimationFrame(animate);
         } else {
           tableScrollAnimationFrameRef.current = null;
-          keepHeaderFixed();
         }
       };
-
       tableScrollAnimationFrameRef.current = window.requestAnimationFrame(animate);
     });
   };
 
-  const sectionHeader = (title: string, count: number, description?: string, showFilters = true) => (
-    <div className="space-y-orbit-base border-b border-orbit-border p-orbit-base">
-      <div className="flex flex-wrap items-center justify-between gap-x-orbit-base gap-y-orbit-s">
-        <h2 className="v6-orbit-heading-4 text-orbit-fg">{title}</h2>
-        <div className="flex flex-wrap items-center gap-x-orbit-base gap-y-orbit-s">
-          <span className="text-orbit-sm text-orbit-fg-secondary">Showing {count} of {version.clauses.length} Rows</span>
-          <span className="h-4 w-px bg-orbit-border" aria-hidden="true" />
-          <p className="flex items-center gap-orbit-xs text-orbit-sm text-orbit-fg-secondary"><Clock className="h-4 w-4" aria-hidden="true" />Last Updated {formatClauseIqTimestamp(version.uploadedAt)}</p>
-          <Chip label="Editing" size="Mini" variant="Information" contrast="Low" />
-        </div>
-      </div>
-      {showFilters ? filters : null}
-      {description ? <p className="flex items-start gap-orbit-xs text-orbit-sm text-orbit-fg-secondary"><span aria-hidden="true">ⓘ</span><span>{description}</span></p> : null}
-    </div>
-  );
+  const sectionHeader = (
+    tableKey: InitialAnalysisTableKey,
+    title: string,
+    count: number,
+    description?: string,
+    showFilters = true,
+  ) => {
+    const open = openTableSections[tableKey];
+    return (
+      <>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={`initial-analysis-${tableKey}-content`}
+          className="flex w-full items-start gap-orbit-base bg-orbit-surface/60 p-orbit-base text-left transition-colors hover:bg-orbit-surface"
+          onClick={() => toggleTableSection(tableKey)}
+        >
+          <span className="w-1 self-stretch rounded-orbit-sm bg-orbit-fg-secondary" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-orbit-s">
+              <h2 className="v6-orbit-heading-strong text-orbit-fg">{title}</h2>
+              <div className="ml-auto flex flex-wrap items-center gap-orbit-s">
+                <span className="text-orbit-xs v6-orbit-weight-medium text-orbit-fg-secondary">Showing {count} of {version.clauses.length} Rows</span>
+                <span className="h-4 w-px bg-orbit-border" aria-hidden="true" />
+                <span className="flex items-center gap-orbit-xs text-orbit-xs text-orbit-fg-secondary"><Clock className="h-4 w-4" aria-hidden="true" />Last Updated {formatClauseIqTimestamp(version.uploadedAt)}</span>
+                <Chip label="Editing" size="Mini" variant="Information" contrast="Low" />
+              </div>
+            </div>
+          </div>
+          <ChevronDown className={cn("mt-orbit-xs h-4 w-4 shrink-0 text-orbit-fg-secondary transition-transform", open && "rotate-180")} aria-hidden="true" />
+        </button>
+        {open ? (
+          <div className="space-y-orbit-base">
+            {showFilters ? <div className="px-orbit-base py-orbit-base">{filters}</div> : null}
+            {description ? <p className="flex items-start gap-orbit-xs px-orbit-base text-orbit-sm text-orbit-fg-secondary"><span aria-hidden="true">ⓘ</span><span>{description}</span></p> : null}
+          </div>
+        ) : null}
+      </>
+    );
+  };
 
   const sortTableRows = (tableRows: ClauseResult[], sort: InitialAnalysisSortState | undefined) => {
     if (!sort) return tableRows;
@@ -10409,9 +10667,9 @@ function InitialAnalysisRecommendationTable({
     };
 
     return (
-    <div className="overflow-x-auto">
+    <div id={`initial-analysis-${tableKey}-content`} className="overflow-x-auto">
       <table className="w-full min-w-[1120px] border-collapse text-left" aria-label={acceptedAsIs ? "Initial analysis accepted as-is" : noRecommendations ? "Initial analysis no recommendations" : "Initial analysis recommendations"}>
-        <thead className="bg-orbit-surface/60 text-orbit-xs uppercase tracking-wide text-orbit-fg-secondary"><tr className="border-b border-orbit-border">{!noRecommendations && !acceptedAsIs ? <th className="w-12 px-orbit-base py-orbit-s"><Checkbox checked={allRecommendationsSelected} disabled={!bulkSelectionEnabled || selectableRecommendationRows.length === 0} aria-label="Select all recommendation clauses" onCheckedChange={(checked) => selectableRecommendationRows.forEach((clause) => onBulkClauseSelectionChange?.(clause.id, checked === true))} /></th> : null}{sortHeader("category", "Clause type", "w-36 px-orbit-base py-orbit-s")}{sortHeader("clause", "Clause", "w-56 px-orbit-base py-orbit-s")}<th className="min-w-[320px] px-orbit-base py-orbit-s">Current supplier position</th>{sortHeader("deviation", "Deviation", "w-32 px-orbit-base py-orbit-s")}<th className="min-w-[340px] px-orbit-base py-orbit-s">Your negotiation position</th></tr></thead>
+        <thead className="bg-orbit-surface/60 text-orbit-xs uppercase tracking-wide text-orbit-fg-secondary"><tr className="border-y border-orbit-border">{!noRecommendations && !acceptedAsIs ? <th className="w-12 px-orbit-base py-orbit-s"><Checkbox checked={allRecommendationsSelected} disabled={!bulkSelectionEnabled || selectableRecommendationRows.length === 0} aria-label="Select all recommendation clauses" onCheckedChange={(checked) => selectableRecommendationRows.forEach((clause) => onBulkClauseSelectionChange?.(clause.id, checked === true))} /></th> : null}{sortHeader("category", "Clause type", "w-36 px-orbit-base py-orbit-s")}{sortHeader("clause", "Clause", "w-56 px-orbit-base py-orbit-s")}<th className="min-w-[320px] px-orbit-base py-orbit-s">Current supplier position</th>{sortHeader("deviation", "Deviation", "w-32 px-orbit-base py-orbit-s")}<th className="min-w-[340px] px-orbit-base py-orbit-s">Your negotiation position</th></tr></thead>
         <tbody>
           {sortedRows.map((clause) => {
             const state = stateOf(clause.id);
@@ -10458,9 +10716,18 @@ function InitialAnalysisRecommendationTable({
       </MultiStateGroup>
     </div>
     {selectedRecommendationIds.length > 0 ? <div className="flex items-center justify-between gap-orbit-base rounded-orbit-md border border-orbit-border bg-orbit-heading px-orbit-base py-orbit-s text-orbit-inverse"><span className="font-medium">{selectedRecommendationIds.length} Clause{selectedRecommendationIds.length === 1 ? "" : "s"} Selected</span><div className="flex items-center gap-orbit-xs"><Button variant="secondary" className="h-8" onClick={() => selectedRecommendationIds.forEach((id) => onBulkClauseSelectionChange?.(id, false))}>Clear</Button><Button className="h-8" onClick={onAcceptSelected}>✓ Accept Supplier On Selected</Button><Button variant="ghost" size="icon" aria-label="Close bulk selection" title="Close bulk selection" className="text-orbit-inverse hover:bg-orbit-card/20" onClick={() => selectedRecommendationIds.forEach((id) => onBulkClauseSelectionChange?.(id, false))}><X className="h-4 w-4" aria-hidden="true" /></Button></div></div> : null}
-    <section ref={recommendationsSectionRef} className="scroll-mt-24 overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">{sectionHeader("Recommendations — Current Position", recommendationRows.length)}{renderTable(recommendationRows, "recommendations")}</section>
-    <section ref={noRecommendationsSectionRef} className="scroll-mt-24 overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">{sectionHeader("No Recommendations", noRecommendationRows.length, "Clauses the AI reviewed but had no changes to suggest — hidden from your saved guide by default. Add a recommendation to any row to promote it into your Recommendations list.", false)}{renderTable(noRecommendationRows, "no-recommendations", true)}</section>
-    <section ref={acceptedSectionRef} className="scroll-mt-24 overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">{sectionHeader("Accepted As-Is", acceptedRows.length, "Clauses where you've accepted the supplier's wording — dropped from active negotiation. Reject any row to add your counter-position and move it back into Recommendations.", false)}{acceptedRows.length > 0 ? renderTable(acceptedRows, "accepted", false, true) : <div className="flex min-h-24 items-center justify-center px-orbit-base py-orbit-xxl text-orbit-sm text-orbit-fg-secondary">Nothing accepted yet. Accepted clauses will appear here so you can restore them.</div>}</section>
+    <section ref={recommendationsSectionRef} className="scroll-mt-24 overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">
+      {sectionHeader("recommendations", "Recommendations — Current Position", recommendationRows.length)}
+      {openTableSections.recommendations ? renderTable(recommendationRows, "recommendations") : null}
+    </section>
+    <section ref={noRecommendationsSectionRef} className="scroll-mt-24 overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">
+      {sectionHeader("no-recommendations", "No Recommendations", noRecommendationRows.length, "Clauses the AI reviewed but had no changes to suggest — hidden from your saved guide by default. Add a recommendation to any row to promote it into your Recommendations list.", false)}
+      {openTableSections["no-recommendations"] ? renderTable(noRecommendationRows, "no-recommendations", true) : null}
+    </section>
+    <section ref={acceptedSectionRef} className="scroll-mt-24 overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">
+      {sectionHeader("accepted", "Accepted As-Is", acceptedRows.length, "Clauses where you've accepted the supplier's wording — dropped from active negotiation. Reject any row to add your counter-position and move it back into Recommendations.", false)}
+      {openTableSections.accepted ? (acceptedRows.length > 0 ? renderTable(acceptedRows, "accepted", false, true) : <div id="initial-analysis-accepted-content" className="flex min-h-24 items-center justify-center px-orbit-base py-orbit-xxl text-orbit-sm text-orbit-fg-secondary">Nothing accepted yet. Accepted clauses will appear here so you can restore them.</div>) : null}
+    </section>
     <InitialAnalysisNextRoundGuide />
   </div>;
 }
@@ -10712,10 +10979,15 @@ function ComparisonSection(props: {
   defaultOpen?: boolean;
   collapseClausesByDefault?: boolean;
   onAcceptSupplierPosition?: (id: string) => void;
+  cardContextLabel?: (row: ComparisonRow) => string | undefined;
+  rowPriority?: (row: ComparisonRow) => number;
+  canAddToStillOpen?: (row: ComparisonRow) => boolean;
+  onAddToStillOpen?: (id: string) => void;
   overrideVerdict?: ClauseVerdict | null;
   bulkSelectionEnabled?: boolean;
   bulkSelectedClauseIds?: Set<string>;
   onBulkClauseSelectionChange?: (clauseId: string, selected: boolean) => void;
+  isDashboardLocked?: boolean;
 }) {
   const {
     title, description, accent, rows, leftLabel, rightLabel, visible, bucket, stats,
@@ -10723,8 +10995,9 @@ function ComparisonSection(props: {
     onContinueWithActionability,
     onReopenAcceptedDecision,
     pinnedIds, onTogglePin, draftOf,
-    onUpdateText, onCancelDraft, onSubmitDraft, onConfirmVerdictFromAction, stateOf, layout = "collapsible", presentation = "standard", defaultOpen = true, collapseClausesByDefault = false, onAcceptSupplierPosition, overrideVerdict,
+    onUpdateText, onCancelDraft, onSubmitDraft, onConfirmVerdictFromAction, stateOf, layout = "collapsible", presentation = "standard", defaultOpen = true, collapseClausesByDefault = false, onAcceptSupplierPosition, cardContextLabel, rowPriority, canAddToStillOpen, onAddToStillOpen, overrideVerdict,
     bulkSelectionEnabled = false, bulkSelectedClauseIds, onBulkClauseSelectionChange,
+    isDashboardLocked = false,
     showKeepCurrentPosition = true,
     showOutcomeActions = true,
   } = props;
@@ -10773,6 +11046,8 @@ function ComparisonSection(props: {
     rows.length !== displayedStats.total ? `${visibleStats.visible} shown` : null,
   ].filter(Boolean).join(" · ");
   const sortedRows = sortOutcomeComparisonRows(rows).sort((a, b) => {
+    const rowPriorityDelta = (rowPriority?.(a) ?? 0) - (rowPriority?.(b) ?? 0);
+    if (rowPriorityDelta !== 0) return rowPriorityDelta;
     const deviationDelta =
       outcomeDeviationSortRank(a.curr ?? a.prev) -
       outcomeDeviationSortRank(b.curr ?? b.prev);
@@ -10815,6 +11090,7 @@ function ComparisonSection(props: {
         const noAction = (bucket === "new" || bucket === "no-action") && r.actionState === "no_action";
         const supportsInlineRequest = Boolean(draftOf && onUpdateText && onCancelDraft && onSubmitDraft);
         const drafting =
+          !isDashboardLocked &&
           supportsInlineRequest &&
           (r.actionState === "drafting" || expandedRequestId === r.id);
         const draft = draftOf?.(r.id) ?? {};
@@ -10881,6 +11157,9 @@ function ComparisonSection(props: {
           closure !== "closed" &&
           !rowState?.acceptedClosed;
         const isRoundDashboard = presentation === "round-dashboard";
+        const canAddThisClauseToStillOpen = isRoundDashboard && Boolean(canAddToStillOpen?.(r) && onAddToStillOpen);
+        const showCurrentPositionControls =
+          showOutcomeActions && canShowOutcomeFooter && rowVerdict !== "met";
         const showRecommendedNextPosition = !(
           isRoundDashboard && (bucket === "closed" || bucket === "no-action" || rowVerdict === "met")
         );
@@ -10890,7 +11169,7 @@ function ComparisonSection(props: {
           showOutcomeActions &&
           canShowOutcomeFooter &&
           showRecommendedNextPosition &&
-          !bulkSelectionEnabled &&
+          !bulkSelectionEnabled && !isDashboardLocked &&
           (isNoneDeviationClause(display) || rowVerdict !== "met");
         const editRecommendedPosition = () => {
           if (isNoneDeviationClause(display) || bucket === "closed") {
@@ -10905,6 +11184,27 @@ function ComparisonSection(props: {
         const latestSupplierText = isPureMissingClause(display)
           ? "Missing from contract."
           : r.curr?.deviation ?? "Clause no longer present.";
+        // The deviation label is the original assessment severity carried into
+        // the comparison. It is deliberately not the calculated current
+        // outcome (for example, "Aligned"), which is not a deviation status.
+        const originalDeviationClause = r.prev ?? display;
+        const currentDeviationLabel = originalDeviationClause.sourceDeviationLevel
+          ?? titleCaseSeverity(originalDeviationClause.severity);
+        const deviationStatusKey: FirstAnalysisStatusKey = originalDeviationClause.sourceDeviationLevel === "High"
+          ? "high"
+          : originalDeviationClause.sourceDeviationLevel === "Medium"
+            ? "medium"
+            : originalDeviationClause.sourceDeviationLevel === "Low"
+              ? "low"
+              : originalDeviationClause.sourceDeviationLevel === "None"
+                ? "none"
+                : firstAnalysisSeverityStatus[originalDeviationClause.severity];
+        const currentPositionStatus = isRoundDashboard ? (
+          <FirstAnalysisStatusTag
+            label={`${rowVerdict === "met" ? "Met" : "Not Met"} - ${currentDeviationLabel}`}
+            status={deviationStatusKey}
+          />
+        ) : undefined;
         const comparisonDetails = (
           <SimplifiedComparisonContent
             target={!drafting && showRecommendedNextPosition
@@ -10921,29 +11221,41 @@ function ComparisonSection(props: {
             previousText={isRoundDashboard ? previousTargetText || r.prev?.deviation || "No earlier position was sent." : r.prev?.deviation ?? "Clause did not exist."}
             currentLabel={isRoundDashboard ? "Current Supplier Position" : `Current Summary · ${rightLabel}`}
             currentText={latestSupplierText}
+            currentHeaderAction={currentPositionStatus}
             currentFooter={
-              showOutcomeActions && canShowOutcomeFooter && rowVerdict !== "met" ? (
+              showCurrentPositionControls || canAddThisClauseToStillOpen ? (
                 <div className="flex w-full flex-wrap items-center justify-end gap-orbit-xs">
-                  {isRoundDashboard && !isPureMissingClause(display) && r.curr && onAcceptSupplierPosition ? (
+                  {showCurrentPositionControls && isRoundDashboard && !isPureMissingClause(display) && r.curr && onAcceptSupplierPosition ? (
                     <Button
                       variant="outline"
                       className="h-8 w-fit px-orbit-base"
-                      disabled={bulkSelectionEnabled}
+                      disabled={bulkSelectionEnabled || isDashboardLocked}
                       onClick={() => onAcceptSupplierPosition(r.id)}
                     >
                       <Check className="h-3.5 w-3.5" aria-hidden="true" />
                       Accept Supplier Position
                     </Button>
                   ) : null}
-                  {showKeepCurrentPosition ? (
+                  {showCurrentPositionControls && showKeepCurrentPosition ? (
                     <label className="inline-flex items-center gap-orbit-xs text-orbit-xs text-orbit-fg-secondary">
                       <Checkbox
                         checked={trackedCurrentPosition}
                         aria-label="Keep Current Position"
+                        disabled={isDashboardLocked}
                         onCheckedChange={(checked) => onTrackCurrentPosition?.(r.id, checked === true)}
                       />
                       <span>Keep Current Position</span>
                     </label>
+                  ) : null}
+                  {canAddThisClauseToStillOpen ? (
+                    <Button
+                      variant="outline"
+                      className="h-8 w-fit px-orbit-base"
+                      disabled={isDashboardLocked}
+                      onClick={() => onAddToStillOpen?.(r.id)}
+                    >
+                      Add It To Still Open List
+                    </Button>
                   ) : null}
                 </div>
               ) : undefined
@@ -10971,6 +11283,7 @@ function ComparisonSection(props: {
             onTargetTextClick={canEditRecommendedPosition ? editRecommendedPosition : undefined}
             targetTextActionLabel={`Edit recommended next position for ${displayTitleForClause(r.id, display.title)}`}
             hideRationaleAction={drafting || completedAction}
+            inlineRationale
             layout={isRoundDashboard ? "thread" : "stacked"}
             targetFooter={
               !isRoundDashboard && showOutcomeActions && canShowOutcomeFooter && isNoneDeviationClause(display) ? (
@@ -11055,7 +11368,11 @@ function ComparisonSection(props: {
             verdictSuperseded={Boolean(rowConfirmation?.overrideComment)}
             deviationDelta={rowDeviationDelta}
             alteredAfterAgreement={Boolean(rowState?.alteredAfterAgreement)}
-            stateBadge={bucket === "no-action" ? (
+            stateBadge={cardContextLabel?.(r) ? (
+              <span className="inline-flex items-center whitespace-nowrap">
+                <Chip label={cardContextLabel(r)} size="Mini" variant="No Status" contrast="High" />
+              </span>
+            ) : bucket === "no-action" ? (
               <span className="inline-flex items-center whitespace-nowrap">
                 <Chip label="No Further Action" size="Mini" variant="No Status" contrast="Low" />
               </span>
@@ -11063,6 +11380,7 @@ function ComparisonSection(props: {
             missingClause={Boolean(display.missingClause)}
             showClauseType={isRoundDashboard}
             suppressChangePill={isRoundDashboard}
+            hideHeaderStatus={isRoundDashboard}
             defaultDetailsExpanded={!collapseClausesByDefault}
             metaPrefix={!resolvedOverrideVerdict && r.pill.status === "new" ? <span className="mr-orbit-xs text-orbit-info">+</span> : null}
             selectedComparisonAction={
@@ -11324,6 +11642,7 @@ function UnmarkedSection({
                         extraContent={
                           <SimplifiedComparisonContent
                             target={display.actionability?.trim() || req.requestedChange}
+                            inlineRationale
                             clauseContext={{
                               clauseId: r.id,
                               clauseName: displayTitleForClause(r.id, display.title),
@@ -12371,6 +12690,63 @@ function LocationsList({ items }: { items?: string[] }) {
 }
 
 // ---- Supplier grouping provenance popover (TASK-04) ------------------------
+
+function DashboardSupplierIdentity({ journeyId, journey }: { journeyId: string; journey: DashboardSupplierJourney }) {
+  const [alias, setAlias] = useState("");
+  const context = journey.context;
+  const unresolved = context.status === "unknown";
+  const pendingAlias = context.status === "pending-alias";
+  const masterSuppliers = clauseIqV6MockInitiative.suppliers;
+  const updateMaster = (supplierId: string) => {
+    const supplier = masterSuppliers.find((item) => item.id === supplierId);
+    if (!supplier) return;
+    saveSupplierJourney(journeyId, {
+      supplierName: supplier.name,
+      corrected: context.outcome === "wrong-match" || journey.corrected,
+      context: { ...context, outcome: "known", status: "known", supplierId, alias: null, roundId: null, grouping: { ...context.grouping, identityKey: supplierId } },
+    });
+  };
+  const registerAlias = () => {
+    const name = alias.trim();
+    if (!name) return;
+    const supplierId = `sup-new-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
+    saveSupplierJourney(journeyId, {
+      supplierName: name,
+      corrected: journey.corrected,
+      context: { ...context, outcome: "new", status: "pending-alias", supplierId, alias: name, roundId: null, grouping: { ...context.grouping, identityKey: supplierId } },
+    });
+    window.setTimeout(() => {
+      const latest = getSupplierJourney(journeyId);
+      if (latest?.context.supplierId === supplierId) saveSupplierJourney(journeyId, { ...latest, context: { ...latest.context, status: "fingerprinted-alias" } });
+    }, 700);
+    setAlias("");
+  };
+  const showAlias = unresolved || pendingAlias;
+  return (
+    <section className={`mx-auto mt-orbit-base max-w-[1600px] rounded-orbit-lg border px-orbit-base py-orbit-s ${unresolved ? "border-amber-400 bg-amber-50" : "border-orbit-border bg-orbit-card"}`} aria-label="Supplier identity">
+      <div className="flex flex-wrap items-center justify-between gap-orbit-s">
+        <div>
+          <p className="v6-orbit-weight-semibold text-orbit-sm">{unresolved ? "No supplier detected" : "Supplier"}</p>
+          <p className="mt-0.5 text-orbit-xs text-orbit-fg-secondary">
+            {unresolved ? `${journey.supplierName} from ${context.fileName}` : context.status === "fingerprinted-alias" ? "New supplier · alias (this workspace only)" : pendingAlias ? "Registering supplier alias…" : journey.corrected ? "Supplier updated — grouping corrected before round 2." : "DUNS master · matched"}
+          </p>
+        </div>
+        {!showAlias && (
+          <Select value={context.supplierId ?? ""} onValueChange={updateMaster}>
+            <SelectTrigger className="w-[260px] clauseiq-v6-select-left" aria-label="Dashboard supplier"><SelectValue /></SelectTrigger>
+            <SelectContent>{masterSuppliers.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent>
+          </Select>
+        )}
+      </div>
+      {showAlias && <div className="mt-orbit-s flex flex-wrap items-center gap-orbit-s">
+        {unresolved && <Select value="" onValueChange={updateMaster}><SelectTrigger className="w-[260px] clauseiq-v6-select-left" aria-label="Assign master supplier"><SelectValue placeholder="Search master suppliers" /></SelectTrigger><SelectContent>{masterSuppliers.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent></Select>}
+        <Input value={alias} onChange={(event) => setAlias(event.target.value)} placeholder="New supplier name" className="h-8 w-[220px]" aria-label="New supplier alias" />
+        <Button className="h-8" onClick={registerAlias}>Add as new</Button>
+      </div>}
+      <p className="mt-orbit-s text-orbit-xs text-orbit-fg-secondary">{unresolved ? "This analysis remains grouped as Unknown until a supplier is assigned." : context.status === "fingerprinted-alias" ? "Grouped using this workspace-only supplier alias." : pendingAlias ? "Supplier grouping will update when registration completes." : journey.corrected ? "Grouped under the corrected supplier." : "Matched to the DUNS master supplier."}</p>
+    </section>
+  );
+}
 
 function SupplierGroupingPopover({
   supplierId,

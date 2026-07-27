@@ -179,7 +179,8 @@ const IndexV6A = () => {
               return;
             }
             if (isClauseIQResultRoute) {
-              navigate("/clauseiq-v6a/output-panel");
+              const supplierJourney = searchParams.get("supplierJourney");
+              navigate(`/clauseiq-v6a/output-panel${supplierJourney ? `?supplierJourney=${encodeURIComponent(supplierJourney)}` : ""}`);
               return;
             }
             setView({ name: "supplier", initiativeId: view.initiativeId, supplierId: view.supplierId });

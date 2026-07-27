@@ -40,7 +40,8 @@ export function OutputPanelResultsContent({
   higherIsBetter = true,
   analysisParameters,
   showComparisonStatus = false,
-}: ResultsViewProps) {
+  supplierIdentityContent,
+}: ResultsViewProps & { supplierIdentityContent?: ReactNode }) {
   const rows = useMemo(() => {
     return flattenSupplierAnalyses(initiative.suppliers).sort(
       (a, b) => Date.parse(a.analysis.analysedAt) - Date.parse(b.analysis.analysedAt),
@@ -90,6 +91,7 @@ export function OutputPanelResultsContent({
               outputScore={outputScoresBySupplierId[supplier.id]?.[analysis.id]}
               higherIsBetter={higherIsBetter}
               showComparisonStatus={showComparisonStatus}
+              supplierIdentityContent={analysis.id === latestAnalysisId ? supplierIdentityContent : undefined}
             />
           ))
         )}

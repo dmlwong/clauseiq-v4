@@ -1106,6 +1106,13 @@ body > div:has(> div[role="dialog"] [data-v6-overlay="select-initiative"]) > div
   color: var(--orbit-color-text-inverse) !important;
 }
 
+/* The bottom-sidebar simulation menu needs its scenario list to open back
+   into the available vertical space, rather than beneath the trigger. */
+[data-prototype="clauseiq-v6a"] .clauseiq-v6a-simulation-select > div > [role="listbox"] {
+  bottom: calc(100% + var(--orbit-space-xs));
+  top: auto;
+}
+
 [data-prototype="clauseiq-v6a"] [data-orbit-inspector] > button {
   align-items: center !important;
   background: var(--orbit-color-sidenav-active-bg) !important;
@@ -1114,7 +1121,7 @@ body > div:has(> div[role="dialog"] [data-v6-overlay="select-initiative"]) > div
   border-radius: var(--orbit-radius-sm) !important;
   box-shadow: none !important;
   color: var(--orbit-color-text-inverse) !important;
-  display: inline-flex !important;
+  display: none !important;
   font-family: inherit !important;
   font-size: var(--orbit-text-xs) !important;
   font-weight: var(--orbit-font-weight-medium) !important;

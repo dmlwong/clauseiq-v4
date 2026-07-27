@@ -40,10 +40,6 @@ function startAndSelectInitiative() {
       name: /Fleet Telematics Refresh Logistics Sarah Chen/i,
     }),
   );
-  fireEvent.change(screen.getByPlaceholderText("Enter supplier name"), {
-    target: { value: "Thomson Reuters" },
-  });
-  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 }
 
 function selectDefaultPlaybook() {
@@ -195,7 +191,7 @@ describe("ClauseIQ V6A flow", () => {
     ).toBeInTheDocument();
   });
 
-  it("asks for a supplier name before showing first-analysis parameters", () => {
+  it("shows analysis parameters without asking for a supplier name", () => {
     renderClauseIQ();
 
     fireEvent.click(screen.getByRole("button", { name: /get started/i }));
@@ -206,15 +202,11 @@ describe("ClauseIQ V6A flow", () => {
       }),
     );
 
-    expect(
-      screen.getByRole("heading", { name: "Enter supplier name" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("heading", { name: "Contract Analysis Parameters" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Contract Analysis Parameters" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Enter supplier name" })).not.toBeInTheDocument();
   });
 
-  it("does not offer Cancel when entering a supplier for the first analysis", () => {
+  it("does not show supplier assignment before the first upload", () => {
     renderClauseIQ();
 
     fireEvent.click(screen.getByRole("button", { name: /get started/i }));
@@ -225,8 +217,8 @@ describe("ClauseIQ V6A flow", () => {
       }),
     );
 
-    expect(screen.getByRole("heading", { name: "Enter supplier name" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/No supplier detected/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Assign supplier/i })).not.toBeInTheDocument();
   });
 
   it("shows a prefilled optional benchmark when the user selects no playbook", async () => {
@@ -562,7 +554,7 @@ describe("ClauseIQ V6A flow", () => {
     expect(screen.getAllByText("Thomson Reuters").length).toBeGreaterThan(0);
   });
 
-  it("gates a fuzzy first analysis until the supplier identity is confirmed", async () => {
+  it("shows the wrong-match result as editable without gating analysis", async () => {
     vi.useFakeTimers();
     const { container } = renderClauseIQ();
 
@@ -573,11 +565,10 @@ describe("ClauseIQ V6A flow", () => {
         name: /Fleet Telematics Refresh Logistics Sarah Chen/i,
       }),
     );
-    fireEvent.change(screen.getByPlaceholderText("Enter supplier name"), {
-      target: { value: "Deloitteeee" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     selectDefaultPlaybook();
+    fireEvent.click(screen.getByRole("button", { name: /Prototype tools/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Supplier detection simulation/i }));
+    fireEvent.click(screen.getByRole("option", { name: /wrong match/i }));
 
     const input = container.querySelector<HTMLInputElement>('input[type="file"]');
     fireEvent.change(input!, {
@@ -588,20 +579,10 @@ describe("ClauseIQ V6A flow", () => {
       vi.advanceTimersByTime(3000);
     });
 
-    expect(screen.getByText("Found A Supplier Match")).toBeInTheDocument();
-    expect(screen.getAllByText("Analysis complete").length).toBeGreaterThan(0);
-    expect(
-      screen.getByRole("heading", { name: "Initiative Selected" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Contract Analysis Parameters" }),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("Here is your Analysis Result")).not.toBeInTheDocument();
-    expect(screen.getAllByText("No Supplier Outputs Yet").length).toBeGreaterThan(0);
-
-    fireEvent.click(screen.getByRole("button", { name: /Keep “Deloitteeee”/i }));
-
-    expect(screen.queryByText("Found A Supplier Match")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Supplier" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Supplier Kira Systems/i })).toBeInTheDocument();
+    expect(screen.queryByText(/Open decision C1/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Design notes")).toBeInTheDocument();
     expect(screen.getAllByText("Initial_Deloitte_contract.pdf").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Supplier Outputs").length).toBeGreaterThan(0);
   });

@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { BarChart2, Download, RotateCw } from "@/components/clauseiq-v6a/v6aIcons";
 import { Card, FaIcon, InlineBanner } from "@orbit";
@@ -33,6 +33,8 @@ interface Props {
   outputScore?: OutputScorePresentation;
   higherIsBetter?: boolean;
   showComparisonStatus?: boolean;
+  /** Contextual identity controls for the latest analysis, rendered inside this card. */
+  supplierIdentityContent?: ReactNode;
 }
 
 const ICON_FILE = "\uf15b";
@@ -59,6 +61,7 @@ export function AnalysisCard({
   outputScore,
   higherIsBetter = true,
   showComparisonStatus,
+  supplierIdentityContent,
 }: Props) {
   const [saveToDocuments, setSaveToDocuments] = useState(false);
   const deviationSummaryId = useId();
@@ -127,6 +130,7 @@ export function AnalysisCard({
               status={status.label}
               tone={status.tone}
             />
+            {supplierIdentityContent}
           </div>
 
           <div className="space-y-orbit-base">

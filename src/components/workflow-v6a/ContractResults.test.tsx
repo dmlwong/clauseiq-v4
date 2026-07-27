@@ -119,21 +119,45 @@ describe("ContractResults V6A review controls", () => {
     expect(screen.getByText("Convergence")).toBeInTheDocument();
     expect(screen.getByText(/^Action required — position still not met/)).toBeInTheDocument();
     expect(screen.getByText(/^Regressed — previously agreed, but changed by the supplier/)).toBeInTheDocument();
-    expect(screen.getByText(/^Positions Met This Round/)).toBeInTheDocument();
+    expect(screen.getByText(/^Met Positions/)).toBeInTheDocument();
     expect(screen.getAllByText("Commercial Terms").length).toBeGreaterThan(0);
     expect(screen.queryByText("Sub-clause:")).not.toBeInTheDocument();
-    const metBucket = screen.getByText(/^Positions Met This Round/).closest("section");
+    const metBucket = screen.getByText(/^Met Positions/).closest("section");
     expect(within(metBucket as HTMLElement).queryByText("Recommended Next Position")).not.toBeInTheDocument();
-    expect(within(metBucket as HTMLElement).getByRole("columnheader", { name: "Clause" })).toBeInTheDocument();
-    expect(within(metBucket as HTMLElement).getByRole("columnheader", { name: "Previous Position Sent to Supplier" })).toBeInTheDocument();
-    expect(within(metBucket as HTMLElement).getByRole("columnheader", { name: "Latest Supplier Wording" })).toBeInTheDocument();
-    expect(within(metBucket as HTMLElement).getByRole("columnheader", { name: "Status" })).toBeInTheDocument();
-    expect(within(metBucket as HTMLElement).getAllByText("Met").length).toBeGreaterThan(0);
-    const previouslyMetBucket = screen.getByText(/^Previously Met And Unchanged/).closest("button");
-    expect(previouslyMetBucket).toHaveAttribute("aria-expanded", "false");
+    expect(within(metBucket as HTMLElement).queryByRole("columnheader")).not.toBeInTheDocument();
+    expect(within(metBucket as HTMLElement).getAllByText("Met This Round").length).toBeGreaterThan(0);
+    expect(within(metBucket as HTMLElement).getAllByText("Previously Met").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Previous Supplier Position").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Current Supplier Position").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Recommended Next Position").length).toBeGreaterThan(0);
+    const paymentTermsCard = screen.getByText("Payment Terms").closest('[id^="clause-row-"]');
+    expect(paymentTermsCard).toBeTruthy();
+    expect(within(paymentTermsCard as HTMLElement).getByText("Not Met - Medium")).toBeInTheDocument();
+    expect(within(paymentTermsCard as HTMLElement).queryByText("Not Met")).not.toBeInTheDocument();
+  });
+
+  it("locks the comparison dashboard persistently and disables clause decisions", () => {
+    const rendered = renderContractResults(optionTwoComparisonRoute);
+
+    expect(screen.getByText("Negotiation Position")).toBeInTheDocument();
+    expect(screen.getByText("Revising")).toBeInTheDocument();
+    expect(screen.getByText("Not downloaded", { exact: false })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Download Current Position" }));
+    expect(mocks.downloadCsv).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Not downloaded", { exact: false })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Lock position" }));
+
+    expect(screen.getByText("Locked")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Unlock Dashboard" })).toBeInTheDocument();
+    const clauseRow = screen.getByText("Subcontracting").closest('[id^="clause-row-"]');
+    expect(within(clauseRow as HTMLElement).getByRole("button", { name: "Accept Supplier Position" })).toBeDisabled();
+
+    rendered.unmount();
+    renderContractResults(optionTwoComparisonRoute);
+    expect(screen.getByText("Locked")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Unlock Dashboard" }));
+    expect(screen.getByText("Revising")).toBeInTheDocument();
   });
 
   it("uses the outcome table and existing Undo behaviour for accepted supplier positions", async () => {
@@ -155,21 +179,17 @@ describe("ContractResults V6A review controls", () => {
     expect(screen.getByText("Subcontracting")).toBeInTheDocument();
   });
 
-  it("renders Previously Met And Unchanged as a collapsed table with add-back actions", async () => {
+  it("renders previously met clauses in the unified met card view with add-back actions", async () => {
     renderContractResults(optionTwoComparisonRoute);
 
-    const heading = screen.getByRole("heading", { name: /^Previously Met And Unchanged/ });
-    const section = heading.closest("section");
+    const section = screen.getByText(/^Met Positions/).closest("section");
     expect(section).toBeTruthy();
-    const toggle = within(section as HTMLElement).getByRole("button");
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-
-    fireEvent.click(toggle);
-    await waitFor(() => {
-      expect(within(section as HTMLElement).getByRole("columnheader", { name: "Status" })).toBeInTheDocument();
-      expect(within(section as HTMLElement).queryByRole("columnheader", { name: "Actions" })).not.toBeInTheDocument();
-      expect(within(section as HTMLElement).queryByRole("button", { name: "Add It To Still Open List" })).not.toBeInTheDocument();
-    });
+    const previouslyMetCard = within(section as HTMLElement).getAllByText("Previously Met")[0].closest('[id^="clause-row-"]');
+    const metThisRoundCard = within(section as HTMLElement).getAllByText("Met This Round")[0].closest('[id^="clause-row-"]');
+    expect(previouslyMetCard).toBeTruthy();
+    expect(metThisRoundCard).toBeTruthy();
+    expect(within(previouslyMetCard as HTMLElement).getByRole("button", { name: "Add It To Still Open List" })).toBeInTheDocument();
+    expect(within(metThisRoundCard as HTMLElement).queryByRole("button", { name: "Add It To Still Open List" })).not.toBeInTheDocument();
   });
 
   it("uses Orbit cards for the comparison summary metrics", () => {
@@ -324,6 +344,16 @@ describe("ContractResults V6A review controls", () => {
     expect(screen.getByRole("heading", { name: "Recommendations — Current Position" })).toHaveClass("v6-orbit-heading-4");
     expect(screen.getByRole("heading", { name: "No Recommendations" })).toHaveClass("v6-orbit-heading-4");
     expect(screen.getByRole("heading", { name: "Accepted As-Is" })).toHaveClass("v6-orbit-heading-4");
+    const recommendationsSectionToggle = screen.getByRole("button", { name: /Recommendations — Current Position/i });
+    const noRecommendationsSectionToggle = screen.getByRole("button", { name: /No Recommendations.*Showing/i });
+    expect(recommendationsSectionToggle).toHaveAttribute("aria-expanded", "true");
+    expect(noRecommendationsSectionToggle).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(noRecommendationsSectionToggle);
+    expect(noRecommendationsSectionToggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("table", { name: "Initial analysis no recommendations" })).not.toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Initial analysis recommendations" })).toBeInTheDocument();
+    fireEvent.click(noRecommendationsSectionToggle);
+    expect(noRecommendationsSectionToggle).toHaveAttribute("aria-expanded", "true");
     expect(screen.queryByText("Review ClauseIQ Recommendations")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Bulk Actions" })).not.toBeInTheDocument();
     const recommendationsTable = screen.getByRole("table", { name: "Initial analysis recommendations" });

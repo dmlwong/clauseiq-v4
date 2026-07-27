@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { Initiative } from "@/data/mock-clauseiq-v6";
 import { OptionAccordion } from "./OptionAccordion";
 import { OutputPanelResultsContent } from "./OutputPanelResultsContent";
@@ -16,6 +17,7 @@ interface Props {
   highlightSupplierId?: string | null;
   highlightAnalysisId?: string | null;
   layout?: ResultsLayout;
+  supplierIdentityContent?: ReactNode;
 }
 
 export function ResultsContent({
@@ -31,6 +33,7 @@ export function ResultsContent({
   highlightSupplierId,
   highlightAnalysisId,
   layout = "accordion",
+  supplierIdentityContent,
 }: Props) {
   if (layout === "output-panel") {
     return (
@@ -46,6 +49,7 @@ export function ResultsContent({
         showComparisonStatus={showComparisonStatus}
         highlightSupplierId={highlightSupplierId}
         highlightAnalysisId={highlightAnalysisId}
+        supplierIdentityContent={supplierIdentityContent}
       />
     );
   }

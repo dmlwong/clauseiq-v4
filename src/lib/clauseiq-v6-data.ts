@@ -34,7 +34,7 @@ export const CIQ_INITIATIVES: CiqInitiative[] = [
   { id: "i9", name: "Cybersecurity Managed Services", sector: "Security", owner: "Sarah Chen", scope: "mine" },
 ];
 
-export const CIQ_DEFAULT_PLAYBOOK = "Procurement_Playbook_Yorkshire_Water .pdf";
+export const CIQ_DEFAULT_PLAYBOOK = "Procurement_Playbook_ThomsonReuters.pdf";
 
 export const CIQ_PARAMETER_OPTIONS: CiqParameterOption[] = [
   {

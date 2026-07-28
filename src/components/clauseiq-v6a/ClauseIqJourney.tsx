@@ -551,7 +551,10 @@ function DetectedSupplierMapping({
             <p className="v6-orbit-weight-medium">No supplier mapped</p>
           </div>
         </div>
-        <span style={{ "--orbit-color-btn-tertiary-fg": "var(--orbit-color-btn-primary-bg)" } as CSSProperties}>
+        <span
+          style={{ "--orbit-color-btn-tertiary-fg": "var(--orbit-color-btn-primary-bg)" } as CSSProperties}
+          onClick={(event) => event.preventDefault()}
+        >
           <LinkText
             label={actionLabel}
             href="#detected-supplier-picker"
@@ -569,7 +572,10 @@ function DetectedSupplierMapping({
             <span className="min-w-0 truncate">Supplier Detected · {name}</span>
             {statusLabel && <span className={`shrink-0 rounded-full px-orbit-s py-orbit-xxs text-orbit-xs v6-orbit-weight-medium ${tone === "warning" ? "bg-amber-100 text-amber-800" : "bg-orbit-warning/15 text-orbit-fg"}`}>{statusLabel}</span>}
           </div>
-          <span style={{ "--orbit-color-btn-tertiary-fg": "var(--orbit-color-btn-primary-bg)" } as CSSProperties}>
+          <span
+            style={{ "--orbit-color-btn-tertiary-fg": "var(--orbit-color-btn-primary-bg)" } as CSSProperties}
+            onClick={(event) => event.preventDefault()}
+          >
             <LinkText
               label={actionLabel}
               href="#detected-supplier-picker"

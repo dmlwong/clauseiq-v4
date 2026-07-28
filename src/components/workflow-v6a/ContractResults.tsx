@@ -2051,7 +2051,7 @@ export function ContractResults({
       ? comparisonDeviationFilter
       : quickFilterSeverity;
   const quickMissingClauseFilter = quickFilter === "missing" || comparisonDeviationFilter === "missing";
-  const quickNoneDeviationFilter = quickFilter === "none";
+  const quickNoneDeviationFilter = quickFilter === "none" || comparisonDeviationFilter === "none";
   const comparisonMetFilter = comparisonStatusFilter === "met";
   const comparisonNotMetFilter = comparisonStatusFilter === "not-met";
   const currentDecision = rightVersion ? decisions_[rightVersion.version] ?? null : null;
@@ -3362,7 +3362,7 @@ export function ContractResults({
       />
     ) : null;
   const acceptFirstAnalysisSupplierPosition = (id: string) => {
-    if (!firstAnalysisVersion) return;
+    if (!firstAnalysisVersion || isDashboardLocked) return;
     const clause = firstAnalysisVersion.clauses.find((item) => item.id === id);
     setAcceptedFirstAnalysisClauseIds((current) => new Set(current).add(id));
     decisions.changeDecision(
@@ -3378,7 +3378,7 @@ export function ContractResults({
     });
   };
   const undoFirstAnalysisSupplierPosition = (id: string) => {
-    if (!firstAnalysisVersion) return;
+    if (!firstAnalysisVersion || isDashboardLocked) return;
     const clause = firstAnalysisVersion.clauses.find((item) => item.id === id);
     setAcceptedFirstAnalysisClauseIds((current) => {
       const next = new Set(current);
@@ -3392,7 +3392,7 @@ export function ContractResults({
     });
   };
   const resetFirstAnalysisRecommendation = (id: string) => {
-    if (!firstAnalysisVersion) return;
+    if (!firstAnalysisVersion || isDashboardLocked) return;
     const clause = firstAnalysisVersion.clauses.find((item) => item.id === id);
     decisions.resetClauseReviewState(supplierId, decisionContractId, id, firstAnalysisVersion.version);
     toast({
@@ -3401,7 +3401,7 @@ export function ContractResults({
     });
   };
   const acceptSelectedFirstAnalysisSupplierPositions = () => {
-    if (!firstAnalysisVersion || bulkBannerSelectedClauseIds.size === 0) return;
+    if (!firstAnalysisVersion || isDashboardLocked || bulkBannerSelectedClauseIds.size === 0) return;
     const selectedIds = firstAnalysisVersion.clauses
       .map((clause) => clause.id)
       .filter((id) => bulkBannerSelectedClauseIds.has(id));
@@ -3454,26 +3454,26 @@ export function ContractResults({
       displayMode={designOption === "design-option-3" ? "initial-table" : designOption === "design-option-2" ? "initial-option-2" : usesRowScaleDesign ? "row-scale" : "default"}
       defaultExpandClauses
       onSetNoAction={acceptFirstAnalysisSupplierPosition}
-      onStartDraft={(id, initialDraft) =>
-        decisions.startDraftRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version, initialDraft)
-      }
-      onUseRecommendation={(id, request) =>
-        acceptRecommendedRequestWithToast(id, firstAnalysisVersion.version, request)
-      }
+      onStartDraft={(id, initialDraft) => {
+        if (!isDashboardLocked) decisions.startDraftRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version, initialDraft);
+      }}
+      onUseRecommendation={(id, request) => {
+        if (!isDashboardLocked) acceptRecommendedRequestWithToast(id, firstAnalysisVersion.version, request);
+      }}
       onUndoDecision={undoFirstAnalysisSupplierPosition}
       onResetRecommendation={resetFirstAnalysisRecommendation}
-      onTrackCurrentPosition={(id, tracked) =>
-        decisions.setTrackedCurrentPosition(supplierId, decisionContractId, id, firstAnalysisVersion.version, tracked)
-      }
-      onUpdateDraft={(id, patch) =>
-        decisions.updateDraftRequestText(supplierId, decisionContractId, id, firstAnalysisVersion.version, patch)
-      }
-      onCancelDraft={(id) =>
-        decisions.cancelDraftRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version)
-      }
-      onSubmitDraft={(id) =>
-        submitDraftRequestWithToast(id, firstAnalysisVersion.version, { suppressToast: true })
-      }
+      onTrackCurrentPosition={(id, tracked) => {
+        if (!isDashboardLocked) decisions.setTrackedCurrentPosition(supplierId, decisionContractId, id, firstAnalysisVersion.version, tracked);
+      }}
+      onUpdateDraft={(id, patch) => {
+        if (!isDashboardLocked) decisions.updateDraftRequestText(supplierId, decisionContractId, id, firstAnalysisVersion.version, patch);
+      }}
+      onCancelDraft={(id) => {
+        if (!isDashboardLocked) decisions.cancelDraftRequest(supplierId, decisionContractId, id, firstAnalysisVersion.version);
+      }}
+      onSubmitDraft={(id) => {
+        if (!isDashboardLocked) submitDraftRequestWithToast(id, firstAnalysisVersion.version, { suppressToast: true });
+      }}
       onAcceptSelected={acceptSelectedFirstAnalysisSupplierPositions}
       onOpenDetail={(id) => setDetailClauseId(id)}
       bulkSelectionEnabled={bulkSelectionEnabled}
@@ -8491,7 +8491,7 @@ function ResultCardPanel({
 }
 
 type RoundDashboardStatusFilter = "all" | "met" | "not-met";
-type RoundDashboardDeviationFilter = "all" | "high" | "medium" | "low" | "missing";
+type RoundDashboardDeviationFilter = "all" | "high" | "medium" | "low" | "missing" | "none";
 
 function InitialAnalysisTableControlPanel({
   banner,
@@ -8644,7 +8644,7 @@ function ComparisonNegotiationBanner({
         </div>
       </div>
       <div className="mt-orbit-s">
-        <Text as="p" size="Small" variant="Secondary">
+        <Text as="p" size="Paragraph" variant="Secondary">
           {locked
             ? `This position is shared with the supplier and locked${lockedBy ? ` by ${lockedBy}` : ""}. Review and download it, but do not change clauses until the negotiation round resumes.`
             : "Edit freely and download to review with your team. Lock once you've shared this position with the supplier. Next round of analysis compared against it"}
@@ -8713,7 +8713,6 @@ function RoundComparisonFilterBar({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-x-orbit-s gap-y-orbit-s">
-      <span className="text-orbit-xs v6-orbit-weight-semibold text-orbit-fg-secondary">Filter</span>
       <RoundComparisonFilterGroup
         label="Status"
         value={status}
@@ -8734,6 +8733,7 @@ function RoundComparisonFilterBar({
           ["medium", "Medium"],
           ["low", "Low"],
           ["missing", "Missing"],
+          ["none", "None"],
         ]}
         onChange={onDeviationChange}
       />
@@ -8804,10 +8804,9 @@ function InitialAnalysisTableFilterBar({
   const hasActiveFilters = activeMetrics.size > 0 || section !== "all" || status !== "all";
 
   return (
-    <div className="flex flex-wrap items-center gap-x-orbit-base gap-y-orbit-s">
-      <span className="inline-flex h-8 items-center text-orbit-sm v6-orbit-weight-semibold text-orbit-fg-secondary">Filter</span>
+    <div className="flex flex-wrap items-center gap-x-orbit-s gap-y-orbit-s">
       <div className="flex flex-wrap items-center gap-orbit-xs [&_[aria-pressed='true']]:!border-orbit-primary [&_[aria-pressed='true']]:!bg-orbit-primary [&_[aria-pressed='true']]:!text-orbit-inverse [&_[aria-pressed='true']_span]:!text-orbit-inverse" role="group" aria-label="Status">
-        <span className="text-orbit-sm text-orbit-fg-secondary">Status</span>
+        <span className="text-orbit-sm v6-orbit-weight-semibold text-orbit-fg-secondary">Status</span>
         <QuickFilterGroup ariaLabel="Status">
           <QuickFilterItem label={`All · ${statusCounts.met + statusCounts.notMet}`} selected={status === "all"} onClick={() => onStatusChange("all")} />
           <QuickFilterItem label={`Met · ${statusCounts.met}`} selected={status === "met"} onClick={() => onStatusChange("met")} />
@@ -8816,7 +8815,7 @@ function InitialAnalysisTableFilterBar({
       </div>
       <span className="hidden h-5 w-px bg-orbit-border sm:block" aria-hidden="true" />
       <div className="flex flex-wrap items-center gap-orbit-xs" role="group" aria-label="Deviation">
-        <span className="text-orbit-sm text-orbit-fg-secondary">Deviation</span>
+        <span className="text-orbit-sm v6-orbit-weight-semibold text-orbit-fg-secondary">Deviation</span>
         <QuickFilterGroup ariaLabel="Deviation">
           <QuickFilterItem label={`All · ${total}`} selected={activeMetrics.size === 0} onClick={onClearMetrics} />
           {filters.map(([value, label, count]) => (
@@ -8881,7 +8880,7 @@ function FirstAnalysisOptionTwoFilterBar({
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-x-orbit-base gap-y-orbit-s">
+    <div className="flex flex-wrap items-center gap-x-orbit-s gap-y-orbit-s">
       <span className="text-orbit-xs v6-orbit-weight-semibold text-orbit-fg-secondary">Filter</span>
       <div
         className="flex flex-wrap items-center gap-orbit-xs [&_button[aria-pressed=true]]:!border-orbit-primary"
@@ -8943,7 +8942,7 @@ function RoundComparisonFilterGroup<T extends string>({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-orbit-xs [&_[role=toolbar]]:gap-orbit-xs [&_button[aria-pressed=true]]:!border-orbit-primary [&_button[aria-pressed=true]]:!bg-orbit-primary [&_button[aria-pressed=true]_span]:!text-orbit-primary-foreground">
-      <span className="text-orbit-xs text-orbit-fg-secondary">{label}</span>
+      <span className="text-orbit-xs v6-orbit-weight-semibold text-orbit-fg-secondary">{label}</span>
       <QuickFilterGroup ariaLabel={label}>
         {options.map(([optionValue, optionLabel]) => (
           <QuickFilterItem
@@ -10739,7 +10738,7 @@ function InitialAnalysisRecommendationTable({
     return (
     <div className="p-orbit-base">
     <div className="overflow-hidden rounded-orbit-lg border border-orbit-border">
-    <div id={`initial-analysis-${tableKey}-content`} className="overflow-x-auto">
+    <div id={`initial-analysis-${tableKey}-content`} className={cn("overflow-x-auto", locked && "clauseiq-v6a-locked-clause-table")}>
       <table className="w-full min-w-[1120px] border-collapse text-left" aria-label={`Initial analysis ${isPositionMet ? "position met" : "position not met"}`}>
         <thead className="bg-orbit-surface/60 text-orbit-xs uppercase tracking-wide text-orbit-fg-secondary"><tr className="border-y border-orbit-border">{!isPositionMet ? <th className="w-12 px-orbit-base py-orbit-s"><Checkbox checked={allRecommendationsSelected} disabled={locked || !bulkSelectionEnabled || selectableRecommendationRows.length === 0} aria-label="Select All Position Not Met Clauses" onCheckedChange={(checked) => selectableRecommendationRows.forEach((clause) => onBulkClauseSelectionChange?.(clause.id, checked === true))} /></th> : null}{sortHeader("category", "Clause Type", "min-w-[150px] whitespace-nowrap px-orbit-base py-orbit-s")}{sortHeader("clause", "Clause", "w-56 px-orbit-base py-orbit-s")}<th className="min-w-[320px] px-orbit-base py-orbit-s v6-orbit-weight-semibold">Current Supplier Position</th>{sortHeader("deviation", "Deviation", "w-32 px-orbit-base py-orbit-s")}<th className="min-w-[340px] px-orbit-base py-orbit-s v6-orbit-weight-semibold">Your Negotiation Position</th></tr></thead>
         <tbody>

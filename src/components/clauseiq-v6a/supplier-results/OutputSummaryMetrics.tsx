@@ -116,12 +116,12 @@ export function OutputFindingsSummary({
   showComparisonStatus: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-orbit-base">
-      <div className="flex flex-col gap-orbit-s">
+    <div className="grid grid-cols-1 gap-orbit-base md:grid-cols-2 md:gap-x-orbit-s">
+      <div className="flex w-fit max-w-full flex-col gap-orbit-s">
         <Text as="span" className="v6-orbit-heading-strong text-[var(--orbit-color-text-primary)]">
           Clause Target Status
         </Text>
-        <div className="flex flex-wrap items-center gap-orbit-xs">
+        <div className="flex w-fit max-w-full flex-wrap items-center gap-orbit-xs">
           {showComparisonStatus && (
             <>
               <OutputSummaryPill
@@ -139,11 +139,11 @@ export function OutputFindingsSummary({
         </div>
       </div>
 
-      <div className="flex flex-col gap-orbit-s">
+      <div className="flex w-fit max-w-full flex-col gap-orbit-s">
         <Text as="span" className="v6-orbit-heading-strong text-[var(--orbit-color-text-primary)]">
           Deviation Level
         </Text>
-        <div className="min-w-0 flex flex-wrap items-center gap-orbit-xs">
+        <div className="min-w-0 flex w-fit max-w-full flex-wrap items-center gap-orbit-xs">
           <OutputSummaryPill label={`High ${deviations.high}`} variant="Error" />
           <OutputSummaryPill label={`Medium ${deviations.medium}`} variant="Warning" />
           <OutputSummaryPill label={`Low ${deviations.low}`} variant="Style 2" style={lowDeviationPillStyle} />

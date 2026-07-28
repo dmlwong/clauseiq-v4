@@ -23,6 +23,8 @@ const outcomeReviewDraftRoute =
   "/initiatives-v6a?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=negotiated-reanalysis&resultMode=outcome&analysisId=a-004&previousAnalysisId=a-005&outputSupplierId=sup-002&from=v1&to=v2";
 const initialAnalysisOnlyRoute =
   "/initiatives-v6a?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=row-scale&scenario=first-analysis&dashboardView=initial-analysis&analysisId=a-006&outputSupplierId=sup-003&to=v1";
+const initialTableRoute =
+  "/initiatives-v6a?view=results&initiativeId=init-1&supplierId=sup-1&contractId=ct-1&source=clauseiq&catSort=risk&mode=comparison&tab=changes&design=design-option-3&scenario=first-analysis&dashboardView=initial-analysis&analysisId=a-001&outputSupplierId=sup-001&to=v1";
 
 function renderContractResults(route = firstAnalysisRoute) {
   window.history.pushState({}, "", route);
@@ -154,6 +156,20 @@ describe("ContractResults V6A review controls", () => {
     rendered.unmount();
     renderContractResults(optionTwoComparisonRoute);
     expect(screen.getByText(/This position is shared with the supplier and locked/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Unlock Dashboard" }));
+    expect(screen.getByRole("button", { name: "Lock Position" })).toBeInTheDocument();
+  });
+
+  it("uses the same lock interaction for the initial analysis dashboard", () => {
+    renderContractResults(initialTableRoute);
+
+    fireEvent.click(screen.getByRole("button", { name: "Lock Position" }));
+
+    expect(screen.getByText(/This position is shared with the supplier and locked/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Unlock Dashboard" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Accept Supplier Position" })).not.toHaveLength(0);
+    expect(screen.getAllByRole("button", { name: "Accept Supplier Position" }).every((button) => button.hasAttribute("disabled"))).toBe(true);
 
     fireEvent.click(screen.getByRole("button", { name: "Unlock Dashboard" }));
     expect(screen.getByRole("button", { name: "Lock Position" })).toBeInTheDocument();

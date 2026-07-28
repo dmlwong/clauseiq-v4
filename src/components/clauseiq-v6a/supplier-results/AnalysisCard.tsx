@@ -114,10 +114,10 @@ export function AnalysisCard({
                 <Switch checked={saveToDocuments} onCheckedChange={setSaveToDocuments} aria-label="Save To Content Search" />
               </label>
             </div>
-            {supplierIdentityContent}
           </div>
 
           <div className="space-y-orbit-base">
+            {supplierIdentityContent}
             <StatusLine
               icon={documentIconFromFileName(analysis.fileName)}
               label={analysis.fileName}

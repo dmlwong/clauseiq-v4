@@ -580,12 +580,67 @@ describe("ClauseIQ V6A flow", () => {
     });
 
     expect(screen.getByRole("heading", { name: "Supplier" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Supplier Kira Systems/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit supplier Kira Systems" })).toBeInTheDocument();
+    expect(screen.getByText("Review match")).toBeInTheDocument();
     expect(screen.queryByText(/Open decision C1/i)).not.toBeInTheDocument();
     expect(screen.queryByText("Design notes")).not.toBeInTheDocument();
     expect(screen.getAllByText("Initial_Deloitte_contract.pdf").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Supplier Outputs").length).toBeGreaterThan(0);
   });
+
+  it.each([
+    {
+      outcome: /not in list/i,
+      fileName: "Initial_Northstar_contract.pdf",
+      supplier: "Northstar Legal Ltd",
+      status: "New supplier",
+      action: "Review",
+    },
+    {
+      outcome: /not detected/i,
+      fileName: "Initial_Unknown_contract.pdf",
+      supplier: "Unknown 1",
+      action: "Map Supplier",
+      unassigned: true,
+    },
+  ])(
+    "renders the $status supplier row and opens the mapping picker",
+    async ({ outcome, fileName, supplier, status, action, unassigned }) => {
+      vi.useFakeTimers();
+      const { container } = renderClauseIQ();
+
+      startAndSelectInitiative();
+      selectDefaultPlaybook();
+      fireEvent.click(screen.getByRole("button", { name: /Prototype tools/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Supplier detection simulation/i }));
+      fireEvent.click(screen.getByRole("option", { name: outcome }));
+      fireEvent.change(container.querySelector<HTMLInputElement>('input[type="file"]')!, {
+        target: { files: [new File(["pdf"], fileName, { type: "application/pdf" })] },
+      });
+
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      if (unassigned) {
+        expect(screen.queryByText(supplier)).not.toBeInTheDocument();
+        expect(screen.getByText("No supplier mapped")).toBeInTheDocument();
+        expect(screen.getByText("Map this contract to group future analyses.")).toBeInTheDocument();
+        expect(screen.queryByText("Supplier Outputs")).not.toBeInTheDocument();
+      } else {
+        expect(screen.getByText(`Supplier Detected · ${supplier}`)).toBeInTheDocument();
+        expect(screen.getByText(status!)).toBeInTheDocument();
+      }
+      fireEvent.click(screen.getByRole("button", { name: unassigned ? action : `${action} supplier ${supplier}` }));
+      expect(screen.getByRole("dialog", { name: "Change Mapped Supplier" })).toBeInTheDocument();
+
+      if (unassigned) {
+        fireEvent.click(screen.getByRole("button", { name: "Select supplier Thomson Reuters" }));
+        expect(screen.getByText("Supplier Detected · Thomson Reuters")).toBeInTheDocument();
+        expect(screen.getByText("Supplier Outputs")).toBeInTheDocument();
+      }
+    },
+  );
 
   it("renders the output-panel route with the first-run output by default", () => {
     renderClauseIQ("/clauseiq-v6a/output-panel", {
@@ -1110,10 +1165,10 @@ describe("ClauseIQ V6A flow", () => {
       screen.getByText("Do you want to use a playbook for this analysis?"),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(
+      screen.queryByText(
         "Analysis parameters carried forward from this supplier’s latest output. You can edit them below before uploading.",
       ),
-    ).toBeInTheDocument();
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Yes" })).toBeChecked();
     expect(screen.getByRole("radio", { name: "No" })).not.toBeChecked();
     expect(
@@ -1296,7 +1351,7 @@ describe("ClauseIQ V6A flow", () => {
     ).toBeGreaterThanOrEqual(2);
     expect(
       screen.getAllByRole("button", {
-        name: "Supplier Thomson Reuters edit",
+        name: "Edit supplier Thomson Reuters",
       }).length,
     ).toBeGreaterThanOrEqual(1);
   });

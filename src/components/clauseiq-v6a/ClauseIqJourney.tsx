@@ -4,7 +4,6 @@ import {
   Check,
   FileText,
   Loader2,
-  Pencil,
   Search,
 } from "@/components/clauseiq-v6a/v6aIcons";
 import { Button as OrbitButton, Card, FA, FaIcon, LinkText, ToggleCard } from "@orbit";
@@ -313,6 +312,7 @@ function ResultsStep({
           showComparisonStatus={showComparisonStatus}
           highlightSupplierId={workflow.latestOutputSupplierId}
           highlightAnalysisId={workflow.latestOutputAnalysisId}
+          hiddenSupplierIds={workflow.unassignedSupplierIds}
           supplierIdentityContent={<SupplierDetectionResult workflow={workflow} />}
         />
       </div>
@@ -338,11 +338,6 @@ function ResultsStep({
                       onAction={workflow.actions.clearRerunSupplierContext}
                     />
                   </div>
-                  {workflow.rerunParametersCarriedForward && (
-                    <p className="mt-orbit-s text-orbit-sm text-orbit-fg-secondary">
-                      Analysis parameters carried forward from this supplier’s latest output. You can edit them below before uploading.
-                    </p>
-                  )}
                 </Card>
               )}
               <AnalysisParameterCards
@@ -467,7 +462,7 @@ function SupplierDetectionResult({
   fallbackSupplier,
 }: {
   workflow: ClauseIqWorkflow;
-  fallbackSupplier?: Supplier;
+  fallbackSupplier?: { name: string };
 }) {
   const context = workflow.supplierDetectionContext;
   if (!context) {
@@ -476,22 +471,53 @@ function SupplierDetectionResult({
     ) : null;
   }
   const isUnknown = context.status === "unknown";
-  const isNew = context.outcome === "new" || context.status === "pending-alias" || context.status === "fingerprinted-alias";
+  const needsNewSupplierReview =
+    context.outcome === "new" && context.status !== "fingerprinted-alias";
   const detectedName = workflow.resultsInitiative.suppliers.find((supplier) => supplier.id === context.supplierId)?.name ?? context.alias;
-  if (isUnknown) return <DetectedSupplierMapping workflow={workflow} name={detectedName ?? "Unknown"} unresolved />;
-  if (!isNew) return <DetectedSupplierMapping workflow={workflow} name={detectedName ?? "Supplier"} />;
-  return <section className={`rounded-orbit-lg border p-orbit-base ${isUnknown ? "border-amber-400 bg-amber-50" : "border-orbit-border bg-orbit-surface/30"}`} aria-label="Supplier">
-    <div className="flex flex-wrap items-center gap-orbit-s"><h3 className="v6-orbit-heading-5">Supplier</h3><span className="rounded-full bg-orbit-warning/15 px-2 py-0.5 text-orbit-xs v6-orbit-weight-medium text-orbit-fg">{context.status === "fingerprinted-alias" ? "New Supplier · Alias (This Workspace Only)" : "Not In Master List"}</span></div>
-    {isNew && <p className="mt-orbit-base text-orbit-sm v6-orbit-weight-medium text-orbit-fg">{detectedName}</p>}
-    {(isNew || isUnknown) && !workflow.pendingAliasEntry && context.status !== "fingerprinted-alias" && <div className="mt-orbit-base flex flex-wrap gap-orbit-s"><Button variant="secondary" onClick={workflow.actions.beginAliasEntry}>{isUnknown ? "Add as new" : "Add as new supplier"}</Button>{isUnknown && <span className="self-center text-orbit-xs text-orbit-fg-secondary">You can keep working as {detectedName} and assign a supplier later.</span>}</div>}
-    {workflow.pendingAliasEntry && <div className="mt-orbit-base"><SupplierNameForm heading="Add supplier alias" description="This alias is available only in this workspace." submitLabel="Confirm" onCancel={workflow.actions.cancelAliasEntry} onSubmit={workflow.actions.saveDetectedAlias} /></div>}
-    {workflow.aliasRegistrationPending && <p className="mt-orbit-s text-orbit-xs text-orbit-fg-secondary">Registering… rounds still group correctly.</p>}
-    {context.status === "fingerprinted-alias" && <p className="mt-orbit-s text-orbit-xs text-orbit-fg-secondary">Will auto-detect on future contracts once registered.</p>}
-    {workflow.supplierCorrectionNotice && <p className="mt-orbit-s text-orbit-xs text-orbit-success">Supplier updated — grouping corrected before round 2.</p>}
-  </section>;
+  if (isUnknown) {
+    return <DetectedSupplierMapping workflow={workflow} unassigned actionLabel="Map Supplier" />;
+  }
+  return <>
+    <DetectedSupplierMapping
+      workflow={workflow}
+      name={detectedName ?? "Supplier"}
+      actionLabel={needsNewSupplierReview ? "Review" : "Edit"}
+      statusLabel={
+        needsNewSupplierReview
+          ? "New supplier"
+          : context.outcome === "wrong-match"
+            ? "Review match"
+            : undefined
+      }
+    />
+    {workflow.aliasRegistrationPending && (
+      <p className="mt-orbit-s text-orbit-xs text-orbit-fg-secondary">
+        Registering… rounds still group correctly.
+      </p>
+    )}
+    {workflow.supplierCorrectionNotice && (
+      <p className="mt-orbit-s text-orbit-xs text-orbit-success">
+        Supplier updated — grouping corrected before round 2.
+      </p>
+    )}
+  </>;
 }
 
-function DetectedSupplierMapping({ workflow, name, unresolved = false }: { workflow: ClauseIqWorkflow; name: string; unresolved?: boolean }) {
+function DetectedSupplierMapping({
+  workflow,
+  name,
+  actionLabel = "Edit",
+  statusLabel,
+  tone = "neutral",
+  unassigned = false,
+}: {
+  workflow: ClauseIqWorkflow;
+  name?: string;
+  actionLabel?: "Edit" | "Review" | "Map Supplier";
+  statusLabel?: "Review match" | "New supplier";
+  tone?: "neutral" | "warning";
+  unassigned?: boolean;
+}) {
   const [mappingOpen, setMappingOpen] = useState(false);
   const [supplierSearch, setSupplierSearch] = useState("");
   const [manualAddOpen, setManualAddOpen] = useState(false);
@@ -515,13 +541,36 @@ function DetectedSupplierMapping({ workflow, name, unresolved = false }: { workf
     close();
   };
 
-  return <div className={`relative flex flex-wrap items-center gap-orbit-s text-orbit-sm ${mappingOpen ? "z-50" : "z-0"}`} aria-label="Supplier">
-    <h3 className="sr-only">Supplier</h3>
-    <span className="flex items-center gap-orbit-xs text-orbit-fg-secondary"><Building2 className="h-3.5 w-3.5" />Detected supplier</span>
-    <Button type="button" variant="outline" className={`h-7 rounded-full px-orbit-s text-orbit-xs ${unresolved ? "border-amber-400 bg-amber-50 text-amber-700 hover:bg-amber-100" : "border-orbit-border bg-orbit-card text-orbit-fg hover:bg-orbit-surface"}`} onClick={() => setMappingOpen((open) => !open)} aria-label={unresolved ? `Map supplier ${name}` : `Supplier ${name} edit`} aria-controls="detected-supplier-picker" aria-expanded={mappingOpen}>
-      {unresolved ? <span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded-full border border-amber-500 text-[10px]">?</span> : <Pencil className="mr-1 h-3 w-3" />}{name}<span className={`ml-1 ${unresolved ? "text-amber-700/80" : "text-orbit-fg-secondary"}`}>{unresolved ? "click to map" : "edit"}</span>
-    </Button>
-    {mappingOpen && <div id="detected-supplier-picker" className="absolute left-0 top-full z-40 mt-orbit-s max-h-[calc(100vh-6rem)] w-[min(360px,calc(100vw-2rem))] overflow-y-auto rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-base shadow-orbit-md" role="dialog" aria-label={manualAddOpen ? "Add Supplier Manually" : "Change Mapped Supplier"} aria-modal="false">
+  const actionAriaLabel = unassigned ? actionLabel : `${actionLabel} supplier ${name}`;
+
+  return <div className={`relative ${mappingOpen ? "z-50" : "z-0"}`} aria-label="Supplier">
+    {unassigned ? (
+      <div className="flex min-h-11 w-full items-center justify-between gap-orbit-s rounded-orbit-md border border-amber-300 bg-amber-50 px-orbit-base py-orbit-s text-orbit-sm text-amber-900">
+        <div className="flex min-w-0 items-center gap-orbit-s">
+          <Building2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <div className="min-w-0">
+            <p className="v6-orbit-weight-medium">No supplier mapped</p>
+            <p className="text-orbit-xs text-amber-800">Map this contract to group future analyses.</p>
+          </div>
+        </div>
+        <button type="button" className="shrink-0 text-orbit-sm v6-orbit-weight-medium text-amber-800 underline-offset-2 hover:underline" onClick={() => setMappingOpen((open) => !open)} aria-label={actionAriaLabel} aria-controls="detected-supplier-picker" aria-expanded={mappingOpen}>{actionLabel}</button>
+      </div>
+    ) : (
+      <>
+        <h3 className="sr-only">Supplier</h3>
+        <Card type="Static" state="Accent" padding="Base" indicator={false} style={{ paddingTop: 0, paddingBottom: 0 }}>
+          <div className="flex min-h-11 w-full items-center justify-between gap-orbit-s text-orbit-sm text-orbit-fg">
+          <div className="flex min-w-0 items-center gap-orbit-s">
+            <Building2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 truncate">Supplier Detected · {name}</span>
+            {statusLabel && <span className={`shrink-0 rounded-full px-orbit-s py-orbit-xxs text-orbit-xs v6-orbit-weight-medium ${tone === "warning" ? "bg-amber-100 text-amber-800" : "bg-orbit-warning/15 text-orbit-fg"}`}>{statusLabel}</span>}
+          </div>
+          <button type="button" className={`shrink-0 text-orbit-sm v6-orbit-weight-medium underline-offset-2 hover:underline ${tone === "warning" ? "text-amber-800" : "text-orbit-primary"}`} onClick={() => setMappingOpen((open) => !open)} aria-label={actionAriaLabel} aria-controls="detected-supplier-picker" aria-expanded={mappingOpen}>{actionLabel}</button>
+          </div>
+        </Card>
+      </>
+    )}
+    {mappingOpen && <div id="detected-supplier-picker" className="absolute right-0 top-full z-40 max-h-[calc(100vh-6rem)] w-[min(360px,calc(100vw-2rem))] overflow-y-auto rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-base shadow-orbit-md" style={{ marginTop: "calc(-1 * var(--orbit-space-xs))" }} role="dialog" aria-label={manualAddOpen ? "Add Supplier Manually" : "Change Mapped Supplier"} aria-modal="false">
       {manualAddOpen ? <>
         <p className="block max-w-full break-words text-orbit-sm v6-orbit-weight-semibold text-orbit-fg">Add Supplier Manually</p>
         <p className="mt-orbit-xs block max-w-full break-words text-orbit-sm leading-relaxed text-orbit-fg-secondary">Manually add a supplier for your initiative.</p>
@@ -548,7 +597,6 @@ function DetectedSupplierMapping({ workflow, name, unresolved = false }: { workf
         <div className="mt-orbit-s border-t border-orbit-border pt-orbit-s"><OrbitButton variant="Tertiary" size="Medium" state="Default" className="w-full" aria-expanded={manualAddOpen} onClick={() => setManualAddOpen(true)}>Manual Add Supplier</OrbitButton></div>
       </>}
     </div>}
-    {workflow.supplierCorrectionNotice && <p className="w-full text-orbit-xs text-orbit-success">Supplier updated — grouping corrected before round 2.</p>}
   </div>;
 }
 
@@ -966,6 +1014,7 @@ function StackedJourneyContent({
             onDownload={workflow.actions.handleDownload}
             onViewResult={onViewResult}
             showComparisonStatus={showComparisonStatus}
+            hiddenSupplierIds={workflow.unassignedSupplierIds}
           />
         </div>
       )}
@@ -1027,6 +1076,7 @@ export function ClauseIqContextPanel({
           onRunAgain={workflow.actions.showRunAgainUpload}
           onDownload={workflow.actions.handleDownload}
           onViewResult={onViewResult}
+          hiddenSupplierIds={workflow.unassignedSupplierIds}
         />
       </aside>
     );

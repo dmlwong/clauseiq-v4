@@ -76,6 +76,24 @@
   outline-color: var(--orbit-color-focus-ring);
 }
 
+/* The combobox container carries the visible focus state; suppress the
+   browser-level teal outline on its nested text input. */
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6a-benchmark-combobox input:focus-visible {
+  outline: none;
+}
+
+/* Orbit Searchbox applies its focused state to both the container and the
+   nested input. Use ClauseIQ's indigo border on the container and suppress
+   the nested teal outline. */
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] [data-orbit-adapter="searchbox"]:focus-within [class*="_container_"] {
+  border-color: var(--orbit-color-btn-primary-bg) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--orbit-color-btn-primary-bg) 28%, transparent);
+}
+
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] [data-orbit-adapter="searchbox"] input:focus-visible {
+  outline: none;
+}
+
 /* Scope the upload action to Orbit's Indigo primary token. */
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6a-upload-dropzone {
   --orbit-color-btn-tertiary-fg: var(--orbit-color-btn-primary-bg);
@@ -395,6 +413,27 @@ body
 /* Keep V6A negotiation fields on the Orbit card (white) surface. */
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] [data-orbit-adapter="textarea"] textarea {
   background-color: var(--orbit-color-bg-card, #ffffff) !important;
+}
+
+/* Match the comparison dashboard: locked negotiation positions are displayed
+ * as read-only clause text rather than as disabled input fields. */
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6a-locked-clause-table [data-orbit-adapter="textarea"] > div {
+  min-height: 0 !important;
+  padding: 0 !important;
+}
+
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6a-locked-clause-table [data-orbit-adapter="textarea"] textarea:disabled {
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--orbit-color-text-primary) !important;
+  cursor: default;
+  resize: none;
+}
+
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6a-locked-clause-table [data-orbit-adapter="textarea"] > div > div:last-child {
+  display: none;
 }
 
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] table td:last-child > div > button.mt-orbit-xs.inline-flex {

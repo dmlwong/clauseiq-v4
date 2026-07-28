@@ -16,6 +16,7 @@ interface Props {
   showComparisonStatus?: boolean;
   highlightSupplierId?: string | null;
   highlightAnalysisId?: string | null;
+  hiddenSupplierIds?: string[];
   layout?: ResultsLayout;
   supplierIdentityContent?: ReactNode;
 }
@@ -32,6 +33,7 @@ export function ResultsContent({
   showComparisonStatus,
   highlightSupplierId,
   highlightAnalysisId,
+  hiddenSupplierIds,
   layout = "accordion",
   supplierIdentityContent,
 }: Props) {
@@ -49,6 +51,7 @@ export function ResultsContent({
         showComparisonStatus={showComparisonStatus}
         highlightSupplierId={highlightSupplierId}
         highlightAnalysisId={highlightAnalysisId}
+        hiddenSupplierIds={hiddenSupplierIds}
         supplierIdentityContent={supplierIdentityContent}
       />
     );

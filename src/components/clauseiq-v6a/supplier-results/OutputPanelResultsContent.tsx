@@ -40,6 +40,7 @@ export function OutputPanelResultsContent({
   higherIsBetter = true,
   analysisParameters,
   showComparisonStatus = false,
+  hiddenSupplierIds,
   supplierIdentityContent,
 }: ResultsViewProps & { supplierIdentityContent?: ReactNode }) {
   const rows = useMemo(() => {
@@ -104,6 +105,7 @@ export function OutputPanelResultsContent({
         outputState="filled"
         higherIsBetter={higherIsBetter}
         showComparisonStatus={showComparisonStatus}
+        hiddenSupplierIds={hiddenSupplierIds}
         className="lg:hidden"
       />
     </motion.div>
@@ -127,15 +129,20 @@ export function SupplierOutputsPanel({
   showComparisonStatus = false,
   highlightSupplierId,
   highlightAnalysisId,
+  hiddenSupplierIds = [],
   className,
 }: SupplierOutputsPanelProps) {
   const [outputScope, setOutputScope] = useState<OutputScope>(initialOutputScope);
   const [query, setQuery] = useState("");
-  const allRows = useMemo(() => flattenSupplierAnalyses(initiative.suppliers), [initiative.suppliers]);
+  const visibleSuppliers = useMemo(
+    () => initiative.suppliers.filter((supplier) => !hiddenSupplierIds.includes(supplier.id)),
+    [hiddenSupplierIds, initiative.suppliers],
+  );
+  const allRows = useMemo(() => flattenSupplierAnalyses(visibleSuppliers), [visibleSuppliers]);
   const hasOutputs = allRows.length > 0;
   const scopedSuppliers = useMemo(
-    () => filterSuppliersByScope(initiative.suppliers, outputScope, highlightAnalysisId),
-    [highlightAnalysisId, initiative.suppliers, outputScope],
+    () => filterSuppliersByScope(visibleSuppliers, outputScope, highlightAnalysisId),
+    [highlightAnalysisId, outputScope, visibleSuppliers],
   );
   const filteredSuppliers = useMemo(
     () => filterSuppliersByQuery(scopedSuppliers, query),
@@ -150,7 +157,7 @@ export function SupplierOutputsPanel({
   const suppliers = useMemo(() => sortSuppliersByLatestChange(filteredSuppliers), [filteredSuppliers]);
   const [openSupplierIds, setOpenSupplierIds] = useState<string[]>([]);
   const [historySupplierId, setHistorySupplierId] = useState<string | null>(null);
-  const historySupplier = initiative.suppliers.find((supplier) => supplier.id === historySupplierId) ?? null;
+  const historySupplier = visibleSuppliers.find((supplier) => supplier.id === historySupplierId) ?? null;
   const supplierCount = suppliers.length;
   const outputCount = rows.length;
   const emptyState =

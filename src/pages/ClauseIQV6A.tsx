@@ -327,6 +327,7 @@ function ClauseIQV6AContent({ forceResults = false, resultsLayout = "output-pane
             showComparisonStatus={showComparisonStatus}
             highlightSupplierId={workflow.latestOutputSupplierId}
             highlightAnalysisId={workflow.latestOutputAnalysisId}
+            hiddenSupplierIds={workflow.unassignedSupplierIds}
           />
         </div>
       }

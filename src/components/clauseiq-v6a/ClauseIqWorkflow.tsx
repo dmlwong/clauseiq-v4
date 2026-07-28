@@ -455,6 +455,10 @@ export function useClauseIqWorkflow({
       : "empty";
   const supplierOutputInitiative =
     supplierOutputPanelState === "filled" ? resultsInitiative : EMPTY_MOCK_INITIATIVE;
+  const unassignedSupplierIds =
+    supplierDetectionContext?.status === "unknown" && supplierDetectionContext.supplierId
+      ? [supplierDetectionContext.supplierId]
+      : [];
   const initiativeLocked = step === "processing" || step === "results";
   const parameterLocked = step === "processing" || step === "results";
   const processingVisible = step === "processing" || step === "results";
@@ -1053,6 +1057,7 @@ export function useClauseIqWorkflow({
     step,
     supplierOutputInitiative,
     supplierOutputPanelState,
+    unassignedSupplierIds,
     actions: {
       completeInitiative: () => setInitiativeCompleted(true),
       handleBenchmarkConfirm,
@@ -1777,7 +1782,7 @@ export function BenchmarkCombobox({
   };
 
   return (
-    <div className="space-y-orbit-xs">
+    <div className="clauseiq-v6a-benchmark-combobox space-y-orbit-xs">
       <div className="flex items-center gap-orbit-s">
         <label id={`${fieldId}-label`} htmlFor={fieldId} className="v6-orbit-heading-label">
           {label}
@@ -1787,7 +1792,7 @@ export function BenchmarkCombobox({
       <div className="relative">
         <div
           ref={controlRef}
-          className="flex min-h-11 items-center gap-orbit-s rounded-orbit-lg border border-orbit-border bg-orbit-card px-orbit-base py-orbit-xs focus-within:ring-2 focus-within:ring-orbit-primary"
+          className="flex min-h-11 items-center gap-orbit-s rounded-orbit-lg border border-orbit-border bg-orbit-card px-orbit-base py-orbit-xs focus-within:border-orbit-primary"
         >
           {hasSelection ? (
             <Check className="h-4 w-4 shrink-0 text-orbit-success" aria-hidden="true" />

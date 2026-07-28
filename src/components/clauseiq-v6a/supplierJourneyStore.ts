@@ -4,6 +4,8 @@ export interface DashboardSupplierJourney {
   context: SupplierDetectionContext;
   supplierName: string;
   corrected: boolean;
+  supplierLocation?: string;
+  website?: string;
 }
 
 const journeys = new Map<string, DashboardSupplierJourney>();

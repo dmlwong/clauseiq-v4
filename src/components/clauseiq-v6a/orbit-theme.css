@@ -466,6 +466,12 @@ body
   overflow: visible;
 }
 
+/* The supplier mapping picker is anchored inside an analysis card. Orbit cards
+   clip by default, so expose this one overlay above the score and action areas. */
+[data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-responsive-analysis-card > [class*="_card_"] {
+  overflow: visible;
+}
+
 [data-prototype="clauseiq-v6a"][data-theme="orbit"] .clauseiq-v6-recommendation-bulk-banner-controls {
   align-items: center;
   display: flex;

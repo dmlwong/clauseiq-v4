@@ -322,21 +322,16 @@ export function FirstAnalysisDesignOptions({
   if (option === "design-option-2") {
     return (
       <div className="mx-auto w-full max-w-[1800px] space-y-orbit-base px-orbit-base py-orbit-base">
-        <Card
-          type="Static"
-          padding="Base"
-          state="Default"
-          indicator={false}
-          style={{ width: "100%", overflow: "visible", zIndex: 1 }}
-        >
-          <div className="space-y-orbit-base">
-            <h1 className="v6-orbit-heading-strong text-orbit-fg">Latest Analysis</h1>
-            {banner ? <div className="clauseiq-v6a-summary-banner">{banner}</div> : null}
-            <div className="grid gap-orbit-base md:grid-cols-2">
-              <InitialAnalysisOptionTwoMetric icon={<Sigma className="h-5 w-5" aria-hidden="true" />} label="ClauseIQ score" value={metrics.score} detail={`${metrics.versionLabel.toUpperCase()} initial analysis`} tone="default" />
-              <InitialAnalysisOptionTwoMetric icon={<ClipboardList className="h-5 w-5" aria-hidden="true" />} label="Review needed" value={metrics.needReview} detail="clauses need a decision" tone="warning" />
-            </div>
-            <div>{optionTwoFilters}</div>
+        {banner ? <div className="clauseiq-v6a-summary-banner">{banner}</div> : null}
+        <div className="grid gap-orbit-base md:grid-cols-2">
+          <InitialAnalysisOptionTwoMetric icon={<Sigma className="h-5 w-5" aria-hidden="true" />} label="ClauseIQ score" value={metrics.score} detail={`${metrics.versionLabel.toUpperCase()} initial analysis`} tone="default" />
+          <InitialAnalysisOptionTwoMetric icon={<ClipboardList className="h-5 w-5" aria-hidden="true" />} label="Review needed" value={metrics.needReview} detail="clauses need a decision" tone="warning" />
+        </div>
+        <Card type="Static" padding="Base" state="Default" indicator={false} style={{ width: "100%", overflow: "visible", zIndex: 1 }}>
+          <div>
+            <h5 className="v6-orbit-heading-5 text-orbit-fg">Position Status</h5>
+            <p className="mt-orbit-s text-orbit-sm text-orbit-fg-secondary">The supplier's revised contract, compared against the position you sent in Round 1.</p>
+            <div className="mt-orbit-base">{optionTwoFilters}</div>
           </div>
         </Card>
         {optionTwoBulkBanner}
@@ -421,8 +416,10 @@ function InitialAnalysisOptionTwoMetric({
         <p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wide text-orbit-fg-secondary">{label}</p>
         <span className={cn("inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-orbit-md", iconClass)}>{icon}</span>
       </div>
-      <p className={cn("mt-orbit-xs text-orbit-xl v6-orbit-weight-semibold", valueClass)}>{value}</p>
-      <p className="mt-orbit-xxs v6-orbit-text-small text-orbit-fg-secondary">{detail}</p>
+      <div className="mt-orbit-xs flex items-baseline justify-between gap-0">
+        <p className={cn("text-orbit-xl v6-orbit-weight-semibold", valueClass)}>{value}</p>
+        <p className="v6-orbit-text-small text-right text-orbit-fg-secondary">{detail}</p>
+      </div>
     </Card>
   );
 }

@@ -363,7 +363,7 @@ function ScoreSimplificationColumn({
                   </Button>
                   <Button variant="outline" className="h-8 gap-orbit-xs">
                     <Download className="h-3.5 w-3.5" />
-                    Download report
+                    Download Report
                   </Button>
                 </div>
               </>

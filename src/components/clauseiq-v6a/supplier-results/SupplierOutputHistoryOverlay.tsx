@@ -228,7 +228,7 @@ function FindingsSummary({
 }) {
   if (showComparisonStatus && hasPreviousOutput) {
     const notMet = analysis.deviations.high + analysis.deviations.medium + analysis.deviations.low + analysis.deviations.missing;
-    return <>Met {analysis.deviations.none} · Not met {notMet}</>;
+    return <>Met {analysis.deviations.none} · Not Met {notMet}</>;
   }
 
   return <>Missing {analysis.deviations.missing}</>;

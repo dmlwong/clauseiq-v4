@@ -48,7 +48,7 @@ export function InitiativeOverview({ initiativeId, onBack, onSelectSupplier, onC
                 <TableHead>Commercial</TableHead>
                 <TableHead>Capability</TableHead>
                 <TableHead>ClauseIQ Score</TableHead>
-                <TableHead>Last updated</TableHead>
+                <TableHead>Last Updated</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>

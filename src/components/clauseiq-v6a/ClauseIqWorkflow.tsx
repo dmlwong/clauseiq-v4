@@ -322,6 +322,10 @@ export const createDefaultParameterSelection = (): AnalysisParameterSelection =>
   category: null,
 });
 
+function cloneAnalysisParameterSelection(parameter: AnalysisParameterSelection): AnalysisParameterSelection {
+  return { ...parameter, basis: parameter.basis ? { ...parameter.basis } : null };
+}
+
 export const buildAnalysisParameters = (
   selected: AnalysisParameterSelection | null,
 ): AnalysisParameterItem[] => {
@@ -391,6 +395,8 @@ export function useClauseIqWorkflow({
   const [rerunUploadVisible, setRerunUploadVisible] = useState(initialRerunUploadVisible);
   const [rerunSelectedParameter, setRerunSelectedParameter] = useState<AnalysisParameterSelection | null>(null);
   const rerunSelectedParameterRef = useRef<AnalysisParameterSelection | null>(null);
+  const [rerunParametersCarriedForward, setRerunParametersCarriedForward] = useState(false);
+  const [supplierParameterHistory, setSupplierParameterHistory] = useState<Record<string, AnalysisParameterSelection>>({});
   const initialFingerprintRef = useRef<Promise<SupplierFingerprintResult> | null>(null);
   const rerunFingerprintRef = useRef<Promise<SupplierFingerprintResult> | null>(null);
   const [rerunProcessing, setRerunProcessing] = useState(false);
@@ -521,6 +527,7 @@ export function useClauseIqWorkflow({
         ));
         if (detectionOutcome === "missing") setUnknownCount(nextUnknown);
         appendCompletedAnalysis(receivingSupplier, analysis);
+        setSupplierParameterHistory((current) => ({ ...current, [receivingSupplier.id]: cloneAnalysisParameterSelection(parameter) }));
         setCompletedInitialAnalysis(analysis);
         setCompletedInitialSupplierId(receivingSupplier.id);
         setFile(null);
@@ -561,6 +568,7 @@ export function useClauseIqWorkflow({
 
         const receivingSupplier = selectedSupplier ?? matchedSupplier ?? createResolvedNewSupplier(enteredName);
         appendCompletedAnalysis(receivingSupplier, completedAnalysis);
+        setSupplierParameterHistory((current) => ({ ...current, [receivingSupplier.id]: cloneAnalysisParameterSelection(parameter) }));
         setRerunProcessing(false);
         setCompletedRerunAnalysis(completedAnalysis);
         setCompletedRerunParameter(parameter);
@@ -607,6 +615,7 @@ export function useClauseIqWorkflow({
     setSupplierCorrectionNotice(false);
     setRerunSupplierMismatch(null);
     setSupplierFingerprintResolution(null);
+    setSupplierParameterHistory({});
     setCompletedMilestoneIds([]);
     setInitiativeCompleted(false);
   }, [updateRerunSelectedParameter]);
@@ -878,6 +887,7 @@ export function useClauseIqWorkflow({
     const receivingSupplier = useCandidate ? candidate : createResolvedNewSupplier(enteredName);
 
     appendCompletedAnalysis(receivingSupplier, analysis);
+    setSupplierParameterHistory((current) => ({ ...current, [receivingSupplier.id]: cloneAnalysisParameterSelection(parameter) }));
     setSupplierFingerprintResolution(null);
     setFile(null);
 
@@ -931,8 +941,24 @@ export function useClauseIqWorkflow({
     setRerunSupplierMismatch(null);
     setSupplierFingerprintResolution(null);
     updateRerunSelectedParameter(null);
+    setRerunParametersCarriedForward(false);
     setRerunUploadVisible(true);
     onRunAgain?.();
+  };
+
+  const selectRerunSupplier = (supplierId: string) => {
+    const inheritedParameter =
+      supplierParameterHistory[supplierId] ??
+      (supplierId === completedRerunSupplierId ? completedRerunParameter : null) ??
+      (supplierId === completedInitialSupplierId ? selectedParameter : null) ??
+      selectedParameter ??
+      createDefaultParameterSelection();
+
+    updateRerunSelectedParameter(cloneAnalysisParameterSelection(inheritedParameter));
+    setRerunParametersCarriedForward(true);
+    setRerunSupplierContextId(supplierId);
+    setFile(null);
+    setRerunUploadVisible(true);
   };
 
   // The prototype control is intentionally live: it lets reviewers swap the
@@ -1011,6 +1037,7 @@ export function useClauseIqWorkflow({
     processingVisible,
     rerunProcessing,
     rerunSelectedParameter,
+    rerunParametersCarriedForward,
     rerunSupplierContext,
     rerunNewSupplierEntryOpen,
     completedRerunSupplier,
@@ -1044,7 +1071,10 @@ export function useClauseIqWorkflow({
       handleRerunBasisSelect,
       handleRerunCategoryEdit,
       handleRerunCategorySelect,
-      handleRerunPlaybookChoiceChange,
+      handleRerunPlaybookChoiceChange: (choice: PlaybookChoice) => {
+        setRerunParametersCarriedForward(false);
+        handleRerunPlaybookChoiceChange(choice);
+      },
       markMilestoneComplete: (milestoneId: string) => {
         setCompletedMilestoneIds((current) => (
           current.includes(milestoneId) ? current : [...current, milestoneId]
@@ -1052,7 +1082,7 @@ export function useClauseIqWorkflow({
       },
       resetRunState,
       resolveSupplierFingerprint,
-      selectRerunSupplier: (supplierId: string) => setRerunSupplierContextId(supplierId),
+      selectRerunSupplier,
       beginNewRerunSupplierContext: () => setRerunNewSupplierEntryOpen(true),
       saveNewRerunSupplierContext: (name: string) => {
         const trimmedName = name.trim();
@@ -1067,6 +1097,7 @@ export function useClauseIqWorkflow({
         setNewRerunSupplierName(null);
         setRerunNewSupplierEntryOpen(false);
         updateRerunSelectedParameter(null);
+        setRerunParametersCarriedForward(false);
         setFile(null);
       },
       saveInitialSupplierName: (name: string) => {
@@ -1103,19 +1134,44 @@ export function useClauseIqWorkflow({
         setPendingAliasEntry(false);
       },
       assignDetectedSupplier: (supplierId: string) => {
-        if (!supplierDetectionContext || !completedInitialAnalysis) return;
         const supplier = mockInitiative.suppliers.find((item) => item.id === supplierId);
-        if (!supplier) return;
-        setResultsInitiative((current) => ({ ...current, suppliers: current.suppliers.map((item) => ({
-          ...item,
-          analyses: item.id === supplierDetectionContext.supplierId
-            ? item.analyses.filter((analysis) => analysis.id !== completedInitialAnalysis.id)
-            : item.id === supplier.id && !item.analyses.some((analysis) => analysis.id === completedInitialAnalysis.id)
-              ? [...item.analyses, completedInitialAnalysis] : item.analyses,
-        })) }));
-        setCompletedInitialSupplierId(supplier.id);
-        setSupplierDetectionContext(buildGroupingContext("known", "known", supplierDetectionContext.fileName, supplier.id, null, null));
-        setSupplierCorrectionNotice(supplierDetectionContext.outcome === "wrong-match");
+        const analysis = completedRerunAnalysis ?? completedInitialAnalysis;
+        const sourceSupplierId = supplierDetectionContext?.supplierId ??
+          (completedRerunAnalysis ? completedRerunSupplierId : completedInitialSupplierId);
+        if (!supplier || !analysis || !sourceSupplierId) return;
+
+        if (sourceSupplierId !== supplier.id) {
+          setResultsInitiative((current) => ({
+            ...current,
+            suppliers: current.suppliers.map((item) => ({
+              ...item,
+              analyses:
+                item.id === sourceSupplierId
+                  ? item.analyses.filter((itemAnalysis) => itemAnalysis.id !== analysis.id)
+                  : item.id === supplier.id &&
+                      !item.analyses.some((itemAnalysis) => itemAnalysis.id === analysis.id)
+                    ? [...item.analyses, analysis]
+                    : item.analyses,
+            })),
+          }));
+        }
+
+        if (completedRerunAnalysis) {
+          setCompletedRerunSupplierId(supplier.id);
+        } else {
+          setCompletedInitialSupplierId(supplier.id);
+        }
+        setSupplierDetectionContext(
+          buildGroupingContext(
+            "known",
+            "known",
+            supplierDetectionContext?.fileName ?? analysis.fileName,
+            supplier.id,
+            null,
+            null,
+          ),
+        );
+        setSupplierCorrectionNotice(supplierDetectionContext?.outcome === "wrong-match");
       },
       selectInitiative,
       setStep,

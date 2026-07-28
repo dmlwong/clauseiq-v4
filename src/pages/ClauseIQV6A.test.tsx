@@ -582,7 +582,7 @@ describe("ClauseIQ V6A flow", () => {
     expect(screen.getByRole("heading", { name: "Supplier" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Supplier Kira Systems/i })).toBeInTheDocument();
     expect(screen.queryByText(/Open decision C1/i)).not.toBeInTheDocument();
-    expect(screen.getByText("Design notes")).toBeInTheDocument();
+    expect(screen.queryByText("Design notes")).not.toBeInTheDocument();
     expect(screen.getAllByText("Initial_Deloitte_contract.pdf").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Supplier Outputs").length).toBeGreaterThan(0);
   });
@@ -1083,7 +1083,7 @@ describe("ClauseIQ V6A flow", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("lets users select parameters before upload when running another output-panel analysis", () => {
+  it("carries forward a supplier's latest parameters and reveals upload for another output-panel analysis", () => {
     renderClauseIQ("/clauseiq-v6a/output-panel", {
       forceResults: true,
       resultsLayout: "output-panel",
@@ -1109,6 +1109,11 @@ describe("ClauseIQ V6A flow", () => {
     expect(
       screen.getByText("Do you want to use a playbook for this analysis?"),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Analysis parameters carried forward from this supplier’s latest output. You can edit them below before uploading.",
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Yes" })).toBeChecked();
     expect(screen.getByRole("radio", { name: "No" })).not.toBeChecked();
     expect(
@@ -1117,18 +1122,9 @@ describe("ClauseIQ V6A flow", () => {
     expect(
       screen.queryByRole("heading", { name: "Governing Law" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Playbook" })).toHaveAttribute(
-      "placeholder",
-      "Please select a playbook...",
-    );
     expect(
-      screen.queryByRole("option", { name: CIQ_DEFAULT_PLAYBOOK }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("heading", { name: "Upload Contract" }),
-    ).not.toBeInTheDocument();
-
-    selectDefaultPlaybook();
+      screen.getByRole("button", { name: /change playbook/i }),
+    ).toBeInTheDocument();
 
     const rerunParameterHeading = screen
       .getAllByRole("heading", { name: "Contract Analysis Parameters" })
@@ -1137,9 +1133,6 @@ describe("ClauseIQ V6A flow", () => {
       name: "Upload Contract",
     });
 
-    expect(
-      screen.getByRole("button", { name: /change playbook/i }),
-    ).toBeInTheDocument();
     expect(rerunParameterHeading).toBeTruthy();
     expect(
       rerunParameterHeading!.compareDocumentPosition(uploadHeading) &
@@ -1240,6 +1233,7 @@ describe("ClauseIQ V6A flow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Run Analysis Again" }));
     selectRerunSupplier();
+    fireEvent.click(screen.getByRole("button", { name: /change playbook/i }));
     selectDefaultPlaybook();
 
     const input =
@@ -1300,6 +1294,11 @@ describe("ClauseIQ V6A flow", () => {
     expect(
       screen.getAllByText("Here is your Analysis Result").length,
     ).toBeGreaterThanOrEqual(2);
+    expect(
+      screen.getAllByRole("button", {
+        name: "Supplier Thomson Reuters edit",
+      }).length,
+    ).toBeGreaterThanOrEqual(1);
   });
 
   it("keeps supplier-history selections authoritative without showing a fingerprint prompt", async () => {
@@ -1316,6 +1315,7 @@ describe("ClauseIQ V6A flow", () => {
       screen.getAllByRole("button", { name: "Run Analysis Again" })[0],
     );
     selectRerunSupplier("Thomson Reuters");
+    fireEvent.click(screen.getByRole("button", { name: /change playbook/i }));
     selectDefaultPlaybook();
 
     const input =
@@ -1393,6 +1393,7 @@ describe("ClauseIQ V6A flow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Run Analysis Again" }));
     selectRerunSupplier();
+    fireEvent.click(screen.getByRole("button", { name: /change playbook/i }));
     selectDefaultPlaybook();
 
     const input =

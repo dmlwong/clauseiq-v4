@@ -62,7 +62,7 @@ function openBulkDropdown() {
   fireEvent.click(getBulkDropdownTrigger());
 }
 
-function selectBulkAxis(name: "Deviation Level" | "Review status" | "Clause") {
+function selectBulkAxis(name: "Deviation Level" | "Review Status" | "Clause") {
   fireEvent.click(screen.getByRole("button", { name }));
 }
 
@@ -70,7 +70,7 @@ function toggleBulkCheckbox(name: RegExp) {
   fireEvent.click(screen.getByRole("checkbox", { name }));
 }
 
-function applyRecommendationOptions(axis: "Deviation Level" | "Review status" | "Clause", ...names: RegExp[]) {
+function applyRecommendationOptions(axis: "Deviation Level" | "Review Status" | "Clause", ...names: RegExp[]) {
   openRecommendationMenu();
   openBulkDropdown();
   selectBulkAxis(axis);
@@ -125,13 +125,13 @@ describe("ContractResults V6A review controls", () => {
     expect(within(metBucket as HTMLElement).queryByText("Recommended Next Position")).not.toBeInTheDocument();
     expect(within(metBucket as HTMLElement).queryByRole("columnheader")).not.toBeInTheDocument();
     expect(within(metBucket as HTMLElement).getAllByText("Met This Round").length).toBeGreaterThan(0);
-    expect(within(metBucket as HTMLElement).getAllByText("Previously Met").length).toBeGreaterThan(0);
+    expect(within(metBucket as HTMLElement).getAllByText(/Previously Met · Met In v\d+/).length).toBeGreaterThan(0);
     expect(screen.getAllByText("Previous Supplier Position").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Current Supplier Position").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Recommended Next Position").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Next Position").length).toBeGreaterThan(0);
     const paymentTermsCard = screen.getByText("Payment Terms").closest('[id^="clause-row-"]');
     expect(paymentTermsCard).toBeTruthy();
-    expect(within(paymentTermsCard as HTMLElement).getByText("Not Met - Medium")).toBeInTheDocument();
+    expect(within(paymentTermsCard as HTMLElement).getAllByText("Not Met - Medium").length).toBe(2);
     expect(within(paymentTermsCard as HTMLElement).queryByText("Not Met")).not.toBeInTheDocument();
   });
 
@@ -140,11 +140,11 @@ describe("ContractResults V6A review controls", () => {
 
     expect(screen.getByText("Negotiation Position")).toBeInTheDocument();
     expect(screen.queryByText("Revising")).not.toBeInTheDocument();
-    expect(screen.getByText("Not downloaded", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Downloaded Not Recorded", { exact: false })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Download Current Position" }));
     expect(mocks.downloadCsv).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText("Not downloaded", { exact: false })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Lock position" }));
+    expect(screen.queryByText("Downloaded Not Recorded", { exact: false })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Lock Position" }));
 
     expect(screen.getByText(/This position is shared with the supplier and locked/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Unlock Dashboard" })).toBeInTheDocument();
@@ -156,7 +156,7 @@ describe("ContractResults V6A review controls", () => {
     expect(screen.getByText(/This position is shared with the supplier and locked/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Unlock Dashboard" }));
-    expect(screen.getByRole("button", { name: "Lock position" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Lock Position" })).toBeInTheDocument();
   });
 
   it("opens rationale in a 672px Orbit modal instead of expanding inline", () => {
@@ -174,23 +174,20 @@ describe("ContractResults V6A review controls", () => {
     expect(screen.queryByRole("dialog", { name: "Rationale" })).not.toBeInTheDocument();
   });
 
-  it("uses the outcome table and existing Undo behaviour for accepted supplier positions", async () => {
+  it("moves accepted supplier positions into Met Positions with metadata", async () => {
     renderContractResults(optionTwoComparisonRoute);
 
     const clauseRow = screen.getByText("Subcontracting").closest('[id^="clause-row-"]');
     expect(clauseRow).toBeTruthy();
     fireEvent.click(within(clauseRow as HTMLElement).getByRole("button", { name: "Accept Supplier Position" }));
 
-    const acceptedTable = await screen.findByRole("heading", { name: /^Accepted As Is/ });
-    const acceptedSection = acceptedTable.closest("section");
-    expect(acceptedSection).toBeTruthy();
-    expect(within(acceptedSection as HTMLElement).getByRole("columnheader", { name: "Actions" })).toBeInTheDocument();
-    expect(within(acceptedSection as HTMLElement).getByRole("columnheader", { name: "Status" })).toBeInTheDocument();
-    expect(within(acceptedSection as HTMLElement).getByText("Accepted as-is")).toBeInTheDocument();
-
-    fireEvent.click(within(acceptedSection as HTMLElement).getByRole("button", { name: "Undo" }));
-    await waitFor(() => expect(screen.queryByRole("heading", { name: /^Accepted As Is/ })).not.toBeInTheDocument());
-    expect(screen.getByText("Subcontracting")).toBeInTheDocument();
+    const metSection = await screen.findByText(/^Met Positions/);
+    const metBucket = metSection.closest("section");
+    expect(metBucket).toBeTruthy();
+    const acceptedCard = within(metBucket as HTMLElement).getByText("Subcontracting").closest('[id^="clause-row-"]');
+    expect(acceptedCard).toBeTruthy();
+    expect(within(acceptedCard as HTMLElement).getAllByText("Accepted Supplier Position")).toHaveLength(2);
+    expect(screen.queryByRole("heading", { name: /^Accepted As-Is/ })).not.toBeInTheDocument();
   });
 
   it("renders previously met clauses in the unified met card view with add-back actions", async () => {
@@ -198,25 +195,23 @@ describe("ContractResults V6A review controls", () => {
 
     const section = screen.getByText(/^Met Positions/).closest("section");
     expect(section).toBeTruthy();
-    const previouslyMetCard = within(section as HTMLElement).getAllByText("Previously Met")[0].closest('[id^="clause-row-"]');
+    const previouslyMetCard = within(section as HTMLElement).getAllByText(/Previously Met · Met In v\d+/)[0].closest('[id^="clause-row-"]');
     const metThisRoundCard = within(section as HTMLElement).getAllByText("Met This Round")[0].closest('[id^="clause-row-"]');
     expect(previouslyMetCard).toBeTruthy();
     expect(metThisRoundCard).toBeTruthy();
     expect(within(previouslyMetCard as HTMLElement).getByRole("button", { name: "Add It To Still Open List" })).toBeInTheDocument();
+    expect(within(previouslyMetCard as HTMLElement).getByText(/^Previously Met · Met In v\d+$/)).toBeInTheDocument();
     expect(within(metThisRoundCard as HTMLElement).queryByRole("button", { name: "Add It To Still Open List" })).not.toBeInTheDocument();
   });
 
   it("uses Orbit cards for the comparison summary metrics", () => {
     const { container } = renderContractResults(optionTwoComparisonRoute);
 
-    const summaryCard = screen.getByText("Convergence").closest(".clauseiq-v6a-round-dashboard");
-
-    expect(summaryCard).toBeTruthy();
-    expect(summaryCard?.querySelectorAll('[class*="_card_"]').length).toBeGreaterThanOrEqual(3);
-    expect(summaryCard?.querySelector(".clauseiq-v6a-summary-banner")).toBeInTheDocument();
-    expect(within(summaryCard as HTMLElement).getByText("Convergence")).toBeInTheDocument();
-    expect(within(summaryCard as HTMLElement).getByText("Score by round")).toBeInTheDocument();
-    expect(within(summaryCard as HTMLElement).getByText("Still open")).toBeInTheDocument();
+    expect(container.querySelectorAll('[class*="_card_"]').length).toBeGreaterThanOrEqual(3);
+    expect(container.querySelector(".clauseiq-v6a-summary-banner")).toBeInTheDocument();
+    expect(screen.getByText("Convergence")).toBeInTheDocument();
+    expect(screen.getByText("Score By Round")).toBeInTheDocument();
+    expect(screen.getByText("Still Open")).toBeInTheDocument();
     expect(container.querySelector('[role="toolbar"][aria-label="Deviation"]')).toBeInTheDocument();
   });
 
@@ -239,7 +234,7 @@ describe("ContractResults V6A review controls", () => {
       expect(visibleClauseRows()).toBeLessThan(before);
       expect(screen.queryByText("Action required — position still not met")).not.toBeInTheDocument();
       expect(screen.queryByText("Regressed — previously agreed, but changed by the supplier")).not.toBeInTheDocument();
-      expect(screen.queryByText("Accepted As Is")).not.toBeInTheDocument();
+      expect(screen.queryByText("Accepted As-Is")).not.toBeInTheDocument();
     });
 
     fireEvent.click(statusFilters().getByRole("button", { name: "All" }));
@@ -247,9 +242,9 @@ describe("ContractResults V6A review controls", () => {
       expect(statusFilters().getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
     });
 
-    fireEvent.click(statusFilters().getByRole("button", { name: "Not met" }));
+    fireEvent.click(statusFilters().getByRole("button", { name: "Not Met" }));
     await waitFor(() => {
-      expect(statusFilters().getByRole("button", { name: "Not met" })).toHaveAttribute("aria-pressed", "true");
+      expect(statusFilters().getByRole("button", { name: "Not Met" })).toHaveAttribute("aria-pressed", "true");
       expect(visibleClauseRows()).toBeGreaterThan(0);
     });
 
@@ -370,8 +365,8 @@ describe("ContractResults V6A review controls", () => {
     expect(screen.queryByRole("button", { name: "Bulk Actions" })).not.toBeInTheDocument();
     const recommendationsTable = screen.getByRole("table", { name: "Initial analysis recommendations" });
     const noRecommendationsTable = screen.getByRole("table", { name: "Initial analysis no recommendations" });
-    expect(within(recommendationsTable).getByRole("columnheader", { name: "Clause type" })).toBeInTheDocument();
-    expect(within(noRecommendationsTable).getByRole("columnheader", { name: "Your negotiation position" })).toBeInTheDocument();
+    expect(within(recommendationsTable).getByRole("columnheader", { name: "Clause Type" })).toBeInTheDocument();
+    expect(within(noRecommendationsTable).getByRole("columnheader", { name: "Your Negotiation Position" })).toBeInTheDocument();
     expect(within(recommendationsTable).getByRole("checkbox", { name: "Select all recommendation clauses" })).toBeInTheDocument();
     const paymentTermsAccordion = within(recommendationsTable).getByRole("button", { name: /Payment terms C31/i });
     expect(paymentTermsAccordion).toHaveAttribute("aria-expanded", "false");
@@ -397,8 +392,8 @@ describe("ContractResults V6A review controls", () => {
     expect(within(recommendationsTable).queryAllByRole("button", { name: "Reset Initial Recommendation" })).toHaveLength(0);
     fireEvent.click(within(recommendationsTable).getByRole("checkbox", { name: "Bulk selected C31" }));
     expect(screen.getByText("1 Clause Selected")).toBeInTheDocument();
-    within(recommendationsTable).getAllByRole("button", { name: "Accept supplier position" }).forEach((button) => expect(button).toBeDisabled());
-    fireEvent.click(screen.getByRole("button", { name: "✓ Accept Supplier On Selected" }));
+    within(recommendationsTable).getAllByRole("button", { name: "Accept Supplier Position" }).forEach((button) => expect(button).toBeDisabled());
+    fireEvent.click(screen.getByRole("button", { name: "✓ Accept Supplier Positions" }));
     expect(screen.queryByText("1 Clause Selected")).not.toBeInTheDocument();
     within(noRecommendationsTable).getAllByRole("button", { name: "✦ Add to Recommendations" }).forEach((button) => expect(button).toBeDisabled());
 
@@ -414,16 +409,16 @@ describe("ContractResults V6A review controls", () => {
     fireEvent.click(within(promotedRow).getByRole("button", { name: "Remove from Recommendations" }));
     expect(within(screen.getByRole("table", { name: "Initial analysis no recommendations" })).getByText("Data breach notification")).toBeInTheDocument();
 
-    expect(screen.getByRole("heading", { name: "Round 2 — measured against your position" })).toBeInTheDocument();
-    fireEvent.click(within(screen.getByRole("table", { name: "Initial analysis recommendations" })).getAllByRole("button", { name: "Accept supplier position" })[0]);
+    expect(screen.getByRole("heading", { name: "Round 2 — Measured Against Your Position" })).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole("table", { name: "Initial analysis recommendations" })).getAllByRole("button", { name: "Accept Supplier Position" })[0]);
     const acceptedTable = screen.getByRole("table", { name: "Initial analysis accepted as-is" });
     expect(screen.getByRole("heading", { name: "Accepted As-Is" })).toBeInTheDocument();
     expect(within(acceptedTable).getAllByText("Supplier position accepted — no counter-position.").length).toBeGreaterThan(0);
     const acceptedAccordion = within(acceptedTable).getByRole("button", { name: /Payment terms C31/i });
     fireEvent.click(acceptedAccordion);
     expect(acceptedAccordion).toHaveAttribute("aria-expanded", "true");
-    fireEvent.click(within(acceptedTable).getAllByRole("button", { name: "Reject supplier position" })[0]);
-    expect(within(screen.getByRole("table", { name: "Initial analysis recommendations" })).getAllByRole("button", { name: "Accept supplier position" }).length).toBeGreaterThan(0);
+    fireEvent.click(within(acceptedTable).getAllByRole("button", { name: "Reject Supplier Position" })[0]);
+    expect(within(screen.getByRole("table", { name: "Initial analysis recommendations" })).getAllByRole("button", { name: "Accept Supplier Position" }).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("button", { name: "Design Control" }));
     expect(screen.getByRole("tab", { name: "Design option 3" })).toBeInTheDocument();
@@ -515,11 +510,11 @@ describe("ContractResults V6A review controls", () => {
     expect(within(regressedRow as HTMLElement).queryByText("Regressed")).not.toBeInTheDocument();
     expect(within(regressedRow as HTMLElement).getByText("High Deviation")).toBeInTheDocument();
     expect(within(newMissingRow as HTMLElement).getByText("New")).toBeInTheDocument();
-    expect(within(newMissingRow as HTMLElement).queryByText("New supplier change")).not.toBeInTheDocument();
+    expect(within(newMissingRow as HTMLElement).queryByText("New Supplier Change")).not.toBeInTheDocument();
     expect(within(newMissingRow as HTMLElement).getByText("Missing")).toBeInTheDocument();
     expect(within(newMissingRow as HTMLElement).getByText("High Deviation")).toBeInTheDocument();
-    expect(screen.queryByText("New supplier changes")).not.toBeInTheDocument();
-    expect(screen.queryByText("Needs decision")).not.toBeInTheDocument();
+    expect(screen.queryByText("New Supplier Changes")).not.toBeInTheDocument();
+    expect(screen.queryByText("Needs Decision")).not.toBeInTheDocument();
   });
 
   it("shows a deviation level, rather than a round action, for missing clauses", () => {
@@ -531,7 +526,7 @@ describe("ContractResults V6A review controls", () => {
     const scope = within(missingRow as HTMLElement);
     expect(scope.getByText("Low Deviation")).toBeInTheDocument();
     expect(scope.getByText("Missing")).toBeInTheDocument();
-    expect(scope.getByText("Review status")).toBeInTheDocument();
+    expect(scope.getByText("Review Status")).toBeInTheDocument();
     expect(scope.queryByText("Not Met")).not.toBeInTheDocument();
   });
 
@@ -542,7 +537,7 @@ describe("ContractResults V6A review controls", () => {
     expect(noActionRow).toBeTruthy();
 
     const scope = within(noActionRow as HTMLElement);
-    expect(scope.getByText("Review status")).toBeInTheDocument();
+    expect(scope.getByText("Review Status")).toBeInTheDocument();
     expect(scope.getByText("No Further Action")).toBeInTheDocument();
     expect(scope.getByText("High Deviation")).toBeInTheDocument();
   });
@@ -658,7 +653,7 @@ describe("ContractResults V6A review controls", () => {
     expect(screen.getByRole("checkbox", { name: "Low" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "None" })).toBeInTheDocument();
 
-    selectBulkAxis("Review status");
+    selectBulkAxis("Review Status");
     expect(screen.getByRole("checkbox", { name: "Not Met" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Met" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Missing" })).toBeInTheDocument();
@@ -713,7 +708,7 @@ describe("ContractResults V6A review controls", () => {
     openRecommendationMenu();
     openBulkDropdown();
     fireEvent.click(screen.getByRole("checkbox", { name: "All eligible clauses" }));
-    selectBulkAxis("Review status");
+    selectBulkAxis("Review Status");
 
     const notMetCheckbox = screen.getByRole("checkbox", { name: "Not Met" });
     const metCheckbox = screen.getByRole("checkbox", { name: "Met" });
@@ -742,7 +737,7 @@ describe("ContractResults V6A review controls", () => {
 
     openRecommendationMenu();
     expect(selectedBannerCount()).toBe(0);
-    expect(getBulkDropdownTrigger()).toHaveTextContent("No clauses selected");
+    expect(getBulkDropdownTrigger()).toHaveTextContent("No Clauses Selected");
     expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
   });
 
@@ -807,7 +802,7 @@ describe("ContractResults V6A review controls", () => {
     expect(clauseCard).toBeTruthy();
     fireEvent.click(within(clauseCard as HTMLElement).getByRole("button", { name: "Accept Supplier Position" }));
 
-    const acceptedBucket = screen.getByRole("heading", { name: /Accepted As Is/ }).closest("section");
+    const acceptedBucket = screen.getByRole("heading", { name: /Accepted As-Is/ }).closest("section");
     expect(acceptedBucket).toBeTruthy();
     expect(within(acceptedBucket as HTMLElement).getByText("Exit Support and Obligations")).toBeInTheDocument();
     expect(screen.getAllByText("Exit Support and Obligations")).toHaveLength(1);
@@ -818,7 +813,7 @@ describe("ContractResults V6A review controls", () => {
       detail: expect.objectContaining({ title: "Supplier position accepted" }),
     }));
     fireEvent.click(within(acceptedBucket as HTMLElement).getByRole("button", { name: "Undo" }));
-    expect(screen.queryByRole("heading", { name: /Accepted As Is/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /Accepted As-Is/ })).not.toBeInTheDocument();
     expect(screen.getByText("Exit Support and Obligations")).toBeInTheDocument();
     expect(onToast).toHaveBeenLastCalledWith(expect.objectContaining({
       detail: expect.objectContaining({ title: "Supplier position restored" }),
@@ -946,7 +941,7 @@ describe("ContractResults V6A review controls", () => {
 
     expect(mocks.downloadCsv).toHaveBeenCalledTimes(1);
     expect(mocks.downloadCsv.mock.calls[0][1]).toContain("Data Processing");
-    expect(mocks.downloadCsv.mock.calls[0][1]).toContain("Request update");
+    expect(mocks.downloadCsv.mock.calls[0][1]).toContain("Request Update");
     expect(mocks.downloadCsv.mock.calls[0][1]).toContain(
       "Require full GDPR Art. 28 schedule and 24-hour breach notification SLA.",
     );
@@ -966,6 +961,6 @@ describe("ContractResults V6A review controls", () => {
 
     expect(mocks.downloadCsv).toHaveBeenCalledTimes(2);
     expect(mocks.downloadCsv.mock.calls[1][1]).toContain("Payment Terms");
-    expect(mocks.downloadCsv.mock.calls[1][1]).toContain("Accept supplier wording");
+    expect(mocks.downloadCsv.mock.calls[1][1]).toContain("Accept Supplier Wording");
   });
 });

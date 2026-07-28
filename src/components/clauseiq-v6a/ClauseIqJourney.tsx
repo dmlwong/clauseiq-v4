@@ -1,11 +1,13 @@
 import { type CSSProperties, type FormEvent, type ReactNode, type RefObject, useState } from "react";
 import {
+  Building2,
   Check,
   FileText,
   Loader2,
+  Pencil,
   Search,
 } from "@/components/clauseiq-v6a/v6aIcons";
-import { Card, LinkText } from "@orbit";
+import { Button as OrbitButton, Card, FA, FaIcon, LinkText, ToggleCard } from "@orbit";
 
 import { Button } from "@/components/clauseiq-v6a/orbit-ui/button";
 import { Input } from "@/components/clauseiq-v6a/orbit-ui/input";
@@ -177,7 +179,7 @@ function InitiativeStep({
           : "Initiative Selected"}
       </h2>
       <SelectedSummaryRow
-        label={selectedLabel ?? "Initiative selected"}
+        label={selectedLabel ?? "Initiative Selected"}
         disabled={initiativeMode === "prebound" || workflow.initiativeLocked}
         actionLabel="Edit"
         onAction={onOpenInitiativeModal ?? (() => undefined)}
@@ -332,10 +334,15 @@ function ResultsStep({
                     <SelectedSummaryRow
                       label={`Supplier · ${workflow.rerunSupplierContext.name}`}
                       disabled={false}
-                      actionLabel="Change supplier"
+                      actionLabel="Change Supplier"
                       onAction={workflow.actions.clearRerunSupplierContext}
                     />
                   </div>
+                  {workflow.rerunParametersCarriedForward && (
+                    <p className="mt-orbit-s text-orbit-sm text-orbit-fg-secondary">
+                      Analysis parameters carried forward from this supplier’s latest output. You can edit them below before uploading.
+                    </p>
+                  )}
                 </Card>
               )}
               <AnalysisParameterCards
@@ -401,7 +408,6 @@ function ResultsStep({
           <AnalysisCard
             analysis={workflow.completedRerunAnalysis}
             supplier={workflow.completedRerunSupplier}
-            showSupplier
             onRunAgain={workflow.actions.showRunAgainUpload}
             onViewResult={() => {
               const chronological = [
@@ -428,6 +434,12 @@ function ResultsStep({
             highlighted
             analysisParameters={workflow.completedRerunAnalysisParameters}
             showComparisonStatus={showComparisonStatus}
+            supplierIdentityContent={
+              <SupplierDetectionResult
+                workflow={workflow}
+                fallbackSupplier={workflow.completedRerunSupplier}
+              />
+            }
           />
         </div>
       )}
@@ -443,7 +455,6 @@ function ResultsStep({
           onCompleteInitiative={workflow.actions.completeInitiative}
         />
       )}
-      <DesignNotes />
       {includeResultBottomSpacer ? (
         <div className="h-[304px]" aria-hidden="true" />
       ) : null}
@@ -451,17 +462,26 @@ function ResultsStep({
   );
 }
 
-function SupplierDetectionResult({ workflow }: { workflow: ClauseIqWorkflow }) {
+function SupplierDetectionResult({
+  workflow,
+  fallbackSupplier,
+}: {
+  workflow: ClauseIqWorkflow;
+  fallbackSupplier?: Supplier;
+}) {
   const context = workflow.supplierDetectionContext;
-  if (!context) return null;
-  const selected = context.supplierId ?? "";
+  if (!context) {
+    return fallbackSupplier ? (
+      <DetectedSupplierMapping workflow={workflow} name={fallbackSupplier.name} />
+    ) : null;
+  }
   const isUnknown = context.status === "unknown";
   const isNew = context.outcome === "new" || context.status === "pending-alias" || context.status === "fingerprinted-alias";
   const detectedName = workflow.resultsInitiative.suppliers.find((supplier) => supplier.id === context.supplierId)?.name ?? context.alias;
-  if (isUnknown) return <UnknownSupplierMapping workflow={workflow} name={detectedName ?? "Unknown"} />;
+  if (isUnknown) return <DetectedSupplierMapping workflow={workflow} name={detectedName ?? "Unknown"} unresolved />;
+  if (!isNew) return <DetectedSupplierMapping workflow={workflow} name={detectedName ?? "Supplier"} />;
   return <section className={`rounded-orbit-lg border p-orbit-base ${isUnknown ? "border-amber-400 bg-amber-50" : "border-orbit-border bg-orbit-surface/30"}`} aria-label="Supplier">
-    <div className="flex flex-wrap items-center gap-orbit-s"><h3 className="v6-orbit-heading-5">{isUnknown ? "No supplier detected" : "Supplier"}</h3>{!isUnknown && !isNew && <span className="rounded-full bg-orbit-success/15 px-2 py-0.5 text-orbit-xs v6-orbit-weight-medium text-orbit-success">DUNS master · matched</span>}{isNew && <span className="rounded-full bg-orbit-warning/15 px-2 py-0.5 text-orbit-xs v6-orbit-weight-medium text-orbit-fg">{context.status === "fingerprinted-alias" ? "New supplier · alias (this workspace only)" : "Not in master list"}</span>}</div>
-    {!isNew && <div className="mt-orbit-base"><Select value={selected} onValueChange={workflow.actions.assignDetectedSupplier}><SelectTrigger className="w-full clauseiq-v6-select-left" aria-label="Supplier"><SelectValue /></SelectTrigger><SelectContent>{mockSupplierOptions().map((supplier) => <SelectItem key={supplier.id} value={supplier.id}>{supplier.name}</SelectItem>)}</SelectContent></Select></div>}
+    <div className="flex flex-wrap items-center gap-orbit-s"><h3 className="v6-orbit-heading-5">Supplier</h3><span className="rounded-full bg-orbit-warning/15 px-2 py-0.5 text-orbit-xs v6-orbit-weight-medium text-orbit-fg">{context.status === "fingerprinted-alias" ? "New Supplier · Alias (This Workspace Only)" : "Not In Master List"}</span></div>
     {isNew && <p className="mt-orbit-base text-orbit-sm v6-orbit-weight-medium text-orbit-fg">{detectedName}</p>}
     {(isNew || isUnknown) && !workflow.pendingAliasEntry && context.status !== "fingerprinted-alias" && <div className="mt-orbit-base flex flex-wrap gap-orbit-s"><Button variant="secondary" onClick={workflow.actions.beginAliasEntry}>{isUnknown ? "Add as new" : "Add as new supplier"}</Button>{isUnknown && <span className="self-center text-orbit-xs text-orbit-fg-secondary">You can keep working as {detectedName} and assign a supplier later.</span>}</div>}
     {workflow.pendingAliasEntry && <div className="mt-orbit-base"><SupplierNameForm heading="Add supplier alias" description="This alias is available only in this workspace." submitLabel="Confirm" onCancel={workflow.actions.cancelAliasEntry} onSubmit={workflow.actions.saveDetectedAlias} /></div>}
@@ -471,23 +491,65 @@ function SupplierDetectionResult({ workflow }: { workflow: ClauseIqWorkflow }) {
   </section>;
 }
 
-function UnknownSupplierMapping({ workflow, name }: { workflow: ClauseIqWorkflow; name: string }) {
+function DetectedSupplierMapping({ workflow, name, unresolved = false }: { workflow: ClauseIqWorkflow; name: string; unresolved?: boolean }) {
   const [mappingOpen, setMappingOpen] = useState(false);
   const [supplierSearch, setSupplierSearch] = useState("");
+  const [manualAddOpen, setManualAddOpen] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const [supplierLocation, setSupplierLocation] = useState("");
+  const [website, setWebsite] = useState("");
+  const context = workflow.supplierDetectionContext;
   const supplierOptions = mockSupplierOptions().filter((supplier) => supplier.name.toLowerCase().includes(supplierSearch.toLowerCase()));
   const close = () => {
     setSupplierSearch("");
+    setNewSupplierName("");
+    setSupplierLocation("");
+    setWebsite("");
+    setManualAddOpen(false);
     setMappingOpen(false);
   };
-  const addSupplier = () => {
-    const alias = supplierSearch.trim();
+  const addSupplier = (supplierName = supplierSearch) => {
+    const alias = supplierName.trim();
     if (!alias) return;
     workflow.actions.saveDetectedAlias(alias);
     close();
   };
-  return <>
-    <div className="relative flex flex-wrap items-center gap-orbit-s text-orbit-sm" aria-label="Supplier"><span className="text-orbit-fg-secondary">Detected supplier</span><Button type="button" variant="outline" className="h-7 rounded-full border-amber-400 bg-amber-50 px-orbit-s text-orbit-xs text-amber-700 hover:bg-amber-100" onClick={() => setMappingOpen((open) => !open)} aria-expanded={mappingOpen}><span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded-full border border-amber-500 text-[10px]">?</span>{name} <span className="ml-1 text-amber-700/80">click to map</span></Button>{mappingOpen && <div className="absolute left-0 top-full z-30 mt-orbit-s w-[360px] rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-s shadow-orbit-md" role="dialog" aria-label="Map this contract to a supplier"><p className="text-orbit-sm v6-orbit-weight-semibold text-orbit-fg">Map this contract to a supplier</p><p className="mt-orbit-xxs text-orbit-xs text-orbit-fg-secondary">Search a known supplier or add a new one. Future rounds will be added here.</p><Input value={supplierSearch} onChange={(event) => setSupplierSearch(event.target.value)} placeholder="Search or type new supplier name" className="mt-orbit-s h-9" aria-label="Search suppliers" autoFocus /><div className="mt-orbit-xs max-h-52 overflow-y-auto">{supplierOptions.map((supplier) => <Button key={supplier.id} type="button" variant="ghost" className="h-8 w-full justify-start px-orbit-s text-orbit-sm" onClick={() => { workflow.actions.assignDetectedSupplier(supplier.id); close(); }}>{supplier.name}</Button>)}{supplierSearch.trim() && !supplierOptions.length && <Button type="button" variant="secondary" className="mt-orbit-xs h-8 w-full" onClick={addSupplier}>Add “{supplierSearch.trim()}” as new supplier</Button>}</div>{supplierSearch.trim() && supplierOptions.length > 0 && <Button type="button" variant="secondary" className="mt-orbit-s h-8 w-full" onClick={addSupplier}>Add “{supplierSearch.trim()}” as new supplier</Button>}</div>}</div>
-  </>;
+
+  return <div className={`relative flex flex-wrap items-center gap-orbit-s text-orbit-sm ${mappingOpen ? "z-50" : "z-0"}`} aria-label="Supplier">
+    <h3 className="sr-only">Supplier</h3>
+    <span className="flex items-center gap-orbit-xs text-orbit-fg-secondary"><Building2 className="h-3.5 w-3.5" />Detected supplier</span>
+    <Button type="button" variant="outline" className={`h-7 rounded-full px-orbit-s text-orbit-xs ${unresolved ? "border-amber-400 bg-amber-50 text-amber-700 hover:bg-amber-100" : "border-orbit-border bg-orbit-card text-orbit-fg hover:bg-orbit-surface"}`} onClick={() => setMappingOpen((open) => !open)} aria-label={unresolved ? `Map supplier ${name}` : `Supplier ${name} edit`} aria-controls="detected-supplier-picker" aria-expanded={mappingOpen}>
+      {unresolved ? <span className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded-full border border-amber-500 text-[10px]">?</span> : <Pencil className="mr-1 h-3 w-3" />}{name}<span className={`ml-1 ${unresolved ? "text-amber-700/80" : "text-orbit-fg-secondary"}`}>{unresolved ? "click to map" : "edit"}</span>
+    </Button>
+    {mappingOpen && <div id="detected-supplier-picker" className="absolute left-0 top-full z-40 mt-orbit-s max-h-[calc(100vh-6rem)] w-[min(360px,calc(100vw-2rem))] overflow-y-auto rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-base shadow-orbit-md" role="dialog" aria-label={manualAddOpen ? "Add Supplier Manually" : "Change Mapped Supplier"} aria-modal="false">
+      {manualAddOpen ? <>
+        <p className="block max-w-full break-words text-orbit-sm v6-orbit-weight-semibold text-orbit-fg">Add Supplier Manually</p>
+        <p className="mt-orbit-xs block max-w-full break-words text-orbit-sm leading-relaxed text-orbit-fg-secondary">Manually add a supplier for your initiative.</p>
+        <div className="mt-orbit-base space-y-orbit-s">
+          <label className="block text-orbit-xs v6-orbit-weight-semibold text-orbit-fg" htmlFor="clauseiq-manual-supplier-name">Supplier Name <span className="text-orbit-danger" aria-hidden="true">*</span></label>
+          <Input id="clauseiq-manual-supplier-name" value={newSupplierName} onChange={(event) => setNewSupplierName(event.target.value)} placeholder="Enter supplier name" aria-label="Supplier Name" autoFocus />
+          <label className="block text-orbit-xs v6-orbit-weight-semibold text-orbit-fg" htmlFor="clauseiq-manual-supplier-location">Supplier Location <span className="text-orbit-fg-secondary v6-orbit-weight-regular">(Optional)</span></label>
+          <Input id="clauseiq-manual-supplier-location" value={supplierLocation} onChange={(event) => setSupplierLocation(event.target.value)} placeholder="Enter supplier location" aria-label="Supplier Location (Optional)" />
+          <label className="block text-orbit-xs v6-orbit-weight-semibold text-orbit-fg" htmlFor="clauseiq-manual-supplier-website">Website <span className="text-orbit-fg-secondary v6-orbit-weight-regular">(Optional)</span></label>
+          <Input id="clauseiq-manual-supplier-website" value={website} onChange={(event) => setWebsite(event.target.value)} placeholder="e.g. www.example.com" aria-label="Website (Optional)" />
+        </div>
+        <div className="mt-orbit-base flex items-center justify-between gap-orbit-s border-t border-orbit-border pt-orbit-s"><OrbitButton variant="Tertiary" size="Small" state="Default" onClick={close}>Cancel</OrbitButton><OrbitButton variant="Primary" size="Small" state="Default" disabled={!newSupplierName.trim()} onClick={() => addSupplier(newSupplierName)}>Confirm</OrbitButton></div>
+      </> : <>
+        <p className="block max-w-full break-words text-orbit-sm v6-orbit-weight-semibold text-orbit-fg">Change Mapped Supplier</p>
+        <p className="mt-orbit-xs block max-w-full break-words text-orbit-sm leading-relaxed text-orbit-fg-secondary">Search for a supplier or add a new one.</p>
+        <Input value={supplierSearch} onChange={(event) => setSupplierSearch(event.target.value)} placeholder="Search or type new supplier name" className="mt-orbit-s h-9 w-full" aria-label="Search or type new supplier name" autoFocus />
+        <div className="mt-orbit-s max-h-52 space-y-orbit-xxs overflow-y-auto border-t border-orbit-border pt-orbit-s">
+          {supplierOptions.map((supplier) => {
+          const selected = context?.supplierId === supplier.id;
+            return <ToggleCard key={supplier.id} status={selected ? "Selected" : "Default"} aria-pressed={selected} aria-label={`${selected ? "Current" : "Select"} supplier ${supplier.name}`} className="w-full overflow-hidden" style={{ border: "0", boxShadow: "var(--orbit-shadow-none)" }} onClick={() => { workflow.actions.assignDetectedSupplier(supplier.id); close(); }}><span className="flex w-full items-center justify-between gap-orbit-s px-orbit-s py-orbit-xs text-left text-orbit-sm"><span className="min-w-0 truncate">{supplier.name}</span>{selected && <FaIcon icon={FA.check} size={12} />}</span></ToggleCard>;
+          })}
+          {supplierSearch.trim() && supplierOptions.length === 0 && <OrbitButton variant="Secondary" size="Small" state="Default" className="mt-orbit-xs w-full" onClick={() => addSupplier()}>Add “{supplierSearch.trim()}” as new supplier</OrbitButton>}
+        </div>
+        <div className="mt-orbit-s border-t border-orbit-border pt-orbit-s"><OrbitButton variant="Tertiary" size="Medium" state="Default" className="w-full" aria-expanded={manualAddOpen} onClick={() => setManualAddOpen(true)}>Manual Add Supplier</OrbitButton></div>
+      </>}
+    </div>}
+    {workflow.supplierCorrectionNotice && <p className="w-full text-orbit-xs text-orbit-success">Supplier updated — grouping corrected before round 2.</p>}
+  </div>;
 }
 
 export function PrototypeControl({ workflow }: { workflow: ClauseIqWorkflow }) {
@@ -501,10 +563,6 @@ export function PrototypeControl({ workflow }: { workflow: ClauseIqWorkflow }) {
     {open && <div className="absolute bottom-9 left-0 w-full rounded-orbit-md border border-[var(--orbit-color-sidenav-divider)] bg-[var(--orbit-color-sidenav-active-bg)] p-orbit-s text-[var(--orbit-color-sidenav-text)] shadow-lg"><label className="block text-orbit-xs v6-orbit-weight-medium text-orbit-inverse" htmlFor="supplier-detection-sim">Supplier detection preview</label><Select value={workflow.detectionOutcome} onValueChange={(value) => workflow.actions.setDetectionOutcome(value as typeof workflow.detectionOutcome)}><SelectTrigger id="supplier-detection-sim" className="mt-orbit-xs h-8 w-full bg-orbit-card text-orbit-xs clauseiq-v6-select-left clauseiq-v6a-simulation-select" aria-label="Supplier detection simulation"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="known">A · detected & known</SelectItem><SelectItem value="wrong-match">A′ · wrong match</SelectItem><SelectItem value="new">B · detected, not in list</SelectItem><SelectItem value="missing">C · not detected</SelectItem></SelectContent></Select><Button type="button" variant="outline" className="mt-orbit-s h-8 w-full border-[var(--orbit-color-sidenav-divider)] bg-transparent text-orbit-inverse hover:bg-[var(--orbit-color-sidenav-hover-bg)]" onClick={openInspector}>Inspect layout</Button></div>}
     <Button type="button" variant="outline" className="clauseiq-v6a-design-control-trigger h-7 w-full justify-center gap-orbit-xs border-[var(--orbit-color-sidenav-divider)] px-orbit-base text-orbit-xs text-orbit-inverse" onClick={() => setOpen((current) => !current)} aria-expanded={open}>Prototype tools</Button>
   </div>;
-}
-
-function DesignNotes() {
-  return <details className="rounded-orbit-lg border border-dashed border-orbit-border bg-orbit-surface/30 p-orbit-base text-orbit-xs text-orbit-fg-secondary"><summary className="cursor-pointer v6-orbit-weight-medium text-orbit-fg">Design notes</summary><div className="mt-orbit-s space-y-orbit-xs"><p>C1 — confirm whether resolving an Unknown retains its round UUID or remaps to supplier ID and re-links earlier rounds.</p><p>C4 — confirm unresolved Unknown round behaviour: UUID revisions, fresh no-detection creates the next Unknown, or resolution required before round 2.</p><p>C5 — confirm whether corrections are sent immediately or with the next analysis run.</p></div></details>;
 }
 
 function mockSupplierOptions() {
@@ -696,7 +754,7 @@ function InitialSupplierContextStep({ workflow }: { workflow: ClauseIqWorkflow }
         <SelectedSummaryRow
           label={`Supplier · ${workflow.initialSupplierName}`}
           disabled={false}
-          actionLabel="Change supplier"
+          actionLabel="Change Supplier"
           onAction={workflow.actions.clearInitialSupplierName}
         />
       </div>

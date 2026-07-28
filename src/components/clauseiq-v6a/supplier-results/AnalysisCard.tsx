@@ -114,6 +114,7 @@ export function AnalysisCard({
                 <Switch checked={saveToDocuments} onCheckedChange={setSaveToDocuments} aria-label="Save To Content Search" />
               </label>
             </div>
+            {supplierIdentityContent}
           </div>
 
           <div className="space-y-orbit-base">
@@ -130,7 +131,6 @@ export function AnalysisCard({
               status={status.label}
               tone={status.tone}
             />
-            {supplierIdentityContent}
           </div>
 
           <div className="space-y-orbit-base">
@@ -194,7 +194,7 @@ export function AnalysisCard({
                 {onDownload && (
                 <Button variant="outline" className="h-10 gap-orbit-s" onClick={onDownload}>
                   <Download className="h-4 w-4" />
-                  Download report
+                  Download Report
                 </Button>
                 )}
               </div>
@@ -263,18 +263,18 @@ function StatusLine({
   status,
   tone,
 }: {
-  icon: string;
-  label: string;
-  status: string;
-  tone: "neutral" | "success" | "warning" | "destructive";
+  icon?: string;
+  label?: string;
+  status?: string;
+  tone?: "neutral" | "success" | "warning" | "destructive";
 }) {
   return (
     <div className="clauseiq-responsive-status-line">
       <InlineBanner
-        variant={inlineBannerVariantFromTone(tone)}
+        variant={inlineBannerVariantFromTone(tone ?? "neutral")}
         contrast="Low"
         icon={icon}
-        label={label}
+        label={label ?? ""}
         status={status}
       />
     </div>

@@ -1,7 +1,7 @@
 import { useId, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { BarChart2, Download, RotateCw } from "@/components/clauseiq-v6a/v6aIcons";
-import { Card, FaIcon, InlineBanner } from "@orbit";
+import { Card, InlineBanner } from "@orbit";
 import { Button } from "@/components/clauseiq-v6a/orbit-ui/button";
 import { Chip } from "@/components/clauseiq-v6a/orbit-ui/indicators";
 import { Switch } from "@/components/clauseiq-v6a/orbit-ui/switch";
@@ -23,7 +23,7 @@ interface Props {
   analysis: ClauseAnalysis;
   supplier?: Supplier;
   showSupplier?: boolean;
-  onRunAgain?: () => void;
+  onRunAgain?: (supplier?: Supplier) => void;
   onDownload?: () => void;
   onViewResult?: () => void;
   viewResultPrimary?: boolean;
@@ -186,7 +186,7 @@ export function AnalysisCard({
             {(onRunAgain || onDownload) && (
               <div className={cn("clauseiq-responsive-secondary-actions grid gap-orbit-s", onRunAgain && onDownload ? "sm:grid-cols-2" : "grid-cols-1")}>
                 {onRunAgain && (
-                  <Button variant="outline" className="h-10 gap-orbit-s" onClick={onRunAgain}>
+                  <Button variant="outline" className="h-10 gap-orbit-s" onClick={() => onRunAgain(supplier)}>
                     <RotateCw className="h-4 w-4" />
                     Run Analysis Again
                   </Button>
@@ -236,24 +236,12 @@ function ParameterStatusLine({
   status: string;
 }) {
   return (
-    <div className="clauseiq-responsive-status-line">
-      <div className="flex min-h-[var(--orbit-inline-banner-height)] w-full items-center justify-between gap-orbit-s rounded-orbit-md bg-[var(--orbit-color-status-high-bg-no-status)] px-orbit-s py-orbit-xs text-[var(--orbit-color-text-primary)]">
-        <div className="flex min-w-0 flex-1 items-center gap-orbit-xs">
-          <span
-            className="inline-flex h-[var(--orbit-inline-banner-icon-box-size)] w-[var(--orbit-inline-banner-icon-box-size)] shrink-0 items-center justify-center"
-            aria-hidden="true"
-          >
-            <FaIcon icon={icon} size={12} color="var(--orbit-color-dove-gray)" />
-          </span>
-          <span className="min-w-0 flex-1 break-words text-orbit-sm leading-orbit-snug">
-            <span className="v6-orbit-weight-medium">{label}</span>
-            <span aria-hidden="true"> · </span>
-            <span>{value}</span>
-          </span>
-        </div>
-        <span className="shrink-0 text-orbit-sm leading-orbit-tight">{status}</span>
-      </div>
-    </div>
+    <StatusLine
+      icon={icon}
+      label={`${label} · ${value}`}
+      status={status}
+      tone="neutral"
+    />
   );
 }
 

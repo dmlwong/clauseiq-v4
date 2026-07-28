@@ -1,13 +1,14 @@
 import type { ReactNode } from "react";
-import type { Initiative } from "@/data/mock-clauseiq-v6";
+import type { Initiative, Supplier } from "@/data/mock-clauseiq-v6";
 import { OptionAccordion } from "./OptionAccordion";
 import { OutputPanelResultsContent } from "./OutputPanelResultsContent";
 import type { AnalysisParameterItem, ResultsLayout, SupplierOutputSelection } from "./types";
 
 interface Props {
   initiative: Initiative;
-  onRunAgain?: () => void;
+  onRunAgain?: (supplier?: Supplier) => void;
   onDownload?: () => void;
+  onUploadToSupplier?: (supplier: Supplier) => void;
   onViewResult?: (selection?: SupplierOutputSelection) => void;
   viewResultPrimary?: boolean;
   highlightLatestOutput?: boolean;
@@ -25,6 +26,7 @@ export function ResultsContent({
   initiative,
   onRunAgain,
   onDownload,
+  onUploadToSupplier,
   onViewResult,
   viewResultPrimary = true,
   highlightLatestOutput = true,
@@ -43,6 +45,7 @@ export function ResultsContent({
         initiative={initiative}
         onRunAgain={onRunAgain}
         onDownload={onDownload}
+        onUploadToSupplier={onUploadToSupplier}
         onViewResult={onViewResult}
         viewResultPrimary={viewResultPrimary}
         highlightLatestOutput={highlightLatestOutput}

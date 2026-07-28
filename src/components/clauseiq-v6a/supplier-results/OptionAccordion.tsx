@@ -83,6 +83,7 @@ export function OptionAccordion({ initiative, onRunAgain, onDownload, onViewResu
                         <AnalysisCard
                           key={analysis.id}
                           analysis={analysis}
+                          supplier={supplier}
                           onRunAgain={onRunAgain}
                           onDownload={onDownload}
                           onViewResult={

@@ -2397,6 +2397,14 @@ export function ContractResults({
     if (!usesRowScaleDesign && !showNoneDeviationClause && hasFirstAnalysisAction(clause.id)) return false;
     return true;
   });
+  const firstAnalysisTableVisibleCount = firstAnalysisAllClauses.filter((clause) => {
+    if (activeCategorySet.size > 0 && !activeCategorySet.has(clause.category)) return false;
+    if (!matchesFirstAnalysisMetricFilter(clause)) return false;
+    if (firstAnalysisStatusFilter !== "all" && (firstAnalysisStatusFilter === "met") !== isFirstAnalysisPositionMet(clause)) return false;
+    if (!search.trim()) return true;
+    const query = search.trim().toLowerCase();
+    return clause.title.toLowerCase().includes(query) || clause.category.toLowerCase().includes(query) || clause.id.includes(query);
+  }).length;
   const firstAnalysisDistribution: DeviationDistribution = {
     high: firstAnalysisCategoryClauses.filter((clause) => clause.severity === "high" && !clause.resolved && countsTowardDeviationMetric(clause)).length,
     medium: firstAnalysisCategoryClauses.filter((clause) => clause.severity === "medium" && !clause.resolved && countsTowardDeviationMetric(clause)).length,
@@ -2654,6 +2662,13 @@ export function ContractResults({
     ...categoryNoActionRows,
     ...categoryUnmarkedRows,
   ];
+  const allComparisonRows = Array.from(new Map([
+    ...comparisonSections.open,
+    ...comparisonSections.newIssues,
+    ...comparisonSections.closed,
+    ...comparisonSections.noAction,
+    ...comparisonSections.unmarked,
+  ].map((row) => [row.id, row])).values());
   const categoryOpenStats = summariseComparisonRows(categoryOpenRows);
   const categoryNewIssueStats = summariseComparisonRows(categoryNewIssueRows);
   const selectedOutcomeReviewCount = categoryOpenRows.length + categoryNewIssueRows.length + categoryClosedRows.length;
@@ -2714,6 +2729,9 @@ export function ContractResults({
   const designUnmarkedRows = sortOutcomeComparisonRows(filterRowsByQuickState(
     categoryUnmarkedRows,
   ));
+  const comparisonFilterVisibleCount = filterRowsByQuickState(
+    allComparisonRows.filter((row) => matchesCategory(row.id)),
+  ).length;
   const activeEvidenceMetric: EvidenceMetricKey | null =
     quickFilter === "not-met" ||
     quickFilter === "met" ||
@@ -3423,7 +3441,6 @@ export function ContractResults({
     <InitialAnalysisTableFilterBar
       activeMetrics={firstAnalysisMetricFilters}
       onMetricToggle={selectFirstAnalysisMetric}
-      onClearMetrics={clearAllFirstAnalysisMetrics}
       section={activeCategories.length === 1 ? activeCategories[0] : "all"}
       sections={comparisonCategoryItems}
       onSectionChange={(section) => setActiveCategories(section === "all" ? [] : [section])}
@@ -3432,10 +3449,15 @@ export function ContractResults({
         setActiveCategories([]);
         setFirstAnalysisStatusFilter("all");
       }}
+      hasActiveFilters={
+        firstAnalysisMetricFilters.size > 0 ||
+        firstAnalysisStatusFilter !== "all" ||
+        activeCategories.length > 0
+      }
       metrics={firstAnalysisMetrics}
       status={firstAnalysisStatusFilter}
       statusCounts={firstAnalysisStatusCounts}
-      onStatusChange={(status) => setFirstAnalysisStatusFilter(status)}
+      onStatusChange={(status) => setFirstAnalysisStatusFilter((current) => current === status ? "all" : status)}
     />
   ) : null;
   const firstAnalysisReviewList = firstAnalysisVersion ? (
@@ -3483,6 +3505,25 @@ export function ContractResults({
       acceptedClauseIds={acceptedFirstAnalysisClauseIds}
       tableFilters={undefined}
       initialStatusFilter={firstAnalysisStatusFilter}
+      initialFilterEmptyState={
+        firstAnalysisTableVisibleCount === 0 &&
+        (firstAnalysisMetricFilters.size > 0 || activeCategories.length > 0 || firstAnalysisStatusFilter !== "all") ? (
+          <div className="rounded-orbit-md border border-orbit-border bg-orbit-card p-orbit-base text-center text-orbit-sm text-orbit-fg-secondary">
+            No clauses match your filters. {" "}
+            <button
+              type="button"
+              className="text-orbit-primary hover:underline"
+              onClick={() => {
+                clearAllFirstAnalysisMetrics();
+                setActiveCategories([]);
+                setFirstAnalysisStatusFilter("all");
+              }}
+            >
+              Clear
+            </button>
+          </div>
+        ) : undefined
+      }
       isDashboardLocked={isDashboardLocked}
     />
   ) : null;
@@ -3670,6 +3711,18 @@ export function ContractResults({
               },
             },
           ) : null}
+          filterEmptyState={
+            comparisonFilterVisibleCount === 0 && (
+              comparisonStatusFilter !== "all" ||
+              comparisonDeviationFilter !== "all" ||
+              activeCategories.length > 0
+            ) ? (
+              <div className="rounded-orbit-md border border-orbit-border bg-orbit-card p-orbit-base text-center text-orbit-sm text-orbit-fg-secondary">
+                No clauses match your filters. {" "}
+                <button type="button" className="text-orbit-primary hover:underline" onClick={clearComparisonOptionTwoFilters}>Clear</button>
+              </div>
+            ) : null
+          }
         />
       }
       openItems={
@@ -7530,7 +7583,12 @@ function ClauseDecisionCard({
   selectedComparisonAction?: "accepted" | ClauseOutcome;
 }) {
   const bulkSelectionContext = useContext(BulkClauseSelectionContext);
-  const [completedExpanded, setCompletedExpanded] = useState(initiallyCompletedExpanded);
+  const [completedExpanded, setCompletedExpanded] = useState(
+    initiallyCompletedExpanded || selectedComparisonAction === "accepted",
+  );
+  useEffect(() => {
+    if (selectedComparisonAction === "accepted") setCompletedExpanded(true);
+  }, [selectedComparisonAction]);
   const [detailsExpanded, setDetailsExpanded] = useState(defaultDetailsExpanded);
   const useDefaultComparisonCard = Boolean(extraContent && !neutralActions);
   const pendingBasketRequest = request?.state === "pending" && Boolean(request.requestedChange?.trim());
@@ -7641,7 +7699,7 @@ function ClauseDecisionCard({
                   onCheckedChange={(checked) => (onBulkClauseSelectionChange ?? bulkSelectionContext.onSelectionChange)(id, checked === true)}
                 />
               )}
-              {showHandledCompact && (
+              {showHandledCompact && selectedComparisonAction !== "accepted" && (
                 <span className="inline-flex w-[168px] shrink-0">{completedStatusChip}</span>
               )}
               <h3 className="v6-orbit-heading-label truncate text-orbit-fg">
@@ -7784,17 +7842,6 @@ function ClauseDecisionCard({
         {actions && !showHandledCompact && (
           <div className="mt-orbit-s flex items-center gap-orbit-xs" onClick={(event) => event.stopPropagation()}>
             {actions}
-          </div>
-        )}
-
-        {showAcceptedCompact && completedExpanded && (
-          <div className="mt-orbit-s" onClick={(event) => event.stopPropagation()}>
-            <div className="rounded-orbit-md border border-orbit-success-border bg-orbit-success-surface px-orbit-base py-orbit-s text-orbit-xs text-orbit-success">
-              <p className="v6-orbit-weight-medium">Accepted supplier position.</p>
-              <p className="mt-orbit-xxs text-orbit-success/80">
-                This clause is accepted for the current supplier version and stays monitored in future rounds.
-              </p>
-            </div>
           </div>
         )}
 
@@ -8528,6 +8575,7 @@ function RoundComparisonDashboard({
   regressed,
   acceptedAsIs,
   metPositions,
+  filterEmptyState,
 }: {
   banner: ReactNode;
   bulkBanner?: ReactNode;
@@ -8542,6 +8590,7 @@ function RoundComparisonDashboard({
   regressed: ReactNode;
   acceptedAsIs: ReactNode;
   metPositions: ReactNode;
+  filterEmptyState?: ReactNode;
 }) {
   const scoreDelta = currentScore - previousScore;
 
@@ -8578,6 +8627,7 @@ function RoundComparisonDashboard({
         {regressed}
         {acceptedAsIs}
         {metPositions}
+        {filterEmptyState}
       </div>
     </div>
   );
@@ -8712,23 +8762,20 @@ function RoundComparisonFilterBar({
   hasActiveFilters: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-orbit-s gap-y-orbit-s">
+    <div className="flex flex-wrap items-center gap-x-orbit-base gap-y-orbit-s">
       <RoundComparisonFilterGroup
         label="Status"
         value={status}
         options={[
-          ["all", "All"],
           ["met", "Met"],
-          ["not-met", "Not Met"],
+          ["not-met", "Not met"],
         ]}
         onChange={onStatusChange}
       />
-      <span className="hidden h-5 w-px bg-orbit-border sm:block" aria-hidden="true" />
       <RoundComparisonFilterGroup
         label="Deviation"
         value={deviation}
         options={[
-          ["all", "All"],
           ["high", "High"],
           ["medium", "Medium"],
           ["low", "Low"],
@@ -8737,30 +8784,22 @@ function RoundComparisonFilterBar({
         ]}
         onChange={onDeviationChange}
       />
-      <span className="hidden h-5 w-px bg-orbit-border sm:block" aria-hidden="true" />
       <label className="flex items-center gap-orbit-s text-orbit-xs text-orbit-fg-secondary">
-        <span className="v6-orbit-weight-semibold">Clauses</span>
+        <span className="v6-orbit-weight-semibold">Section</span>
         <Select value={section} onValueChange={onSectionChange}>
           <SelectTrigger className="h-8 min-w-[320px] bg-orbit-card text-orbit-xs clauseiq-v6-select-left" aria-label="Section">
-            <SelectValue placeholder="All Sections" />
+            <SelectValue placeholder="All" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Sections</SelectItem>
+            <SelectItem value="all">All</SelectItem>
             {sections.map((item) => <SelectItem key={item.name} value={item.name}>{item.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </label>
       {hasActiveFilters ? (
-        <span className="ml-auto shrink-0 [&>a]:!text-orbit-primary">
-          <LinkText
-            label="Clear Filters"
-            href="#clear-filters"
-            onClick={(event) => {
-              event.preventDefault();
-              onClearFilters();
-            }}
-          />
-        </span>
+        <button type="button" className="ml-auto shrink-0 text-orbit-xs text-orbit-primary hover:underline" onClick={onClearFilters}>
+          Clear Filters
+        </button>
       ) : null}
     </div>
   );
@@ -8769,11 +8808,11 @@ function RoundComparisonFilterBar({
 function InitialAnalysisTableFilterBar({
   activeMetrics,
   onMetricToggle,
-  onClearMetrics,
   section,
   sections,
   onSectionChange,
   onClearFilters,
+  hasActiveFilters,
   metrics,
   status,
   statusCounts,
@@ -8781,11 +8820,11 @@ function InitialAnalysisTableFilterBar({
 }: {
   activeMetrics: Set<FirstAnalysisMetricKey>;
   onMetricToggle: (metric: FirstAnalysisMetricKey) => void;
-  onClearMetrics: () => void;
   section: string;
   sections: CategorySidebarItem[];
   onSectionChange: (value: string) => void;
   onClearFilters: () => void;
+  hasActiveFilters: boolean;
   metrics: FirstAnalysisMetrics;
   status: InitialAnalysisStatusFilter;
   statusCounts: { met: number; notMet: number };
@@ -8798,55 +8837,39 @@ function InitialAnalysisTableFilterBar({
     ["missing", "Missing", metrics.missingClauses],
     ["none", "None", metrics.noneDeviation],
   ];
-  // Missing is a subset of the deviation severity counts, so do not add it
-  // again when calculating the total row count.
-  const total = metrics.high + metrics.medium + metrics.low + metrics.noneDeviation;
-  const hasActiveFilters = activeMetrics.size > 0 || section !== "all" || status !== "all";
-
   return (
-    <div className="flex flex-wrap items-center gap-x-orbit-s gap-y-orbit-s">
+    <div className="flex flex-wrap items-center gap-x-orbit-base gap-y-orbit-s">
       <div className="flex flex-wrap items-center gap-orbit-xs [&_[aria-pressed='true']]:!border-orbit-primary [&_[aria-pressed='true']]:!bg-orbit-primary [&_[aria-pressed='true']]:!text-orbit-inverse [&_[aria-pressed='true']_span]:!text-orbit-inverse" role="group" aria-label="Status">
         <span className="text-orbit-sm v6-orbit-weight-semibold text-orbit-fg-secondary">Status</span>
         <QuickFilterGroup ariaLabel="Status">
-          <QuickFilterItem label={`All · ${statusCounts.met + statusCounts.notMet}`} selected={status === "all"} onClick={() => onStatusChange("all")} />
           <QuickFilterItem label={`Met · ${statusCounts.met}`} selected={status === "met"} onClick={() => onStatusChange("met")} />
-          <QuickFilterItem label={`Not Met · ${statusCounts.notMet}`} selected={status === "not-met"} onClick={() => onStatusChange("not-met")} />
+          <QuickFilterItem label={`Not met · ${statusCounts.notMet}`} selected={status === "not-met"} onClick={() => onStatusChange("not-met")} />
         </QuickFilterGroup>
       </div>
-      <span className="hidden h-5 w-px bg-orbit-border sm:block" aria-hidden="true" />
       <div className="flex flex-wrap items-center gap-orbit-xs" role="group" aria-label="Deviation">
         <span className="text-orbit-sm v6-orbit-weight-semibold text-orbit-fg-secondary">Deviation</span>
         <QuickFilterGroup ariaLabel="Deviation">
-          <QuickFilterItem label={`All · ${total}`} selected={activeMetrics.size === 0} onClick={onClearMetrics} />
           {filters.map(([value, label, count]) => (
             <QuickFilterItem key={value} label={`${label} · ${count}`} selected={activeMetrics.has(value)} onClick={() => onMetricToggle(value)} />
           ))}
         </QuickFilterGroup>
       </div>
-      <span className="hidden h-5 w-px bg-orbit-border sm:block" aria-hidden="true" />
       <label className="flex items-center gap-orbit-s text-orbit-sm text-orbit-fg-secondary">
-        <span className="v6-orbit-weight-semibold">Clauses</span>
+        <span className="v6-orbit-weight-semibold">Section</span>
         <Select value={section} onValueChange={onSectionChange}>
           <SelectTrigger className="h-8 min-w-[280px] bg-orbit-card text-orbit-xs clauseiq-v6-select-left" aria-label="Section">
-            <SelectValue placeholder="All Sections" />
+            <SelectValue placeholder="All" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Sections</SelectItem>
+            <SelectItem value="all">All</SelectItem>
             {sections.map((item) => <SelectItem key={item.name} value={item.name}>{item.name}</SelectItem>)}
           </SelectContent>
         </Select>
       </label>
       {hasActiveFilters ? (
-        <span className="ml-auto shrink-0 [&>a]:!text-orbit-primary">
-          <LinkText
-            label="Clear Filters"
-            href="#clear-filters"
-            onClick={(event) => {
-              event.preventDefault();
-              onClearFilters();
-            }}
-          />
-        </span>
+        <button type="button" className="ml-auto shrink-0 text-orbit-xs text-orbit-primary hover:underline" onClick={onClearFilters}>
+          Clear Filters
+        </button>
       ) : null}
     </div>
   );
@@ -8943,13 +8966,13 @@ function RoundComparisonFilterGroup<T extends string>({
   return (
     <div className="flex flex-wrap items-center gap-orbit-xs [&_[role=toolbar]]:gap-orbit-xs [&_button[aria-pressed=true]]:!border-orbit-primary [&_button[aria-pressed=true]]:!bg-orbit-primary [&_button[aria-pressed=true]_span]:!text-orbit-primary-foreground">
       <span className="text-orbit-xs v6-orbit-weight-semibold text-orbit-fg-secondary">{label}</span>
-      <QuickFilterGroup ariaLabel={label}>
+        <QuickFilterGroup ariaLabel={label}>
         {options.map(([optionValue, optionLabel]) => (
           <QuickFilterItem
             key={optionValue}
             label={optionLabel}
             selected={value === optionValue}
-            onClick={() => onChange(optionValue)}
+            onClick={() => onChange(value === optionValue ? ("all" as T) : optionValue)}
           />
         ))}
       </QuickFilterGroup>
@@ -10291,6 +10314,7 @@ function ReviewScreen({
   acceptedClauseIds,
   tableFilters,
   initialStatusFilter = "all",
+  initialFilterEmptyState,
   isDashboardLocked = false,
 }: {
   version: ContractVersion;
@@ -10324,6 +10348,7 @@ function ReviewScreen({
   acceptedClauseIds?: Set<string>;
   tableFilters?: ReactNode;
   initialStatusFilter?: InitialAnalysisStatusFilter;
+  initialFilterEmptyState?: ReactNode;
   isDashboardLocked?: boolean;
 }) {
   const [pendingDraftCancelId, setPendingDraftCancelId] = useState<string | null>(null);
@@ -10458,7 +10483,7 @@ function ReviewScreen({
     );
   };
 
-  const emptyState = (
+  const emptyState = initialFilterEmptyState ?? (
     <div className="bg-orbit-card border border-orbit-border rounded-orbit-lg p-orbit-xxl text-center text-orbit-sm text-orbit-fg-secondary">
       No clauses match this category.
     </div>
@@ -10651,7 +10676,7 @@ function InitialAnalysisRecommendationTable({
   const activeRows = rows.filter((clause) => !acceptedRows.some((accepted) => accepted.id === clause.id));
   const recommendationRows = activeRows.filter(promoted);
   const noRecommendationRows = activeRows.filter((clause) => !promoted(clause));
-  const positionMetRows = [...noRecommendationRows, ...acceptedRows];
+  const positionMetRows = [...acceptedRows, ...noRecommendationRows];
   const selectableRecommendationRows = recommendationRows.filter((clause) => {
     const state = stateOf(clause.id);
     return state.roundDecisions[versionLabel] !== "no-action" && !acceptedClauseIds?.has(clause.id);
@@ -10782,14 +10807,16 @@ function InitialAnalysisRecommendationTable({
 
   return <div className="space-y-orbit-base">
     {selectedRecommendationIds.length > 0 ? <div className="flex items-center justify-between gap-orbit-base rounded-orbit-md border border-orbit-border bg-orbit-heading px-orbit-base py-orbit-s text-orbit-inverse"><span className="font-medium">{selectedRecommendationIds.length} Clause{selectedRecommendationIds.length === 1 ? "" : "s"} Selected</span><div className="flex items-center gap-orbit-xs"><Button variant="secondary" className="h-8" disabled={locked} onClick={() => selectedRecommendationIds.forEach((id) => onBulkClauseSelectionChange?.(id, false))}>Clear</Button><Button className="h-8" disabled={locked} onClick={onAcceptSelected}>✓ Accept Supplier Positions</Button><Button variant="ghost" size="icon" aria-label="Close Bulk Selection" title="Close Bulk Selection" className="text-orbit-inverse hover:bg-orbit-card/20" disabled={locked} onClick={() => selectedRecommendationIds.forEach((id) => onBulkClauseSelectionChange?.(id, false))}><X className="h-4 w-4" aria-hidden="true" /></Button></div></div> : null}
-    <section className="overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">
-      {sectionHeader("position-not-met", "Position Not Met", recommendationRows.length, "The supplier deviates from your position on these clauses. Accept their wording to close a clause, or set your next position.", Boolean(filters))}
-      {openTableSections["position-not-met"] ? renderTable(recommendationRows, "position-not-met", "position-not-met") : null}
-    </section>
-    <section className="overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">
-      {sectionHeader("position-met", "Position Met", positionMetRows.length, "No action needed — the supplier meets your position, or you've accepted their wording. Add a counter-position to reopen a clause.", false)}
-      {openTableSections["position-met"] ? renderTable(positionMetRows, "position-met", "position-met") : null}
-    </section>
+    {rows.length === 0 ? emptyState : <>
+      <section className="overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">
+        {sectionHeader("position-not-met", "Position Not Met", recommendationRows.length, "The supplier deviates from your position on these clauses. Accept their wording to close a clause, or set your next position.", Boolean(filters))}
+        {openTableSections["position-not-met"] ? renderTable(recommendationRows, "position-not-met", "position-not-met") : null}
+      </section>
+      <section className="overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">
+        {sectionHeader("position-met", "Position Met", positionMetRows.length, "No action needed — the supplier meets your position, or you've accepted their wording. Add a counter-position to reopen a clause.", false)}
+        {openTableSections["position-met"] ? renderTable(positionMetRows, "position-met", "position-met") : null}
+      </section>
+    </>}
     <InitialAnalysisNextRoundGuide />
   </div>;
 }
@@ -10803,21 +10830,25 @@ function InitialAnalysisNextRoundGuide() {
         <div className="mt-orbit-xs w-full"><Text as="p" size="Small" variant="Secondary">When the supplier sends their revised contract, we line each new clause up against the position you saved here — and flag every one as met or not met.</Text></div>
       </div>
       <div className="mt-orbit-base grid gap-orbit-s lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:items-stretch">
-        <NextRoundGuideCard eyebrow="From this guide" title="Your position" description="The recommendations you save become the position ClauseIQ measures against." icon={<FileText className="h-4 w-4" />} />
+        <div className="min-w-0"><NextRoundGuideCard eyebrow="From this guide" title="Your position" description="The recommendations you save become the position ClauseIQ measures against." icon={<FileText className="h-4 w-4" />} /></div>
         <ArrowRight className="m-auto hidden h-4 w-4 text-orbit-fg-secondary lg:block" aria-hidden="true" />
-        <NextRoundGuideCard eyebrow="Supplier's next draft" title="Round 2 clause" description="ClauseIQ reads the revised supplier wording alongside your saved position." icon={<FileText className="h-4 w-4" />} />
+        <div className="min-w-0"><NextRoundGuideCard eyebrow="Supplier's next draft" title="Round 2 clause" description="ClauseIQ reads the revised supplier wording alongside your saved position." icon={<FileText className="h-4 w-4" />} /></div>
         <ArrowRight className="m-auto hidden h-4 w-4 text-orbit-fg-secondary lg:block" aria-hidden="true" />
-        <NextRoundGuideCard eyebrow="Result Per Clause" title="Met Or Not Met" description="Each clause is flagged so you can concede or propose the next-round change." icon={<CheckCircle2 className="h-4 w-4" />} />
+        <div className="min-w-0"><NextRoundGuideCard eyebrow="Result Per Clause" title="Met Or Not Met" description="Each clause is flagged so you can concede or propose the next-round change." icon={<CheckCircle2 className="h-4 w-4" />} /></div>
       </div>
       <div className="mt-orbit-base grid gap-orbit-s border-t border-orbit-border pt-orbit-base md:grid-cols-2">
-        <Card type="Static" padding="Base" state="Warning" indicator={false}>
-          <Text as="p" size="Small" variant="Bold">Concede</Text>
-          <div className="mt-orbit-xxs"><Text as="p" size="Small" variant="Secondary">Accept the supplier's wording and move on. Your updated Current Position records the trade-off.</Text></div>
-        </Card>
-        <Card type="Static" padding="Base" state="Accent" indicator={false}>
-          <Text as="p" size="Small" variant="Bold">Propose next-round change</Text>
-          <div className="mt-orbit-xxs"><Text as="p" size="Small" variant="Secondary">Keep the fight — ClauseIQ drafts a revised position for you to send back.</Text></div>
-        </Card>
+        <div className="min-w-0">
+          <Card type="Static" padding="Base" state="Warning" indicator={false}>
+            <Text as="p" size="Small" variant="Bold">Concede</Text>
+            <div className="mt-orbit-xxs"><Text as="p" size="Small" variant="Secondary">Accept the supplier's wording and move on. Your updated Current Position records the trade-off.</Text></div>
+          </Card>
+        </div>
+        <div className="min-w-0">
+          <Card type="Static" padding="Base" state="Accent" indicator={false}>
+            <Text as="p" size="Small" variant="Bold">Propose next-round change</Text>
+            <div className="mt-orbit-xxs"><Text as="p" size="Small" variant="Secondary">Keep the fight — ClauseIQ drafts a revised position for you to send back.</Text></div>
+          </Card>
+        </div>
       </div>
     </Card>
   );
@@ -10826,12 +10857,14 @@ function InitialAnalysisNextRoundGuide() {
 function NextRoundGuideCard({ eyebrow, title, description, icon }: { eyebrow: string; title: string; description: string; icon: ReactNode }) {
   return (
     <Card type="Static" padding="Base" state="Information" indicator={false}>
-      <div className="flex items-center gap-orbit-xs text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wide text-orbit-primary">
-        {icon}
-        <Text as="span" size="Small" variant="Information">{eyebrow}</Text>
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-orbit-xs text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wide text-orbit-primary">
+          {icon}
+          <Text as="span" size="Small" variant="Information">{eyebrow}</Text>
+        </div>
+        <div className="mt-orbit-s"><Text as="p" size="Small" variant="Bold">{title}</Text></div>
+        <div className="mt-orbit-xxs"><Text as="p" size="Small" variant="Secondary">{description}</Text></div>
       </div>
-      <div className="mt-orbit-s"><Text as="p" size="Small" variant="Bold">{title}</Text></div>
-      <div className="mt-orbit-xxs"><Text as="p" size="Small" variant="Secondary">{description}</Text></div>
     </Card>
   );
 }

@@ -116,7 +116,7 @@ export function OutputFindingsSummary({
   showComparisonStatus: boolean;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-orbit-base md:grid-cols-2 md:gap-x-orbit-s">
+    <div className="flex flex-wrap items-start gap-x-orbit-l gap-y-orbit-base">
       <div className="flex w-fit max-w-full flex-col gap-orbit-s">
         <Text as="span" className="v6-orbit-heading-strong text-[var(--orbit-color-text-primary)]">
           Clause Target Status

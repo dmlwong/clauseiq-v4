@@ -239,32 +239,32 @@ describe("ContractResults V6A review controls", () => {
     const visibleClauseRows = () => container.querySelectorAll('[id^="clause-row-"]').length;
     const before = visibleClauseRows();
 
-    expect(statusFilters().getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
-    expect(deviationFilters().getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.queryByRole("link", { name: "Clear Filters" })).not.toBeInTheDocument();
+    expect(statusFilters().queryByRole("button", { name: "All" })).not.toBeInTheDocument();
+    expect(deviationFilters().queryByRole("button", { name: "All" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Showing all \d+ clauses/)).toBeInTheDocument();
 
     fireEvent.click(statusFilters().getByRole("button", { name: "Met" }));
     await waitFor(() => {
       expect(statusFilters().getByRole("button", { name: "Met" })).toHaveAttribute("aria-pressed", "true");
-      expect(screen.getByRole("link", { name: "Clear Filters" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Clear" })).toBeInTheDocument();
       expect(visibleClauseRows()).toBeLessThan(before);
       expect(screen.queryByText("Action required — position still not met")).not.toBeInTheDocument();
       expect(screen.queryByText("Regressed — previously agreed, but changed by the supplier")).not.toBeInTheDocument();
       expect(screen.queryByText("Accepted As-Is")).not.toBeInTheDocument();
     });
 
-    fireEvent.click(statusFilters().getByRole("button", { name: "All" }));
+    fireEvent.click(statusFilters().getByRole("button", { name: "Met" }));
     await waitFor(() => {
-      expect(statusFilters().getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByText(/Showing all \d+ clauses/)).toBeInTheDocument();
     });
 
-    fireEvent.click(statusFilters().getByRole("button", { name: "Not Met" }));
+    fireEvent.click(statusFilters().getByRole("button", { name: "Not met" }));
     await waitFor(() => {
-      expect(statusFilters().getByRole("button", { name: "Not Met" })).toHaveAttribute("aria-pressed", "true");
+      expect(statusFilters().getByRole("button", { name: "Not met" })).toHaveAttribute("aria-pressed", "true");
       expect(visibleClauseRows()).toBeGreaterThan(0);
     });
 
-    fireEvent.click(statusFilters().getByRole("button", { name: "All" }));
+    fireEvent.click(statusFilters().getByRole("button", { name: "Not met" }));
 
     fireEvent.click(deviationFilters().getByRole("button", { name: "High" }));
 
@@ -273,11 +273,11 @@ describe("ContractResults V6A review controls", () => {
       expect(visibleClauseRows()).toBeLessThan(before);
     });
 
-    fireEvent.click(screen.getByRole("link", { name: "Clear Filters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
     await waitFor(() => {
-      expect(statusFilters().getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
-      expect(deviationFilters().getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
-      expect(screen.queryByRole("link", { name: "Clear Filters" })).not.toBeInTheDocument();
+      expect(statusFilters().queryByRole("button", { name: "All" })).not.toBeInTheDocument();
+      expect(deviationFilters().queryByRole("button", { name: "All" })).not.toBeInTheDocument();
+      expect(screen.getByText(/Showing all \d+ clauses/)).toBeInTheDocument();
     });
   });
 

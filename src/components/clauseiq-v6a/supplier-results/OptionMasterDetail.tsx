@@ -51,6 +51,7 @@ export function OptionMasterDetail({
                   <AnalysisCard
                     key={analysis.id}
                     analysis={analysis}
+                    supplier={selectedSupplier}
                     onRunAgain={onRunAgain}
                     onDownload={onDownload}
                     onViewResult={onViewResult}

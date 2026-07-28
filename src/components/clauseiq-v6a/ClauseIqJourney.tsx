@@ -299,12 +299,13 @@ function ResultsStep({
         <ResultsContent
           initiative={workflow.resultsInitiative}
           layout={resultsLayout}
-          onRunAgain={workflow.actions.showRunAgainUpload}
+          onRunAgain={(supplier) => workflow.actions.showRunAgainUpload(supplier?.id)}
           onDownload={
             resultsLayout === "output-panel"
               ? undefined
               : workflow.actions.handleDownload
           }
+          onUploadToSupplier={(supplier) => workflow.actions.showRerunUploadForSupplier(supplier.id)}
           onViewResult={onViewResult}
           viewResultPrimary={!workflow.newAnalysisSectionVisible}
           highlightLatestOutput={!workflow.newAnalysisSectionVisible}
@@ -403,7 +404,7 @@ function ResultsStep({
           <AnalysisCard
             analysis={workflow.completedRerunAnalysis}
             supplier={workflow.completedRerunSupplier}
-            onRunAgain={workflow.actions.showRunAgainUpload}
+            onRunAgain={(supplier) => workflow.actions.showRunAgainUpload(supplier?.id)}
             onViewResult={() => {
               const chronological = [
                 ...workflow.completedRerunSupplier.analyses,
@@ -541,31 +542,40 @@ function DetectedSupplierMapping({
     close();
   };
 
-  const actionAriaLabel = unassigned ? actionLabel : `${actionLabel} supplier ${name}`;
-
   return <div className={`relative ${mappingOpen ? "z-50" : "z-0"}`} aria-label="Supplier">
     {unassigned ? (
-      <div className="flex min-h-11 w-full items-center justify-between gap-orbit-s rounded-orbit-md border border-amber-300 bg-amber-50 px-orbit-base py-orbit-s text-orbit-sm text-amber-900">
+      <div className="flex min-h-11 w-full items-center justify-between gap-orbit-s rounded-orbit-md border border-amber-300 bg-amber-50 px-orbit-s py-orbit-s text-orbit-sm text-amber-900">
         <div className="flex min-w-0 items-center gap-orbit-s">
           <Building2 className="h-4 w-4 shrink-0" aria-hidden="true" />
           <div className="min-w-0">
             <p className="v6-orbit-weight-medium">No supplier mapped</p>
-            <p className="text-orbit-xs text-amber-800">Map this contract to group future analyses.</p>
           </div>
         </div>
-        <button type="button" className="shrink-0 text-orbit-sm v6-orbit-weight-medium text-amber-800 underline-offset-2 hover:underline" onClick={() => setMappingOpen((open) => !open)} aria-label={actionAriaLabel} aria-controls="detected-supplier-picker" aria-expanded={mappingOpen}>{actionLabel}</button>
+        <span style={{ "--orbit-color-btn-tertiary-fg": "var(--orbit-color-btn-primary-bg)" } as CSSProperties}>
+          <LinkText
+            label={actionLabel}
+            href="#detected-supplier-picker"
+            onClick={() => setMappingOpen((open) => !open)}
+          />
+        </span>
       </div>
     ) : (
       <>
         <h3 className="sr-only">Supplier</h3>
-        <Card type="Static" state="Accent" padding="Base" indicator={false} style={{ paddingTop: 0, paddingBottom: 0 }}>
+        <Card type="Static" state="Accent" padding="Small" indicator={false} style={{ paddingTop: 0, paddingBottom: 0 }}>
           <div className="flex min-h-11 w-full items-center justify-between gap-orbit-s text-orbit-sm text-orbit-fg">
           <div className="flex min-w-0 items-center gap-orbit-s">
             <Building2 className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span className="min-w-0 truncate">Supplier Detected · {name}</span>
             {statusLabel && <span className={`shrink-0 rounded-full px-orbit-s py-orbit-xxs text-orbit-xs v6-orbit-weight-medium ${tone === "warning" ? "bg-amber-100 text-amber-800" : "bg-orbit-warning/15 text-orbit-fg"}`}>{statusLabel}</span>}
           </div>
-          <button type="button" className={`shrink-0 text-orbit-sm v6-orbit-weight-medium underline-offset-2 hover:underline ${tone === "warning" ? "text-amber-800" : "text-orbit-primary"}`} onClick={() => setMappingOpen((open) => !open)} aria-label={actionAriaLabel} aria-controls="detected-supplier-picker" aria-expanded={mappingOpen}>{actionLabel}</button>
+          <span style={{ "--orbit-color-btn-tertiary-fg": "var(--orbit-color-btn-primary-bg)" } as CSSProperties}>
+            <LinkText
+              label={actionLabel}
+              href="#detected-supplier-picker"
+              onClick={() => setMappingOpen((open) => !open)}
+            />
+          </span>
           </div>
         </Card>
       </>
@@ -1010,8 +1020,9 @@ function StackedJourneyContent({
           <SupplierOutputsPanel
             initiative={workflow.supplierOutputInitiative}
             outputState={workflow.supplierOutputPanelState}
-            onRunAgain={workflow.actions.showRunAgainUpload}
+            onRunAgain={(supplier) => workflow.actions.showRunAgainUpload(supplier?.id)}
             onDownload={workflow.actions.handleDownload}
+            onUploadToSupplier={(supplier) => workflow.actions.showRerunUploadForSupplier(supplier.id)}
             onViewResult={onViewResult}
             showComparisonStatus={showComparisonStatus}
             hiddenSupplierIds={workflow.unassignedSupplierIds}
@@ -1073,8 +1084,9 @@ export function ClauseIqContextPanel({
         <SupplierOutputsPanel
           initiative={workflow.supplierOutputInitiative}
           outputState={workflow.supplierOutputPanelState}
-          onRunAgain={workflow.actions.showRunAgainUpload}
+          onRunAgain={(supplier) => workflow.actions.showRunAgainUpload(supplier?.id)}
           onDownload={workflow.actions.handleDownload}
+          onUploadToSupplier={(supplier) => workflow.actions.showRerunUploadForSupplier(supplier.id)}
           onViewResult={onViewResult}
           hiddenSupplierIds={workflow.unassignedSupplierIds}
         />

@@ -24,8 +24,9 @@ export const DEFAULT_FILTERED_LIST_CONTROLS: FilteredListControls = {
 
 export interface ResultsViewProps {
   initiative: Initiative;
-  onRunAgain?: () => void;
+  onRunAgain?: (supplier?: Supplier) => void;
   onDownload?: () => void;
+  onUploadToSupplier?: (supplier: Supplier) => void;
   onViewResult?: (selection?: SupplierOutputSelection) => void;
   viewResultPrimary?: boolean;
   highlightLatestOutput?: boolean;

@@ -52,6 +52,7 @@ function selectNoPlaybook() {
 }
 
 function selectRerunSupplier(name = "Thomson Reuters") {
+  if (screen.queryByText(`Supplier · ${name}`)) return;
   fireEvent.click(screen.getByRole("button", { name: /Supplier context/i }));
   fireEvent.click(
     screen.getByRole("option", {
@@ -625,19 +626,19 @@ describe("ClauseIQ V6A flow", () => {
       if (unassigned) {
         expect(screen.queryByText(supplier)).not.toBeInTheDocument();
         expect(screen.getByText("No supplier mapped")).toBeInTheDocument();
-        expect(screen.getByText("Map this contract to group future analyses.")).toBeInTheDocument();
+        expect(screen.queryByText("Map this contract to group future analyses.")).not.toBeInTheDocument();
         expect(screen.queryByText("Supplier Outputs")).not.toBeInTheDocument();
       } else {
         expect(screen.getByText(`Supplier Detected · ${supplier}`)).toBeInTheDocument();
         expect(screen.getByText(status!)).toBeInTheDocument();
       }
-      fireEvent.click(screen.getByRole("button", { name: unassigned ? action : `${action} supplier ${supplier}` }));
+      fireEvent.click(screen.getByRole("link", { name: action }));
       expect(screen.getByRole("dialog", { name: "Change Mapped Supplier" })).toBeInTheDocument();
 
       if (unassigned) {
         fireEvent.click(screen.getByRole("button", { name: "Select supplier Thomson Reuters" }));
         expect(screen.getByText("Supplier Detected · Thomson Reuters")).toBeInTheDocument();
-        expect(screen.getByText("Supplier Outputs")).toBeInTheDocument();
+        expect(screen.getAllByText("Supplier Outputs").length).toBeGreaterThan(0);
       }
     },
   );
@@ -714,13 +715,15 @@ describe("ClauseIQ V6A flow", () => {
     );
   });
 
-  it("renders historical score deltas when multiple supplier outputs are visible", () => {
+  it("renders historical score deltas and lets users upload a contract for the supplier", () => {
+    const onUploadToSupplier = vi.fn();
     render(
       <TooltipProvider>
         <SupplierOutputsPanel
           initiative={mockInitiative}
           initialOutputScope="team"
           outputState="filled"
+          onUploadToSupplier={onUploadToSupplier}
         />
       </TooltipProvider>,
     );
@@ -734,7 +737,12 @@ describe("ClauseIQ V6A flow", () => {
     expect(screen.getAllByText("Score 48").length).toBeGreaterThan(0);
     expect(screen.getAllByText("+12 vs previous").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("View Results").length).toBeGreaterThan(0);
-    expect(screen.getAllByLabelText("Download").length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Upload contract for this supplier" }).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Upload contract for this supplier" })[0]);
+    expect(onUploadToSupplier).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "sup-001" }),
+    );
   });
 
   it("keeps supplier groups compact and opens a searchable, sortable output history", () => {
@@ -1138,7 +1146,7 @@ describe("ClauseIQ V6A flow", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("carries forward a supplier's latest parameters and reveals upload for another output-panel analysis", () => {
+  it("carries forward the mapped supplier and its latest parameters before revealing upload", () => {
     renderClauseIQ("/clauseiq-v6a/output-panel", {
       forceResults: true,
       resultsLayout: "output-panel",
@@ -1152,14 +1160,8 @@ describe("ClauseIQ V6A flow", () => {
       screen.getAllByRole("button", { name: "Run Analysis Again" })[0],
     );
 
-    expect(
-      screen.getByRole("heading", { name: "Select supplier" }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Supplier context/i })).toBeInTheDocument();
-    expect(
-      screen.queryByText("Do you want to use a playbook for this analysis?"),
-    ).not.toBeInTheDocument();
-    selectRerunSupplier();
+    expect(screen.queryByRole("heading", { name: "Select supplier" })).not.toBeInTheDocument();
+    expect(screen.getByText("Supplier · Thomson Reuters")).toBeInTheDocument();
 
     expect(
       screen.getByText("Do you want to use a playbook for this analysis?"),

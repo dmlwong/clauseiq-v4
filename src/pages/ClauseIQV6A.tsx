@@ -321,8 +321,9 @@ function ClauseIQV6AContent({ forceResults = false, resultsLayout = "output-pane
           <SupplierOutputsPanel
             initiative={workflow.supplierOutputInitiative}
             outputState={workflow.supplierOutputPanelState}
-            onRunAgain={workflow.actions.showRunAgainUpload}
+            onRunAgain={(supplier) => workflow.actions.showRunAgainUpload(supplier?.id)}
             onDownload={workflow.actions.handleDownload}
+            onUploadToSupplier={(supplier) => workflow.actions.showRerunUploadForSupplier(supplier.id)}
             onViewResult={handleViewResult}
             showComparisonStatus={showComparisonStatus}
             highlightSupplierId={workflow.latestOutputSupplierId}

@@ -3,11 +3,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart2,
   ChevronDown,
-  Download,
   FileText,
   Loader2,
   RotateCw,
   Search,
+  Upload,
 } from "@/components/clauseiq-v6a/v6aIcons";
 import { Card, MultiStateButton, MultiStateGroup } from "@orbit";
 import { Button } from "@/components/clauseiq-v6a/orbit-ui/button";
@@ -34,6 +34,7 @@ export function OutputPanelResultsContent({
   initiative,
   onRunAgain,
   onDownload,
+  onUploadToSupplier,
   onViewResult,
   viewResultPrimary = true,
   highlightLatestOutput = true,
@@ -101,6 +102,7 @@ export function OutputPanelResultsContent({
         initiative={initiative}
         onRunAgain={onRunAgain}
         onDownload={onDownload}
+        onUploadToSupplier={onUploadToSupplier}
         onViewResult={onViewResult}
         outputState="filled"
         higherIsBetter={higherIsBetter}
@@ -122,6 +124,7 @@ export function SupplierOutputsPanel({
   initialOutputScope = "mine",
   onRunAgain,
   onDownload,
+  onUploadToSupplier,
   onViewResult,
   outputState = "filled",
   // TODO: confirm score polarity with scoring model owner.
@@ -258,7 +261,7 @@ export function SupplierOutputsPanel({
               latestAnalysisId={latestAnalysisId}
               open={openSupplierIds.includes(supplier.id)}
               onToggle={() => toggleSupplier(supplier.id)}
-              onDownload={onDownload}
+              onUploadToSupplier={onUploadToSupplier}
               onViewResult={onViewResult}
               onViewAllOutputs={() => setHistorySupplierId(supplier.id)}
               higherIsBetter={higherIsBetter}
@@ -317,7 +320,7 @@ function SupplierPanelEmptyState({
   );
 }
 
-function NoPreviousAnalysisState({ onRunAgain }: { onRunAgain?: () => void }) {
+function NoPreviousAnalysisState({ onRunAgain }: { onRunAgain?: (supplier?: Supplier) => void }) {
   return (
     <Card type="Static" state="Default" padding="Base">
       <div className="text-center">
@@ -344,7 +347,7 @@ function SupplierOutputGroup({
   latestAnalysisId,
   open,
   onToggle,
-  onDownload,
+  onUploadToSupplier,
   onViewResult,
   onViewAllOutputs,
   higherIsBetter,
@@ -354,7 +357,7 @@ function SupplierOutputGroup({
   latestAnalysisId?: string;
   open: boolean;
   onToggle: () => void;
-  onDownload?: () => void;
+  onUploadToSupplier?: (supplier: Supplier) => void;
   onViewResult?: (selection?: SupplierOutputSelection) => void;
   onViewAllOutputs: () => void;
   higherIsBetter: boolean;
@@ -420,7 +423,7 @@ function SupplierOutputGroup({
                       analysis={analysis}
                       displayFileName={displayFileNameForSupplierAnalysis(supplier, analysis)}
                       score={scoresByAnalysisId[analysis.id]}
-                      onDownload={onDownload}
+                      onUpload={() => onUploadToSupplier?.(supplier)}
                       onViewResult={
                         onViewResult
                           ? () => onViewResult({
@@ -459,7 +462,7 @@ function CompactOutputRow({
   analysis,
   displayFileName,
   score,
-  onDownload,
+  onUpload,
   onViewResult,
   higherIsBetter,
   showComparisonStatus,
@@ -467,7 +470,7 @@ function CompactOutputRow({
   analysis: ClauseAnalysis;
   displayFileName: string;
   score?: OutputScorePresentation;
-  onDownload?: () => void;
+  onUpload?: () => void;
   onViewResult?: (selection?: SupplierOutputSelection) => void;
   higherIsBetter: boolean;
   showComparisonStatus: boolean;
@@ -480,7 +483,7 @@ function CompactOutputRow({
         </p>
         <CompactOutputMeta
           analysedAt={analysis.analysedAt}
-          onDownload={onDownload}
+          onUpload={onUpload}
           onViewResult={onViewResult}
         />
       </div>
@@ -502,11 +505,11 @@ function CompactOutputRow({
 
 function CompactOutputMeta({
   analysedAt,
-  onDownload,
+  onUpload,
   onViewResult,
 }: {
   analysedAt: string;
-  onDownload?: () => void;
+  onUpload?: () => void;
   onViewResult?: (selection?: SupplierOutputSelection) => void;
 }) {
   return (
@@ -519,8 +522,12 @@ function CompactOutputMeta({
           <CompactActionButton label="View Results" onClick={onViewResult}>
             <BarChart2 className="h-3.5 w-3.5" />
           </CompactActionButton>
-          <CompactActionButton label="Download" onClick={onDownload}>
-            <Download className="h-3.5 w-3.5" />
+          <CompactActionButton
+            label="Upload contract for this supplier"
+            onClick={onUpload}
+            widthClassName="w-8"
+          >
+            <Upload className="h-3.5 w-3.5" />
           </CompactActionButton>
         </div>
       </div>
@@ -532,17 +539,19 @@ function CompactActionButton({
   label,
   onClick,
   children,
+  widthClassName = "w-7",
 }: {
   label: string;
   onClick?: () => void;
   children: ReactNode;
+  widthClassName?: string;
 }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
           variant="outline"
-          className="h-7 w-7 px-orbit-none"
+          className={`h-7 ${widthClassName} px-orbit-none`}
           aria-label={label}
           title={label}
           onClick={onClick}

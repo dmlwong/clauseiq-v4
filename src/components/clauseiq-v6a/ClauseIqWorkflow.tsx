@@ -931,7 +931,7 @@ export function useClauseIqWorkflow({
     }
   };
 
-  const showRunAgainUpload = () => {
+  const showRunAgainUpload = (supplierId?: string) => {
     setFile(null);
     setRerunProcessing(false);
     setPendingRerunAnalysis(null);
@@ -941,11 +941,24 @@ export function useClauseIqWorkflow({
     setCompletedRerunAnalysis(null);
     setCompletedRerunParameter(null);
     setCompletedRerunSupplierId(null);
-    setRerunSupplierContextId(null);
+    const rerunSupplierId =
+      supplierId ??
+      latestOutputSupplierId ??
+      supplierDetectionContext?.supplierId ??
+      resultsInitiative.suppliers.find((supplier) => supplier.analyses.length > 0)?.id ??
+      null;
+    const inheritedParameter = rerunSupplierId
+      ? supplierParameterHistory[rerunSupplierId] ??
+        (rerunSupplierId === completedRerunSupplierId ? completedRerunParameter : null) ??
+        (rerunSupplierId === completedInitialSupplierId ? selectedParameter : null) ??
+        selectedParameter ??
+        createDefaultParameterSelection()
+      : null;
+    setRerunSupplierContextId(rerunSupplierId);
     setRerunSupplierMismatch(null);
     setSupplierFingerprintResolution(null);
-    updateRerunSelectedParameter(null);
-    setRerunParametersCarriedForward(false);
+    updateRerunSelectedParameter(inheritedParameter ? cloneAnalysisParameterSelection(inheritedParameter) : null);
+    setRerunParametersCarriedForward(Boolean(inheritedParameter));
     setRerunUploadVisible(true);
     onRunAgain?.();
   };
@@ -964,6 +977,8 @@ export function useClauseIqWorkflow({
     setFile(null);
     setRerunUploadVisible(true);
   };
+
+  const showRerunUploadForSupplier = (supplierId: string) => showRunAgainUpload(supplierId);
 
   // The prototype control is intentionally live: it lets reviewers swap the
   // simulated backend response on the latest completed output without having
@@ -1088,6 +1103,7 @@ export function useClauseIqWorkflow({
       resetRunState,
       resolveSupplierFingerprint,
       selectRerunSupplier,
+      showRerunUploadForSupplier,
       beginNewRerunSupplierContext: () => setRerunNewSupplierEntryOpen(true),
       saveNewRerunSupplierContext: (name: string) => {
         const trimmedName = name.trim();

@@ -10767,7 +10767,7 @@ function InitialAnalysisRecommendationTable({
     <div className="overflow-hidden rounded-orbit-lg border border-orbit-border">
     <div id={`initial-analysis-${tableKey}-content`} className={cn("overflow-x-auto", locked && "clauseiq-v6a-locked-clause-table")}>
       <table className="w-full min-w-[1120px] border-collapse text-left" aria-label={`Initial analysis ${isPositionMet ? "position met" : "position not met"}`}>
-        <thead className="bg-orbit-surface/60 text-orbit-xs uppercase tracking-wide text-orbit-fg-secondary"><tr className="border-y border-orbit-border">{!isPositionMet ? <th className="w-12 px-orbit-base py-orbit-s"><Checkbox checked={allRecommendationsSelected} disabled={locked || !bulkSelectionEnabled || selectableRecommendationRows.length === 0} aria-label="Select All Position Not Met Clauses" onCheckedChange={(checked) => selectableRecommendationRows.forEach((clause) => onBulkClauseSelectionChange?.(clause.id, checked === true))} /></th> : null}{sortHeader("category", "Clause Type", "min-w-[150px] whitespace-nowrap px-orbit-base py-orbit-s")}{sortHeader("clause", "Clause", "w-56 px-orbit-base py-orbit-s")}<th className="min-w-[320px] px-orbit-base py-orbit-s v6-orbit-weight-semibold">Current Supplier Position</th>{sortHeader("deviation", "Deviation", "w-32 px-orbit-base py-orbit-s")}<th className="min-w-[340px] px-orbit-base py-orbit-s v6-orbit-weight-semibold">Your Negotiation Position</th></tr></thead>
+        <thead className="bg-orbit-surface/60 text-orbit-xs uppercase tracking-wide text-orbit-fg-secondary"><tr className="border-y border-orbit-border"><th className="w-12 px-orbit-base py-orbit-s">{!isPositionMet ? <Checkbox checked={allRecommendationsSelected} disabled={locked || !bulkSelectionEnabled || selectableRecommendationRows.length === 0} aria-label="Select All Position Not Met Clauses" onCheckedChange={(checked) => selectableRecommendationRows.forEach((clause) => onBulkClauseSelectionChange?.(clause.id, checked === true))} /> : <span className="sr-only">Selection spacer</span>}</th>{sortHeader("category", "Clause Type", "min-w-[150px] whitespace-nowrap px-orbit-base py-orbit-s")}{sortHeader("clause", "Clause", "w-56 px-orbit-base py-orbit-s")}<th className="min-w-[320px] px-orbit-base py-orbit-s v6-orbit-weight-semibold">Current Supplier Position</th>{sortHeader("deviation", "Deviation", "w-32 px-orbit-base py-orbit-s")}<th className="min-w-[340px] px-orbit-base py-orbit-s v6-orbit-weight-semibold">Your Negotiation Position</th></tr></thead>
         <tbody>
           {sortedRows.map((clause) => {
             const state = stateOf(clause.id);
@@ -10785,10 +10785,10 @@ function InitialAnalysisRecommendationTable({
             const selected = bulkSelectedClauseIds?.has(clause.id) ?? false;
             const expanded = expandedClauseId === clause.id;
             const detailId = `clause-detail-${clause.id}`;
-            const columnCount = isPositionMet ? 5 : 6;
+            const columnCount = 6;
             return <Fragment key={clause.id}>
             <tr className={cn("align-top border-b border-orbit-border transition-colors", focusedClauseId === clause.id && "bg-[var(--orbit-color-swatch-purple-gray-500)]")}>
-              {!isPositionMet ? <td className="px-orbit-base pt-orbit-base pb-orbit-base"><Checkbox checked={selected} disabled={locked || !bulkSelectionEnabled || accepted} aria-label={`Bulk selected ${clause.id.toUpperCase()}`} onCheckedChange={(checked) => onBulkClauseSelectionChange?.(clause.id, checked === true)} /></td> : null}
+              <td className="px-orbit-base pt-orbit-base pb-orbit-base">{!isPositionMet ? <Checkbox checked={selected} disabled={locked || !bulkSelectionEnabled || accepted} aria-label={`Bulk selected ${clause.id.toUpperCase()}`} onCheckedChange={(checked) => onBulkClauseSelectionChange?.(clause.id, checked === true)} /> : null}</td>
               <td className="px-orbit-base pt-orbit-base pb-orbit-base"><Chip label={clause.category} size="Mini" variant="No Status" contrast="Low" /></td>
               <td className="px-orbit-base pt-orbit-base pb-orbit-base"><button type="button" className="flex w-full items-start gap-orbit-s text-left" aria-expanded={expanded} aria-controls={detailId} onClick={() => setExpandedClauseId((current) => current === clause.id ? null : clause.id)}><span className={cn("mt-px text-orbit-fg-secondary transition-transform", expanded && "rotate-90")} aria-hidden="true">›</span><span><span className="block v6-orbit-heading-label text-orbit-fg">{displayTitleForClause(clause.id, clause.title)}</span><span className="mt-orbit-xxs block text-orbit-xs text-orbit-fg-secondary">{clause.id.toUpperCase()}</span></span></button></td>
               <td className="px-orbit-base pt-orbit-base pb-orbit-base">{missing ? <div><Chip label="Missing From Contract" size="Mini" variant="Error" contrast="Low" /><p className="mt-orbit-s italic text-orbit-sm text-orbit-fg-secondary">No wording in the supplier’s contract — this term should be negotiated in.</p><p className="mt-orbit-s text-orbit-xs text-orbit-fg-secondary">If this term is intentionally out of scope, move it to Position Met.</p><Button variant="outline" className="mt-orbit-s h-8 px-orbit-base" disabled={locked || (!accepted && selectedRecommendationIds.length > 0)} onClick={() => accepted ? onUndoDecision(clause.id) : onSetNoAction(clause.id)}>{accepted ? <X className="h-3.5 w-3.5" aria-hidden="true" /> : <Check className="h-3.5 w-3.5" aria-hidden="true" />}{accepted ? "Undo" : "Move to Position Met"}</Button></div> : <div><p className="text-orbit-sm leading-6 text-orbit-fg">{clause.excerpt || clause.deviation}</p>{!noRecommendation ? <div className="mt-orbit-s">{isPositionMet && accepted ? <Button variant="outline" className="h-8 px-orbit-base" disabled={locked} onClick={() => onUndoDecision(clause.id)}><X className="h-3.5 w-3.5" aria-hidden="true" />Reject Supplier Position</Button> : accepted ? <Button variant="outline" className="h-8 px-orbit-base" disabled={locked} onClick={() => onUndoDecision(clause.id)}>Undo</Button> : <Button variant="outline" className="h-8 px-orbit-base" disabled={locked || selectedRecommendationIds.length > 0} onClick={() => onSetNoAction(clause.id)}><Check className="h-3.5 w-3.5" aria-hidden="true" />Accept Supplier Position</Button>}</div> : null}</div>}</td>
@@ -10798,7 +10798,7 @@ function InitialAnalysisRecommendationTable({
             {expanded ? <tr id={detailId} className="border-b border-orbit-border bg-orbit-surface/30"><td colSpan={columnCount} className="px-orbit-base py-orbit-base"><div className="grid gap-orbit-xl md:grid-cols-2"><div className="max-w-[704px]"><p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wide text-orbit-fg-secondary">Full clause wording</p><p className="mt-orbit-s text-orbit-sm leading-6 text-orbit-fg">{missing ? "No wording in the supplier’s contract — this term should be negotiated in." : clause.excerpt || clause.deviation}</p></div><div><p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wide text-orbit-fg-secondary">Rationale</p><p className="mt-orbit-s text-orbit-sm leading-6 text-orbit-fg">{clause.rationale ?? "The recommendation addresses the identified gap between the supplier wording and the applicable benchmark."}</p></div></div></td></tr> : null}
             </Fragment>;
           })}
-          {tableRows.length === 0 ? <tr><td colSpan={isPositionMet ? 5 : 6} className="p-orbit-base">{emptyState}</td></tr> : null}
+          {tableRows.length === 0 ? <tr><td colSpan={6} className="p-orbit-base">{emptyState}</td></tr> : null}
         </tbody>
       </table>
     </div>
@@ -10846,7 +10846,7 @@ function InitialAnalysisNextRoundGuide() {
       <div className="mt-orbit-base grid gap-orbit-s lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-stretch">
         <div className="min-w-0"><NextRoundGuideCard eyebrow="From this guide" title="Your position" description="The recommendations you save become the position ClauseIQ measures against." icon={<FileText className="h-4 w-4" />} /></div>
         <ArrowRight className="m-auto hidden h-4 w-4 text-orbit-fg-secondary lg:block" aria-hidden="true" />
-        <div className="min-w-0"><NextRoundGuideCard eyebrow="Supplier's next draft" title="Round 2 clause" description="ClauseIQ reads the revised supplier wording alongside your saved position." icon={<FileText className="h-4 w-4" />} /></div>
+        <div className="min-w-0"><NextRoundGuideCard eyebrow="Supplier's next draft" title="Round 2 clause" description="ClauseIQ reads the revised supplier wording alongside your saved position." icon={<FileText className="h-4 w-4" />} height={110} /></div>
         <ArrowRight className="m-auto hidden h-4 w-4 text-orbit-fg-secondary lg:block" aria-hidden="true" />
         <div className="min-w-0"><NextRoundGuideCard eyebrow="Result Per Clause" title="Met Or Not Met" description="Each clause is flagged so you can concede or propose the next-round change." icon={<CheckCircle2 className="h-4 w-4" />} /></div>
       </div>
@@ -10868,9 +10868,9 @@ function InitialAnalysisNextRoundGuide() {
   );
 }
 
-function NextRoundGuideCard({ eyebrow, title, description, icon }: { eyebrow: string; title: string; description: string; icon: ReactNode }) {
+function NextRoundGuideCard({ eyebrow, title, description, icon, height }: { eyebrow: string; title: string; description: string; icon: ReactNode; height?: number }) {
   return (
-    <Card type="Static" padding="Base" state="Information" indicator={false} style={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
+    <Card type="Static" padding="Base" state="Information" indicator={false} style={{ width: "100%", minWidth: 0, overflow: "hidden", height }}>
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-orbit-xs text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wide text-orbit-primary">
           {icon}

@@ -55,9 +55,11 @@ function ClauseIQV6AContent({ forceResults = false, resultsLayout = "output-pane
   const resultsFromRoute = forceResults || searchParams.get("view") === "results";
   const rerunUploadFromRoute = resultsFromRoute && searchParams.get("rerun") === "upload";
   const resultScenario = searchParams.get("resultScenario") === "history" ? "history" : "empty";
-  const showComparisonStatus = resultScenario === "history";
   const currentRoute = `${window.location.pathname}${window.location.search}`;
-  const clauseIqResultsReturnRoute = `/clauseiq-v6a/output-panel${window.location.search ? window.location.search : ""}`;
+  const normalizedOutputPanelParams = new URLSearchParams(searchParams);
+  normalizedOutputPanelParams.delete("view");
+  const normalizedOutputPanelSearch = normalizedOutputPanelParams.toString();
+  const clauseIqResultsReturnRoute = `/clauseiq-v6a/output-panel${normalizedOutputPanelSearch ? `?${normalizedOutputPanelSearch}` : ""}`;
   const defaultCompletedInitiative =
     CIQ_INITIATIVES.find((item) => item.name === "Network Edge Hardware") ?? CIQ_INITIATIVES[0];
   const [modalOpen, setModalOpen] = useState(false);
@@ -115,6 +117,11 @@ function ClauseIQV6AContent({ forceResults = false, resultsLayout = "output-pane
     onRunAgain: handleRunAgain,
   });
 
+  const showComparisonStatus =
+    resultScenario === "history" ||
+    searchParams.has("previousAnalysisId") ||
+    workflow.resultsInitiative.suppliers.some((supplier) => supplier.analyses.length > 1);
+
   useEffect(() => {
     const journeyId = searchParams.get("supplierJourney");
     const journey = getSupplierJourney(journeyId);
@@ -142,7 +149,7 @@ function ClauseIQV6AContent({ forceResults = false, resultsLayout = "output-pane
 
   useEffect(() => {
     if (!forceResults && searchParams.get("view") === "results" && !rerunUploadFromRoute) {
-      navigate("/clauseiq-v6a/output-panel", { replace: true });
+      navigate(clauseIqResultsReturnRoute, { replace: true });
       return;
     }
 
@@ -151,7 +158,7 @@ function ClauseIQV6AContent({ forceResults = false, resultsLayout = "output-pane
     if (rerunUploadFromRoute) {
       scrollRerunWorkflowIntoView(160);
     }
-  }, [defaultCompletedInitiative, forceResults, navigate, rerunUploadFromRoute, resultsFromRoute, scrollRerunWorkflowIntoView, searchParams]);
+  }, [clauseIqResultsReturnRoute, defaultCompletedInitiative, forceResults, navigate, rerunUploadFromRoute, resultsFromRoute, scrollRerunWorkflowIntoView, searchParams]);
 
   // Auto-scroll the active card into view
   useEffect(() => {

@@ -78,6 +78,7 @@ export function OutputPanelResultsContent({
               key={analysis.id}
               analysis={analysis}
               supplier={supplier}
+              showSupplier
               onRunAgain={onRunAgain}
               onDownload={onDownload}
               onViewResult={

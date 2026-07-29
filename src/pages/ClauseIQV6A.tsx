@@ -57,6 +57,7 @@ function ClauseIQV6AContent({ forceResults = false, resultsLayout = "output-pane
   const resultScenario = searchParams.get("resultScenario") === "history" ? "history" : "empty";
   const showComparisonStatus = resultScenario === "history";
   const currentRoute = `${window.location.pathname}${window.location.search}`;
+  const clauseIqResultsReturnRoute = `/clauseiq-v6a/output-panel${window.location.search ? window.location.search : ""}`;
   const defaultCompletedInitiative =
     CIQ_INITIATIVES.find((item) => item.name === "Network Edge Hardware") ?? CIQ_INITIATIVES[0];
   const [modalOpen, setModalOpen] = useState(false);
@@ -254,7 +255,7 @@ function ClauseIQV6AContent({ forceResults = false, resultsLayout = "output-pane
         LATEST_V6_RESULTS_ROUTE.split("?")[1] ?? "",
       );
       fallbackParams.set("dashboardView", "initial-analysis");
-      fallbackParams.set("return", currentRoute);
+      fallbackParams.set("return", clauseIqResultsReturnRoute);
       navigate(`/initiatives-v6a?${fallbackParams.toString()}`);
       return;
     }
@@ -301,7 +302,7 @@ function ClauseIQV6AContent({ forceResults = false, resultsLayout = "output-pane
       params.set("dashboardView", "initial-analysis");
     }
 
-    params.set("return", currentRoute);
+    params.set("return", clauseIqResultsReturnRoute);
 
     navigate(`/initiatives-v6a?${params.toString()}`);
   };

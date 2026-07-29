@@ -1004,7 +1004,7 @@ export function ContractResults({
   const [supplierJourney, setSupplierJourney] = useState<DashboardSupplierJourney | null>(
     () => getSupplierJourney(supplierJourneyKey),
   );
-  const [supplierPickerOpen, setSupplierPickerOpen] = useState(false);
+  const [supplierPickerAnchor, setSupplierPickerAnchor] = useState<"header" | "banner" | null>(null);
   useEffect(() => subscribeSupplierJourneys(() => setSupplierJourney(getSupplierJourney(supplierJourneyKey))), [supplierJourneyKey]);
   const initiative = getInitiative(initiativeId);
   const supplier = getSupplier(initiativeId, supplierId);
@@ -2954,6 +2954,7 @@ export function ContractResults({
       expandHandled?: (row: ComparisonRow) => boolean;
       canAddToStillOpen?: (row: ComparisonRow) => boolean;
       onAddToStillOpen?: (id: string) => void;
+      showSectionBulkSelection?: boolean;
     },
   ) => {
     if (!leftVersion || !rightVersion) return null;
@@ -3018,6 +3019,7 @@ export function ContractResults({
         bulkSelectionEnabled={bulkSelectionEnabled}
         bulkSelectedClauseIds={bulkBannerSelectedClauseIds}
         onBulkClauseSelectionChange={toggleBulkClauseSelection}
+        showSectionBulkSelection={options?.showSectionBulkSelection ?? false}
         overrideVerdict={options?.overrideVerdict ?? (simplifyComparisonStatus ? "notmet" : undefined)}
         cardContextLabel={options?.cardContextLabel}
         cardContextMeta={options?.cardContextMeta}
@@ -3263,6 +3265,27 @@ export function ContractResults({
   const initialOptionTwoBulkMode = firstAnalysisDemo && designOption === "design-option-2";
   const [compactBulkBannerOpen, setCompactBulkBannerOpen] = useState(false);
   const [bulkBannerSelectedClauseIds, setBulkBannerSelectedClauseIds] = useState<Set<string>>(new Set());
+  const optionTwoBulkSelectedClauseIds = Array.from(bulkBannerSelectedClauseIds);
+  const clearOptionTwoBulkSelection = () => {
+    optionTwoBulkSelectedClauseIds.forEach((id) => toggleBulkClauseSelection(id, false));
+  };
+  const acceptSelectedOptionTwoSupplierPositions = () => {
+    optionTwoBulkSelectedClauseIds.forEach((id) => {
+      if (isDashboardLocked) return;
+      const display = leftVersion?.clauses.find((clause) => clause.id === id) ?? rightVersion?.clauses.find((clause) => clause.id === id);
+      closeWithUndo(id, display?.title ?? id.toUpperCase(), rightVersion ? stateOf(id).closures[rightVersion.version] : undefined);
+    });
+  };
+  const optionTwoBulkBanner = optionTwoBulkSelectedClauseIds.length > 0 ? (
+    <div className="flex items-center justify-between gap-orbit-base rounded-orbit-md border border-orbit-border bg-orbit-heading px-orbit-base py-orbit-s text-orbit-inverse">
+      <span className="font-medium">{optionTwoBulkSelectedClauseIds.length} Clause{optionTwoBulkSelectedClauseIds.length === 1 ? "" : "s"} Selected</span>
+      <div className="flex items-center gap-orbit-xs">
+        <Button variant="secondary" className="h-8" disabled={isDashboardLocked} onClick={clearOptionTwoBulkSelection}>Clear</Button>
+        <Button className="h-8" disabled={isDashboardLocked} onClick={acceptSelectedOptionTwoSupplierPositions}>✓ Accept Supplier Positions</Button>
+        <Button variant="ghost" size="icon" aria-label="Close Bulk Selection" title="Close Bulk Selection" className="text-orbit-inverse hover:bg-orbit-card/20" disabled={isDashboardLocked} onClick={clearOptionTwoBulkSelection}><X className="h-4 w-4" aria-hidden="true" /></Button>
+      </div>
+    </div>
+  ) : null;
   const compactBulkCanUndoAppliedRecommendations = Boolean(
     !outcomeReviewMode && firstAnalysisDemo && canUndoFirstAnalysisRecommendations,
   );
@@ -3567,9 +3590,8 @@ export function ContractResults({
       tableControlPanel={firstAnalysisVersion && designOption === "design-option-3" ? (
         <InitialAnalysisTableControlPanel
           banner={
-            <ComparisonNegotiationBanner
-              version={firstAnalysisVersion.version}
-              cardState="Default"
+              <ComparisonNegotiationBanner
+                version={firstAnalysisVersion.version}
               fallbackLastEditedAt="2026-01-03T16:47:00.000Z"
               fallbackLastDownloadedAt="2026-01-03T16:35:00.000Z"
               locked={isDashboardLocked}
@@ -3630,7 +3652,7 @@ export function ContractResults({
               />
             ) : null
           }
-          bulkBanner={compactBulkBanner}
+          bulkBanner={optionTwoBulkBanner}
           negotiationPositionVersion={activeRequestVersion?.version ?? rightVersion.version}
           roundLabel={`Round ${Number.parseInt((activeRequestVersion?.version ?? rightVersion.version).replace(/^\D+/u, ""), 10) || 1}`}
           previousScore={comparisonModel.panel.previous?.score ?? comparisonModel.panel.current.score - comparisonModel.panel.delta}
@@ -3667,12 +3689,14 @@ export function ContractResults({
             "Review the next-round position, edit it, or accept the supplier's wording.",
             optionTwoGroups.actionRequired,
             "neutral",
+            { showSectionBulkSelection: true },
           ) : null}
           regressed={shouldShowComparisonBucket("regressed", optionTwoGroups.regressed) ? optionTwoActionSection(
             "Regressed — previously agreed, but changed by the supplier",
             "These were met in an earlier round. The supplier's latest wording has weakened your position.",
             optionTwoGroups.regressed,
             "neutral",
+            { showSectionBulkSelection: true },
           ) : null}
           acceptedAsIs={null}
           metPositions={shouldShowOptionTwoMetPositions ? optionTwoActionSection(
@@ -3958,10 +3982,14 @@ export function ContractResults({
       onDashboardViewChange={setDashboardView}
     />
   );
+  const showHeaderBulkActionButton =
+    canShowBulkActionControls &&
+    designOption !== "design-option-3" &&
+    !(mode === "comparison" && designOption === "design-option-2");
   const compactHeaderActions =
     mode === "comparison" ? (
       <div className="ml-auto flex shrink-0 items-center gap-orbit-s">
-        {canShowBulkActionControls && designOption !== "design-option-3" && (
+        {showHeaderBulkActionButton && (
           !outcomeReviewMode && canUndoFirstAnalysisRecommendations ? (
             <Button
               variant="outline"
@@ -4052,15 +4080,15 @@ export function ContractResults({
             firstAnalysisDemo={firstAnalysisDemo}
             demoAvailable={availableVersions.length >= 2}
             onFirstAnalysisDemoChange={toggleFirstAnalysisDemo}
-            onChangeSupplier={() => setSupplierPickerOpen((open) => !open)}
-            supplierPickerOpen={supplierPickerOpen}
+            onChangeSupplier={() => setSupplierPickerAnchor((current) => (current === "header" ? null : "header"))}
+            supplierPickerOpen={supplierPickerAnchor === "header"}
             supplierChangeDisabled={isDashboardLocked}
             supplierPicker={displayedSupplierJourney ? (
               <SupplierChangePicker
                 journeyId={displayedSupplierJourneyId}
                 journey={displayedSupplierJourney}
-                open={supplierPickerOpen}
-                onOpenChange={setSupplierPickerOpen}
+                open={supplierPickerAnchor === "header"}
+                onOpenChange={(open) => setSupplierPickerAnchor(open ? "header" : null)}
                 isDashboardLocked={isDashboardLocked}
               />
             ) : null}
@@ -4082,7 +4110,7 @@ export function ContractResults({
                   )}
                 >
                   <SupplierGroupingPopover supplierId={supplierId} supplierName={supplier.name} />
-                  {canShowBulkActionControls && designOption !== "design-option-3" && (
+                  {showHeaderBulkActionButton && (
                     !outcomeReviewMode && canUndoFirstAnalysisRecommendations ? (
                       <Button
                         variant="outline"
@@ -4795,19 +4823,19 @@ function CompactContractTopbar({
       <div className="flex min-w-0 flex-1 items-center gap-orbit-s">
         <h1 className="v6-orbit-heading-label min-w-0 truncate text-orbit-fg">{referenceLine}</h1>
         <div className="relative shrink-0">
-          <IconButton
-            variant="Tertiary"
-            size="Small"
-            state="Default"
-            className="text-orbit-fg-secondary hover:text-orbit-fg"
-            ariaLabel="Change Supplier"
+          <button
+            type="button"
+            className="inline-flex h-8 shrink-0 items-center gap-orbit-xs rounded-orbit-md px-orbit-s text-orbit-sm v6-orbit-weight-medium text-orbit-primary transition-colors hover:bg-orbit-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary disabled:pointer-events-none disabled:opacity-50"
+            aria-label="Change Supplier"
             title="Change Supplier"
             aria-expanded={supplierPickerOpen}
             aria-controls="supplier-change-picker"
             disabled={supplierChangeDisabled}
             onClick={onChangeSupplier}
-            icon={<Pencil className="h-3.5 w-3.5" aria-hidden="true" />}
-          />
+          >
+            <FaIcon icon={"\uf044"} size={14} />
+            Edit
+          </button>
           {supplierPicker}
         </div>
       </div>
@@ -7275,6 +7303,8 @@ function ClauseRequestForm({
   compact = false,
   revertText,
   comparisonEditing = false,
+  showConfirmationActions = false,
+  rationaleAction,
   onUpdate,
   onCancel,
   onSubmit,
@@ -7289,20 +7319,54 @@ function ClauseRequestForm({
   compact?: boolean;
   revertText?: string;
   comparisonEditing?: boolean;
+  showConfirmationActions?: boolean;
+  rationaleAction?: ReactNode;
   onUpdate: (patch: { requestedChange?: string; rationale?: string }) => void;
   onCancel: () => void;
   onSubmit: () => void;
 }) {
   const requestValue = draft?.requestedChange ?? request?.requestedChange ?? "";
   const [expanded, setExpanded] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const revertValue = revertText?.trim() ?? "";
   const canRevert = Boolean(revertValue) && requestValue.trim() !== revertValue;
   const requestCharacterLimit = 250;
+  const resetRecommendationAction = revertText ? (
+    <button
+      type="button"
+      className="inline-flex items-center gap-orbit-xxs text-orbit-sm text-orbit-primary underline underline-offset-2 hover:opacity-80 disabled:cursor-not-allowed disabled:text-orbit-fg-tertiary disabled:no-underline"
+      disabled={!canRevert}
+      onClick={() => onUpdate({ requestedChange: revertValue })}
+    >
+      <RotateCcw className="h-4 w-4" aria-hidden="true" />
+      Reset Initial Recommendation
+    </button>
+  ) : null;
+
+  useEffect(() => {
+    if (!comparisonEditing || expanded) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (rootRef.current?.contains(target)) return;
+      onCancel();
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [comparisonEditing, expanded, onCancel]);
 
   return (
     <div
+      ref={rootRef}
       className={cn(
-        embedded ? "flex h-full flex-col" : "mt-orbit-base border-t border-orbit-border pt-orbit-base",
+        embedded
+          ? comparisonEditing
+            ? "flex flex-col"
+            : "flex h-full flex-col"
+          : "mt-orbit-base border-t border-orbit-border pt-orbit-base",
         compact ? "space-y-orbit-s" : "space-y-orbit-xs",
       )}
       onClick={(event) => event.stopPropagation()}
@@ -7322,23 +7386,13 @@ function ClauseRequestForm({
       )}
       <div className="flex w-full flex-1 flex-col gap-orbit-base">
         <div className="space-y-orbit-xs">
-          <div className="flex items-center justify-between gap-orbit-s">
-            <label className="v6-orbit-text-small v6-orbit-weight-semibold text-orbit-fg-secondary">
-              {comparisonEditing ? "Your Custom Position" : "Set Custom Position"}
-            </label>
-            <div className="flex items-center gap-orbit-s">
-              {revertText ? (
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-orbit-xxs text-orbit-xs text-orbit-primary hover:underline disabled:cursor-not-allowed disabled:text-orbit-fg-tertiary disabled:no-underline"
-                  disabled={!canRevert}
-                  onClick={() => onUpdate({ requestedChange: revertValue })}
-                >
-                  <RotateCcw className="h-3 w-3" aria-hidden="true" />
-                  Revert
-                </button>
-              ) : null}
-              {!comparisonEditing && (
+          {!comparisonEditing ? (
+            <div className="flex items-center justify-between gap-orbit-s">
+              <label className="v6-orbit-text-small v6-orbit-weight-semibold text-orbit-fg-secondary">
+                Set Custom Position
+              </label>
+              <div className="flex items-center gap-orbit-s">
+                {resetRecommendationAction}
                 <button
                   type="button"
                   className="inline-flex items-center gap-orbit-xxs text-orbit-xs text-orbit-primary hover:underline"
@@ -7347,9 +7401,9 @@ function ClauseRequestForm({
                   <ExternalLink className="h-3 w-3" aria-hidden="true" />
                   Expand
                 </button>
-              )}
+              </div>
             </div>
-          </div>
+          ) : null}
           <Textarea
             autoFocus={comparisonEditing}
             value={requestValue}
@@ -7357,15 +7411,23 @@ function ClauseRequestForm({
             placeholder={requestPlaceholder}
             maxLength={comparisonEditing ? requestCharacterLimit : undefined}
             className={cn(
-              comparisonEditing ? "min-h-[120px]" : "min-h-[64px]",
+              comparisonEditing ? "mb-orbit-base h-[96px] min-h-[96px]" : "min-h-[64px]",
               compact && !comparisonEditing && "min-h-[58px] text-orbit-xs",
               comparisonEditing && "[&>div]:!pt-0",
+              comparisonEditing && "[&>div>textarea]:h-[96px] [&>div>textarea]:min-h-[96px] [&>div>textarea]:max-h-[320px]",
+              comparisonEditing && "!pb-0",
               "text-orbit-sm",
             )}
           />
+          {rationaleAction || (comparisonEditing && resetRecommendationAction) ? (
+            <div className="flex min-w-0 items-center justify-between gap-orbit-s">
+              <div className="min-w-0">{rationaleAction}</div>
+              {comparisonEditing ? resetRecommendationAction : null}
+            </div>
+          ) : null}
         </div>
       </div>
-      {!comparisonEditing ? (
+      {!comparisonEditing || showConfirmationActions ? (
         <div className="mt-auto flex flex-wrap items-center justify-between gap-orbit-base">
           <Button variant="outline" className={cn("h-8 text-orbit-xs", compact && "h-7 text-orbit-xs")} onClick={onCancel}>
             Cancel
@@ -7486,6 +7548,7 @@ function ClauseDecisionCard({
   suppressRequestActions = false,
   neutralActions = false,
   compactCardPadding = false,
+  showBulkSelectionCheckbox = false,
 }: {
   id: string;
   clause: ClauseResult;
@@ -7544,6 +7607,7 @@ function ClauseDecisionCard({
   suppressRequestActions?: boolean;
   neutralActions?: boolean;
   compactCardPadding?: boolean;
+  showBulkSelectionCheckbox?: boolean;
   /**
    * "accepted" is the pre-existing closed-bucket concede and is left alone.
    * The other three are Not Met card outcome provenance (see ClauseOutcome).
@@ -7573,7 +7637,7 @@ function ClauseDecisionCard({
   const noActionIsPrimary = !neutralActions && clause.severity === "low";
   const noneDeviationClause = isNoneDeviationClause(clause);
   const showRequestActions = !suppressRequestActions && !noneDeviationClause && !settled && !actions && !showHandledCompact;
-  const showBulkSelectionCheckbox = (bulkSelectionEnabled || bulkSelectionContext.enabled) && useDefaultComparisonCard;
+  const showBulkSelectionControl = ((bulkSelectionEnabled || bulkSelectionContext.enabled) || showBulkSelectionCheckbox) && useDefaultComparisonCard;
   const bulkClauseSelected = bulkSelectedClauseIds?.has(id) ?? bulkSelectionContext.selectedClauseIds.has(id);
   const useV6StatusTags = isInitiativesV6Route();
   const isMissingClauseCard = Boolean(missingClause || clause.missingClause);
@@ -7665,7 +7729,7 @@ function ClauseDecisionCard({
         <div className="flex min-w-0 items-center gap-orbit-s">
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-orbit-xs">
-              {showBulkSelectionCheckbox && (
+              {showBulkSelectionControl && (
               <Checkbox
                   checked={bulkClauseSelected}
                   aria-label={`Bulk selected ${id.toUpperCase()}`}
@@ -8291,6 +8355,7 @@ function InitialAnalysisOptionTwoClauseCard({
       request={request}
       revertText={actionabilityText}
       comparisonEditing
+      showConfirmationActions
       requestPlaceholder="Write the position you want to take with the supplier"
       submitLabel="Confirm Custom Position"
       embedded
@@ -8439,6 +8504,7 @@ function ResultCardPanel({
   tone = "default",
   content,
   footer,
+  textActionFooter,
   headerAction,
   textAction,
   footerPushBottom = false,
@@ -8451,6 +8517,7 @@ function ResultCardPanel({
   tone?: ResultCardPanelTone;
   content?: ReactNode;
   footer?: ReactNode;
+  textActionFooter?: ReactNode;
   headerAction?: ReactNode;
   textAction?: { label: string; onClick: () => void };
   footerPushBottom?: boolean;
@@ -8459,6 +8526,7 @@ function ResultCardPanel({
 }) {
   const surfaceToken = tone === "highlight" ? "highlight" : tone === "accent" || tone === "primary" ? "accent" : "default";
   const labelVariant = tone === "default" ? "Secondary" : "Information";
+  const hasBodyText = typeof text === "string" ? text.trim().length > 0 : Boolean(text);
 
   return (
     <div
@@ -8484,7 +8552,7 @@ function ResultCardPanel({
       </div>
       {textAction ? (
         <div
-          className="mt-0"
+          className="clauseiq-v6a-target-text-with-rationale mt-0"
           onFocusCapture={(event) => {
             event.stopPropagation();
             textAction.onClick();
@@ -8494,18 +8562,27 @@ function ResultCardPanel({
             value={typeof text === "string" ? text : ""}
             rows={3}
             aria-label={textAction.label}
-            className="min-h-[88px] [&_textarea]:cursor-text"
+            maxLength={250}
+            className="min-h-[96px] resize-y bg-transparent pb-1 text-orbit-sm [&>div]:!pt-0 [&>div>textarea]:!min-h-[96px] [&>div>textarea]:!bg-transparent [&_textarea]:cursor-text"
           />
+          {textActionFooter ? <div className="clauseiq-v6a-target-text-rationale mt-0 flex min-w-0 justify-start">{textActionFooter}</div> : null}
         </div>
       ) : (
-        <p
-          className="mt-orbit-xs v6-orbit-text-body text-orbit-fg"
-          style={{ "--orbit-text-small-leading": "1.5" } as CSSProperties}
-        >
-          {text}
-        </p>
+        <div className="min-w-0">
+          {hasBodyText ? (
+            <>
+              <p
+                className="mt-orbit-xs v6-orbit-text-body text-orbit-fg"
+                style={{ "--orbit-text-small-leading": "1.5" } as CSSProperties}
+              >
+                {text}
+              </p>
+              {textActionFooter ? <div className="mt-0 flex min-w-0 justify-start">{textActionFooter}</div> : null}
+            </>
+          ) : null}
+        </div>
       )}
-      {content ? <div className="mt-orbit-s flex flex-1 flex-col">{content}</div> : null}
+      {content ? <div className={cn(hasBodyText ? "mt-orbit-s" : "mt-0", "flex flex-1 flex-col")}>{content}</div> : null}
       {footer ? <div className={cn(footerPushBottom ? "mt-auto" : "mt-orbit-s", footerPushBottom && footerTopPadding && "pt-orbit-s", "flex flex-wrap items-center gap-orbit-xs")}>{footer}</div> : null}
     </div>
   );
@@ -8609,7 +8686,6 @@ function RoundComparisonDashboard({
 
 function ComparisonNegotiationBanner({
   version,
-  cardState = "Accent",
   fallbackLastEditedAt,
   fallbackLastDownloadedAt,
   locked,
@@ -8621,7 +8697,6 @@ function ComparisonNegotiationBanner({
   onUnlock,
 }: {
   version: string;
-  cardState?: "Default" | "Warning";
   fallbackLastEditedAt?: string;
   fallbackLastDownloadedAt?: string;
   locked: boolean;
@@ -8641,9 +8716,8 @@ function ComparisonNegotiationBanner({
   };
   const editedAt = lastEditedAt ?? fallbackLastEditedAt;
   const downloadedAt = lastDownloadedAt ?? fallbackLastDownloadedAt;
-      const bannerState: "Default" | "Warning" = locked ? "Warning" : cardState;
   return (
-    <Card type="Static" padding="Base" state={bannerState} indicator={false}>
+    <Card type="Static" padding="Base" state="Default" indicator={false}>
       <div className="flex flex-wrap items-center gap-orbit-s">
         <Pencil className="h-[18px] w-[18px] shrink-0 text-orbit-fg" aria-hidden="true" />
         <Headings size="Heading 5">Negotiation Position</Headings>
@@ -8805,13 +8879,7 @@ function InitialAnalysisTableFilterBar({
   ];
   return (
     <div className="flex flex-wrap items-center gap-x-orbit-base gap-y-orbit-s">
-      <div
-        className="flex flex-wrap items-center gap-orbit-xs [&_[aria-pressed='true']]:!border-orbit-primary [&_[aria-pressed='true']]:!bg-orbit-primary [&_[aria-pressed='true']]:!text-orbit-inverse [&_[aria-pressed='true']_span]:!text-orbit-inverse"
-        role="group"
-        aria-label="Status"
-        data-filter-group="status"
-        data-active-value={status}
-      >
+      <div className="flex flex-wrap items-center gap-orbit-xs" role="group" aria-label="Status" data-filter-group="status" data-active-value={status}>
         <span className="text-orbit-sm v6-orbit-weight-semibold text-orbit-fg-secondary">Status</span>
         <QuickFilterGroup ariaLabel="Status">
           <QuickFilterItem label={`Met · ${statusCounts.met}`} selected={status === "met"} onClick={() => onStatusChange("met")} />
@@ -8829,7 +8897,7 @@ function InitialAnalysisTableFilterBar({
       <label className="flex items-center gap-orbit-s text-orbit-sm text-orbit-fg-secondary">
         <span className="v6-orbit-weight-semibold">Clause Type</span>
         <Select value={section} onValueChange={onSectionChange}>
-          <SelectTrigger className="h-8 w-full max-w-[240px] bg-orbit-card text-orbit-xs clauseiq-v6-select-left" aria-label="Clause Type">
+          <SelectTrigger className="h-8 w-[240px] bg-orbit-card text-orbit-xs clauseiq-v6-select-left" aria-label="Clause Type">
             <SelectValue placeholder="All" />
           </SelectTrigger>
           <SelectContent>
@@ -9219,7 +9287,7 @@ function SimplifiedComparisonContent({
   currentText: string;
   currentHeaderAction?: ReactNode;
   currentFooter?: ReactNode;
-  targetContent?: ReactNode;
+  targetContent?: ReactNode | ((rationaleAction: ReactNode) => ReactNode);
   targetFooter?: ReactNode;
   targetHeaderAction?: ReactNode;
   onTargetTextClick?: () => void;
@@ -9260,7 +9328,35 @@ function SimplifiedComparisonContent({
       padding={layout === "thread" ? "tight" : layout === "initial-two-card" ? "base" : "compact"}
     />
   );
-  const targetPanel = targetText || targetContent ? (
+  const createRationaleAction = () => recommendationRationale ? (
+    <span
+      className="inline-flex min-w-0 items-center gap-orbit-xxs [&>a]:!text-orbit-primary"
+      onMouseDown={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+      onClick={(event) => {
+        event.stopPropagation();
+      }}
+    >
+      <LinkText
+        label="View Rationale"
+        href="#rationale"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setRationaleOpen(!rationaleOpen);
+        }}
+      />
+      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-orbit-primary" aria-hidden="true" />
+    </span>
+  ) : null;
+  const rationaleAction = !hideRationaleAction ? createRationaleAction() : null;
+  const editorRationaleAction = createRationaleAction();
+  const resolvedTargetContent = typeof targetContent === "function"
+    ? targetContent(editorRationaleAction)
+    : targetContent;
+  const targetPanel = targetText || resolvedTargetContent ? (
     <ResultCardPanel
       label={layout === "initial-two-card" || layout === "thread" ? (
         <span className="inline-flex items-center gap-orbit-xs v6-orbit-weight-semibold text-orbit-primary">
@@ -9276,11 +9372,12 @@ function SimplifiedComparisonContent({
       text={displayedTargetText ?? ""}
       headerAction={targetHeaderAction}
       textAction={onTargetTextClick ? { onClick: onTargetTextClick, label: targetTextActionLabel } : undefined}
+      textActionFooter={rationaleAction}
       tone={layout === "thread" || layout === "initial-two-card" ? "default" : "primary"}
       footerPushBottom={layout === "thread" || layout === "initial-two-card"}
       footerTopPadding={false}
       padding={layout === "thread" ? "tight" : layout === "initial-two-card" ? "base" : "compact"}
-      content={targetContent}
+      content={resolvedTargetContent}
       footer={
         <div
           className={cn(
@@ -9288,19 +9385,6 @@ function SimplifiedComparisonContent({
             "flex-row items-center",
           )}
         >
-          {!hideRationaleAction && recommendationRationale && (
-            <span className="inline-flex items-center gap-orbit-xxs [&>a]:!text-orbit-primary">
-                <LinkText
-                  label="View Rationale"
-                  href="#rationale"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    setRationaleOpen(!rationaleOpen);
-                  }}
-                />
-                <ArrowRight className="h-3.5 w-3.5 text-orbit-primary" aria-hidden="true" />
-            </span>
-          )}
           {targetFooter && (
             <div
               className={cn(
@@ -10327,7 +10411,6 @@ function ReviewScreen({
   initialFilterEmptyState?: ReactNode;
   isDashboardLocked?: boolean;
 }) {
-  const [pendingDraftCancelId, setPendingDraftCancelId] = useState<string | null>(null);
   const q = search.trim().toLowerCase();
   const versionLabel = version.version;
   const activeCategorySet = new Set(activeCategories);
@@ -10399,15 +10482,10 @@ function ReviewScreen({
     const trackedCurrentPosition = Boolean(state.trackedCurrentPositions?.[versionLabel]);
     const inherited = getLatestRequest(state, versionLabel);
     const inheritedFromOlder = inherited && inherited.version !== versionLabel ? inherited : undefined;
-    const draftHasText = Boolean(draft?.requestedChange?.trim() || draft?.rationale?.trim());
     const actionabilityDraft = c.actionability?.trim()
       ? { ...own, requestedChange: own.requestedChange?.trim() || c.actionability.trim() }
       : own;
     const cancelDraft = () => {
-      if (draftHasText) {
-        setPendingDraftCancelId(c.id);
-        return;
-      }
       onCancelDraft(c.id);
     };
 
@@ -10463,26 +10541,6 @@ function ReviewScreen({
     <div className="bg-orbit-card border border-orbit-border rounded-orbit-lg p-orbit-xxl text-center text-orbit-sm text-orbit-fg-secondary">
       No clauses match this category.
     </div>
-  );
-
-  const discardOverlay = (
-    <V6OrbitConfirmOverlay
-      open={Boolean(pendingDraftCancelId)}
-      onOpenChange={(open) => {
-        if (!open) setPendingDraftCancelId(null);
-      }}
-      modalKey="discard-draft-request"
-      title="Discard Draft Request"
-      description="This will remove the request text you have drafted for this clause."
-      confirmLabel="Discard draft"
-      destructive
-      cancelAlignment="left"
-      descriptionPlacement="body"
-      onConfirm={() => {
-        if (pendingDraftCancelId) onCancelDraft(pendingDraftCancelId);
-        setPendingDraftCancelId(null);
-      }}
-    />
   );
 
   if (displayMode === "initial-table") {
@@ -10564,7 +10622,6 @@ function ReviewScreen({
             {acceptedSupplierPositionRows.map(renderClauseCard)}
           </FirstAnalysisReviewBucketSection>
         )}
-        {discardOverlay}
       </div>
     );
   }
@@ -10573,7 +10630,6 @@ function ReviewScreen({
     <div className="space-y-orbit-base">
       {rows.map(renderClauseCard)}
       {rows.length === 0 && emptyState}
-      {discardOverlay}
     </div>
   );
 }
@@ -10793,7 +10849,7 @@ function InitialAnalysisRecommendationTable({
               <td className="px-orbit-base pt-orbit-base pb-orbit-base"><button type="button" className="flex w-full items-start gap-orbit-s text-left" aria-expanded={expanded} aria-controls={detailId} onClick={() => setExpandedClauseId((current) => current === clause.id ? null : clause.id)}><span className={cn("mt-px text-orbit-fg-secondary transition-transform", expanded && "rotate-90")} aria-hidden="true">›</span><span><span className="block v6-orbit-heading-label text-orbit-fg">{displayTitleForClause(clause.id, clause.title)}</span><span className="mt-orbit-xxs block text-orbit-xs text-orbit-fg-secondary">{clause.id.toUpperCase()}</span></span></button></td>
               <td className="px-orbit-base pt-orbit-base pb-orbit-base">{missing ? <div><Chip label="Missing From Contract" size="Mini" variant="Error" contrast="Low" /><p className="mt-orbit-s italic text-orbit-sm text-orbit-fg-secondary">No wording in the supplier’s contract — this term should be negotiated in.</p><p className="mt-orbit-s text-orbit-xs text-orbit-fg-secondary">If this term is intentionally out of scope, move it to Position Met.</p><Button variant="outline" className="mt-orbit-s h-8 px-orbit-base" disabled={locked || (!accepted && selectedRecommendationIds.length > 0)} onClick={() => accepted ? onUndoDecision(clause.id) : onSetNoAction(clause.id)}>{accepted ? <X className="h-3.5 w-3.5" aria-hidden="true" /> : <Check className="h-3.5 w-3.5" aria-hidden="true" />}{accepted ? "Undo" : "Move to Position Met"}</Button></div> : <div><p className="text-orbit-sm leading-6 text-orbit-fg">{clause.excerpt || clause.deviation}</p>{!noRecommendation ? <div className="mt-orbit-s">{isPositionMet && accepted ? <Button variant="outline" className="h-8 px-orbit-base" disabled={locked} onClick={() => onUndoDecision(clause.id)}><X className="h-3.5 w-3.5" aria-hidden="true" />Reject Supplier Position</Button> : accepted ? <Button variant="outline" className="h-8 px-orbit-base" disabled={locked} onClick={() => onUndoDecision(clause.id)}>Undo</Button> : <Button variant="outline" className="h-8 px-orbit-base" disabled={locked || selectedRecommendationIds.length > 0} onClick={() => onSetNoAction(clause.id)}><Check className="h-3.5 w-3.5" aria-hidden="true" />Accept Supplier Position</Button>}</div> : null}</div>}</td>
               <td className="px-orbit-base pt-orbit-base pb-orbit-base"><FirstAnalysisStatusTag status={severityStatus} /></td>
-              <td className="px-orbit-base pt-orbit-base pb-orbit-base">{accepted ? (isPositionMet ? <p className="pt-orbit-xs text-orbit-sm italic text-orbit-fg-secondary">{missing ? "Intentionally absent — no counter-position." : "Supplier position accepted — no counter-position."}</p> : <div className="rounded-orbit-md border border-orbit-success/30 bg-orbit-success/5 p-orbit-base text-orbit-sm text-orbit-success">{missing ? "Clause intentionally absent." : "Supplier position accepted."}</div>) : <div><Textarea disabled={locked} value={position} rows={4} aria-label={`Negotiation position for ${displayTitleForClause(clause.id, clause.title)}`} placeholder={noRecommendation ? "Type a recommendation for this clause..." : undefined} className="min-h-[116px] resize-y bg-transparent text-orbit-sm [&>div]:!pt-0 [&>div>textarea]:!bg-transparent" onFocus={() => { setFocusedClauseId(clause.id); if (!draft) onStartDraft(clause.id, { requestedChange: position, rationale: request?.rationale ?? "" }); }} onChange={(event) => saveDraft(event.target.value)} onBlur={() => { setFocusedClauseId(null); if (!noRecommendation && (draft?.requestedChange ?? position).trim()) onSubmitDraft(clause.id); }} />{noRecommendation ? <><p className="mt-orbit-xxs text-orbit-xs text-orbit-fg-secondary">AI had no recommendation — add your own.</p><Button variant="outline" className="mt-orbit-xs h-8 w-full justify-center" disabled={locked || !position.trim()} onClick={() => onSubmitDraft(clause.id)}>✦ Add to Position Not Met</Button></> : focusedClauseId === clause.id ? <button type="button" disabled={locked} className="mt-orbit-xs inline-flex items-center gap-orbit-xs text-orbit-xs text-orbit-fg-secondary underline-offset-2 hover:text-orbit-fg hover:underline disabled:cursor-not-allowed disabled:opacity-50" onMouseDown={(event) => event.preventDefault()} onClick={() => onResetRecommendation(clause.id)}><RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />{customPromoted ? "Move to Position Met" : "Reset Initial Recommendation"}</button> : null}</div>}</td>
+              <td className="px-orbit-base pt-orbit-base pb-orbit-base">{accepted ? (isPositionMet ? <p className="pt-orbit-xs text-orbit-sm italic text-orbit-fg-secondary">{missing ? "Intentionally absent — no counter-position." : "Supplier position accepted — no counter-position."}</p> : <div className="rounded-orbit-md border border-orbit-success/30 bg-orbit-success/5 p-orbit-base text-orbit-sm text-orbit-success">{missing ? "Clause intentionally absent." : "Supplier position accepted."}</div>) : <div><Textarea disabled={locked} value={position} rows={3} aria-label={`Negotiation position for ${displayTitleForClause(clause.id, clause.title)}`} placeholder={noRecommendation ? "Type a recommendation for this clause..." : undefined} className="min-h-[96px] resize-y bg-transparent text-orbit-sm [&>div]:!pt-0 [&>div>textarea]:!min-h-[96px] [&>div>textarea]:!bg-transparent" onFocus={() => { setFocusedClauseId(clause.id); if (!draft) onStartDraft(clause.id, { requestedChange: position, rationale: request?.rationale ?? "" }); }} onChange={(event) => saveDraft(event.target.value)} onBlur={() => { setFocusedClauseId(null); if (!noRecommendation && (draft?.requestedChange ?? position).trim()) onSubmitDraft(clause.id); }} />{noRecommendation ? <><p className="mt-orbit-xxs text-orbit-xs text-orbit-fg-secondary">AI had no recommendation — add your own.</p><Button variant="outline" className="mt-orbit-xs h-8 w-full justify-center" disabled={locked || !position.trim()} onClick={() => onSubmitDraft(clause.id)}>✦ Add to Position Not Met</Button></> : focusedClauseId === clause.id ? <button type="button" disabled={locked} className="mt-orbit-xs inline-flex items-center gap-orbit-xs text-orbit-fg-secondary underline-offset-2 hover:text-orbit-fg hover:underline disabled:cursor-not-allowed disabled:opacity-50" onMouseDown={(event) => event.preventDefault()} onClick={() => onResetRecommendation(clause.id)}><RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />{customPromoted ? "Move to Position Met" : "Reset Initial Recommendation"}</button> : null}</div>}</td>
             </tr>
             {expanded ? <tr id={detailId} className="border-b border-orbit-border bg-orbit-surface/30"><td colSpan={columnCount} className="px-orbit-base py-orbit-base"><div className="grid gap-orbit-xl md:grid-cols-2"><div className="max-w-[704px]"><p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wide text-orbit-fg-secondary">Full clause wording</p><p className="mt-orbit-s text-orbit-sm leading-6 text-orbit-fg">{missing ? "No wording in the supplier’s contract — this term should be negotiated in." : clause.excerpt || clause.deviation}</p></div><div><p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wide text-orbit-fg-secondary">Rationale</p><p className="mt-orbit-s text-orbit-sm leading-6 text-orbit-fg">{clause.rationale ?? "The recommendation addresses the identified gap between the supplier wording and the applicable benchmark."}</p></div></div></td></tr> : null}
             </Fragment>;
@@ -10807,8 +10863,9 @@ function InitialAnalysisRecommendationTable({
   );
   };
 
+  const bulkSelectionBanner = selectedRecommendationIds.length > 0 ? <div className="flex items-center justify-between gap-orbit-base rounded-orbit-md border border-orbit-border bg-orbit-heading px-orbit-base py-orbit-s text-orbit-inverse"><span className="font-medium">{selectedRecommendationIds.length} Clause{selectedRecommendationIds.length === 1 ? "" : "s"} Selected</span><div className="flex items-center gap-orbit-xs"><Button variant="secondary" className="h-8" disabled={locked} onClick={() => selectedRecommendationIds.forEach((id) => onBulkClauseSelectionChange?.(id, false))}>Clear</Button><Button className="h-8" disabled={locked} onClick={onAcceptSelected}>✓ Accept Supplier Positions</Button><Button variant="ghost" size="icon" aria-label="Close Bulk Selection" title="Close Bulk Selection" className="text-orbit-inverse hover:bg-orbit-card/20" disabled={locked} onClick={() => selectedRecommendationIds.forEach((id) => onBulkClauseSelectionChange?.(id, false))}><X className="h-4 w-4" aria-hidden="true" /></Button></div></div> : null;
+
   return <div className="space-y-orbit-base">
-    {selectedRecommendationIds.length > 0 ? <div className="flex items-center justify-between gap-orbit-base rounded-orbit-md border border-orbit-border bg-orbit-heading px-orbit-base py-orbit-s text-orbit-inverse"><span className="font-medium">{selectedRecommendationIds.length} Clause{selectedRecommendationIds.length === 1 ? "" : "s"} Selected</span><div className="flex items-center gap-orbit-xs"><Button variant="secondary" className="h-8" disabled={locked} onClick={() => selectedRecommendationIds.forEach((id) => onBulkClauseSelectionChange?.(id, false))}>Clear</Button><Button className="h-8" disabled={locked} onClick={onAcceptSelected}>✓ Accept Supplier Positions</Button><Button variant="ghost" size="icon" aria-label="Close Bulk Selection" title="Close Bulk Selection" className="text-orbit-inverse hover:bg-orbit-card/20" disabled={locked} onClick={() => selectedRecommendationIds.forEach((id) => onBulkClauseSelectionChange?.(id, false))}><X className="h-4 w-4" aria-hidden="true" /></Button></div></div> : null}
     <Card type="Static" padding="Base" state="Default" indicator={false} style={{ width: "100%" }}>
       <div className="space-y-orbit-base">
         <div>
@@ -10818,6 +10875,7 @@ function InitialAnalysisRecommendationTable({
           </div>
           <p className="mt-orbit-s text-orbit-sm text-orbit-fg-secondary">ClauseIQ has grouped every clause by whether the supplier's wording meets your best-practice position. Filter by status, deviation or section — edit any recommendation, or accept the supplier's wording to close a clause out.</p>
           {filters ? <div className="mt-orbit-base">{filters}</div> : null}
+          {bulkSelectionBanner ? <div className="mt-orbit-base">{bulkSelectionBanner}</div> : null}
         </div>
         {rows.length === 0 ? emptyState : <>
           <section className="overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">
@@ -11130,6 +11188,7 @@ function ComparisonSection(props: {
   bulkSelectedClauseIds?: Set<string>;
   onBulkClauseSelectionChange?: (clauseId: string, selected: boolean) => void;
   isDashboardLocked?: boolean;
+  showSectionBulkSelection?: boolean;
 }) {
   const {
     title, description, accent, rows, leftLabel, rightLabel, visible, bucket, stats,
@@ -11142,10 +11201,10 @@ function ComparisonSection(props: {
     isDashboardLocked = false,
     showKeepCurrentPosition = true,
     showOutcomeActions = true,
+    showSectionBulkSelection = false,
   } = props;
   const [open, setOpen] = useState(defaultOpen);
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
-  const [pendingDraftCancelId, setPendingDraftCancelId] = useState<string | null>(null);
   if (!visible) return null;
   const accentBar =
     accent === "primary" ? "bg-orbit-primary"
@@ -11208,6 +11267,30 @@ function ComparisonSection(props: {
     const bTitle = (b.curr ?? b.prev)?.title ?? b.id;
     return aTitle.localeCompare(bTitle);
   });
+  const selectableClauseIds = sortedRows.map((row) => row.id);
+  const selectedSectionClauseIds = selectableClauseIds.filter((id) => bulkSelectedClauseIds?.has(id));
+  const allSectionClausesSelected = selectableClauseIds.length > 0 && selectedSectionClauseIds.length === selectableClauseIds.length;
+  const sectionBulkSelectionActive = selectedSectionClauseIds.length > 0;
+  const setSectionSelection = (selected: boolean) => {
+    selectableClauseIds.forEach((id) => onBulkClauseSelectionChange?.(id, selected));
+  };
+  const sectionHeaderContent = (
+    <>
+      <span className={`w-1 self-stretch rounded-orbit-sm ${accentBar}`} />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-orbit-s">
+          <h3 className={`v6-orbit-heading-strong ${accentText}`}>
+            {title} · <span className="tabular-nums text-orbit-fg">{displayedStats.total}</span>
+          </h3>
+          {bucketSummary && (
+            <span className="text-orbit-xs v6-orbit-weight-medium text-orbit-fg-secondary">{bucketSummary}</span>
+          )}
+        </div>
+        <p className="mt-orbit-xs text-orbit-sm leading-6 text-orbit-fg-secondary">{description}</p>
+      </div>
+      <ChevronDown className={`mt-orbit-xs h-4 w-4 shrink-0 text-orbit-fg-secondary transition-transform ${open ? "rotate-180" : ""}`} />
+    </>
+  );
 
   const rowsContent = rows.length === 0 ? (
     <div className="border-t border-orbit-border p-orbit-m text-center text-orbit-xs text-orbit-fg-secondary">{emptyMsg}</div>
@@ -11268,10 +11351,6 @@ function ComparisonSection(props: {
           }
         };
         const cancelDraft = () => {
-          if (draft.requestedChange?.trim() || draft.rationale?.trim()) {
-            setPendingDraftCancelId(r.id);
-            return;
-          }
           onCancelDraft?.(r.id);
           setExpandedRequestId(null);
         };
@@ -11428,13 +11507,14 @@ function ComparisonSection(props: {
               ) : undefined
             }
             targetContent={
-              drafting && onUpdateText && onCancelDraft && onSubmitDraft ? (
+              drafting && onUpdateText && onCancelDraft && onSubmitDraft ? (editorRationaleAction) => (
                 <ClauseRequestForm
                   versionLabel={rightLabel}
                   draft={draft}
                   request={basketRequest}
                   revertText={comparisonBestPractice}
                   comparisonEditing={isRoundDashboard}
+                  rationaleAction={editorRationaleAction}
                   requestPlaceholder="Write the target you want to send in the next round"
                   submitLabel="Confirm Custom Position"
                   embedded
@@ -11604,9 +11684,10 @@ function ComparisonSection(props: {
               onTrackCurrentPosition?.(r.id, false);
             }}
             onOpenDetail={() => onOpenDetail(r.id)}
-            bulkSelectionEnabled={bulkSelectionEnabled}
+            bulkSelectionEnabled={sectionBulkSelectionActive}
             bulkSelectedClauseIds={bulkSelectedClauseIds}
             onBulkClauseSelectionChange={onBulkClauseSelectionChange}
+            showBulkSelectionCheckbox={showSectionBulkSelection}
             suppressRequestActions
           />
         );
@@ -11614,56 +11695,41 @@ function ComparisonSection(props: {
     </div>
   );
 
-  const confirmOverlay = (
-    <>
-      <V6OrbitConfirmOverlay
-        open={Boolean(pendingDraftCancelId)}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) setPendingDraftCancelId(null);
-        }}
-        modalKey="discard-draft-request"
-        title="Discard Draft Request"
-        description="This will remove the request text you have drafted for this clause."
-        confirmLabel="Discard draft"
-        destructive
-        cancelAlignment="left"
-        descriptionPlacement="body"
-        onConfirm={() => {
-          if (pendingDraftCancelId) onCancelDraft?.(pendingDraftCancelId);
-          setExpandedRequestId(null);
-          setPendingDraftCancelId(null);
-        }}
-      />
-    </>
-  );
-
   if (layout === "plain") {
     return (
       <>
         <section className={`overflow-hidden rounded-orbit-lg border ${accentBorder} bg-orbit-card`}>
-          <button
-            type="button"
-            aria-expanded={open}
-            className={`flex w-full items-start gap-orbit-base p-orbit-base text-left transition-colors ${accentBg}`}
-            onClick={() => setOpen((current) => !current)}
-          >
-            <span className={`w-1 self-stretch rounded-orbit-sm ${accentBar}`} />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-orbit-s">
-                <h3 className={`v6-orbit-heading-strong ${accentText}`}>
-                  {title} · <span className="tabular-nums text-orbit-fg">{displayedStats.total}</span>
-                </h3>
-                {bucketSummary && (
-                  <span className="text-orbit-xs v6-orbit-weight-medium text-orbit-fg-secondary">{bucketSummary}</span>
-                )}
+          {showSectionBulkSelection ? (
+            <div className={`flex items-center gap-orbit-base p-orbit-base transition-colors ${accentBg}`}>
+              <div className="shrink-0">
+                <Checkbox
+                  checked={allSectionClausesSelected}
+                  aria-label={`Select all clauses in ${title}`}
+                  disabled={isDashboardLocked || selectableClauseIds.length === 0}
+                  onCheckedChange={(checked) => setSectionSelection(checked === true)}
+                />
               </div>
-              <p className="mt-orbit-xs text-orbit-sm leading-6 text-orbit-fg-secondary">{description}</p>
+              <button
+                type="button"
+                aria-expanded={open}
+                className="flex min-w-0 flex-1 items-start gap-orbit-base text-left"
+                onClick={() => setOpen((current) => !current)}
+              >
+                {sectionHeaderContent}
+              </button>
             </div>
-            <ChevronDown className={`mt-orbit-xs h-4 w-4 shrink-0 text-orbit-fg-secondary transition-transform ${open ? "rotate-180" : ""}`} />
-          </button>
+          ) : (
+            <button
+              type="button"
+              aria-expanded={open}
+              className={`flex w-full items-start gap-orbit-base p-orbit-base text-left transition-colors ${accentBg}`}
+              onClick={() => setOpen((current) => !current)}
+            >
+              {sectionHeaderContent}
+            </button>
+          )}
           {open && rowsContent}
         </section>
-        {confirmOverlay}
       </>
     );
   }
@@ -11671,29 +11737,37 @@ function ComparisonSection(props: {
   return (
     <>
       <section className={`overflow-hidden rounded-orbit-lg border ${accentBorder} bg-orbit-card`}>
-        <button
-          type="button"
-          aria-expanded={open}
-          className={`flex w-full items-start gap-orbit-base p-orbit-base text-left transition-colors ${accentBg}`}
-          onClick={() => setOpen((current) => !current)}
-        >
-          <span className={`w-1 self-stretch rounded-orbit-sm ${accentBar}`} />
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-orbit-s">
-              <h3 className={`v6-orbit-heading-strong ${accentText}`}>
-                {title} · <span className="tabular-nums text-orbit-fg">{displayedStats.total}</span>
-              </h3>
-              {bucketSummary && (
-                <span className="text-orbit-xs v6-orbit-weight-medium text-orbit-fg-secondary">{bucketSummary}</span>
-              )}
+        {showSectionBulkSelection ? (
+          <div className={`flex items-center gap-orbit-base p-orbit-base transition-colors ${accentBg}`}>
+            <div className="shrink-0">
+              <Checkbox
+                checked={allSectionClausesSelected}
+                aria-label={`Select all clauses in ${title}`}
+                disabled={isDashboardLocked || selectableClauseIds.length === 0}
+                onCheckedChange={(checked) => setSectionSelection(checked === true)}
+              />
             </div>
-            <p className="mt-orbit-xs text-orbit-sm leading-6 text-orbit-fg-secondary">{description}</p>
+            <button
+              type="button"
+              aria-expanded={open}
+              className="flex min-w-0 flex-1 items-start gap-orbit-base text-left"
+              onClick={() => setOpen((current) => !current)}
+            >
+              {sectionHeaderContent}
+            </button>
           </div>
-          <ChevronDown className={`mt-orbit-xs h-4 w-4 shrink-0 text-orbit-fg-secondary transition-transform ${open ? "rotate-180" : ""}`} />
-        </button>
+        ) : (
+          <button
+            type="button"
+            aria-expanded={open}
+            className={`flex w-full items-start gap-orbit-base p-orbit-base text-left transition-colors ${accentBg}`}
+            onClick={() => setOpen((current) => !current)}
+          >
+            {sectionHeaderContent}
+          </button>
+        )}
         {open && rowsContent}
       </section>
-      {confirmOverlay}
     </>
   );
 }
@@ -11729,7 +11803,6 @@ function UnmarkedSection({
   const [open, setOpen] = useState(defaultOpen);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [localSearch, setLocalSearch] = useState("");
-  const [pendingDraftCancelId, setPendingDraftCancelId] = useState<string | null>(null);
   useEffect(() => { if (defaultOpen) setOpen(true); }, [defaultOpen]);
   const q = localSearch.trim().toLowerCase();
   const filteredRows = q
@@ -11795,10 +11868,6 @@ function UnmarkedSection({
                     const draft = draftOf(r.id);
                     const isExpanded = expandedId === r.id || drafting;
                     const cancelDraft = () => {
-                      if (draft.requestedChange?.trim() || draft.rationale?.trim()) {
-                        setPendingDraftCancelId(r.id);
-                        return;
-                      }
                       onCancelDraft(r.id);
                       setExpandedId(null);
                     };
@@ -11860,24 +11929,6 @@ function UnmarkedSection({
           )
         )}
       </div>
-      <V6OrbitConfirmOverlay
-        open={Boolean(pendingDraftCancelId)}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) setPendingDraftCancelId(null);
-        }}
-        modalKey="discard-draft-request"
-        title="Discard Draft Request"
-        description="This will remove the request text you have drafted for this clause."
-        confirmLabel="Discard draft"
-        destructive
-        cancelAlignment="left"
-        descriptionPlacement="body"
-        onConfirm={() => {
-          if (pendingDraftCancelId) onCancelDraft(pendingDraftCancelId);
-          setExpandedId(null);
-          setPendingDraftCancelId(null);
-        }}
-      />
     </>
   );
 }
@@ -12868,10 +12919,14 @@ function DashboardSupplierIdentity({
   journey,
   isDashboardLocked,
   onChangeSupplier,
+  supplierPickerOpen,
+  supplierPicker,
 }: {
   journey: DashboardSupplierJourney;
   isDashboardLocked: boolean;
   onChangeSupplier: () => void;
+  supplierPickerOpen?: boolean;
+  supplierPicker?: ReactNode;
 }) {
   const context = journey.context;
   const unresolved = context.status === "unknown";
@@ -12883,6 +12938,35 @@ function DashboardSupplierIdentity({
   const helperCopy = unresolved
     ? "Map this contract to a known supplier or add a new one. All future rounds will be added to the selected supplier."
     : "Future rounds will be added here.";
+
+  if (unresolved) {
+    return (
+      <div className="mx-auto mt-orbit-base max-w-[1600px] px-orbit-base" aria-label="Supplier mapping warning">
+        <div className="relative overflow-visible rounded-orbit-lg border border-orbit-warning">
+          <Alert
+            type="Warning"
+            title={statusCopy}
+            description={helperCopy}
+          />
+          <div className="absolute right-orbit-base top-1/2 z-50 -translate-y-1/2">
+            <OrbitButton
+              variant="Secondary"
+              size="Medium"
+              state="Default"
+              disabled={isDashboardLocked}
+              onClick={onChangeSupplier}
+              aria-label="Map Supplier"
+              aria-expanded={supplierPickerOpen}
+              aria-controls="supplier-change-picker"
+            >
+              {mappedName} · Click To Map
+            </OrbitButton>
+            {supplierPicker}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <section
@@ -13022,7 +13106,7 @@ function SupplierChangePicker({
 
   if (!open || isDashboardLocked) return null;
   return (
-    <div id="supplier-change-picker" className="absolute left-0 top-full z-40 mt-orbit-s max-h-[calc(100vh-6rem)] w-[min(360px,calc(100vw-2rem))] overflow-y-auto rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-base shadow-orbit-md" role="dialog" aria-label={manualAddOpen ? "Add Supplier Manually" : "Change Mapped Supplier"} aria-modal="false">
+    <div id="supplier-change-picker" className="absolute right-0 top-full z-40 mt-orbit-s max-h-[calc(100vh-6rem)] w-[min(360px,calc(100vw-2rem))] overflow-y-auto rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-base shadow-orbit-md" role="dialog" aria-label={manualAddOpen ? "Add Supplier Manually" : "Change Mapped Supplier"} aria-modal="false">
       {manualAddOpen ? (
         <>
           <p className="block max-w-full break-words text-orbit-sm v6-orbit-weight-semibold text-orbit-fg">Add Supplier Manually</p>

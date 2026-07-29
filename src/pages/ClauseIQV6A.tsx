@@ -254,6 +254,7 @@ function ClauseIQV6AContent({ forceResults = false, resultsLayout = "output-pane
         LATEST_V6_RESULTS_ROUTE.split("?")[1] ?? "",
       );
       fallbackParams.set("dashboardView", "initial-analysis");
+      fallbackParams.set("return", currentRoute);
       navigate(`/initiatives-v6a?${fallbackParams.toString()}`);
       return;
     }
@@ -299,6 +300,8 @@ function ClauseIQV6AContent({ forceResults = false, resultsLayout = "output-pane
       params.set("scenario", "first-analysis");
       params.set("dashboardView", "initial-analysis");
     }
+
+    params.set("return", currentRoute);
 
     navigate(`/initiatives-v6a?${params.toString()}`);
   };

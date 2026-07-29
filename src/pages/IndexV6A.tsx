@@ -179,6 +179,11 @@ const IndexV6A = () => {
               return;
             }
             if (isClauseIQResultRoute) {
+              const clauseIqReturnPath = searchParams.get("return");
+              if (clauseIqReturnPath) {
+                navigate(clauseIqReturnPath);
+                return;
+              }
               const supplierJourney = searchParams.get("supplierJourney");
               navigate(`/clauseiq-v6a/output-panel${supplierJourney ? `?supplierJourney=${encodeURIComponent(supplierJourney)}` : ""}`);
               return;

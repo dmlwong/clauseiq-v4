@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart2,
+  ArrowUpFromBracket,
   ChevronDown,
   FileText,
   Loader2,
   RotateCw,
   Search,
-  Upload,
 } from "@/components/clauseiq-v6a/v6aIcons";
 import { Card, MultiStateButton, MultiStateGroup } from "@orbit";
 import { Button } from "@/components/clauseiq-v6a/orbit-ui/button";
@@ -16,7 +16,7 @@ import { Searchbox } from "@/components/clauseiq-v6a/orbit-ui/searchbox";
 import type { ClauseAnalysis, Supplier } from "@/data/mock-clauseiq-v6";
 import { flattenSupplierAnalyses, newestFirst, oldestFirst, supplierSeverity } from "@/lib/clauseiq-utils";
 import { cn } from "@/lib/utils";
-import { formatClauseIqDate } from "@/lib/clauseiq-v6a-format";
+import { formatClauseIqTimestamp } from "@/lib/clauseiq-v6a-format";
 import { AnalysisCard } from "./AnalysisCard";
 import {
   getSupplierScorePresentationByAnalysisId,
@@ -415,11 +415,16 @@ function SupplierOutputGroup({
               transition={{ duration: 0.18, ease: "easeOut" }}
               className="overflow-hidden"
             >
-              <div className="border-t border-orbit-border/70 pt-orbit-base">
-                {visibleAnalyses.map((analysis, index) => (
-                  <div key={analysis.id}>
-                    {index > 0 && <div className="my-orbit-base h-px bg-orbit-border/70" aria-hidden="true" />}
+              <div className="border-t border-orbit-border/70">
+                <div className="flex items-center border-b border-orbit-border/70 py-orbit-base">
+                  <span className="v6-orbit-text-small v6-orbit-weight-medium uppercase tracking-[0.08em] text-orbit-fg-secondary">
+                    Contract Uploads
+                  </span>
+                </div>
+                <div className="divide-y divide-orbit-border/70">
+                  {visibleAnalyses.map((analysis) => (
                     <CompactOutputRow
+                      key={analysis.id}
                       analysis={analysis}
                       displayFileName={displayFileNameForSupplierAnalysis(supplier, analysis)}
                       score={scoresByAnalysisId[analysis.id]}
@@ -436,10 +441,10 @@ function SupplierOutputGroup({
                       higherIsBetter={higherIsBetter}
                       showComparisonStatus={showComparisonStatus}
                     />
-                  </div>
-                ))}
+                  ))}
+                </div>
                 {hasAdditionalHistory && (
-                  <div className="mt-orbit-base border-t border-orbit-border/70 pt-orbit-base">
+                  <div className="border-t border-orbit-border/70 pt-orbit-s">
                     <button
                       type="button"
                       className="v6-orbit-text-small v6-orbit-weight-medium text-orbit-primary transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary"
@@ -476,20 +481,18 @@ function CompactOutputRow({
   showComparisonStatus: boolean;
 }) {
   return (
-    <article className="px-orbit-xs">
+    <article className="pt-orbit-s pb-0 first:pt-orbit-base">
       <div className="flex items-center justify-between gap-orbit-s">
         <p className="min-w-0 flex-1 truncate whitespace-nowrap v6-orbit-heading-strong text-orbit-fg">
           {displayFileName}
         </p>
-        <CompactOutputMeta
-          analysedAt={analysis.analysedAt}
-          onUpload={onUpload}
-          onViewResult={onViewResult}
-        />
+        <time dateTime={analysis.analysedAt} className="shrink-0 whitespace-nowrap text-right v6-orbit-text-small text-orbit-fg-secondary">
+          {formatCompactTimestamp(analysis.analysedAt)}
+        </time>
       </div>
 
       {score && (
-        <div className="mt-orbit-xs">
+        <div className="mt-orbit-xs flex items-center justify-between gap-orbit-s">
           <OutputScoreLine
             score={score}
             deviations={analysis.deviations}
@@ -497,6 +500,7 @@ function CompactOutputRow({
             showComparisonStatus={showComparisonStatus}
             textAlignment="center"
           />
+          <CompactOutputMeta onUpload={onUpload} onViewResult={onViewResult} />
         </div>
       )}
     </article>
@@ -504,34 +508,25 @@ function CompactOutputRow({
 }
 
 function CompactOutputMeta({
-  analysedAt,
   onUpload,
   onViewResult,
 }: {
-  analysedAt: string;
   onUpload?: () => void;
   onViewResult?: (selection?: SupplierOutputSelection) => void;
 }) {
   return (
-    <div className="shrink-0 text-right v6-orbit-text-small text-orbit-fg-secondary">
-      <div className="inline-flex items-center gap-orbit-s whitespace-nowrap">
-        <div className="inline-flex items-center gap-orbit-xs whitespace-nowrap">
-          <time dateTime={analysedAt}>{formatCompactTimestamp(analysedAt)}</time>
-        </div>
-        <div className="inline-flex items-center gap-orbit-xs">
-          <CompactActionButton label="View Results" onClick={onViewResult}>
-            <BarChart2 className="h-3.5 w-3.5" />
-          </CompactActionButton>
-          <CompactActionButton
-            label="Upload contract for this supplier"
-            onClick={onUpload}
-            widthClassName="w-8"
-          >
-            <Upload className="h-3.5 w-3.5" />
-          </CompactActionButton>
-        </div>
+    <div className="inline-flex shrink-0 items-center gap-orbit-xs">
+      <CompactActionButton label="View Results" onClick={onViewResult}>
+        <BarChart2 className="h-3.5 w-3.5" />
+      </CompactActionButton>
+      <CompactActionButton
+        label="Upload contract for this supplier"
+        onClick={onUpload}
+        widthClassName="w-8"
+      >
+        <ArrowUpFromBracket className="h-3.5 w-3.5" />
+      </CompactActionButton>
       </div>
-    </div>
   );
 }
 
@@ -622,5 +617,5 @@ function latestChangeTime(supplier: Supplier): number {
 }
 
 function formatCompactTimestamp(iso: string): string {
-  return formatClauseIqDate(iso);
+  return formatClauseIqTimestamp(iso);
 }

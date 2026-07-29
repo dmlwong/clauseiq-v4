@@ -83,6 +83,7 @@ export const ArrowDown = makeIcon(0xf063);
 export const ArrowDownRight = makeIcon(0xe093);
 export const ArrowRight = makeIcon(0xf061);
 export const ArrowUp = makeIcon(0xf062);
+export const ArrowUpFromBracket = makeIcon(0xe09a, 900);
 export const ArrowUpRight = makeIcon(0xe09f);
 export const BadgeCheck = makeIcon(0xf336);
 export const Ban = makeIcon(0xf05e);

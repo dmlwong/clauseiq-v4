@@ -220,6 +220,13 @@ export interface SupplierDetectionContext {
   };
 }
 
+export interface ConfirmedSupplierMapping {
+  supplierId: string;
+  displayName: string;
+  status: "known" | "pending-alias" | "fingerprinted-alias";
+  contextKey: string;
+}
+
 const detectionLabels: Record<SupplierDetectionOutcome, string> = {
   known: "A — Detected & known",
   "wrong-match": "A′ — Detected, wrong match",
@@ -412,9 +419,11 @@ export function useClauseIqWorkflow({
   const [rerunSupplierContextId, setRerunSupplierContextId] = useState<string | null>(null);
   const [newRerunSupplierName, setNewRerunSupplierName] = useState<string | null>(null);
   const [rerunNewSupplierEntryOpen, setRerunNewSupplierEntryOpen] = useState(false);
+  const [rerunWithoutSupplierContext, setRerunWithoutSupplierContext] = useState(false);
   const [initialSupplierName, setInitialSupplierName] = useState<string | null>(null);
   const [detectionOutcome, setDetectionOutcome] = useState<SupplierDetectionOutcome>("known");
   const [supplierDetectionContext, setSupplierDetectionContext] = useState<SupplierDetectionContext | null>(null);
+  const [confirmedSupplierMapping, setConfirmedSupplierMapping] = useState<ConfirmedSupplierMapping | null>(null);
   const [unknownCount, setUnknownCount] = useState(0);
   const [pendingAliasEntry, setPendingAliasEntry] = useState(false);
   const [registeredAliases, setRegisteredAliases] = useState<Supplier[]>([]);
@@ -611,8 +620,11 @@ export function useClauseIqWorkflow({
     setRerunSupplierContextId(null);
     setNewRerunSupplierName(null);
     setRerunNewSupplierEntryOpen(false);
+    setRerunWithoutSupplierContext(false);
+    setRerunWithoutSupplierContext(false);
     setInitialSupplierName(null);
     setSupplierDetectionContext(null);
+    setConfirmedSupplierMapping(null);
     setPendingAliasEntry(false);
     setRegisteredAliases([]);
     setAliasRegistrationPending(false);
@@ -627,6 +639,8 @@ export function useClauseIqWorkflow({
   const selectInitiative = (nextInitiative: CiqInitiative) => {
     setInitiative(nextInitiative);
     setInitialSupplierName(null);
+    setConfirmedSupplierMapping(null);
+    setRegisteredAliases([]);
     setSelectedParameter(null);
     setFile(null);
     setStep("parameters");
@@ -855,7 +869,7 @@ export function useClauseIqWorkflow({
     }
 
     if (resultsVisible && rerunUploadVisible) {
-      if (!rerunSupplierContextId) {
+      if (!rerunSupplierContextId && !rerunWithoutSupplierContext) {
         toast.error("Select a supplier context before running the analysis.");
         return;
       }
@@ -866,7 +880,7 @@ export function useClauseIqWorkflow({
         createDefaultParameterSelection();
       setPendingRerunAnalysis(createRerunAnalysis(nextFile.name));
       setPendingRerunParameter(parameterForRun);
-      setPendingRerunSupplierId(rerunSupplierContextId);
+      setPendingRerunSupplierId(rerunSupplierContextId ?? NEW_SUPPLIER_CONTEXT_ID);
       rerunFingerprintRef.current = rerunSupplierContextId === NEW_SUPPLIER_CONTEXT_ID && newRerunSupplierName
         ? fingerprintSupplierName(newRerunSupplierName, mockInitiative.suppliers)
         : null;
@@ -931,7 +945,7 @@ export function useClauseIqWorkflow({
     }
   };
 
-  const showRunAgainUpload = (supplierId?: string) => {
+  const showRunAgainUpload = (_supplierId?: string) => {
     setFile(null);
     setRerunProcessing(false);
     setPendingRerunAnalysis(null);
@@ -941,24 +955,14 @@ export function useClauseIqWorkflow({
     setCompletedRerunAnalysis(null);
     setCompletedRerunParameter(null);
     setCompletedRerunSupplierId(null);
-    const rerunSupplierId =
-      supplierId ??
-      latestOutputSupplierId ??
-      supplierDetectionContext?.supplierId ??
-      resultsInitiative.suppliers.find((supplier) => supplier.analyses.length > 0)?.id ??
-      null;
-    const inheritedParameter = rerunSupplierId
-      ? supplierParameterHistory[rerunSupplierId] ??
-        (rerunSupplierId === completedRerunSupplierId ? completedRerunParameter : null) ??
-        (rerunSupplierId === completedInitialSupplierId ? selectedParameter : null) ??
-        selectedParameter ??
-        createDefaultParameterSelection()
-      : null;
-    setRerunSupplierContextId(rerunSupplierId);
+    // Supplier and its prior parameters are selected together only after the
+    // user explicitly chooses a supplier in the rerun context card.
+    setRerunSupplierContextId(null);
     setRerunSupplierMismatch(null);
     setSupplierFingerprintResolution(null);
-    updateRerunSelectedParameter(inheritedParameter ? cloneAnalysisParameterSelection(inheritedParameter) : null);
-    setRerunParametersCarriedForward(Boolean(inheritedParameter));
+    updateRerunSelectedParameter(null);
+    setRerunParametersCarriedForward(false);
+    setRerunWithoutSupplierContext(false);
     setRerunUploadVisible(true);
     onRunAgain?.();
   };
@@ -973,6 +977,7 @@ export function useClauseIqWorkflow({
 
     updateRerunSelectedParameter(cloneAnalysisParameterSelection(inheritedParameter));
     setRerunParametersCarriedForward(true);
+    setRerunWithoutSupplierContext(false);
     setRerunSupplierContextId(supplierId);
     setFile(null);
     setRerunUploadVisible(true);
@@ -1049,6 +1054,8 @@ export function useClauseIqWorkflow({
     initialSupplierName,
     detectionOutcome,
     supplierDetectionContext,
+    confirmedSupplierMapping,
+    registeredAliases,
     pendingAliasEntry,
     aliasRegistrationPending,
     supplierCorrectionNotice,
@@ -1059,6 +1066,7 @@ export function useClauseIqWorkflow({
     rerunParametersCarriedForward,
     rerunSupplierContext,
     rerunNewSupplierEntryOpen,
+    rerunWithoutSupplierContext,
     completedRerunSupplier,
     rerunSupplierMismatch,
     supplierFingerprintResolution,
@@ -1105,6 +1113,16 @@ export function useClauseIqWorkflow({
       selectRerunSupplier,
       showRerunUploadForSupplier,
       beginNewRerunSupplierContext: () => setRerunNewSupplierEntryOpen(true),
+      beginRerunWithoutSupplierContext: () => {
+        setRerunSupplierContextId(null);
+        setNewRerunSupplierName(null);
+        setRerunNewSupplierEntryOpen(false);
+        updateRerunSelectedParameter(null);
+        setRerunParametersCarriedForward(false);
+        setRerunWithoutSupplierContext(true);
+        setRerunUploadVisible(true);
+        setFile(null);
+      },
       saveNewRerunSupplierContext: (name: string) => {
         const trimmedName = name.trim();
         if (!trimmedName) return;
@@ -1117,6 +1135,7 @@ export function useClauseIqWorkflow({
         setRerunSupplierContextId(null);
         setNewRerunSupplierName(null);
         setRerunNewSupplierEntryOpen(false);
+        setRerunWithoutSupplierContext(false);
         updateRerunSelectedParameter(null);
         setRerunParametersCarriedForward(false);
         setFile(null);
@@ -1144,18 +1163,28 @@ export function useClauseIqWorkflow({
           { ...supplier, analyses: [completedInitialAnalysis] },
         ] }));
         setCompletedInitialSupplierId(supplier.id);
+        setConfirmedSupplierMapping({
+          supplierId: supplier.id,
+          displayName: alias,
+          status: "pending-alias",
+          contextKey: supplierDetectionContext.grouping.identityKey,
+        });
         setSupplierDetectionContext(buildGroupingContext("new", "pending-alias", supplierDetectionContext.fileName, supplier.id, alias, null));
         setAliasRegistrationPending(true);
         window.setTimeout(() => {
           setSupplierDetectionContext((current) => current && current.supplierId === supplier.id
             ? buildGroupingContext("new", "fingerprinted-alias", current.fileName, supplier.id, alias, null)
             : current);
+          setConfirmedSupplierMapping((current) => current && current.supplierId === supplier.id
+            ? { ...current, status: "fingerprinted-alias" }
+            : current);
           setAliasRegistrationPending(false);
         }, 700);
         setPendingAliasEntry(false);
       },
       assignDetectedSupplier: (supplierId: string) => {
-        const supplier = mockInitiative.suppliers.find((item) => item.id === supplierId);
+        const supplier = mockInitiative.suppliers.find((item) => item.id === supplierId) ??
+          registeredAliases.find((item) => item.id === supplierId);
         const analysis = completedRerunAnalysis ?? completedInitialAnalysis;
         const sourceSupplierId = supplierDetectionContext?.supplierId ??
           (completedRerunAnalysis ? completedRerunSupplierId : completedInitialSupplierId);
@@ -1182,13 +1211,19 @@ export function useClauseIqWorkflow({
         } else {
           setCompletedInitialSupplierId(supplier.id);
         }
+        setConfirmedSupplierMapping({
+          supplierId: supplier.id,
+          displayName: supplier.name,
+          status: registeredAliases.some((item) => item.id === supplier.id) ? "fingerprinted-alias" : "known",
+          contextKey: supplierDetectionContext?.grouping.identityKey ?? supplier.id,
+        });
         setSupplierDetectionContext(
           buildGroupingContext(
-            "known",
-            "known",
+            registeredAliases.some((item) => item.id === supplier.id) ? "new" : "known",
+            registeredAliases.some((item) => item.id === supplier.id) ? "fingerprinted-alias" : "known",
             supplierDetectionContext?.fileName ?? analysis.fileName,
             supplier.id,
-            null,
+            registeredAliases.some((item) => item.id === supplier.id) ? supplier.name : null,
             null,
           ),
         );
@@ -1440,7 +1475,7 @@ export function AnalysisParameterCards({
       padding="Base"
       indicator={false}
     >
-      <h2 className="v6-orbit-heading-5 mb-orbit-base">Contract Analysis Parameters</h2>
+      <h2 className="v6-orbit-heading-5 mb-orbit-base">Select A Playbook</h2>
       {showPlaybookChoiceSelector && (
         <>
           <p className="text-orbit-sm text-orbit-fg-secondary mb-orbit-base">
@@ -1466,9 +1501,6 @@ export function AnalysisParameterCards({
             />
           ) : (
             <>
-              <p className="text-orbit-sm text-orbit-fg-secondary mb-orbit-base">
-                Select the playbook ClauseIQ should use for this analysis.
-              </p>
               {playbookOption && (
                 <BenchmarkCombobox
                   label="Playbook"
@@ -1485,7 +1517,7 @@ export function AnalysisParameterCards({
                   href="/clauseiq-v6a?view=playbooks"
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-orbit-xxs text-orbit-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary focus-visible:ring-offset-2"
+                  className="inline-flex items-center gap-orbit-xs text-orbit-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary focus-visible:ring-offset-2"
                 >
                   Add it here
                   <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
@@ -1850,7 +1882,7 @@ export function BenchmarkCombobox({
                 setOpen(true);
               }}
             >
-              <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+              <FaIcon icon={"\uf044"} size={14} />
               {changeActionLabel}
             </button>
           )}
@@ -1976,7 +2008,7 @@ export function SelectedSummaryRow({
           className="inline-flex h-8 shrink-0 items-center gap-orbit-xs rounded-orbit-md px-orbit-s text-orbit-sm v6-orbit-weight-medium text-orbit-primary transition-colors hover:bg-orbit-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary"
           onClick={onAction}
         >
-          <Pencil className="h-3.5 w-3.5" />
+          <FaIcon icon={"\uf044"} size={14} />
           {actionLabel}
         </button>
       )}
@@ -2134,6 +2166,7 @@ export function ClauseIqDropzone({ onFile }: { onFile: (file: File | null) => vo
     <div className="clauseiq-v6a-upload-dropzone">
       <Dropzone
         ariaLabel="Upload contract PDF"
+        chooseButtonLabel="choose file"
         accept="application/pdf,.pdf"
         onFileSelected={onFile}
         acceptedFileTypesLabel="File types supported: .pdf files."

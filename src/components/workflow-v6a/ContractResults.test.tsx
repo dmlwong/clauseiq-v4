@@ -146,7 +146,7 @@ describe("ContractResults V6A review controls", () => {
     fireEvent.click(screen.getByRole("button", { name: "Download Current Position" }));
     expect(mocks.downloadCsv).toHaveBeenCalledTimes(1);
     expect(screen.queryByText("Downloaded Not Recorded", { exact: false })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Lock Position" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lock. When ready to negotiate the position below" }));
 
     expect(screen.getByText(/This position is shared with the supplier and locked/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Unlock Dashboard" })).toBeInTheDocument();
@@ -158,13 +158,13 @@ describe("ContractResults V6A review controls", () => {
     expect(screen.getByText(/This position is shared with the supplier and locked/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Unlock Dashboard" }));
-    expect(screen.getByRole("button", { name: "Lock Position" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Lock. When ready to negotiate the position below" })).toBeInTheDocument();
   });
 
   it("uses the same lock interaction for the initial analysis dashboard", () => {
     renderContractResults(initialTableRoute);
 
-    fireEvent.click(screen.getByRole("button", { name: "Lock Position" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lock. When ready to negotiate the position below" }));
 
     expect(screen.getByText(/This position is shared with the supplier and locked/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Unlock Dashboard" })).toBeInTheDocument();
@@ -172,7 +172,7 @@ describe("ContractResults V6A review controls", () => {
     expect(screen.getAllByRole("button", { name: "Accept Supplier Position" }).every((button) => button.hasAttribute("disabled"))).toBe(true);
 
     fireEvent.click(screen.getByRole("button", { name: "Unlock Dashboard" }));
-    expect(screen.getByRole("button", { name: "Lock Position" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Lock. When ready to negotiate the position below" })).toBeInTheDocument();
   });
 
   it("opens rationale in a 672px Orbit modal instead of expanding inline", () => {

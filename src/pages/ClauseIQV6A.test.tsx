@@ -132,13 +132,13 @@ describe("ClauseIQ V6A flow", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("shows Contract Analysis Parameters after selecting an initiative before upload", async () => {
+  it("shows Select A Playbook after selecting an initiative before upload", async () => {
     renderClauseIQ();
 
     startAndSelectInitiative();
 
     expect(
-      screen.getByRole("heading", { name: "Contract Analysis Parameters" }),
+      screen.getByRole("heading", { name: "Select A Playbook" }),
     ).toBeInTheDocument();
     expect(
       screen.getByText("Do you want to use a playbook for this analysis?"),
@@ -203,7 +203,7 @@ describe("ClauseIQ V6A flow", () => {
       }),
     );
 
-    expect(screen.getByRole("heading", { name: "Contract Analysis Parameters" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Select A Playbook" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Enter supplier name" })).not.toBeInTheDocument();
   });
 
@@ -632,16 +632,68 @@ describe("ClauseIQ V6A flow", () => {
         expect(screen.getByText(`Supplier Detected · ${supplier}`)).toBeInTheDocument();
         expect(screen.getByText(status!)).toBeInTheDocument();
       }
-      fireEvent.click(screen.getByRole("link", { name: action }));
+      fireEvent.click(screen.getByRole("button", { name: action }));
       expect(screen.getByRole("dialog", { name: "Change Mapped Supplier" })).toBeInTheDocument();
 
       if (unassigned) {
+        expect(screen.queryByRole("button", { name: "Select supplier Thomson Reuters" })).not.toBeInTheDocument();
+        fireEvent.change(screen.getByRole("textbox", { name: "Search or type new supplier name" }), {
+          target: { value: "Thomson" },
+        });
         fireEvent.click(screen.getByRole("button", { name: "Select supplier Thomson Reuters" }));
         expect(screen.getByText("Supplier Detected · Thomson Reuters")).toBeInTheDocument();
         expect(screen.getAllByText("Supplier Outputs").length).toBeGreaterThan(0);
       }
     },
   );
+
+  it("keeps automatic detection separate from confirmed picker mapping", async () => {
+    vi.useFakeTimers();
+    const { container } = renderClauseIQ();
+    startAndSelectInitiative();
+    selectDefaultPlaybook();
+    fireEvent.change(container.querySelector<HTMLInputElement>('input[type="file"]')!, {
+      target: { files: [new File(["pdf"], "Initial_Thomson_contract.pdf", { type: "application/pdf" })] },
+    });
+    await act(async () => { vi.advanceTimersByTime(3000); });
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    expect(screen.queryByRole("button", { name: "Current supplier Thomson Reuters" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Select supplier Thomson Reuters" })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: "Search or type new supplier name" }), {
+      target: { value: "Thomson" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Select supplier Thomson Reuters" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    expect(screen.getByRole("button", { name: "Current supplier Thomson Reuters" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("shows an empty state and manual-add path for an unmatched supplier search", async () => {
+    vi.useFakeTimers();
+    const { container } = renderClauseIQ();
+    startAndSelectInitiative();
+    selectDefaultPlaybook();
+    fireEvent.click(screen.getByRole("button", { name: /Prototype tools/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Supplier detection simulation/i }));
+    fireEvent.click(screen.getByRole("option", { name: /not detected/i }));
+    fireEvent.change(container.querySelector<HTMLInputElement>('input[type="file"]')!, {
+      target: { files: [new File(["pdf"], "Initial_Unknown_contract.pdf", { type: "application/pdf" })] },
+    });
+    await act(async () => { vi.advanceTimersByTime(3000); });
+
+    fireEvent.click(screen.getByRole("button", { name: "Map Supplier" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Search or type new supplier name" }), {
+      target: { value: "No Such Supplier" },
+    });
+    expect(screen.getByText("No supplier found")).toBeInTheDocument();
+    expect(screen.getByText("Try another search or manually add a supplier.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Manual Add Supplier" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Add .* as new supplier/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Select supplier/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Manual Add Supplier" }));
+    expect(screen.getByRole("dialog", { name: "Add Supplier Manually" })).toBeInTheDocument();
+  });
 
   it("renders the output-panel route with the first-run output by default", () => {
     renderClauseIQ("/clauseiq-v6a/output-panel", {
@@ -712,6 +764,53 @@ describe("ClauseIQ V6A flow", () => {
     expect(screen.getAllByText("Score 56").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Clause Target Status").length).toBeGreaterThan(
       0,
+    );
+  });
+
+  it("groups supplier outputs as contract uploads with actions beside each score", () => {
+    const onUploadToSupplier = vi.fn();
+    const onViewResult = vi.fn();
+    const { container } = render(
+      <TooltipProvider>
+        <SupplierOutputsPanel
+          initiative={mockInitiative}
+          initialOutputScope="team"
+          outputState="filled"
+          onUploadToSupplier={onUploadToSupplier}
+          onViewResult={onViewResult}
+        />
+      </TooltipProvider>,
+    );
+
+    const supplierCard = container.querySelector("#supplier-output-sup-001")?.closest("section");
+    expect(supplierCard).toBeTruthy();
+
+    fireEvent.click(
+      within(supplierCard as HTMLElement).getByLabelText("Expand Thomson Reuters outputs"),
+    );
+    expect(within(supplierCard as HTMLElement).getByText("Contract uploads")).toBeInTheDocument();
+
+    const latestOutput = within(supplierCard as HTMLElement)
+      .getByText("MSA_ThomsonReuters_v2.pdf")
+      .closest("article");
+    expect(latestOutput).toBeTruthy();
+    expect(
+      within(latestOutput as HTMLElement).getByText(/^\d{4}\/\d{2}\/\d{2} · \d{2}:\d{2}$/),
+    ).toBeInTheDocument();
+    expect(within(latestOutput as HTMLElement).getByText("Score 56")).toBeInTheDocument();
+
+    const viewButton = within(latestOutput as HTMLElement).getByRole("button", {
+      name: "View Results",
+    });
+    const uploadButton = within(latestOutput as HTMLElement).getByRole("button", {
+      name: "Upload contract for this supplier",
+    });
+    expect(viewButton).toHaveAttribute("title", "View Results");
+    expect(uploadButton).toHaveAttribute("title", "Upload contract for this supplier");
+
+    fireEvent.click(uploadButton);
+    expect(onUploadToSupplier).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "sup-001", name: "Thomson Reuters" }),
     );
   });
 
@@ -1146,7 +1245,7 @@ describe("ClauseIQ V6A flow", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("carries forward the mapped supplier and its latest parameters before revealing upload", () => {
+  it("requires a supplier before carrying forward its latest parameters", () => {
     renderClauseIQ("/clauseiq-v6a/output-panel", {
       forceResults: true,
       resultsLayout: "output-panel",
@@ -1160,8 +1259,12 @@ describe("ClauseIQ V6A flow", () => {
       screen.getAllByRole("button", { name: "Run Analysis Again" })[0],
     );
 
-    expect(screen.queryByRole("heading", { name: "Select supplier" })).not.toBeInTheDocument();
-    expect(screen.getByText("Supplier · Thomson Reuters")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Select supplier" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Supplier context Select a supplier" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Select A Playbook" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Supplier context/i }));
+    fireEvent.click(screen.getByRole("option", { name: /Thomson Reuters/i }));
 
     expect(
       screen.getByText("Do you want to use a playbook for this analysis?"),
@@ -1184,7 +1287,7 @@ describe("ClauseIQ V6A flow", () => {
     ).toBeInTheDocument();
 
     const rerunParameterHeading = screen
-      .getAllByRole("heading", { name: "Contract Analysis Parameters" })
+      .getAllByRole("heading", { name: "Select A Playbook" })
       .at(-1);
     const uploadHeading = screen.getByRole("heading", {
       name: "Upload Contract",
@@ -1197,7 +1300,7 @@ describe("ClauseIQ V6A flow", () => {
     ).toBeTruthy();
   });
 
-  it("presents supplier history in a dropdown and asks for a new supplier name", () => {
+  it("lets the user start a new-supplier analysis without supplier context", () => {
     renderClauseIQ("/clauseiq-v6a/output-panel?resultScenario=history", {
       forceResults: true,
       resultsLayout: "output-panel",
@@ -1213,15 +1316,11 @@ describe("ClauseIQ V6A flow", () => {
     expect(screen.getByRole("option", { name: /Thomson Reuters/i })).toBeInTheDocument();
 
     fireEvent.click(document.body);
-    fireEvent.click(screen.getByRole("link", { name: /Add as new supplier/i }));
+    fireEvent.click(screen.getByRole("link", { name: /Run a new analysis/i }));
 
-    expect(screen.getByRole("heading", { name: "Add a new supplier" })).toBeInTheDocument();
-    fireEvent.change(screen.getByPlaceholderText("Enter supplier name"), {
-      target: { value: "Acme Holdings" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-
-    expect(screen.getByText("Supplier · Acme Holdings")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Select A Playbook" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Select supplier" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Add a new supplier" })).not.toBeInTheDocument();
     expect(
       screen.getByText("Do you want to use a playbook for this analysis?"),
     ).toBeInTheDocument();
@@ -1309,7 +1408,7 @@ describe("ClauseIQ V6A flow", () => {
 
     expect(screen.getByText("New Analysis")).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Contract Analysis Parameters" }),
+      screen.getByRole("heading", { name: "Select A Playbook" }),
     ).toBeInTheDocument();
     expect(
       screen
@@ -1408,7 +1507,7 @@ describe("ClauseIQ V6A flow", () => {
     );
 
     fireEvent.click(screen.getAllByRole("button", { name: "Run Analysis Again" })[0]);
-    fireEvent.click(screen.getByRole("link", { name: /Add as new supplier/i }));
+    fireEvent.click(screen.getByRole("link", { name: /Run a new analysis/i }));
     fireEvent.change(screen.getByPlaceholderText("Enter supplier name"), {
       target: { value: "Deloitteeee" },
     });
@@ -1531,7 +1630,7 @@ describe("ClauseIQ V6A flow", () => {
     expect(container.textContent).toContain(CIQ_DEFAULT_PLAYBOOK);
     expect(screen.getAllByText("Selected").length).toBeGreaterThan(0);
     expect(
-      screen.queryByRole("heading", { name: "Contract Analysis Parameters" }),
+      screen.queryByRole("heading", { name: "Select A Playbook" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("All categories")).not.toBeInTheDocument();
     expect(screen.queryByText("United Kingdom")).not.toBeInTheDocument();

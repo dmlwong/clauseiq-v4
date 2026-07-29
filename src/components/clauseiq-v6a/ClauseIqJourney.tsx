@@ -276,7 +276,8 @@ function ResultsStep({
   const awaitingSupplierFingerprintResolution = workflow.awaitingSupplierFingerprintResolution;
   const rerunJourneyVisible =
     workflow.rerunUploadVisible || workflow.rerunProcessing;
-  const supplierContextSelected = Boolean(workflow.rerunSupplierContext);
+  const supplierContextSelected =
+    Boolean(workflow.rerunSupplierContext) || workflow.rerunWithoutSupplierContext;
   const rerunParameter = workflow.rerunProcessing
     ? (workflow.rerunSelectedParameter ?? workflow.selectedParameter)
     : workflow.rerunSelectedParameter;
@@ -525,8 +526,16 @@ function DetectedSupplierMapping({
   const [newSupplierName, setNewSupplierName] = useState("");
   const [supplierLocation, setSupplierLocation] = useState("");
   const [website, setWebsite] = useState("");
-  const context = workflow.supplierDetectionContext;
-  const supplierOptions = mockSupplierOptions().filter((supplier) => supplier.name.toLowerCase().includes(supplierSearch.toLowerCase()));
+  const confirmedMapping = workflow.confirmedSupplierMapping;
+  const allSupplierOptions = [
+    ...mockSupplierOptions(),
+    ...workflow.registeredAliases.map((supplier) => ({ id: supplier.id, name: supplier.name })),
+  ].filter((supplier, index, options) => options.findIndex((candidate) => candidate.id === supplier.id) === index);
+  const supplierOptions = (supplierSearch.trim() || confirmedMapping
+    ? allSupplierOptions
+    : []
+  ).filter((supplier) => supplier.name.toLowerCase().includes(supplierSearch.toLowerCase()));
+  const noSupplierResults = supplierSearch.trim().length > 0 && supplierOptions.length === 0;
   const close = () => {
     setSupplierSearch("");
     setNewSupplierName("");
@@ -551,16 +560,14 @@ function DetectedSupplierMapping({
             <p className="v6-orbit-weight-medium">No supplier mapped</p>
           </div>
         </div>
-        <span
-          style={{ "--orbit-color-btn-tertiary-fg": "var(--orbit-color-btn-primary-bg)" } as CSSProperties}
-          onClick={(event) => event.preventDefault()}
+        <button
+          type="button"
+          className="inline-flex h-8 shrink-0 items-center gap-orbit-xs rounded-orbit-md px-orbit-s text-orbit-sm v6-orbit-weight-medium text-orbit-primary transition-colors hover:bg-orbit-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary"
+          onClick={() => setMappingOpen((open) => !open)}
         >
-          <LinkText
-            label={actionLabel}
-            href="#detected-supplier-picker"
-            onClick={() => setMappingOpen((open) => !open)}
-          />
-        </span>
+          <FaIcon icon={"\uf044"} size={14} />
+          {actionLabel}
+        </button>
       </div>
     ) : (
       <>
@@ -572,16 +579,14 @@ function DetectedSupplierMapping({
             <span className="min-w-0 truncate">Supplier Detected · {name}</span>
             {statusLabel && <span className={`shrink-0 rounded-full px-orbit-s py-orbit-xxs text-orbit-xs v6-orbit-weight-medium ${tone === "warning" ? "bg-amber-100 text-amber-800" : "bg-orbit-warning/15 text-orbit-fg"}`}>{statusLabel}</span>}
           </div>
-          <span
-            style={{ "--orbit-color-btn-tertiary-fg": "var(--orbit-color-btn-primary-bg)" } as CSSProperties}
-            onClick={(event) => event.preventDefault()}
+          <button
+            type="button"
+            className="inline-flex h-8 shrink-0 items-center gap-orbit-xs rounded-orbit-md px-orbit-s text-orbit-sm v6-orbit-weight-medium text-orbit-primary transition-colors hover:bg-orbit-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary"
+            onClick={() => setMappingOpen((open) => !open)}
           >
-            <LinkText
-              label={actionLabel}
-              href="#detected-supplier-picker"
-              onClick={() => setMappingOpen((open) => !open)}
-            />
-          </span>
+            <FaIcon icon={"\uf044"} size={14} />
+            {actionLabel}
+          </button>
           </div>
         </Card>
       </>
@@ -602,15 +607,19 @@ function DetectedSupplierMapping({
       </> : <>
         <p className="block max-w-full break-words text-orbit-sm v6-orbit-weight-semibold text-orbit-fg">Change Mapped Supplier</p>
         <p className="mt-orbit-xs block max-w-full break-words text-orbit-sm leading-relaxed text-orbit-fg-secondary">Search for a supplier or add a new one.</p>
-        <Input value={supplierSearch} onChange={(event) => setSupplierSearch(event.target.value)} placeholder="Search or type new supplier name" className="mt-orbit-s h-9 w-full" aria-label="Search or type new supplier name" autoFocus />
-        <div className="mt-orbit-s max-h-52 space-y-orbit-xxs overflow-y-auto border-t border-orbit-border pt-orbit-s">
+        <Input value={supplierSearch} onChange={(event) => setSupplierSearch(event.target.value)} placeholder="Search or type new supplier name" className="clauseiq-v6a-supplier-picker-input mt-orbit-s h-9 w-full" aria-label="Search or type new supplier name" autoFocus />
+        <div className="mt-orbit-s max-h-52 space-y-orbit-xxs overflow-y-auto border-t border-orbit-border pt-orbit-base">
           {supplierOptions.map((supplier) => {
-          const selected = context?.supplierId === supplier.id;
+          const selected = confirmedMapping?.supplierId === supplier.id;
             return <ToggleCard key={supplier.id} status={selected ? "Selected" : "Default"} aria-pressed={selected} aria-label={`${selected ? "Current" : "Select"} supplier ${supplier.name}`} className="w-full overflow-hidden" style={{ border: "0", boxShadow: "var(--orbit-shadow-none)" }} onClick={() => { workflow.actions.assignDetectedSupplier(supplier.id); close(); }}><span className="flex w-full items-center justify-between gap-orbit-s px-orbit-s py-orbit-xs text-left text-orbit-sm"><span className="min-w-0 truncate">{supplier.name}</span>{selected && <FaIcon icon={FA.check} size={12} />}</span></ToggleCard>;
           })}
-          {supplierSearch.trim() && supplierOptions.length === 0 && <OrbitButton variant="Secondary" size="Small" state="Default" className="mt-orbit-xs w-full" onClick={() => addSupplier()}>Add “{supplierSearch.trim()}” as new supplier</OrbitButton>}
+          {noSupplierResults && <div className="rounded-orbit-md border border-orbit-border bg-orbit-surface px-orbit-s py-orbit-s text-center">
+            <p className="text-orbit-sm v6-orbit-weight-semibold text-orbit-fg">No supplier found</p>
+            <p className="mt-orbit-xxs text-orbit-xs leading-relaxed text-orbit-fg-secondary">Try another search or manually add a supplier.</p>
+            <OrbitButton variant="Secondary" size="Medium" state="Default" className="mt-orbit-s w-full" onClick={() => setManualAddOpen(true)}>Manual Add Supplier</OrbitButton>
+          </div>}
         </div>
-        <div className="mt-orbit-s border-t border-orbit-border pt-orbit-s"><OrbitButton variant="Tertiary" size="Medium" state="Default" className="w-full" aria-expanded={manualAddOpen} onClick={() => setManualAddOpen(true)}>Manual Add Supplier</OrbitButton></div>
+        {!noSupplierResults && <div className="mt-orbit-s border-t border-orbit-border pt-orbit-s"><OrbitButton variant="Tertiary" size="Medium" state="Default" className="w-full" aria-expanded={manualAddOpen} onClick={() => setManualAddOpen(true)}>Manual Add Supplier</OrbitButton></div>}
       </>}
     </div>}
   </div>;
@@ -720,11 +729,11 @@ function RerunSupplierContextStep({
         <span>Can’t find your supplier?</span>
         <span style={{ "--orbit-color-btn-tertiary-fg": "var(--orbit-color-btn-primary-bg)" } as CSSProperties}>
           <LinkText
-            label="Add as new supplier"
+            label="Run a new analysis"
             href="#"
             onClick={(event) => {
               event.preventDefault();
-              workflow.actions.beginNewRerunSupplierContext();
+              workflow.actions.beginRerunWithoutSupplierContext();
             }}
           />
         </span>

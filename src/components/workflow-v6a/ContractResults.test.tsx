@@ -182,7 +182,6 @@ describe("ContractResults V6A review controls", () => {
 
     const dialog = screen.getByRole("dialog", { name: "Rationale" });
     expect(dialog).toBeInTheDocument();
-    expect(dialog.querySelector('[data-v6-overlay="recommendation-rationale"]')).toHaveStyle({ maxWidth: "672px" });
     expect(within(dialog).getByText("Recommend Position's Rationale")).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Recommendation rationale" })).not.toBeInTheDocument();
 
@@ -400,12 +399,12 @@ describe("ContractResults V6A review controls", () => {
     fireEvent.click(dataBreachAccordion);
     expect(dataBreachAccordion).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText(/current notification commitment aligns with the agreed control framework/i)).toBeInTheDocument();
-    expect(within(recommendationsTable).queryAllByRole("button", { name: "Reset Initial Recommendation" })).toHaveLength(0);
+    expect(within(recommendationsTable).queryAllByRole("link", { name: "Revert" })).toHaveLength(0);
     const recommendationPosition = within(recommendationsTable).getByRole("textbox", { name: /Negotiation position for Payment terms/i });
     fireEvent.focus(recommendationPosition);
-    await waitFor(() => expect(within(recommendationPosition.closest("tr") as HTMLElement).getByRole("button", { name: "Reset Initial Recommendation" })).toBeInTheDocument());
+    await waitFor(() => expect(within(recommendationPosition.closest("tr") as HTMLElement).getByRole("link", { name: "Revert" })).toBeInTheDocument());
     fireEvent.blur(recommendationPosition);
-    expect(within(recommendationsTable).queryAllByRole("button", { name: "Reset Initial Recommendation" })).toHaveLength(0);
+    expect(within(recommendationsTable).queryAllByRole("link", { name: "Revert" })).toHaveLength(0);
     fireEvent.click(within(recommendationsTable).getByRole("checkbox", { name: "Bulk selected C31" }));
     expect(screen.getByText("1 Clause Selected")).toBeInTheDocument();
     within(recommendationsTable).getAllByRole("button", { name: "Accept Supplier Position" }).forEach((button) => expect(button).toBeDisabled());
@@ -438,6 +437,60 @@ describe("ContractResults V6A review controls", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Design Control" }));
     expect(screen.getByRole("tab", { name: "Design option 3" })).toBeInTheDocument();
+  });
+
+  it("opens the row-specific rationale modal from an initial-analysis recommendation", () => {
+    renderContractResults(initialTableRoute);
+
+    const recommendationsTable = screen.getByRole("table", { name: "Initial analysis position not met" });
+    const positionMetTable = screen.getByRole("table", { name: "Initial analysis position met" });
+    fireEvent.click(within(recommendationsTable).getAllByText("View Rationale")[0]);
+
+    const dialog = screen.getByRole("dialog", { name: "Rationale" });
+    expect(within(dialog).getByText("C31")).toBeInTheDocument();
+    expect(within(dialog).getByText("Payment terms")).toBeInTheDocument();
+    expect(within(dialog).getByText(/Payment terms are shorter than the buyer's preferred cash-flow position/i)).toBeInTheDocument();
+    expect(within(positionMetTable).queryByText("View Rationale")).not.toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close modal" }));
+    expect(screen.queryByRole("dialog", { name: "Rationale" })).not.toBeInTheDocument();
+  });
+
+  it("opens full clause wording in a modal from every initial-analysis row", () => {
+    renderContractResults(initialTableRoute);
+
+    const recommendationsTable = screen.getByRole("table", { name: "Initial analysis position not met" });
+    const positionMetTable = screen.getByRole("table", { name: "Initial analysis position met" });
+    const tableRowCount = (table: HTMLElement) => table.querySelectorAll("tbody > tr").length;
+
+    expect(within(recommendationsTable).getAllByRole("link", { name: "View Full Clause Wording" })).toHaveLength(tableRowCount(recommendationsTable));
+    expect(within(positionMetTable).getAllByRole("link", { name: "View Full Clause Wording" })).toHaveLength(tableRowCount(positionMetTable));
+    expect(within(recommendationsTable).queryByRole("button", { name: /Payment terms C31/i })).not.toBeInTheDocument();
+
+    fireEvent.click(within(recommendationsTable).getAllByRole("link", { name: "View Full Clause Wording" })[0]);
+    const dialog = screen.getByRole("dialog", { name: "Full clause wording" });
+    expect(within(dialog).getByText("C31")).toBeInTheDocument();
+    expect(within(dialog).getByText("Payment terms")).toBeInTheDocument();
+    expect(within(dialog).getByText(/Supplier shall issue invoices monthly in arrears/i)).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close modal" }));
+    expect(screen.queryByRole("dialog", { name: "Full clause wording" })).not.toBeInTheDocument();
+
+    const missingRow = screen.getByText("Data protection — sub-processor consent").closest("tr") as HTMLElement;
+    fireEvent.click(within(missingRow).getByRole("link", { name: "View Full Clause Wording" }));
+    expect(within(screen.getByRole("dialog", { name: "Full clause wording" })).getByText("No wording in the supplier’s contract — this term should be negotiated in.")).toBeInTheDocument();
+  });
+
+  it("uses Orbit link actions below an initial-analysis recommendation", async () => {
+    renderContractResults(initialTableRoute);
+
+    const recommendationsTable = screen.getByRole("table", { name: "Initial analysis position not met" });
+    const position = within(recommendationsTable).getByRole("textbox", { name: /Negotiation position for Payment terms/i });
+    const row = position.closest("tr") as HTMLElement;
+
+    expect(within(row).getByRole("link", { name: "View Rationale" })).toBeInTheDocument();
+    fireEvent.focus(position);
+    await waitFor(() => expect(within(row).getByRole("link", { name: "Revert" })).toBeInTheDocument());
   });
 
   it("keeps the table design out of Comparison View", () => {

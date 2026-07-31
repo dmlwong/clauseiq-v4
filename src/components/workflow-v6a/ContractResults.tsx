@@ -4913,7 +4913,7 @@ function DashboardDesignControl({
   }, [open]);
 
   return (
-    <div ref={controlRef} className="fixed bottom-[120px] left-orbit-s z-40">
+    <div ref={controlRef} className="fixed bottom-[57px] left-orbit-s z-40">
       {open && (
         <div
           id="clauseiq-v6a-design-control-menu"
@@ -7334,12 +7334,12 @@ function ClauseRequestForm({
   const resetRecommendationAction = revertText ? (
     <button
       type="button"
-      className="inline-flex items-center gap-orbit-xxs text-orbit-sm text-orbit-primary underline underline-offset-2 hover:opacity-80 disabled:cursor-not-allowed disabled:text-orbit-fg-tertiary disabled:no-underline"
+      className="inline-flex items-center gap-orbit-xs text-orbit-sm text-orbit-primary underline underline-offset-2 hover:opacity-80 disabled:cursor-not-allowed disabled:text-orbit-fg-tertiary disabled:no-underline"
       disabled={!canRevert}
       onClick={() => onUpdate({ requestedChange: revertValue })}
     >
       <RotateCcw className="h-4 w-4" aria-hidden="true" />
-      Reset Initial Recommendation
+      Revert
     </button>
   ) : null;
 
@@ -9330,7 +9330,7 @@ function SimplifiedComparisonContent({
   );
   const createRationaleAction = () => recommendationRationale ? (
     <span
-      className="inline-flex min-w-0 items-center gap-orbit-xxs [&>a]:!text-orbit-primary"
+      className="inline-flex min-w-0 items-center gap-orbit-xs [&>a]:!text-orbit-primary"
       onMouseDown={(event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -9527,8 +9527,7 @@ function RecommendationRationaleDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Rationale"
-      size="Large"
-      maxWidth={672}
+      size="Default"
       modalKey="recommendation-rationale"
       footer={
         <div className="flex justify-end">
@@ -9565,6 +9564,58 @@ function RecommendationRationaleDialog({
             <p className="mt-orbit-s whitespace-pre-line v6-orbit-text-small text-orbit-fg">{rationale.playbookWording}</p>
           </div>
         )}
+      </div>
+    </V6OrbitOverlay>
+  );
+}
+
+function FullClauseWordingDialog({
+  open,
+  onOpenChange,
+  clauseContext,
+  wording,
+  missing,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  clauseContext: { clauseId: string; clauseName: string; subClauseName?: string };
+  wording: string;
+  missing: boolean;
+}) {
+  return (
+    <V6OrbitOverlay
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Full clause wording"
+      size="Default"
+      modalKey="full-clause-wording"
+      footer={
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+        </div>
+      }
+    >
+      <div className="space-y-orbit-s">
+        <div className="rounded-orbit-md border border-orbit-border bg-orbit-surface/20 p-orbit-base">
+          <dl className="grid gap-orbit-xs sm:grid-cols-3">
+            <div>
+              <dt className="v6-orbit-text-body v6-orbit-weight-semibold text-orbit-fg">Clause ID</dt>
+              <dd className="mt-orbit-xxs v6-orbit-text-small v6-orbit-weight-medium text-orbit-fg">{clauseContext.clauseId}</dd>
+            </div>
+            <div>
+              <dt className="v6-orbit-text-body v6-orbit-weight-semibold text-orbit-fg">Clause Name</dt>
+              <dd className="mt-orbit-xxs v6-orbit-text-small v6-orbit-weight-medium text-orbit-fg">{clauseContext.clauseName}</dd>
+            </div>
+            <div>
+              <dt className="v6-orbit-text-body v6-orbit-weight-semibold text-orbit-fg">Sub Clause Name</dt>
+              <dd className="mt-orbit-xxs v6-orbit-text-small v6-orbit-weight-medium text-orbit-fg">{clauseContext.subClauseName || "—"}</dd>
+            </div>
+          </dl>
+        </div>
+        <p className="v6-orbit-text-body v6-orbit-weight-semibold text-orbit-fg">Supplier clause wording</p>
+        <p className={cn("whitespace-pre-line v6-orbit-text-body leading-6", missing ? "italic text-orbit-fg-secondary" : "text-orbit-fg")}>
+          {wording}
+        </p>
       </div>
     </V6OrbitOverlay>
   );
@@ -10687,7 +10738,8 @@ function InitialAnalysisRecommendationTable({
 }) {
   const versionLabel = version.version;
   const [focusedClauseId, setFocusedClauseId] = useState<string | null>(null);
-  const [expandedClauseId, setExpandedClauseId] = useState<string | null>(null);
+  const [rationaleClauseId, setRationaleClauseId] = useState<string | null>(null);
+  const [fullClauseId, setFullClauseId] = useState<string | null>(null);
   const [sortByTable, setSortByTable] = useState<Partial<Record<InitialAnalysisTableKey, InitialAnalysisSortState>>>({});
   const [openTableSections, setOpenTableSections] = useState<Record<InitialAnalysisTableKey, boolean>>({
     "position-not-met": true,
@@ -10709,6 +10761,9 @@ function InitialAnalysisRecommendationTable({
   const recommendationRows = activeRows.filter(promoted);
   const noRecommendationRows = activeRows.filter((clause) => !promoted(clause));
   const positionMetRows = [...acceptedRows, ...noRecommendationRows];
+  const rationaleClause = rationaleClauseId ? rows.find((clause) => clause.id === rationaleClauseId) : undefined;
+  const fullClause = fullClauseId ? rows.find((clause) => clause.id === fullClauseId) : undefined;
+  const fullClauseMissing = Boolean(fullClause && (missingClauseIds?.has(fullClause.id) || fullClause.missingClause));
   const selectableRecommendationRows = recommendationRows.filter((clause) => {
     const state = stateOf(clause.id);
     return state.roundDecisions[versionLabel] !== "no-action" && !acceptedClauseIds?.has(clause.id);
@@ -10823,7 +10878,7 @@ function InitialAnalysisRecommendationTable({
     <div className="overflow-hidden rounded-orbit-lg border border-orbit-border">
     <div id={`initial-analysis-${tableKey}-content`} className={cn("overflow-x-auto", locked && "clauseiq-v6a-locked-clause-table")}>
       <table className="w-full min-w-[1120px] border-collapse text-left" aria-label={`Initial analysis ${isPositionMet ? "position met" : "position not met"}`}>
-        <thead className="bg-orbit-surface/60 text-orbit-xs uppercase tracking-wide text-orbit-fg-secondary"><tr className="border-y border-orbit-border"><th className="w-12 px-orbit-base py-orbit-s">{!isPositionMet ? <Checkbox checked={allRecommendationsSelected} disabled={locked || !bulkSelectionEnabled || selectableRecommendationRows.length === 0} aria-label="Select All Position Not Met Clauses" onCheckedChange={(checked) => selectableRecommendationRows.forEach((clause) => onBulkClauseSelectionChange?.(clause.id, checked === true))} /> : <span className="sr-only">Selection spacer</span>}</th>{sortHeader("category", "Clause Type", "min-w-[150px] whitespace-nowrap px-orbit-base py-orbit-s")}{sortHeader("clause", "Clause", "w-56 px-orbit-base py-orbit-s")}<th className="min-w-[320px] px-orbit-base py-orbit-s v6-orbit-weight-semibold">Current Supplier Position</th>{sortHeader("deviation", "Deviation", "w-32 px-orbit-base py-orbit-s")}<th className="min-w-[340px] px-orbit-base py-orbit-s v6-orbit-weight-semibold">Your Negotiation Position</th></tr></thead>
+        <thead className="bg-orbit-surface/60 text-orbit-xs uppercase tracking-wide text-orbit-fg-secondary"><tr className="border-y border-orbit-border"><th className="w-12 px-orbit-base py-orbit-s">{!isPositionMet ? <Checkbox checked={allRecommendationsSelected} disabled={locked || !bulkSelectionEnabled || selectableRecommendationRows.length === 0} aria-label="Select All Position Not Met Clauses" onCheckedChange={(checked) => selectableRecommendationRows.forEach((clause) => onBulkClauseSelectionChange?.(clause.id, checked === true))} /> : <span className="sr-only">Selection spacer</span>}</th>{sortHeader("category", "Clause Type", "min-w-[150px] whitespace-nowrap px-orbit-base py-orbit-s")}{sortHeader("clause", "Clause", "min-w-[200px] w-56 px-orbit-base py-orbit-s")}<th className="w-[640px] min-w-[320px] max-w-[640px] px-orbit-base py-orbit-s v6-orbit-weight-semibold">Current Supplier Position</th>{sortHeader("deviation", "Deviation", "w-32 px-orbit-base py-orbit-s")}<th className="min-w-[340px] px-orbit-base py-orbit-s v6-orbit-weight-semibold">Your Negotiation Position</th></tr></thead>
         <tbody>
           {sortedRows.map((clause) => {
             const state = stateOf(clause.id);
@@ -10839,19 +10894,115 @@ function InitialAnalysisRecommendationTable({
             const customPromoted = !noRecommendation && isNoneDeviationClause(clause) && promoted(clause);
             const saveDraft = (value: string) => draft ? onUpdateDraft(clause.id, { requestedChange: value }) : onStartDraft(clause.id, { requestedChange: value, rationale: request?.rationale ?? "" });
             const selected = bulkSelectedClauseIds?.has(clause.id) ?? false;
-            const expanded = expandedClauseId === clause.id;
-            const detailId = `clause-detail-${clause.id}`;
-            const columnCount = 6;
+            const fullClauseAction = (
+              <span
+                className="inline-flex min-w-0 items-center gap-orbit-xs [&>a]:!text-orbit-primary"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <LinkText
+                  label="View Full Clause Wording"
+                  href="#full-clause-wording"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setFullClauseId(clause.id);
+                  }}
+                />
+                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-orbit-primary" aria-hidden="true" />
+              </span>
+            );
+            const viewRationaleAction = mode === "position-not-met" && !accepted ? (
+              <span
+                className="inline-flex min-w-0 items-center gap-orbit-xs [&>a]:!text-orbit-primary"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <LinkText
+                  label="View Rationale"
+                  href="#rationale"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setRationaleClauseId(clause.id);
+                  }}
+                />
+                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-orbit-primary" aria-hidden="true" />
+              </span>
+            ) : null;
+            const resetRecommendationAction = !noRecommendation && focusedClauseId === clause.id ? (
+              <span
+                className="inline-flex min-w-0 items-center gap-orbit-xs [&>a]:!text-orbit-primary"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <RotateCcw className="h-3.5 w-3.5 shrink-0 text-orbit-primary" aria-hidden="true" />
+                <LinkText
+                  label={customPromoted ? "Move to Position Met" : "Revert"}
+                  href="#reset-recommendation"
+                  disabled={locked}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onResetRecommendation(clause.id);
+                  }}
+                />
+              </span>
+            ) : null;
             return <Fragment key={clause.id}>
             <tr className={cn("align-top border-b border-orbit-border transition-colors", focusedClauseId === clause.id && "bg-[var(--orbit-color-swatch-purple-gray-500)]")}>
               <td className="px-orbit-base pt-orbit-base pb-orbit-base">{!isPositionMet ? <Checkbox checked={selected} disabled={locked || !bulkSelectionEnabled || accepted} aria-label={`Bulk selected ${clause.id.toUpperCase()}`} onCheckedChange={(checked) => onBulkClauseSelectionChange?.(clause.id, checked === true)} /> : null}</td>
               <td className="px-orbit-base pt-orbit-base pb-orbit-base"><Chip label={clause.category} size="Mini" variant="No Status" contrast="Low" /></td>
-              <td className="px-orbit-base pt-orbit-base pb-orbit-base"><button type="button" className="flex w-full items-start gap-orbit-s text-left" aria-expanded={expanded} aria-controls={detailId} onClick={() => setExpandedClauseId((current) => current === clause.id ? null : clause.id)}><span className={cn("mt-px text-orbit-fg-secondary transition-transform", expanded && "rotate-90")} aria-hidden="true">›</span><span><span className="block v6-orbit-heading-label text-orbit-fg">{displayTitleForClause(clause.id, clause.title)}</span><span className="mt-orbit-xxs block text-orbit-xs text-orbit-fg-secondary">{clause.id.toUpperCase()}</span></span></button></td>
-              <td className="px-orbit-base pt-orbit-base pb-orbit-base">{missing ? <div><Chip label="Missing From Contract" size="Mini" variant="Error" contrast="Low" /><p className="mt-orbit-s italic text-orbit-sm text-orbit-fg-secondary">No wording in the supplier’s contract — this term should be negotiated in.</p><p className="mt-orbit-s text-orbit-xs text-orbit-fg-secondary">If this term is intentionally out of scope, move it to Position Met.</p><Button variant="outline" className="mt-orbit-s h-8 px-orbit-base" disabled={locked || (!accepted && selectedRecommendationIds.length > 0)} onClick={() => accepted ? onUndoDecision(clause.id) : onSetNoAction(clause.id)}>{accepted ? <X className="h-3.5 w-3.5" aria-hidden="true" /> : <Check className="h-3.5 w-3.5" aria-hidden="true" />}{accepted ? "Undo" : "Move to Position Met"}</Button></div> : <div><p className="text-orbit-sm leading-6 text-orbit-fg">{clause.excerpt || clause.deviation}</p>{!noRecommendation ? <div className="mt-orbit-s">{isPositionMet && accepted ? <Button variant="outline" className="h-8 px-orbit-base" disabled={locked} onClick={() => onUndoDecision(clause.id)}><X className="h-3.5 w-3.5" aria-hidden="true" />Reject Supplier Position</Button> : accepted ? <Button variant="outline" className="h-8 px-orbit-base" disabled={locked} onClick={() => onUndoDecision(clause.id)}>Undo</Button> : <Button variant="outline" className="h-8 px-orbit-base" disabled={locked || selectedRecommendationIds.length > 0} onClick={() => onSetNoAction(clause.id)}><Check className="h-3.5 w-3.5" aria-hidden="true" />Accept Supplier Position</Button>}</div> : null}</div>}</td>
+              <td className="relative min-w-[200px] px-orbit-base pt-orbit-base pb-orbit-base"><div><span className="block v6-orbit-heading-label text-orbit-fg">{displayTitleForClause(clause.id, clause.title)}</span><span className="mt-orbit-xxs block text-orbit-xs text-orbit-fg-secondary">{clause.id.toUpperCase()}</span></div><div className="absolute bottom-orbit-base left-orbit-base">{fullClauseAction}</div></td>
+              <td className="w-[640px] min-w-[320px] max-w-[640px] px-orbit-base pt-orbit-base pb-orbit-base">{missing ? <div><Chip label="Missing From Contract" size="Mini" variant="Error" contrast="Low" /><p className="mt-orbit-s italic text-orbit-sm text-orbit-fg-secondary">No wording in the supplier’s contract — this term should be negotiated in.</p><p className="mt-orbit-s text-orbit-xs text-orbit-fg-secondary">If this term is intentionally out of scope, move it to Position Met.</p><Button variant="outline" className="mt-orbit-s h-8 px-orbit-base" disabled={locked || (!accepted && selectedRecommendationIds.length > 0)} onClick={() => accepted ? onUndoDecision(clause.id) : onSetNoAction(clause.id)}>{accepted ? <X className="h-3.5 w-3.5" aria-hidden="true" /> : <Check className="h-3.5 w-3.5" aria-hidden="true" />}{accepted ? "Undo" : "Move to Position Met"}</Button></div> : <div><p className="text-orbit-sm leading-6 text-orbit-fg">{clause.excerpt || clause.deviation}</p>{!noRecommendation ? <div className="mt-orbit-s">{isPositionMet && accepted ? <Button variant="outline" className="h-8 px-orbit-base" disabled={locked} onClick={() => onUndoDecision(clause.id)}><X className="h-3.5 w-3.5" aria-hidden="true" />Reject Supplier Position</Button> : accepted ? <Button variant="outline" className="h-8 px-orbit-base" disabled={locked} onClick={() => onUndoDecision(clause.id)}>Undo</Button> : <Button variant="outline" className="h-8 px-orbit-base" disabled={locked || selectedRecommendationIds.length > 0} onClick={() => onSetNoAction(clause.id)}><Check className="h-3.5 w-3.5" aria-hidden="true" />Accept Supplier Position</Button>}</div> : null}</div>}</td>
               <td className="px-orbit-base pt-orbit-base pb-orbit-base"><FirstAnalysisStatusTag status={severityStatus} /></td>
-              <td className="px-orbit-base pt-orbit-base pb-orbit-base">{accepted ? (isPositionMet ? <p className="pt-orbit-xs text-orbit-sm italic text-orbit-fg-secondary">{missing ? "Intentionally absent — no counter-position." : "Supplier position accepted — no counter-position."}</p> : <div className="rounded-orbit-md border border-orbit-success/30 bg-orbit-success/5 p-orbit-base text-orbit-sm text-orbit-success">{missing ? "Clause intentionally absent." : "Supplier position accepted."}</div>) : <div><Textarea disabled={locked} value={position} rows={3} aria-label={`Negotiation position for ${displayTitleForClause(clause.id, clause.title)}`} placeholder={noRecommendation ? "Type a recommendation for this clause..." : undefined} className="min-h-[96px] resize-y bg-transparent text-orbit-sm [&>div]:!pt-0 [&>div>textarea]:!min-h-[96px] [&>div>textarea]:!bg-transparent" onFocus={() => { setFocusedClauseId(clause.id); if (!draft) onStartDraft(clause.id, { requestedChange: position, rationale: request?.rationale ?? "" }); }} onChange={(event) => saveDraft(event.target.value)} onBlur={() => { setFocusedClauseId(null); if (!noRecommendation && (draft?.requestedChange ?? position).trim()) onSubmitDraft(clause.id); }} />{noRecommendation ? <><p className="mt-orbit-xxs text-orbit-xs text-orbit-fg-secondary">AI had no recommendation — add your own.</p><Button variant="outline" className="mt-orbit-xs h-8 w-full justify-center" disabled={locked || !position.trim()} onClick={() => onSubmitDraft(clause.id)}>✦ Add to Position Not Met</Button></> : focusedClauseId === clause.id ? <button type="button" disabled={locked} className="mt-orbit-xs inline-flex items-center gap-orbit-xs text-orbit-fg-secondary underline-offset-2 hover:text-orbit-fg hover:underline disabled:cursor-not-allowed disabled:opacity-50" onMouseDown={(event) => event.preventDefault()} onClick={() => onResetRecommendation(clause.id)}><RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />{customPromoted ? "Move to Position Met" : "Reset Initial Recommendation"}</button> : null}</div>}</td>
+              <td className="px-orbit-base pt-orbit-base pb-orbit-base">
+                {accepted ? (
+                  isPositionMet ? (
+                    <p className="pt-orbit-xs text-orbit-sm italic text-orbit-fg-secondary">{missing ? "Intentionally absent — no counter-position." : "Supplier position accepted — no counter-position."}</p>
+                  ) : (
+                    <div className="rounded-orbit-md border border-orbit-success/30 bg-orbit-success/5 p-orbit-base text-orbit-sm text-orbit-success">{missing ? "Clause intentionally absent." : "Supplier position accepted."}</div>
+                  )
+                ) : (
+                  <div>
+                    <Textarea
+                      disabled={locked}
+                      value={position}
+                      rows={3}
+                      aria-label={`Negotiation position for ${displayTitleForClause(clause.id, clause.title)}`}
+                      placeholder={noRecommendation ? "Type a recommendation for this clause..." : undefined}
+                      className="min-h-[96px] resize-y bg-transparent text-orbit-sm [&>div]:!pt-0 [&>div>textarea]:!min-h-[96px] [&>div>textarea]:!bg-transparent"
+                      onFocus={() => {
+                        setFocusedClauseId(clause.id);
+                        if (!draft) onStartDraft(clause.id, { requestedChange: position, rationale: request?.rationale ?? "" });
+                      }}
+                      onChange={(event) => saveDraft(event.target.value)}
+                      onBlur={() => {
+                        setFocusedClauseId(null);
+                        if (!noRecommendation && (draft?.requestedChange ?? position).trim()) onSubmitDraft(clause.id);
+                      }}
+                    />
+                    {viewRationaleAction || resetRecommendationAction ? (
+                      <div className="mt-orbit-xs flex items-center justify-between gap-orbit-s">
+                        {viewRationaleAction}
+                        {resetRecommendationAction}
+                      </div>
+                    ) : null}
+                    {noRecommendation ? (
+                      <>
+                        <p className="mt-orbit-xxs text-orbit-xs text-orbit-fg-secondary">AI had no recommendation — add your own.</p>
+                        <Button variant="outline" className="mt-orbit-xs h-8 w-full justify-center" disabled={locked || !position.trim()} onClick={() => onSubmitDraft(clause.id)}>✦ Add to Position Not Met</Button>
+                      </>
+                    ) : null}
+                  </div>
+                )}
+              </td>
             </tr>
-            {expanded ? <tr id={detailId} className="border-b border-orbit-border bg-orbit-surface/30"><td colSpan={columnCount} className="px-orbit-base py-orbit-base"><div className="grid gap-orbit-xl md:grid-cols-2"><div className="max-w-[704px]"><p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wide text-orbit-fg-secondary">Full clause wording</p><p className="mt-orbit-s text-orbit-sm leading-6 text-orbit-fg">{missing ? "No wording in the supplier’s contract — this term should be negotiated in." : clause.excerpt || clause.deviation}</p></div><div><p className="text-orbit-xs v6-orbit-weight-semibold uppercase tracking-wide text-orbit-fg-secondary">Rationale</p><p className="mt-orbit-s text-orbit-sm leading-6 text-orbit-fg">{clause.rationale ?? "The recommendation addresses the identified gap between the supplier wording and the applicable benchmark."}</p></div></div></td></tr> : null}
             </Fragment>;
           })}
           {tableRows.length === 0 ? <tr><td colSpan={6} className="p-orbit-base">{emptyState}</td></tr> : null}
@@ -10865,7 +11016,8 @@ function InitialAnalysisRecommendationTable({
 
   const bulkSelectionBanner = selectedRecommendationIds.length > 0 ? <div className="flex items-center justify-between gap-orbit-base rounded-orbit-md border border-orbit-border bg-orbit-heading px-orbit-base py-orbit-s text-orbit-inverse"><span className="font-medium">{selectedRecommendationIds.length} Clause{selectedRecommendationIds.length === 1 ? "" : "s"} Selected</span><div className="flex items-center gap-orbit-xs"><Button variant="secondary" className="h-8" disabled={locked} onClick={() => selectedRecommendationIds.forEach((id) => onBulkClauseSelectionChange?.(id, false))}>Clear</Button><Button className="h-8" disabled={locked} onClick={onAcceptSelected}>✓ Accept Supplier Positions</Button><Button variant="ghost" size="icon" aria-label="Close Bulk Selection" title="Close Bulk Selection" className="text-orbit-inverse hover:bg-orbit-card/20" disabled={locked} onClick={() => selectedRecommendationIds.forEach((id) => onBulkClauseSelectionChange?.(id, false))}><X className="h-4 w-4" aria-hidden="true" /></Button></div></div> : null;
 
-  return <div className="space-y-orbit-base">
+  return <>
+    <div className="space-y-orbit-base">
     <Card type="Static" padding="Base" state="Default" indicator={false} style={{ width: "100%" }}>
       <div className="space-y-orbit-base">
         <div>
@@ -10889,8 +11041,42 @@ function InitialAnalysisRecommendationTable({
         </>}
       </div>
     </Card>
-    <InitialAnalysisNextRoundGuide />
-  </div>;
+      <InitialAnalysisNextRoundGuide />
+    </div>
+    {rationaleClause ? (
+      <RecommendationRationaleDialog
+        open
+        onOpenChange={(open) => {
+          if (!open) setRationaleClauseId(null);
+        }}
+        clauseContext={{
+          clauseId: rationaleClause.id.toUpperCase(),
+          clauseName: displayTitleForClause(rationaleClause.id, rationaleClause.title),
+          subClauseName: rationaleClause.subclause,
+        }}
+        rationale={{
+          title: "Recommended Position Rationale",
+          explanation: [rationaleClause.rationale ?? "The recommendation addresses the identified gap between the supplier wording and the applicable benchmark."],
+          guidance: "Use this as negotiation guidance before accepting the supplier position.",
+        }}
+      />
+    ) : null}
+    {fullClause ? (
+      <FullClauseWordingDialog
+        open
+        onOpenChange={(open) => {
+          if (!open) setFullClauseId(null);
+        }}
+        clauseContext={{
+          clauseId: fullClause.id.toUpperCase(),
+          clauseName: displayTitleForClause(fullClause.id, fullClause.title),
+          subClauseName: fullClause.subclause,
+        }}
+        wording={fullClauseMissing ? "No wording in the supplier’s contract — this term should be negotiated in." : fullClause.excerpt || fullClause.deviation || "No wording in the supplier’s contract — this term should be negotiated in."}
+        missing={fullClauseMissing}
+      />
+    ) : null}
+  </>;
 }
 
 function InitialAnalysisNextRoundGuide() {

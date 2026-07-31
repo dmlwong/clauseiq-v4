@@ -16,6 +16,10 @@ function hasAccessCookie() {
     .some((cookie) => cookie.trim() === `${ACCESS_COOKIE}=granted`);
 }
 
+function isLocalDevelopmentHost() {
+  return ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+}
+
 function setAccessCookie() {
   const attributes = [`Path=${cookiePath()}`, "SameSite=Lax"];
   if (window.location.protocol === "https:") attributes.push("Secure");
@@ -32,10 +36,16 @@ interface PrototypeAccessGateProps {
   children: ReactNode;
   /** Test-only override. Production access uses VITE_PROTOTYPE_PASSCODE. */
   passcode?: string;
+  /** Test-only override. Local development hosts bypass the passcode by default. */
+  bypassAccessGate?: boolean;
 }
 
-export function PrototypeAccessGate({ children, passcode = import.meta.env.VITE_PROTOTYPE_PASSCODE }: PrototypeAccessGateProps) {
-  const [isUnlocked, setIsUnlocked] = useState(hasAccessCookie);
+export function PrototypeAccessGate({
+  children,
+  passcode = import.meta.env.VITE_PROTOTYPE_PASSCODE,
+  bypassAccessGate = isLocalDevelopmentHost(),
+}: PrototypeAccessGateProps) {
+  const [isUnlocked, setIsUnlocked] = useState(() => bypassAccessGate || hasAccessCookie());
   const [enteredPasscode, setEnteredPasscode] = useState("");
   const [error, setError] = useState("");
   const isConfigured = Boolean(passcode);
@@ -60,7 +70,7 @@ export function PrototypeAccessGate({ children, passcode = import.meta.env.VITE_
     setIsUnlocked(false);
   };
 
-  if (!isConfigured) {
+  if (!bypassAccessGate && !isConfigured) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
         <section className="w-full max-w-sm space-y-3 rounded-lg border bg-card p-6 shadow-sm" aria-labelledby="access-configuration-title">
@@ -71,7 +81,7 @@ export function PrototypeAccessGate({ children, passcode = import.meta.env.VITE_
     );
   }
 
-  if (!isUnlocked) {
+  if (!bypassAccessGate && !isUnlocked) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
         <section className="w-full max-w-sm rounded-lg border bg-card p-6 shadow-sm" aria-labelledby="passcode-title">
@@ -102,16 +112,18 @@ export function PrototypeAccessGate({ children, passcode = import.meta.env.VITE_
   return (
     <>
       {children}
-      <Button
-        aria-label="Log out and lock prototype"
-        className="fixed bottom-4 left-4 z-50 shadow-md"
-        onClick={handleLogout}
-        size="sm"
-        type="button"
-        variant="outline"
-      >
-        Lock / Log out
-      </Button>
+      {!bypassAccessGate ? (
+        <Button
+          aria-label="Log out and lock prototype"
+          className="fixed bottom-4 left-4 z-50 shadow-md"
+          onClick={handleLogout}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          Lock / Log out
+        </Button>
+      ) : null}
     </>
   );
 }

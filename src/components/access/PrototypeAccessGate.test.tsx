@@ -9,10 +9,10 @@ function LocationEcho() {
   return <div data-testid="location">{`${location.pathname}${location.search}`}</div>;
 }
 
-function renderGate(route = "/", passcode = "test-passcode") {
+function renderGate(route = "/", passcode = "test-passcode", bypassAccessGate = false) {
   return render(
     <MemoryRouter initialEntries={[route]}>
-      <PrototypeAccessGate passcode={passcode}>
+      <PrototypeAccessGate bypassAccessGate={bypassAccessGate} passcode={passcode}>
         <Routes>
           <Route path="*" element={<LocationEcho />} />
         </Routes>
@@ -28,6 +28,13 @@ function clearAccessCookie() {
 afterEach(clearAccessCookie);
 
 describe("PrototypeAccessGate", () => {
+  it("bypasses the gate on a local development host", () => {
+    renderGate("/prototypes", "", true);
+
+    expect(screen.getByTestId("location")).toHaveTextContent("/prototypes");
+    expect(screen.queryByRole("heading", { name: "Passcode required" })).not.toBeInTheDocument();
+  });
+
   it("hides the requested route until the correct passcode is entered", () => {
     renderGate("/clauseiq-v6a/output-panel?view=results");
 

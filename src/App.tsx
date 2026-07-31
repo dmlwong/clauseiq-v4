@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-route
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { PrototypeAccessGate } from "@/components/access/PrototypeAccessGate";
 import Index from "./pages/Index.tsx";
 import IndexV2 from "./pages/IndexV2.tsx";
 import IndexV3 from "./pages/IndexV3.tsx";
@@ -56,7 +57,8 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter basename={import.meta.env.BASE_URL}>
-        <Routes>
+        <PrototypeAccessGate>
+          <Routes>
           <Route path="/" element={<PrototypeTimeline />} />
           <Route path="/initiatives" element={<Index />} />
           <Route path="/initiatives-v2" element={<IndexV2 />} />
@@ -108,7 +110,8 @@ const App = () => (
           <Route path="/prototype-cp-v2/results" element={<PrototypeCPV2Results />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
-        </Routes>
+          </Routes>
+        </PrototypeAccessGate>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

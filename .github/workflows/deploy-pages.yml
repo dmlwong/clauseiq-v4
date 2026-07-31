@@ -32,7 +32,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate access passcode
+        env:
+          VITE_PROTOTYPE_PASSCODE: ${{ secrets.VITE_PROTOTYPE_PASSCODE }}
+        run: |
+          if [ -z "$VITE_PROTOTYPE_PASSCODE" ]; then
+            echo "::error::Missing VITE_PROTOTYPE_PASSCODE GitHub Actions secret."
+            exit 1
+          fi
+
       - name: Build site
+        env:
+          VITE_PROTOTYPE_PASSCODE: ${{ secrets.VITE_PROTOTYPE_PASSCODE }}
         run: npm run build -- --base /clauseiq-v4/
 
       - name: Prepare Pages artifacts

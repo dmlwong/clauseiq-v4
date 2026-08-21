@@ -7,7 +7,7 @@ import { InitiativeOverview } from "@/components/workflow-v6a/InitiativeOverview
 import { SupplierPage } from "@/components/workflow-v6a/SupplierPage";
 import { ContractResults } from "@/components/workflow-v6a/ContractResults";
 import { CrossSupplierComparison } from "@/components/workflow-v6a/CrossSupplierComparison";
-import { WizardModal } from "@/components/wizard-v6/WizardModal";
+import { WizardModal } from "@/components/clauseiq-v6a/wizard/WizardModal";
 import { useWizardState } from "@/hooks/use-wizard-state-v6";
 import { useContractStatus } from "@/hooks/use-contract-status-v6";
 import { auditLog } from "@/lib/mock-api";

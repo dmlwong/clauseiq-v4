@@ -135,6 +135,43 @@ describe("ContractResults V6A review controls", () => {
     expect(paymentTermsCard).toBeTruthy();
     expect(within(paymentTermsCard as HTMLElement).getAllByText("Not Met - Medium").length).toBe(2);
     expect(within(paymentTermsCard as HTMLElement).queryByText("Not Met")).not.toBeInTheDocument();
+    expect(within(paymentTermsCard as HTMLElement).getByRole("button", { name: "Revert" })).toBeInTheDocument();
+  });
+
+  it("marks selected comparison clauses for removal in the next negotiation", async () => {
+    renderContractResults(optionTwoComparisonRoute);
+
+    const actionRequiredSection = screen.getByText(/^Action required — position still not met/).closest("section") as HTMLElement;
+    const regressedSection = screen.getByText(/^Regressed — previously agreed, but changed by the supplier/).closest("section") as HTMLElement;
+    const firstSelection = within(actionRequiredSection).getAllByRole("checkbox", { name: /Bulk selected/i })[0];
+    const secondSelection = within(regressedSection).getAllByRole("checkbox", { name: /Bulk selected/i })[0];
+    const firstClauseCard = firstSelection.closest('[id^="clause-row-"]') as HTMLElement;
+
+    fireEvent.click(firstSelection);
+    fireEvent.click(secondSelection);
+    expect(screen.getByText("2 Clauses Selected")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Clause For Next Negotiation" }));
+
+    fireEvent.click(within(firstClauseCard).getByRole("button", { name: /Expand/i }));
+    await waitFor(() => expect(screen.getByText(/Required next position: Remove this clause in full\./)).toBeInTheDocument());
+    expect(screen.queryByText("2 Clauses Selected")).not.toBeInTheDocument();
+    expect(firstSelection).not.toBeChecked();
+    expect(secondSelection).not.toBeChecked();
+  });
+
+  it("closes the comparison bulk banner without changing selected clauses", () => {
+    renderContractResults(optionTwoComparisonRoute);
+
+    const actionRequiredSection = screen.getByText(/^Action required — position still not met/).closest("section") as HTMLElement;
+    const selection = within(actionRequiredSection).getAllByRole("checkbox", { name: /Bulk selected/i })[0];
+    fireEvent.click(selection);
+
+    expect(screen.getByText("1 Clause Selected")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close Bulk Selection" }));
+
+    expect(screen.queryByText("1 Clause Selected")).not.toBeInTheDocument();
+    expect(selection).not.toBeChecked();
   });
 
   it("locks the comparison dashboard persistently and disables clause decisions", () => {
@@ -456,6 +493,45 @@ describe("ContractResults V6A review controls", () => {
     expect(screen.queryByRole("dialog", { name: "Rationale" })).not.toBeInTheDocument();
   });
 
+  it("bulk marks selected Initial Analysis clauses for removal in the next negotiation", () => {
+    renderContractResults(initialTableRoute);
+
+    const removalPosition = "Required next position: Remove this clause in full. This clause, and any substantively equivalent provision, must be absent from the supplier’s next contract version";
+    const recommendationsTable = screen.getByRole("table", { name: "Initial analysis position not met" });
+    const paymentTermsPosition = within(recommendationsTable).getByRole("textbox", { name: /Negotiation position for Payment terms/i });
+    const liabilityPosition = within(recommendationsTable).getByRole("textbox", { name: /Negotiation position for Limitation of liability/i });
+
+    fireEvent.change(paymentTermsPosition, { target: { value: "Keep the original payment position." } });
+    fireEvent.click(within(recommendationsTable).getByRole("checkbox", { name: "Bulk selected C31" }));
+    fireEvent.click(within(recommendationsTable).getByRole("checkbox", { name: "Bulk selected C35" }));
+    expect(screen.getByText("2 Clauses Selected")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove Clause For Next Negotiation" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove Clause For Next Negotiation" }));
+
+    expect(paymentTermsPosition).toHaveValue(removalPosition);
+    expect(liabilityPosition).toHaveValue(removalPosition);
+    expect(screen.queryByText("2 Clauses Selected")).not.toBeInTheDocument();
+    expect(within(recommendationsTable).getByText("Payment terms")).toBeInTheDocument();
+    expect(within(recommendationsTable).getByText("Limitation of liability — aggregate cap")).toBeInTheDocument();
+    expect(within(recommendationsTable).getByRole("checkbox", { name: "Bulk selected C31" })).not.toBeChecked();
+  });
+
+  it("closes the Initial Analysis bulk banner without changing selected positions", () => {
+    renderContractResults(initialTableRoute);
+
+    const recommendationsTable = screen.getByRole("table", { name: "Initial analysis position not met" });
+    const paymentTermsPosition = within(recommendationsTable).getByRole("textbox", { name: /Negotiation position for Payment terms/i });
+    const originalPosition = (paymentTermsPosition as HTMLTextAreaElement).value;
+
+    fireEvent.click(within(recommendationsTable).getByRole("checkbox", { name: "Bulk selected C31" }));
+    expect(screen.getByText("1 Clause Selected")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close Bulk Selection" }));
+
+    expect(screen.queryByText("1 Clause Selected")).not.toBeInTheDocument();
+    expect(paymentTermsPosition).toHaveValue(originalPosition);
+  });
+
   it("opens full clause wording in a modal from every initial-analysis row", () => {
     renderContractResults(initialTableRoute);
 
@@ -487,10 +563,16 @@ describe("ContractResults V6A review controls", () => {
     const recommendationsTable = screen.getByRole("table", { name: "Initial analysis position not met" });
     const position = within(recommendationsTable).getByRole("textbox", { name: /Negotiation position for Payment terms/i });
     const row = position.closest("tr") as HTMLElement;
+    const originalPosition = (position as HTMLTextAreaElement).value;
 
     expect(within(row).getByRole("link", { name: "View Rationale" })).toBeInTheDocument();
-    fireEvent.focus(position);
-    await waitFor(() => expect(within(row).getByRole("link", { name: "Revert" })).toBeInTheDocument());
+    const revert = within(row).getByRole("link", { name: "Revert" });
+    expect(revert).toBeInTheDocument();
+
+    fireEvent.change(position, { target: { value: "Use a custom payment position." } });
+    fireEvent.click(revert);
+
+    await waitFor(() => expect(position).toHaveValue(originalPosition));
   });
 
   it("keeps the table design out of Comparison View", () => {

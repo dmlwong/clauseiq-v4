@@ -29,6 +29,7 @@ import {
   usePrototypeStore,
   prototypePreviewUrl,
   isPrototypeCP,
+  isPrototypeCPV4,
   isPrototypeV6A,
   isPrototypeV6,
   isPrototypeV5,
@@ -160,7 +161,7 @@ function openPrototype(url: string | undefined, navigate: NavigateFunction) {
 }
 
 function isHomepageCurrentVersion(version: PrototypeVersion) {
-  return isPrototypeCP(version) || isPrototypeV5(version) || isPrototypeV6(version) || isPrototypeV6A(version);
+  return isPrototypeCPV4(version) || isPrototypeCP(version) || isPrototypeV5(version) || isPrototypeV6(version) || isPrototypeV6A(version);
 }
 
 export default function PrototypeTimeline() {

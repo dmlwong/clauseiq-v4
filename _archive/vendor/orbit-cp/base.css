@@ -1,0 +1,23 @@
+html,
+body {
+  font-family: var(--orbit-font-family-sans);
+  font-size: var(--orbit-text-body-size);
+  font-weight: var(--orbit-text-body-weight);
+  line-height: var(--orbit-text-body-leading);
+  color: var(--orbit-color-text-primary);
+  background-color: var(--orbit-color-bg-default);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+input,
+textarea,
+button,
+select {
+  font-family: inherit;
+}
+
+input {
+  border: none;
+  outline: none;
+}

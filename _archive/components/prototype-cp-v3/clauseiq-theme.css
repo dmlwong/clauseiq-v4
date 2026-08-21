@@ -1,0 +1,22 @@
+/* ==========================================================================
+ * Prototype CP v3 — ClauseIQ surface theme
+ *
+ * Replaces the v6a orbit-theme.css override layer (1,378 lines, 87 !important).
+ * Only rules classified "re-express" in TOKEN_MAP.md §F land here, and they must:
+ *   - resolve every visual value through an efficio token
+ *   - contain zero !important
+ *   - avoid positional selectors (nth-child) in favour of data attributes
+ *
+ * Populated across Phases 3 (dashboard rules) and 4 (journey/modal rules).
+ *
+ * Two exemptions are granted to this file by the guard, both narrow:
+ *   1. It may emit the shadcn HSL bridge (--background, --primary, --card, ...) that the
+ *      copied v6a components read. Those are NOT --orbit-* tokens; their values are
+ *      re-derived from efficio tokens rather than carried over from the orbit theme.
+ *   2. Because that bridge must be expressed as HSL triples, raw-value rule 3 does not
+ *      apply here. Rule 4 (no --orbit-* definitions) still does.
+ * ========================================================================== */
+
+[data-prototype="prototype-cp-v3"] {
+  /* shadcn bridge — populated in Phase 3. See TOKEN_MAP.md §F row 1. */
+}

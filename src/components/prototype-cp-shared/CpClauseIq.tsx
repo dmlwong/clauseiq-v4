@@ -217,11 +217,15 @@ export function CpStateCard({
 export function CpPlaybookDisclaimer({
   variant,
   parameter,
+  labelOverride,
+  descriptionOverride,
 }: {
   variant: "callout" | "inline";
   parameter: AnalysisParameterSelection | null;
+  labelOverride?: string;
+  descriptionOverride?: string;
 }) {
-  const copy = parameterDisclaimer(parameter);
+  const copy = descriptionOverride ?? parameterDisclaimer(parameter);
 
   if (variant === "inline") {
     return <p className="mt-orbit-xs text-[11px] leading-snug text-muted-foreground">{copy}</p>;
@@ -232,7 +236,7 @@ export function CpPlaybookDisclaimer({
       <CpInlineBanner
         variant="Information"
         contrast="Low"
-        label={parameter?.playbookChoice === "no" ? "Benchmark precision" : "Analysis scope"}
+        label={labelOverride ?? (parameter?.playbookChoice === "no" ? "Benchmark precision" : "Analysis scope")}
         description={copy}
       />
     </div>

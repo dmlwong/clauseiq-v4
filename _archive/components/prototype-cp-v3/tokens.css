@@ -1,0 +1,24 @@
+/* ==========================================================================
+ * Prototype CP v3 — local design tokens
+ *
+ * INTENTIONALLY EMPTY. See TOKEN_MAP.md §A.
+ *
+ * All 13 candidate "prototype-local" tokens resolved to existing efficio
+ * tokens with zero usage in scope. The last holdout, --orbit-shadow-overlay,
+ * was withdrawn once efficio's own Overlay component was found to use
+ * --orbit-shadow-lg (vendor/orbit/dist/feedback/Overlay.module.css:15, and
+ * likewise Toast, Dropdown, MultiSelectDropdown) — so overlay-weight
+ * elevation is a design-system decision already made, not a gap.
+ *
+ * Every visual value in this namespace resolves from the efficio base (:root)
+ * shipped by @efficio/orbit via @orbit-tokens. The Connected Platform layer
+ * (--orbit-color-cp-*, --orbit-cp-*, --orbit-color-sidenav-*) supplies the
+ * shell colours and geometry; see TOKEN_MAP.md §B.
+ *
+ * A new token is a change request against packages/orbit/styles/tokens/, per
+ * design-brain tokens.md:144 ("Any new token must be added to the coded
+ * design system first"), never a prototype-local override. If one is ever
+ * approved, add it here AND to ALLOWED_LOCAL_TOKENS in
+ * prototype-cp-v3-guard.test.ts AND to TOKEN_MAP.md §A — the guard fails
+ * otherwise, by design.
+ * ========================================================================== */

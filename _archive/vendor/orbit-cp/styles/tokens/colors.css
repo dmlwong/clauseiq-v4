@@ -1,0 +1,183 @@
+/* ==========================================================================
+ * Orbit Design Tokens
+ * Generated from: Figma — Main Component Library
+ * Source: https://www.figma.com/design/5RUsy0uKtFarK7nO8Y3nLL
+ * Date: 2026-03-26
+ * ========================================================================== */
+
+/* --------------------------------------------------------------------------
+ * 1. PRIMITIVE COLORS
+ * -------------------------------------------------------------------------- */
+
+:root {
+  /* --- Neutrals --- */
+  --orbit-color-black: #000000;
+  --orbit-color-white: #ffffff;
+  --orbit-color-black-pearl: #040921;
+  --orbit-color-dark-grey: #333333;
+  --orbit-color-dove-gray: #666666;
+  --orbit-color-mid-gray: #999999;
+  --orbit-color-silver: #cccccc;
+  --orbit-color-alto: #e0e0e0;
+  --orbit-color-mercury: #e6e6e6;
+  --orbit-color-gallery: #f0f0f0;
+  --orbit-color-light-gray: #f6f6f6;
+  --orbit-color-alabaster: #fafafa;
+
+  /* --- Brand --- */
+  --orbit-color-efficio-blue: #001969;
+  --orbit-color-chambray: #40548f;
+
+  /* --- Accent / Teal --- */
+  --orbit-color-bright-green: #00bd9e;
+  --orbit-color-cruise: #c0eee7;
+  --orbit-color-dark-green: #003b40;
+  --orbit-color-cerulean: #00b0ca;
+
+  /* --- Status primitives --- */
+  --orbit-color-jade: #00a962;
+  --orbit-color-science-blue: #0073cf;
+  --orbit-color-web-orange: #f0ab00;
+  --orbit-color-red-ribbon: #e00034;
+  --orbit-color-bright-orange: #fc5c48;
+
+  /* --- Extended palette --- */
+  --orbit-color-hollywood-cerise: #c3009e;
+  --orbit-color-peach-schnapps: #fed6d1;
+  --orbit-color-cornflower-lilac: #feada3;
+  --orbit-color-rose-white: #fff6f5;
+  --orbit-color-william: #406c71;
+  --orbit-color-granny-smith: #809d9f;
+  --orbit-color-tiara: #c0cecf;
+
+  /* --------------------------------------------------------------------------
+   * 2. SWATCH SCALES
+   *
+   * Full primitive ramps imported from Figma — Efficio Styleguide library
+   * (Primitives.Swatches collection). Values are the CP mode; Orbit mode
+   * overrides live in styles/tokens/themes/orbit.css.
+   * -------------------------------------------------------------------------- */
+
+  /* --- Bright Green --- */
+  --orbit-color-swatch-bright-green-300: #dffcf3;
+  --orbit-color-swatch-bright-green-400: #c6e7dd;
+  --orbit-color-swatch-bright-green-500: #aeded1;
+  --orbit-color-swatch-bright-green-600: #93d5c4;
+  --orbit-color-swatch-bright-green-700: #72ccb6;
+  --orbit-color-swatch-bright-green-800: #00bd9e;
+  --orbit-color-swatch-bright-green-900: #00b799;
+  --orbit-color-swatch-bright-green-1000: #00a98d;
+  --orbit-color-swatch-bright-green-1100: #009a81;
+  --orbit-color-swatch-bright-green-1200: #008a73;
+  --orbit-color-swatch-bright-green-1300: #007864;
+  --orbit-color-swatch-bright-green-1500: #00453a;
+
+  /* --- Cerulean --- */
+  --orbit-color-swatch-cerulean-300: #f1fcff;
+  --orbit-color-swatch-cerulean-400: #c6e3eb;
+  --orbit-color-swatch-cerulean-500: #aed8e4;
+  --orbit-color-swatch-cerulean-600: #93cedd;
+  --orbit-color-swatch-cerulean-700: #72c2d6;
+  --orbit-color-swatch-cerulean-800: #00b0ca;
+  --orbit-color-swatch-cerulean-900: #00aac3;
+  --orbit-color-swatch-cerulean-1000: #009db5;
+  --orbit-color-swatch-cerulean-1100: #0090a5;
+  --orbit-color-swatch-cerulean-1200: #008194;
+  --orbit-color-swatch-cerulean-1300: #006f80;
+  --orbit-color-swatch-cerulean-1400: #005b68;
+  --orbit-color-swatch-cerulean-1500: #00404a;
+
+  /* --- Dark Red --- */
+  --orbit-color-swatch-dark-red-300: #ffdedb;
+  --orbit-color-swatch-dark-red-400: #fececb;
+  --orbit-color-swatch-dark-red-500: #fdbbb6;
+  --orbit-color-swatch-dark-red-600: #fda59f;
+  --orbit-color-swatch-dark-red-700: #fd8d83;
+  --orbit-color-swatch-dark-red-800: #fc5c48;
+  --orbit-color-swatch-dark-red-900: #f45946;
+  --orbit-color-swatch-dark-red-1000: #e15240;
+  --orbit-color-swatch-dark-red-1100: #ce4b3b;
+  --orbit-color-swatch-dark-red-1200: #b84335;
+  --orbit-color-swatch-dark-red-1300: #9f3a2e;
+  --orbit-color-swatch-dark-red-1400: #822f25;
+  --orbit-color-swatch-dark-red-1500: #5c221a;
+
+  /* --- Goblin Green --- */
+  --orbit-color-swatch-goblin-green-300: #e5edee;
+  --orbit-color-swatch-goblin-green-400: #cad1d2;
+  --orbit-color-swatch-goblin-green-500: #b4bfc1;
+  --orbit-color-swatch-goblin-green-600: #9cacae;
+  --orbit-color-swatch-goblin-green-700: #809598;
+  --orbit-color-swatch-goblin-green-800: #406c71;
+  --orbit-color-swatch-goblin-green-900: #3e686d;
+  --orbit-color-swatch-goblin-green-1000: #396165;
+  --orbit-color-swatch-goblin-green-1100: #34585c;
+  --orbit-color-swatch-goblin-green-1200: #2f4f53;
+  --orbit-color-swatch-goblin-green-1300: #284447;
+  --orbit-color-swatch-goblin-green-1400: #21383a;
+  --orbit-color-swatch-goblin-green-1500: #172829;
+
+  /* --- Hollywood Cerise --- */
+  --orbit-color-swatch-hollywood-cerise-300: #f4dbeb;
+  --orbit-color-swatch-hollywood-cerise-400: #e9c6dd;
+  --orbit-color-swatch-hollywood-cerise-500: #e1aed1;
+  --orbit-color-swatch-hollywood-cerise-600: #d993c4;
+  --orbit-color-swatch-hollywood-cerise-700: #d072b6;
+  --orbit-color-swatch-hollywood-cerise-800: #c3009e;
+  --orbit-color-swatch-hollywood-cerise-900: #bc0099;
+  --orbit-color-swatch-hollywood-cerise-1000: #ae008d;
+  --orbit-color-swatch-hollywood-cerise-1100: #9f0081;
+  --orbit-color-swatch-hollywood-cerise-1200: #8e0073;
+  --orbit-color-swatch-hollywood-cerise-1300: #7b0064;
+  --orbit-color-swatch-hollywood-cerise-1400: #650051;
+  --orbit-color-swatch-hollywood-cerise-1500: #47003a;
+
+  /* --- Purple Gray --- */
+  --orbit-color-swatch-purple-gray-300: #eaedfc;
+  --orbit-color-swatch-purple-gray-400: #d6d8e4;
+  --orbit-color-swatch-purple-gray-500: #c6cada;
+  --orbit-color-swatch-purple-gray-600: #b5bad0;
+  --orbit-color-swatch-purple-gray-700: #a2a9c5;
+  --orbit-color-swatch-purple-gray-800: #818cb4;
+  --orbit-color-swatch-purple-gray-900: #7d87ae;
+  --orbit-color-swatch-purple-gray-1000: #737da1;
+  --orbit-color-swatch-purple-gray-1100: #697293;
+  --orbit-color-swatch-purple-gray-1200: #5e6684;
+  --orbit-color-swatch-purple-gray-1300: #525972;
+  --orbit-color-swatch-purple-gray-1400: #43485d;
+  --orbit-color-swatch-purple-gray-1500: #2f3342;
+
+  /* --- Science Blue --- */
+  --orbit-color-swatch-science-blue-300: #e5f1fa;
+  --orbit-color-swatch-science-blue-400: #c8d9f1;
+  --orbit-color-swatch-science-blue-500: #b2cbeb;
+  --orbit-color-swatch-science-blue-600: #99bce6;
+  --orbit-color-swatch-science-blue-700: #64a4ec;
+  --orbit-color-swatch-science-blue-800: #0073cf;
+  --orbit-color-swatch-science-blue-900: #147ed3;
+  --orbit-color-swatch-science-blue-1000: #2e80c2;
+  --orbit-color-swatch-science-blue-1100: #2a75b1;
+  --orbit-color-swatch-science-blue-1200: #25689f;
+  --orbit-color-swatch-science-blue-1300: #205a89;
+  --orbit-color-swatch-science-blue-1400: #1a4a70;
+  --orbit-color-swatch-science-blue-1500: #13344f;
+
+  /* --- Slate (legacy, not from Figma swatches collection) --- */
+  --orbit-color-swatch-slate-100: #f3f5f8;
+  --orbit-color-swatch-slate-200: #e2e8f0;
+
+  /* --- Web Orange --- */
+  --orbit-color-swatch-web-orange-200: #fffbf2;
+  --orbit-color-swatch-web-orange-300: #ffe8cf;
+  --orbit-color-swatch-web-orange-400: #f9e1c6;
+  --orbit-color-swatch-web-orange-500: #f7d6ae;
+  --orbit-color-swatch-web-orange-600: #f5cb93;
+  --orbit-color-swatch-web-orange-700: #f3bf72;
+  --orbit-color-swatch-web-orange-800: #f0ab00;
+  --orbit-color-swatch-web-orange-900: #e8a500;
+  --orbit-color-swatch-web-orange-1000: #d79900;
+  --orbit-color-swatch-web-orange-1100: #c48c00;
+  --orbit-color-swatch-web-orange-1200: #af7d00;
+  --orbit-color-swatch-web-orange-1300: #986c00;
+  --orbit-color-swatch-web-orange-1500: #583f00;
+}

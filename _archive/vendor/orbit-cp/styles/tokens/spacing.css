@@ -1,0 +1,28 @@
+/* --------------------------------------------------------------------------
+ * 13. SPACING
+ * -------------------------------------------------------------------------- */
+
+:root {
+  --orbit-space-0: 0px;
+  --orbit-space-px: 1px;
+  --orbit-space-0_5: 2px;
+  --orbit-space-1: 4px;
+  --orbit-space-2: 8px;
+  --orbit-space-4: 16px;
+  --orbit-space-6: 24px;
+  --orbit-space-8: 32px;
+  --orbit-space-12: 48px;
+  --orbit-space-16: 64px;
+
+  /* --- Named spacing aliases (Figma token names) --- */
+  --orbit-space-none: var(--orbit-space-0);
+  --orbit-space-micro: var(--orbit-space-px);
+  --orbit-space-xxs: var(--orbit-space-0_5);
+  --orbit-space-xs: var(--orbit-space-1);
+  --orbit-space-s: var(--orbit-space-2);
+  --orbit-space-base: var(--orbit-space-4);
+  --orbit-space-m: var(--orbit-space-6);
+  --orbit-space-l: var(--orbit-space-8);
+  --orbit-space-xxl: var(--orbit-space-12);
+  --orbit-space-mega: var(--orbit-space-16);
+}

@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { HeaderPresets, PageHeader } from "@orbit";
-import { CiqSidebar } from "@/components/clauseiq-v5/Sidebar";
+import { CiqSidebar } from "@/components/clauseiq-v6a/CiqSidebar";
 import { cn } from "@/lib/utils";
 import { V6OrbitRoot } from "@/components/clauseiq-v6a/V6OrbitRoot";
 

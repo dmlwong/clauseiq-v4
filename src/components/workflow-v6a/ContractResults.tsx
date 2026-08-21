@@ -141,6 +141,8 @@ import {
 
 const BULK_ACTION_FA_ICON = "\uf0ae";
 const ARROW_DOWN_TO_BRACKET_FA_ICON = "\ue094";
+const REMOVE_CLAUSE_FOR_NEXT_NEGOTIATION_POSITION =
+  "Required next position: Remove this clause in full. This clause, and any substantively equivalent provision, must be absent from the supplier’s next contract version";
 
 const BulkClauseSelectionContext = createContext<{
   enabled: boolean;
@@ -159,6 +161,7 @@ interface Props {
   onBack: () => void;
   backLabel?: string;
   compactHeader?: boolean;
+  showBack?: boolean;
   scoringOption?: ScoringOptionKey;
   onScoringOptionChange?: (value: ScoringOptionKey) => void;
 }
@@ -997,6 +1000,7 @@ export function ContractResults({
   onBack,
   backLabel,
   compactHeader = false,
+  showBack = true,
 }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
   const supplierJourneyId = searchParams.get("supplierJourney");
@@ -3276,11 +3280,41 @@ export function ContractResults({
       closeWithUndo(id, display?.title ?? id.toUpperCase(), rightVersion ? stateOf(id).closures[rightVersion.version] : undefined);
     });
   };
+  const removeSelectedOptionTwoClausesForNextNegotiation = () => {
+    if (!rightVersion || isDashboardLocked || optionTwoBulkSelectedClauseIds.length === 0) return;
+
+    const removableIds = new Set([
+      ...optionTwoGroups.actionRequired,
+      ...optionTwoGroups.regressed,
+    ].map((row) => row.id));
+    const selectedIds = optionTwoBulkSelectedClauseIds.filter((id) => removableIds.has(id));
+    if (selectedIds.length === 0) return;
+
+    decisions.acceptPendingRequests(
+      supplierId,
+      decisionContractId,
+      rightVersion.version,
+      selectedIds.map((clauseId) => ({
+        clauseId,
+        request: { requestedChange: REMOVE_CLAUSE_FOR_NEXT_NEGOTIATION_POSITION },
+      })),
+    );
+    selectedIds.forEach((id) => {
+      clearClosureDecision(id, rightVersion.version);
+      decisions.patchClauseState(supplierId, decisionContractId, id, { acceptedClosed: false });
+      decisions.setOutcome(supplierId, decisionContractId, id, rightVersion.version, "custom");
+    });
+    setBulkBannerSelectedClauseIds(new Set());
+    toast({
+      title: "Clauses marked for removal",
+      description: `${selectedIds.length} clause${selectedIds.length === 1 ? "" : "s"} marked for removal in the next negotiation.`,
+    });
+  };
   const optionTwoBulkBanner = optionTwoBulkSelectedClauseIds.length > 0 ? (
     <div className="flex items-center justify-between gap-orbit-base rounded-orbit-md border border-orbit-border bg-orbit-heading px-orbit-base py-orbit-s text-orbit-inverse">
       <span className="font-medium">{optionTwoBulkSelectedClauseIds.length} Clause{optionTwoBulkSelectedClauseIds.length === 1 ? "" : "s"} Selected</span>
       <div className="flex items-center gap-orbit-xs">
-        <Button variant="secondary" className="h-8" disabled={isDashboardLocked} onClick={clearOptionTwoBulkSelection}>Clear</Button>
+        <Button variant="secondary" className="h-8" disabled={isDashboardLocked} onClick={removeSelectedOptionTwoClausesForNextNegotiation}>Remove Clause For Next Negotiation</Button>
         <Button className="h-8" disabled={isDashboardLocked} onClick={acceptSelectedOptionTwoSupplierPositions}>✓ Accept Supplier Positions</Button>
         <Button variant="ghost" size="icon" aria-label="Close Bulk Selection" title="Close Bulk Selection" className="text-orbit-inverse hover:bg-orbit-card/20" disabled={isDashboardLocked} onClick={clearOptionTwoBulkSelection}><X className="h-4 w-4" aria-hidden="true" /></Button>
       </div>
@@ -3460,6 +3494,31 @@ export function ContractResults({
       description: `${selectedIds.length} clause${selectedIds.length === 1 ? "" : "s"} moved to Accepted As-Is.`,
     });
   };
+  const removeSelectedFirstAnalysisClausesForNextNegotiation = () => {
+    if (!firstAnalysisVersion || isDashboardLocked || bulkBannerSelectedClauseIds.size === 0) return;
+    const selectedIds = firstAnalysisVersion.clauses
+      .map((clause) => clause.id)
+      .filter((id) => bulkBannerSelectedClauseIds.has(id));
+    if (selectedIds.length === 0) return;
+
+    decisions.acceptPendingRequests(
+      supplierId,
+      decisionContractId,
+      firstAnalysisVersion.version,
+      selectedIds.map((clauseId) => ({
+        clauseId,
+        request: { requestedChange: REMOVE_CLAUSE_FOR_NEXT_NEGOTIATION_POSITION },
+      })),
+    );
+    selectedIds.forEach((id) => {
+      decisions.setOutcome(supplierId, decisionContractId, id, firstAnalysisVersion.version, "custom");
+    });
+    setBulkBannerSelectedClauseIds(new Set());
+    toast({
+      title: "Clauses marked for removal",
+      description: `${selectedIds.length} clause${selectedIds.length === 1 ? "" : "s"} marked for removal in the next negotiation.`,
+    });
+  };
   const firstAnalysisTableFilters = firstAnalysisVersion ? (
     <InitialAnalysisTableFilterBar
       activeMetrics={firstAnalysisMetricFilters}
@@ -3520,6 +3579,7 @@ export function ContractResults({
         if (!isDashboardLocked) submitDraftRequestWithToast(id, firstAnalysisVersion.version, { suppressToast: true });
       }}
       onAcceptSelected={acceptSelectedFirstAnalysisSupplierPositions}
+      onRemoveSelectedForNextNegotiation={removeSelectedFirstAnalysisClausesForNextNegotiation}
       onOpenDetail={(id) => setDetailClauseId(id)}
       bulkSelectionEnabled={bulkSelectionEnabled}
       bulkSelectedClauseIds={bulkBannerSelectedClauseIds}
@@ -4075,6 +4135,7 @@ export function ContractResults({
           <CompactContractTopbar
             backLabel={compactBackLabel}
             onBack={onBack}
+            showBack={showBack}
             referenceLine={dashboardReferenceLine}
             actions={compactHeaderActions}
             firstAnalysisDemo={firstAnalysisDemo}
@@ -4789,6 +4850,7 @@ const formatShortDate = formatClauseIqDate;
 function CompactContractTopbar({
   backLabel,
   onBack,
+  showBack,
   referenceLine,
   actions,
   firstAnalysisDemo,
@@ -4801,6 +4863,7 @@ function CompactContractTopbar({
 }: {
   backLabel: string;
   onBack: () => void;
+  showBack: boolean;
   referenceLine: string;
   actions?: ReactNode;
   firstAnalysisDemo: boolean;
@@ -4813,13 +4876,17 @@ function CompactContractTopbar({
 }) {
   return (
     <div className="flex min-h-10 items-center gap-orbit-base border-b border-orbit-border px-orbit-base py-orbit-s">
-      <button
-        onClick={onBack}
-        className="inline-flex shrink-0 items-center gap-orbit-xs text-orbit-sm v6-orbit-weight-medium text-orbit-primary hover:underline"
-      >
-        <ChevronLeft className="h-3.5 w-3.5" /> {backLabel}
-      </button>
-      <div className="h-3.5 w-px bg-orbit-border" aria-hidden />
+      {showBack ? (
+        <>
+          <button
+            onClick={onBack}
+            className="inline-flex shrink-0 items-center gap-orbit-xs text-orbit-sm v6-orbit-weight-medium text-orbit-primary hover:underline"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" /> {backLabel}
+          </button>
+          <div className="h-3.5 w-px bg-orbit-border" aria-hidden />
+        </>
+      ) : null}
       <div className="flex min-w-0 flex-1 items-center gap-orbit-s">
         <h1 className="v6-orbit-heading-label min-w-0 truncate text-orbit-fg">{referenceLine}</h1>
         <div className="relative shrink-0">
@@ -8719,7 +8786,12 @@ function ComparisonNegotiationBanner({
   return (
     <Card type="Static" padding="Base" state="Default" indicator={false}>
       <div className="flex flex-wrap items-center gap-orbit-s">
-        <Pencil className="h-[18px] w-[18px] shrink-0 text-orbit-fg" aria-hidden="true" />
+        <span
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-orbit-sm bg-orbit-primary/10 text-orbit-primary"
+          aria-hidden="true"
+        >
+          <Pencil className="h-[18px] w-[18px]" />
+        </span>
         <Headings size="Heading 5">Negotiation Position</Headings>
         <Chip label={version} size="Mini" variant="Information" />
         <div className="ml-auto flex flex-wrap items-center gap-orbit-s">
@@ -10417,6 +10489,7 @@ function ReviewScreen({
   onCancelDraft,
   onSubmitDraft,
   onAcceptSelected,
+  onRemoveSelectedForNextNegotiation,
   onOpenDetail,
   bulkSelectionEnabled = false,
   bulkSelectedClauseIds,
@@ -10451,6 +10524,8 @@ function ReviewScreen({
   onUpdateDraft: (id: string, patch: { requestedChange?: string; rationale?: string }) => void;
   onCancelDraft: (id: string) => void;
   onSubmitDraft: (id: string) => void;
+  onAcceptSelected?: () => void;
+  onRemoveSelectedForNextNegotiation?: () => void;
   onOpenDetail: (id: string) => void;
   bulkSelectionEnabled?: boolean;
   bulkSelectedClauseIds?: Set<string>;
@@ -10610,6 +10685,7 @@ function ReviewScreen({
         onUpdateDraft={onUpdateDraft}
         onSubmitDraft={onSubmitDraft}
         onAcceptSelected={onAcceptSelected}
+        onRemoveSelectedForNextNegotiation={onRemoveSelectedForNextNegotiation}
         bulkSelectionEnabled={bulkSelectionEnabled}
         bulkSelectedClauseIds={bulkSelectedClauseIds}
         onBulkClauseSelectionChange={onBulkClauseSelectionChange}
@@ -10711,6 +10787,7 @@ function InitialAnalysisRecommendationTable({
   onUpdateDraft,
   onSubmitDraft,
   onAcceptSelected,
+  onRemoveSelectedForNextNegotiation,
   bulkSelectionEnabled = false,
   bulkSelectedClauseIds,
   onBulkClauseSelectionChange,
@@ -10730,6 +10807,7 @@ function InitialAnalysisRecommendationTable({
   onUpdateDraft: (id: string, patch: ClauseRequest) => void;
   onSubmitDraft: (id: string) => void;
   onAcceptSelected?: () => void;
+  onRemoveSelectedForNextNegotiation?: () => void;
   bulkSelectionEnabled?: boolean;
   bulkSelectedClauseIds?: Set<string>;
   onBulkClauseSelectionChange?: (clauseId: string, selected: boolean) => void;
@@ -10913,7 +10991,7 @@ function InitialAnalysisRecommendationTable({
             );
             const viewRationaleAction = mode === "position-not-met" && !accepted ? (
               <span
-                className="inline-flex min-w-0 items-center gap-orbit-xs [&>a]:!text-orbit-primary"
+                className="inline-flex min-w-0 items-center gap-orbit-xs py-orbit-xs [&>a]:!text-orbit-primary"
                 onMouseDown={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
@@ -10932,7 +11010,7 @@ function InitialAnalysisRecommendationTable({
                 <ArrowRight className="h-3.5 w-3.5 shrink-0 text-orbit-primary" aria-hidden="true" />
               </span>
             ) : null;
-            const resetRecommendationAction = !noRecommendation && focusedClauseId === clause.id ? (
+            const resetRecommendationAction = !noRecommendation ? (
               <span
                 className="inline-flex min-w-0 items-center gap-orbit-xs [&>a]:!text-orbit-primary"
                 onMouseDown={(event) => {
@@ -10958,8 +11036,8 @@ function InitialAnalysisRecommendationTable({
             <tr className={cn("align-top border-b border-orbit-border transition-colors", focusedClauseId === clause.id && "bg-[var(--orbit-color-swatch-purple-gray-500)]")}>
               <td className="px-orbit-base pt-orbit-base pb-orbit-base">{!isPositionMet ? <Checkbox checked={selected} disabled={locked || !bulkSelectionEnabled || accepted} aria-label={`Bulk selected ${clause.id.toUpperCase()}`} onCheckedChange={(checked) => onBulkClauseSelectionChange?.(clause.id, checked === true)} /> : null}</td>
               <td className="px-orbit-base pt-orbit-base pb-orbit-base"><Chip label={clause.category} size="Mini" variant="No Status" contrast="Low" /></td>
-              <td className="relative min-w-[200px] px-orbit-base pt-orbit-base pb-orbit-base"><div><span className="block v6-orbit-heading-label text-orbit-fg">{displayTitleForClause(clause.id, clause.title)}</span><span className="mt-orbit-xxs block text-orbit-xs text-orbit-fg-secondary">{clause.id.toUpperCase()}</span></div><div className="absolute bottom-orbit-base left-orbit-base">{fullClauseAction}</div></td>
-              <td className="w-[640px] min-w-[320px] max-w-[640px] px-orbit-base pt-orbit-base pb-orbit-base">{missing ? <div><Chip label="Missing From Contract" size="Mini" variant="Error" contrast="Low" /><p className="mt-orbit-s italic text-orbit-sm text-orbit-fg-secondary">No wording in the supplier’s contract — this term should be negotiated in.</p><p className="mt-orbit-s text-orbit-xs text-orbit-fg-secondary">If this term is intentionally out of scope, move it to Position Met.</p><Button variant="outline" className="mt-orbit-s h-8 px-orbit-base" disabled={locked || (!accepted && selectedRecommendationIds.length > 0)} onClick={() => accepted ? onUndoDecision(clause.id) : onSetNoAction(clause.id)}>{accepted ? <X className="h-3.5 w-3.5" aria-hidden="true" /> : <Check className="h-3.5 w-3.5" aria-hidden="true" />}{accepted ? "Undo" : "Move to Position Met"}</Button></div> : <div><p className="text-orbit-sm leading-6 text-orbit-fg">{clause.excerpt || clause.deviation}</p>{!noRecommendation ? <div className="mt-orbit-s">{isPositionMet && accepted ? <Button variant="outline" className="h-8 px-orbit-base" disabled={locked} onClick={() => onUndoDecision(clause.id)}><X className="h-3.5 w-3.5" aria-hidden="true" />Reject Supplier Position</Button> : accepted ? <Button variant="outline" className="h-8 px-orbit-base" disabled={locked} onClick={() => onUndoDecision(clause.id)}>Undo</Button> : <Button variant="outline" className="h-8 px-orbit-base" disabled={locked || selectedRecommendationIds.length > 0} onClick={() => onSetNoAction(clause.id)}><Check className="h-3.5 w-3.5" aria-hidden="true" />Accept Supplier Position</Button>}</div> : null}</div>}</td>
+              <td className="min-w-[200px] px-orbit-base pt-orbit-base pb-orbit-base"><div><span className="block v6-orbit-heading-label text-orbit-fg">{displayTitleForClause(clause.id, clause.title)}</span><span className="mt-orbit-xxs block text-orbit-xs text-orbit-fg-secondary">{clause.id.toUpperCase()}</span></div></td>
+              <td className="relative w-[640px] min-w-[320px] max-w-[640px] px-orbit-base pt-orbit-base pb-[calc(var(--orbit-space-base)+var(--orbit-space-l))]">{missing ? <><Chip label="Missing From Contract" size="Mini" variant="Error" contrast="Low" /><p className="mt-orbit-s italic text-orbit-sm text-orbit-fg-secondary">No wording in the supplier’s contract — this term should be negotiated in.</p><p className="mt-orbit-s text-orbit-xs text-orbit-fg-secondary">If this term is intentionally out of scope, move it to Position Met.</p><div className="absolute bottom-orbit-base left-orbit-base right-orbit-base flex items-center justify-between gap-orbit-base"><Button variant="outline" className="h-8 px-orbit-base" disabled={locked || (!accepted && selectedRecommendationIds.length > 0)} onClick={() => accepted ? onUndoDecision(clause.id) : onSetNoAction(clause.id)}>{accepted ? <X className="h-3.5 w-3.5" aria-hidden="true" /> : <Check className="h-3.5 w-3.5" aria-hidden="true" />}{accepted ? "Undo" : "Move to Position Met"}</Button>{fullClauseAction}</div></> : <><p className="text-orbit-sm leading-6 text-orbit-fg">{clause.excerpt || clause.deviation}</p><div className={cn("absolute bottom-orbit-base left-orbit-base right-orbit-base flex items-center gap-orbit-base", noRecommendation ? "justify-end" : "justify-between")}>{!noRecommendation ? (isPositionMet && accepted ? <Button variant="outline" className="h-8 px-orbit-base" disabled={locked} onClick={() => onUndoDecision(clause.id)}><X className="h-3.5 w-3.5" aria-hidden="true" />Reject Supplier Position</Button> : accepted ? <Button variant="outline" className="h-8 px-orbit-base" disabled={locked} onClick={() => onUndoDecision(clause.id)}>Undo</Button> : <Button variant="outline" className="h-8 px-orbit-base" disabled={locked || selectedRecommendationIds.length > 0} onClick={() => onSetNoAction(clause.id)}><Check className="h-3.5 w-3.5" aria-hidden="true" />Accept Supplier Position</Button>) : null}{fullClauseAction}</div></>}</td>
               <td className="px-orbit-base pt-orbit-base pb-orbit-base"><FirstAnalysisStatusTag status={severityStatus} /></td>
               <td className="px-orbit-base pt-orbit-base pb-orbit-base">
                 {accepted ? (
@@ -11014,7 +11092,26 @@ function InitialAnalysisRecommendationTable({
   );
   };
 
-  const bulkSelectionBanner = selectedRecommendationIds.length > 0 ? <div className="flex items-center justify-between gap-orbit-base rounded-orbit-md border border-orbit-border bg-orbit-heading px-orbit-base py-orbit-s text-orbit-inverse"><span className="font-medium">{selectedRecommendationIds.length} Clause{selectedRecommendationIds.length === 1 ? "" : "s"} Selected</span><div className="flex items-center gap-orbit-xs"><Button variant="secondary" className="h-8" disabled={locked} onClick={() => selectedRecommendationIds.forEach((id) => onBulkClauseSelectionChange?.(id, false))}>Clear</Button><Button className="h-8" disabled={locked} onClick={onAcceptSelected}>✓ Accept Supplier Positions</Button><Button variant="ghost" size="icon" aria-label="Close Bulk Selection" title="Close Bulk Selection" className="text-orbit-inverse hover:bg-orbit-card/20" disabled={locked} onClick={() => selectedRecommendationIds.forEach((id) => onBulkClauseSelectionChange?.(id, false))}><X className="h-4 w-4" aria-hidden="true" /></Button></div></div> : null;
+  const bulkSelectionBanner = selectedRecommendationIds.length > 0 ? (
+    <div className="flex items-center justify-between gap-orbit-base rounded-orbit-md border border-orbit-border bg-orbit-heading px-orbit-base py-orbit-s text-orbit-inverse">
+      <span className="font-medium">{selectedRecommendationIds.length} Clause{selectedRecommendationIds.length === 1 ? "" : "s"} Selected</span>
+      <div className="flex items-center gap-orbit-xs">
+        <Button variant="secondary" className="h-8" disabled={locked} onClick={onRemoveSelectedForNextNegotiation}>Remove Clause For Next Negotiation</Button>
+        <Button className="h-8" disabled={locked} onClick={onAcceptSelected}>✓ Accept Supplier Positions</Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Close Bulk Selection"
+          title="Close Bulk Selection"
+          className="text-orbit-inverse hover:bg-orbit-card/20"
+          disabled={locked}
+          onClick={() => selectedRecommendationIds.forEach((id) => onBulkClauseSelectionChange?.(id, false))}
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      </div>
+    </div>
+  ) : null;
 
   return <>
     <div className="space-y-orbit-base">
@@ -11582,6 +11679,15 @@ function ComparisonSection(props: {
           showRecommendedNextPosition &&
           !bulkSelectionEnabled && !isDashboardLocked &&
           (isNoneDeviationClause(display) || rowVerdict !== "met");
+        const canRevertRecommendedPosition =
+          isRoundDashboard &&
+          supportsInlineRequest &&
+          showOutcomeActions &&
+          showRecommendedNextPosition &&
+          Boolean(comparisonBestPractice?.trim()) &&
+          !bulkSelectionEnabled &&
+          !isDashboardLocked &&
+          (isNoneDeviationClause(display) || rowVerdict !== "met");
         const editRecommendedPosition = () => {
           if (isNoneDeviationClause(display) || bucket === "closed") {
             openReviseTargetEditor();
@@ -11718,7 +11824,19 @@ function ComparisonSection(props: {
             hideRationaleAction={drafting || completedAction}
             layout={isRoundDashboard ? "thread" : "stacked"}
             targetFooter={
-              !isRoundDashboard && showOutcomeActions && canShowOutcomeFooter && isNoneDeviationClause(display) ? (
+              canRevertRecommendedPosition ? (
+                <Button
+                  variant="outline"
+                  className="ml-auto h-8 w-fit v6-orbit-text-small"
+                  onClick={() => {
+                    onCancelDraft?.(r.id);
+                    onContinueWithActionability?.(r.id, { requestedChange: comparisonBestPractice });
+                  }}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                  Revert
+                </Button>
+              ) : !isRoundDashboard && showOutcomeActions && canShowOutcomeFooter && isNoneDeviationClause(display) ? (
                 <Button
                   variant="outline"
                   className="ml-auto h-8 w-fit v6-orbit-text-small"

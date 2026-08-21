@@ -1424,6 +1424,7 @@ export function AnalysisParameterCards({
   cardState,
   categoryCardState = "active",
   locked = false,
+  showBenchmarkConfirmAction = true,
   onPlaybookChoiceChange = () => undefined,
   onBenchmarkConfirm,
   onBenchmarkEdit,
@@ -1437,6 +1438,7 @@ export function AnalysisParameterCards({
   cardState: CardState;
   categoryCardState?: CardState;
   locked?: boolean;
+  showBenchmarkConfirmAction?: boolean;
   onPlaybookChoiceChange?: (choice: PlaybookChoice) => void;
   onBenchmarkConfirm: () => void;
   onBenchmarkEdit: () => void;
@@ -1534,6 +1536,7 @@ export function AnalysisParameterCards({
           parameter={selectedParameter}
           locked={locked}
           className={showPlaybookChoiceSelector ? "mt-orbit-base" : "mt-orbit-xs"}
+          showConfirmAction={showBenchmarkConfirmAction}
           onCategorySelect={(value) => {
             if (CATEGORY_PARAMETER_OPTION) onCategorySelect(CATEGORY_PARAMETER_OPTION, value);
           }}

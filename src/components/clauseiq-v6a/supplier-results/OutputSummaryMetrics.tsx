@@ -1,8 +1,8 @@
-import type { CSSProperties } from "react";
+import { useId, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { Info } from "@/components/clauseiq-v6a/v6aIcons";
 import { Chip, RadialIndicator, Text } from "@orbit";
 
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/clauseiq-v6a/orbit-ui/tooltip";
 import type { ClauseAnalysis, DeviationCounts } from "@/data/mock-clauseiq-v6";
 import { cn } from "@/lib/utils";
 
@@ -75,14 +75,14 @@ export function OutputScoreLine({
           <span className={cn("inline-flex gap-orbit-xs v6-orbit-text-small text-[var(--orbit-color-text-secondary)]", rowAlignmentClass)}>
             <span>first output</span>
             {showMetadataTooltip ? (
-              <OutputMetadataTooltip score={score} deviations={deviations} showComparisonStatus={showComparisonStatus} />
+              <OutputMetadataTooltip deviations={deviations} />
             ) : null}
           </span>
         ) : delta === 0 ? (
           <span className={cn("inline-flex gap-orbit-xs v6-orbit-text-small text-[var(--orbit-color-text-secondary)]", rowAlignmentClass)}>
             <span>no change</span>
             {showMetadataTooltip ? (
-              <OutputMetadataTooltip score={score} deviations={deviations} showComparisonStatus={showComparisonStatus} />
+              <OutputMetadataTooltip deviations={deviations} />
             ) : null}
           </span>
         ) : (
@@ -99,7 +99,7 @@ export function OutputScoreLine({
               <span>{formatDelta(delta)} vs previous</span>
             </span>
             {showMetadataTooltip ? (
-              <OutputMetadataTooltip score={score} deviations={deviations} showComparisonStatus={showComparisonStatus} />
+              <OutputMetadataTooltip deviations={deviations} />
             ) : null}
           </span>
         )}
@@ -214,67 +214,73 @@ function OutputSummaryPill({
   );
 }
 
-function OutputMetadataTooltip({
-  score,
-  deviations,
-  showComparisonStatus,
-}: {
-  score: OutputScorePresentation;
-  deviations: DeviationCounts;
-  showComparisonStatus: boolean;
-}) {
+function OutputMetadataTooltip({ deviations }: { deviations: DeviationCounts }) {
   const notMet = Math.max(0, deviations.high + deviations.medium + deviations.low + deviations.missing);
-  const scoreContext =
-    !score.hasPreviousOutput || typeof score.deltaFromPrevious !== "number"
-      ? "First output means this supplier does not have an earlier analysis in this workspace yet."
-      : score.deltaFromPrevious === 0
-      ? "No change means the latest analysis score matches the previous supplier output."
-      : `${formatDelta(score.deltaFromPrevious)} vs previous compares this output against the last analysis for the same supplier.`;
-  const clauseTargetItems = showComparisonStatus
-    ? [`Not Met ${notMet}`, `Met ${deviations.none}`, `Missing ${deviations.missing}`]
-    : [`Missing ${deviations.missing}`];
-  const deviationItems = [
-    `High ${deviations.high}`,
-    `Medium ${deviations.medium}`,
-    `Low ${deviations.low}`,
-    `None ${deviations.none}`,
-  ];
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<{ left: number; top: number; above: boolean } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const tooltipId = useId();
+  const showTooltip = () => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+
+    const rect = trigger.getBoundingClientRect();
+    const tooltipWidth = 288;
+    const viewportPadding = 8;
+    const left = Math.min(
+      Math.max(viewportPadding, rect.right - tooltipWidth),
+      window.innerWidth - tooltipWidth - viewportPadding,
+    );
+    const above = rect.top >= 184;
+    setPosition({
+      left,
+      top: above ? rect.top - viewportPadding : rect.bottom + viewportPadding,
+      above,
+    });
+    setOpen(true);
+  };
+  const hideTooltip = () => setOpen(false);
 
   return (
-    <Tooltip>
-      <TooltipTrigger>
-        <button
-          type="button"
-          aria-label="View output metadata"
-          className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[var(--orbit-color-text-secondary)] transition-colors hover:text-orbit-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary"
-        >
-          <Info className="h-3.5 w-3.5" />
-        </button>
-      </TooltipTrigger>
-      <TooltipContent
-        side="top"
-        className="min-w-[248px] max-w-[288px] border-[var(--orbit-color-border-default)] bg-[var(--orbit-color-bg-default)] text-[var(--orbit-color-text-primary)] [&>span[aria-hidden='true']]:border-[var(--orbit-color-border-default)] [&>span[aria-hidden='true']]:bg-[var(--orbit-color-bg-default)]"
+    <span
+      className="inline-flex"
+      onMouseEnter={showTooltip}
+      onMouseLeave={hideTooltip}
+      onFocus={showTooltip}
+      onBlur={hideTooltip}
+    >
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-label="View output metadata"
+        aria-expanded={open}
+        aria-describedby={open ? tooltipId : undefined}
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[var(--orbit-color-text-secondary)] transition-colors hover:text-orbit-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary"
       >
-        <span className="flex flex-col gap-orbit-s">
-          <span className="flex flex-col gap-orbit-xs">
-            <span className="block v6-orbit-text-small v6-orbit-weight-medium text-[var(--orbit-color-text-primary)]">
-              Score context
-            </span>
-            <span className="block v6-orbit-text-small text-[var(--orbit-color-text-secondary)]">
-              {scoreContext}
-            </span>
+        <Info className="h-3.5 w-3.5" />
+      </button>
+      {open && position ? createPortal(
+        <span
+          id={tooltipId}
+          role="tooltip"
+          className="fixed z-[60] flex w-[288px] flex-col gap-orbit-s rounded-orbit-sm border border-[var(--orbit-color-border-default)] bg-[var(--orbit-color-bg-default)] p-orbit-s text-[var(--orbit-color-text-primary)] shadow-orbit-md"
+          style={{
+            left: position.left,
+            top: position.top,
+            transform: position.above ? "translateY(-100%)" : undefined,
+          }}
+        >
+          <span className="block v6-orbit-text-small v6-orbit-weight-semibold text-[var(--orbit-color-text-primary)]">
+            Result For This Analysis
           </span>
-          <span className="block h-px bg-[var(--orbit-color-border-default)]" aria-hidden="true" />
           <span className="flex flex-col gap-orbit-xs">
             <span className="block v6-orbit-text-small v6-orbit-weight-medium text-[var(--orbit-color-text-primary)]">
               Clause Target Status
             </span>
-            <span className="flex flex-col gap-orbit-xxs">
-              {clauseTargetItems.map((item) => (
-                <span key={item} className="block v6-orbit-text-small text-[var(--orbit-color-text-secondary)]">
-                  {item}
-                </span>
-              ))}
+            <span className="flex flex-wrap items-center gap-orbit-xs">
+              <OutputSummaryPill label={`Not Met ${notMet}`} variant="Error" />
+              <OutputSummaryPill label={`Met ${deviations.none}`} variant="Success" />
+              <OutputSummaryPill label={`Missing ${deviations.missing}`} variant="Outline" style={missingClausesPillStyle} />
             </span>
           </span>
           <span className="block h-px bg-[var(--orbit-color-border-default)]" aria-hidden="true" />
@@ -282,17 +288,16 @@ function OutputMetadataTooltip({
             <span className="block v6-orbit-text-small v6-orbit-weight-medium text-[var(--orbit-color-text-primary)]">
               Deviation Level
             </span>
-            <span className="flex flex-col gap-orbit-xxs">
-              {deviationItems.map((item) => (
-                <span key={item} className="block v6-orbit-text-small text-[var(--orbit-color-text-secondary)]">
-                  {item}
-                </span>
-              ))}
+            <span className="flex flex-wrap items-center gap-orbit-xs">
+              <OutputSummaryPill label={`High ${deviations.high}`} variant="Error" />
+              <OutputSummaryPill label={`Medium ${deviations.medium}`} variant="Warning" />
+              <OutputSummaryPill label={`Low ${deviations.low}`} variant="Style 2" style={lowDeviationPillStyle} />
+              <OutputSummaryPill label={`None ${deviations.none}`} variant="Success" />
             </span>
           </span>
         </span>
-      </TooltipContent>
-    </Tooltip>
+      , document.body) : null}
+    </span>
   );
 }
 

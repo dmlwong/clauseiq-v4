@@ -1,0 +1,333 @@
+/* ==========================================================================
+ * ORBIT MODE
+ *
+ * Alternative theme from Figma — rebrand with different status colors,
+ * Orbit heading weight overrides, and saturated semantic foreground colors.
+ * Activate by adding data-theme="orbit" to a parent element.
+ * Source: https://www.figma.com/design/5RUsy0uKtFarK7nO8Y3nLL
+ * Node: 7383-28287
+ * ========================================================================== */
+
+[data-theme="orbit"] {
+  /* --- Text --- */
+  --orbit-color-text-secondary: #475569;
+
+  /* --- Primitives --- */
+  --orbit-color-silver: #8594a9;
+
+  /* --- Typography: Heading 1 (Semi Bold) --- */
+  --orbit-text-h1-family: var(--orbit-font-family-sans);
+  --orbit-text-h1-weight: var(--orbit-font-weight-semibold);
+
+  /* --- Card — Orbit overrides (Figma node 10537:9183) --- */
+  /* Backgrounds */
+  --orbit-color-card-bg-accent: #f8fafc;
+  --orbit-color-card-bg-highlight: #eaf0ff;
+  --orbit-color-card-bg-information: #eaf0ff;
+  --orbit-color-card-bg-success: #f7fef9;
+  --orbit-color-card-bg-warning: #fffbf2;
+  --orbit-color-card-bg-disabled: #e2e8f0;
+  /* Borders */
+  --orbit-color-card-border-default: #e2e8f0;
+  --orbit-color-card-border-hover: #e2e8f0;
+  --orbit-color-card-border-accent: #e2e8f0;
+  --orbit-color-card-border-highlight: #615fff;
+  --orbit-color-card-border-information: #1252de;
+  --orbit-color-card-border-success: #15803d;
+  --orbit-color-card-border-warning: #ffae2f;
+  --orbit-color-card-border-error: #cd0030;
+  --orbit-color-card-border-disabled: #8594a9;
+  --orbit-color-card-border-selected: #615fff;
+  --orbit-color-card-border-style1: #ffae2f;
+  /* Indicators */
+  --orbit-color-card-indicator-default: #e2e8f0;
+  --orbit-color-card-indicator-accent: #e2e8f0;
+  --orbit-color-card-indicator-highlight: #615fff;
+  --orbit-color-card-indicator-feature: var(--orbit-color-card-indicator-information);
+  --orbit-color-card-indicator-information: #0073cf;
+  --orbit-color-card-indicator-success: #00a962;
+  --orbit-color-card-indicator-warning: #f0ab00;
+  --orbit-color-card-indicator-error: #e00034;
+  --orbit-color-card-indicator-disabled: #8594a9;
+  /* Legacy */
+  --orbit-color-card-bg-selected: #f7fef9;
+  --orbit-color-card-bg-style1: #fffbf2;
+  /* ToggleCard — Orbit overrides (Figma node 10383:9667) */
+  --orbit-color-togglecard-border: #e2e8f0;
+  --orbit-color-togglecard-bg-hover: #f1f5f9;
+  --orbit-color-togglecard-border-selected: #615fff;
+  --orbit-color-togglecard-border-subtle: transparent;
+  --orbit-color-togglecard-bg-disabled: #e2e8f0;
+  --orbit-color-togglecard-border-disabled: #8594a9;
+
+  /* --- Sidenav --- */
+  --orbit-color-sidenav-bg: #041628;
+  --orbit-color-sidenav-active-bg: #1e293b;
+  --orbit-color-sidenav-divider: #1e293b;
+  --orbit-color-sidenav-muted: #a3b1c4;
+  --orbit-color-sidenav-gradient-from: #5b8efd;
+  --orbit-color-sidenav-gradient-to: #1252de;
+  --orbit-sidenav-width: 300px;
+  --orbit-sidenav-stack-gap: var(--orbit-space-s);
+  --orbit-sidenav-padding-top: var(--orbit-space-none);
+  --orbit-sidenav-header-padding-block-start: calc(var(--orbit-space-base) + var(--orbit-space-xs));
+  --orbit-sidenav-header-padding-inline: calc(var(--orbit-space-base) + var(--orbit-space-xs));
+  --orbit-sidenav-header-padding-block-end: 19px;
+  --orbit-sidenav-product-gap: var(--orbit-space-xs);
+  --orbit-sidenav-row-font-size: var(--orbit-text-sm);
+  --orbit-sidenav-app-font-size: var(--orbit-text-sm);
+  --orbit-sidenav-client-font-size: var(--orbit-text-sm);
+  --orbit-sidenav-avatar-size: var(--orbit-space-m);
+  --orbit-sidenav-row-gap: var(--orbit-space-xs);
+  --orbit-sidenav-profile-padding-inline: calc(var(--orbit-space-base) + var(--orbit-space-xs));
+  --orbit-sidenav-profile-padding-bottom: var(--orbit-space-none);
+  --orbit-sidenav-section-gap: var(--orbit-space-none);
+  --orbit-sidenav-section-list-padding-inline: var(--orbit-space-s);
+  --orbit-sidenav-section-row-padding-inline: 12px;
+  --orbit-sidenav-section-row-radius: var(--orbit-radius-sm);
+  --orbit-sidenav-nav-row-gap: 12px;
+  --orbit-sidenav-nav-row-padding-block: var(--orbit-space-none);
+  --orbit-sidenav-nav-row-padding-inline: 12px;
+  --orbit-sidenav-nav-row-radius: var(--orbit-radius-sm);
+  --orbit-sidenav-nav-row-active-radius: var(--orbit-radius-sm);
+  --orbit-sidenav-subitem-offset: 36px;
+  --orbit-sidenav-subitem-padding-inline: var(--orbit-space-s);
+  --orbit-sidenav-subitem-gap: var(--orbit-space-s);
+  --orbit-sidenav-subitem-radius: var(--orbit-radius-sm);
+  --orbit-sidenav-subitem-active-radius: var(--orbit-radius-sm);
+  --orbit-sidenav-badge-size: var(--orbit-space-base);
+  --orbit-sidenav-badge-bg: var(--orbit-color-white);
+  --orbit-sidenav-badge-fg: var(--orbit-color-black);
+  --orbit-sidenav-badge-font-weight: var(--orbit-font-weight-regular);
+  --orbit-sidenav-work-heading-color: var(--orbit-color-white);
+  --orbit-sidenav-work-heading-line-height: 21px;
+  --orbit-sidenav-work-header-padding: 16px 16px 8px;
+  --orbit-sidenav-work-header-border-color: var(--orbit-color-sidenav-divider);
+  --orbit-sidenav-work-tool-width: var(--orbit-space-base);
+  --orbit-sidenav-work-tool-height: 21px;
+  --orbit-sidenav-work-search-icon-size: 12px;
+  --orbit-sidenav-work-list-padding-inline: var(--orbit-space-s);
+  --orbit-sidenav-work-list-padding: 0 var(--orbit-space-s) var(--orbit-space-s);
+  --orbit-sidenav-work-list-gap: var(--orbit-space-none);
+  --orbit-sidenav-work-item-padding-left: calc(var(--orbit-space-base) + var(--orbit-space-xs));
+  --orbit-sidenav-work-item-padding: 8px 16px 9px 12px;
+  --orbit-sidenav-work-item-gap: var(--orbit-space-xs);
+  --orbit-sidenav-work-title-size: var(--orbit-text-sm);
+  --orbit-sidenav-work-title-line-height: 21px;
+  --orbit-sidenav-work-title-font-weight: var(--orbit-font-weight-regular);
+  --orbit-sidenav-work-subtitle-size: var(--orbit-text-xs);
+  --orbit-sidenav-work-subtitle-line-height: 18px;
+  --orbit-sidenav-work-subtitle-font-weight: var(--orbit-font-weight-regular);
+  --orbit-sidenav-profile-min-height: 57px;
+  --orbit-sidenav-profile-gap: var(--orbit-space-none);
+  --orbit-sidenav-profile-content-width: calc(var(--orbit-sidenav-width) - var(--orbit-space-base));
+  --orbit-sidenav-profile-content-min-height: 40px;
+  --orbit-sidenav-profile-content-margin: 8px;
+  --orbit-sidenav-profile-content-padding: 8px;
+  --orbit-sidenav-profile-content-gap: var(--orbit-space-s);
+  --orbit-sidenav-avatar-font-size: 10px;
+  --orbit-sidenav-app-name-font-weight: 700;
+
+  /* --- Page Header --- */
+  --orbit-page-header-padding-block: calc(var(--orbit-space-base) + var(--orbit-space-xs));
+  --orbit-page-header-padding-inline: var(--orbit-space-base);
+
+  /* --- Radial Indicator Tracks --- */
+  --orbit-color-radial-track-success: #b3e6d8;
+  --orbit-color-radial-track-information: #c8d8fd;
+  --orbit-color-radial-track-error: #f5b3b3;
+  --orbit-color-radial-track-warning: #fde0b0;
+  --orbit-color-radial-track-no-status: #d4d9e0;
+
+  /* --- Indicators --- */
+  --orbit-color-bright-green: #4ade80;
+  --orbit-color-bright-orange: #fc5c48;
+  --orbit-color-mid-gray: #475569;
+
+  /* --- Chip --- */
+  --orbit-color-chip-additional-bg: #f4f4ff;
+  --orbit-color-chip-additional-border: #4f4de6;
+  --orbit-color-chip-additional-fg: #4f4de6;
+  --orbit-color-chip-no-status-bg: #f1f5f9;
+  --orbit-color-chip-disabled-bg: #e2e8f0;
+  --orbit-color-chip-disabled-fg: #8594a9;
+  --orbit-color-text-info: #1252de;
+  --orbit-color-text-success: #137538;
+  --orbit-color-text-warning: #a15900;
+  --orbit-color-text-error: #cd0030;
+
+  /* --- Toggle --- */
+  --orbit-color-toggle-active-bg: #615fff;
+  --orbit-color-toggle-inactive-bg: #8594a9;
+  --orbit-color-toggle-disabled-bg: #e2e8f0;
+  --orbit-color-toggle-handle-disabled: #8594a9;
+  --orbit-color-toggle-label-disabled: #8594a9;
+
+  /* --- Checkbox --- */
+  --orbit-color-checkbox-checked-bg: #615fff;
+  --orbit-color-checkbox-checked-border: #615fff;
+  --orbit-color-checkbox-unchecked-border: #8594a9;
+  --orbit-color-checkbox-disabled-bg: #e2e8f0;
+  --orbit-color-checkbox-disabled-fg: #475569;
+  --orbit-color-checkbox-disabled-icon: #8594a9;
+
+  /* --- Button — Primary --- */
+  --orbit-color-btn-primary-bg: #615fff;
+  --orbit-color-btn-primary-bg-hover: #403fbd;
+  --orbit-color-btn-primary-fg-disabled: #8594a9;
+  --orbit-color-btn-primary-bg-disabled: #e2e8f0;
+
+  /* --- Button — Secondary --- */
+  --orbit-color-btn-secondary-fg: #475569;
+  --orbit-color-btn-secondary-bg-hover: #f1f5f9;
+  --orbit-color-btn-secondary-border: #8594a9;
+  --orbit-color-btn-secondary-icon: #475569;
+  --orbit-color-btn-secondary-fg-disabled: #8594a9;
+  --orbit-color-btn-secondary-bg-disabled: #e2e8f0;
+  --orbit-color-btn-secondary-border-disabled: #8594a9;
+  --orbit-color-btn-secondary-border-error: #e00034;
+  --orbit-color-btn-secondary-bg-accent: #615fff;
+
+  /* --- Button — Tertiary --- */
+  --orbit-color-btn-tertiary-fg: #475569;
+  --orbit-color-btn-tertiary-fg-disabled: #8594a9;
+  --orbit-color-btn-tertiary-bg-disabled: #e2e8f0;
+
+  /* --- Status — High Contrast (Toast + Indicators) --- */
+  --orbit-color-status-high-bg-success: #00a962;
+  --orbit-color-status-high-bg-information: #1252de;
+  --orbit-color-status-high-bg-warning: #ff9a0d;
+  --orbit-color-status-high-bg-error: #cd0030;
+  --orbit-color-status-high-bg-style-1: #7d80f2;
+  --orbit-color-status-high-bg-no-status: #f1f5f9;
+
+  /* --- Status — Low Contrast: Information --- */
+  --orbit-color-status-low-bg-information: #eaf0ff;
+  --orbit-color-status-low-icon-information: #1252de;
+  --orbit-color-status-low-fg-information: #1252de;
+  --orbit-color-status-low-border-information: #1252de;
+
+  /* --- Status — Low Contrast: Success --- */
+  --orbit-color-status-low-bg-success: #f7fef9;
+  --orbit-color-status-low-icon-success: #15803d;
+  --orbit-color-status-low-fg-success: #15803d;
+  --orbit-color-status-low-border-success: #15803d;
+
+  /* --- Status — Low Contrast: Error --- */
+  --orbit-color-status-low-icon-error: #cd0030;
+  --orbit-color-status-low-fg-error: #cd0030;
+  --orbit-color-status-low-border-error: #cd0030;
+
+  /* --- Status — Low Contrast: Warning --- */
+  --orbit-color-status-low-icon-warning: #f26d07;
+  --orbit-color-status-low-fg-warning: #f26d07;
+  --orbit-color-status-low-border-warning: #f26d07;
+
+  /* --- Status — Low Contrast: No Status --- */
+  --orbit-color-status-low-bg-no-status: #f8fafc;
+  --orbit-color-status-low-icon-no-status: #8594a9;
+  --orbit-color-status-low-fg-no-status: #475569;
+  --orbit-color-status-low-border-no-status: #8594a9;
+
+  /* --- Border — error (Figma --Border/color-error) --- */
+  --orbit-color-border-error: #e00034;
+
+  /* --------------------------------------------------------------------------
+   * SWATCH SCALE OVERRIDES — Orbit mode
+   *
+   * Where the Orbit mode in Figma's Primitives.Swatches collection differs
+   * from CP mode. Families omitted here (Dark Red, Goblin Green except 800/1100)
+   * share identical values across both modes.
+   * -------------------------------------------------------------------------- */
+
+  /* --- Bright Green --- */
+  --orbit-color-swatch-bright-green-300: #f7fef9;
+  --orbit-color-swatch-bright-green-400: #f0fdf4;
+  --orbit-color-swatch-bright-green-500: #dcfce7;
+  --orbit-color-swatch-bright-green-600: #bbf7d0;
+  --orbit-color-swatch-bright-green-700: #86efac;
+  --orbit-color-swatch-bright-green-800: #4ade80;
+  --orbit-color-swatch-bright-green-900: #22c55e;
+  --orbit-color-swatch-bright-green-1000: #16a34a;
+  --orbit-color-swatch-bright-green-1100: #15803d;
+  --orbit-color-swatch-bright-green-1200: #166534;
+  --orbit-color-swatch-bright-green-1300: #14532d;
+  --orbit-color-swatch-bright-green-1500: #02190b;
+
+  /* --- Cerulean --- */
+  --orbit-color-swatch-cerulean-300: #f0fdfa;
+  --orbit-color-swatch-cerulean-400: #ccfbf1;
+  --orbit-color-swatch-cerulean-500: #99f6e4;
+  --orbit-color-swatch-cerulean-600: #5eead4;
+  --orbit-color-swatch-cerulean-700: #2dd4bf;
+  --orbit-color-swatch-cerulean-800: #14b8a6;
+  --orbit-color-swatch-cerulean-900: #01968a;
+  --orbit-color-swatch-cerulean-1000: #0f766e;
+  --orbit-color-swatch-cerulean-1100: #115e59;
+  --orbit-color-swatch-cerulean-1200: #134e4a;
+  --orbit-color-swatch-cerulean-1300: #0f3d3a;
+  --orbit-color-swatch-cerulean-1400: #0b2c2a;
+  --orbit-color-swatch-cerulean-1500: #061a19;
+
+  /* --- Goblin Green (only 800 and 1100 differ) --- */
+  --orbit-color-swatch-goblin-green-800: #009d84;
+  --orbit-color-swatch-goblin-green-1100: #007360;
+
+  /* --- Hollywood Cerise --- */
+  --orbit-color-swatch-hollywood-cerise-300: #f4f4ff;
+  --orbit-color-swatch-hollywood-cerise-400: #e9e9ff;
+  --orbit-color-swatch-hollywood-cerise-500: #d9d9ff;
+  --orbit-color-swatch-hollywood-cerise-600: #c4c3ff;
+  --orbit-color-swatch-hollywood-cerise-700: #aba9ff;
+  --orbit-color-swatch-hollywood-cerise-800: #8c89ff;
+  --orbit-color-swatch-hollywood-cerise-900: #615fff;
+  --orbit-color-swatch-hollywood-cerise-1000: #4f4de6;
+  --orbit-color-swatch-hollywood-cerise-1100: #403fbd;
+  --orbit-color-swatch-hollywood-cerise-1200: #323297;
+  --orbit-color-swatch-hollywood-cerise-1300: #252570;
+  --orbit-color-swatch-hollywood-cerise-1400: #18184a;
+  --orbit-color-swatch-hollywood-cerise-1500: #0d0d2e;
+
+  /* --- Purple Gray --- */
+  --orbit-color-swatch-purple-gray-300: #fcfdff;
+  --orbit-color-swatch-purple-gray-400: #f8fafc;
+  --orbit-color-swatch-purple-gray-500: #f1f5f9;
+  --orbit-color-swatch-purple-gray-600: #e9eff6;
+  --orbit-color-swatch-purple-gray-700: #e2e8f0;
+  --orbit-color-swatch-purple-gray-800: #cbd5e1;
+  --orbit-color-swatch-purple-gray-900: #a3b1c4;
+  --orbit-color-swatch-purple-gray-1000: #8594a9;
+  --orbit-color-swatch-purple-gray-1100: #64748b;
+  --orbit-color-swatch-purple-gray-1200: #475569;
+  --orbit-color-swatch-purple-gray-1300: #334155;
+  --orbit-color-swatch-purple-gray-1400: #1e293b;
+  --orbit-color-swatch-purple-gray-1500: #041628;
+
+  /* --- Science Blue --- */
+  --orbit-color-swatch-science-blue-300: #eaf0ff;
+  --orbit-color-swatch-science-blue-400: #e8efff;
+  --orbit-color-swatch-science-blue-500: #d5e2fe;
+  --orbit-color-swatch-science-blue-600: #bdd2fe;
+  --orbit-color-swatch-science-blue-700: #a1befe;
+  --orbit-color-swatch-science-blue-800: #7ea6fd;
+  --orbit-color-swatch-science-blue-900: #5b8efd;
+  --orbit-color-swatch-science-blue-1000: #155dfc;
+  --orbit-color-swatch-science-blue-1100: #1252de;
+  --orbit-color-swatch-science-blue-1200: #1046bd;
+  --orbit-color-swatch-science-blue-1300: #0d3897;
+  --orbit-color-swatch-science-blue-1400: #092a71;
+  --orbit-color-swatch-science-blue-1500: #061c4c;
+
+  /* --- Web Orange --- */
+  --orbit-color-swatch-web-orange-300: #fff7e8;
+  --orbit-color-swatch-web-orange-400: #ffecc9;
+  --orbit-color-swatch-web-orange-500: #ffe0a8;
+  --orbit-color-swatch-web-orange-600: #ffd285;
+  --orbit-color-swatch-web-orange-700: #ffc35e;
+  --orbit-color-swatch-web-orange-800: #ffae2f;
+  --orbit-color-swatch-web-orange-900: #ff9a0d;
+  --orbit-color-swatch-web-orange-1000: #e88300;
+  --orbit-color-swatch-web-orange-1100: #f26d07;
+  --orbit-color-swatch-web-orange-1300: #7f4500;
+  --orbit-color-swatch-web-orange-1500: #3a1e00;
+}

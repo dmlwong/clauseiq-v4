@@ -13,27 +13,24 @@ import {
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
+  AnalysisParameterCards as CpV2AnalysisParameterCards,
   BASIS_PARAMETER_OPTIONS,
-  BenchmarkCombobox,
-  CATEGORY_PARAMETER_OPTION,
   DEFAULT_BASIS_SELECTION,
-  NoPlaybookBenchmarkPanel,
-  SelectedSummaryRow,
   hasCompleteAnalysisParameters,
   useClauseIqWorkflow,
   type AnalysisParameterSelection,
   type ClauseIqWorkflow,
-  type PlaybookChoice,
-} from "@/components/clauseiq-v5/ClauseIqWorkflow";
-import { V5OrbitToastHost } from "@/components/clauseiq-v5/V5OrbitToast";
+} from "@/components/clauseiq-v6a/ClauseIqWorkflow";
+import { V6OrbitToastHost } from "@/components/clauseiq-v6a/V6OrbitToast";
 import {
   CpClauseIqDropzone,
   CpPlaybookDisclaimer,
   CpStateCard,
   CpSupplierOutputsPanel,
 } from "@/components/prototype-cp-shared/CpClauseIq";
-import { ContractResults } from "@/components/prototype-cp-v2-results/ContractResults";
+import { ContractResults as LegacyContractResults } from "@/components/prototype-cp-v2-results/ContractResults";
 import { CpOrbitToastHost } from "@/components/prototype-cp-v2-results/CpOrbitToast";
+import { CpV4ResultsExperience } from "@/components/prototype-cp-v4/results/CpV4ResultsExperience";
 import {
   CP_FA,
   CpIcon,
@@ -65,13 +62,14 @@ import {
   type Person,
   type ProjectStatus,
 } from "@/data/prototype-cp-v2";
-import type { CiqInitiative, CiqParameterOption } from "@/lib/clauseiq-v4-data";
+import type { CiqInitiative } from "@/lib/clauseiq-v4-data";
 import { PROTOTYPE_CP_V2_RESULT_ROUTE } from "@/lib/prototype-cp-v2-routes";
 import { cn } from "@/lib/utils";
 import "./PrototypeCPV2.css";
 
 type CpView = "projects" | "initiatives" | "workspace";
 type CpV2AnalysisStatus = "idle" | "in-progress" | "completed";
+type CpResultsExperience = "legacy" | "v6a";
 
 function getCpViewFromSearchParams(searchParams: URLSearchParams): CpView {
   const view = searchParams.get("view");
@@ -80,6 +78,8 @@ function getCpViewFromSearchParams(searchParams: URLSearchParams): CpView {
 }
 
 const CP_CLAUSEIQ_INITIATIVE_LABEL = "CP001-1014 | sdasd";
+const CPV4_ANALYSIS_SCOPE_COPY =
+  "Analysis is based on the playbook selected. Clauses outside the playbook scope won't appear in results.";
 const CP_CLAUSEIQ_INITIATIVE: CiqInitiative = {
   id: "cp001-1014",
   name: CP_CLAUSEIQ_INITIATIVE_LABEL,
@@ -101,6 +101,21 @@ const CPV2_RESULT_PARAM_DEFAULTS: Record<string, string> = {
   design: "row-scale",
   scenario: "first-analysis",
 };
+const CPV4_V6A_RESULT_PARAM_DEFAULTS: Record<string, string> = {
+  initiativeId: "init-1",
+  supplierId: "sup-1",
+  contractId: "ct-1",
+  source: "prototype-cp-v4",
+  catSort: "risk",
+  mode: "comparison",
+  tab: "changes",
+  design: "design-option-3",
+  scenario: "first-analysis",
+  dashboardView: "initial-analysis",
+  analysisId: "a-initial-latest",
+  outputSupplierId: "sup-001",
+  to: "v1",
+};
 const CPV2_RESULT_ONLY_PARAMS = [
   "initiativeId",
   "supplierId",
@@ -116,6 +131,12 @@ const CPV2_RESULT_ONLY_PARAMS = [
   "filter",
   "sort",
   "cat",
+  "dashboardView",
+  "analysisId",
+  "previousAnalysisId",
+  "outputSupplierId",
+  "supplierJourney",
+  "resultMode",
 ];
 
 const CPV2_CLAUSEIQ_STEPS = [
@@ -199,10 +220,16 @@ function writeStoredDashboardInModalPreference(enabled: boolean) {
   }
 }
 
-function withDashboardModalParams(searchParams: URLSearchParams) {
+function withDashboardModalParams(
+  searchParams: URLSearchParams,
+  resultExperience: CpResultsExperience,
+) {
   const next = new URLSearchParams(searchParams);
   next.set("view", "workspace");
-  Object.entries(CPV2_RESULT_PARAM_DEFAULTS).forEach(([key, value]) =>
+  const defaults = resultExperience === "v6a"
+    ? CPV4_V6A_RESULT_PARAM_DEFAULTS
+    : CPV2_RESULT_PARAM_DEFAULTS;
+  Object.entries(defaults).forEach(([key, value]) =>
     next.set(key, value),
   );
   next.delete("from");
@@ -1097,7 +1124,53 @@ function CpV2SupplierOutputsModal({
   );
 }
 
-function CpV2ResultsDashboardModal({ onClose }: { onClose: () => void }) {
+function CpV2ResultsDashboardModal({
+  onClose,
+  resultExperience,
+}: {
+  onClose: () => void;
+  resultExperience: CpResultsExperience;
+}) {
+  if (resultExperience === "v6a") {
+    return (
+      <CpModal
+        ariaLabel="ClauseIQ Results dashboard"
+        className="cpv2-results-dashboard-modal cpv2-results-dashboard-modal--v6a"
+        height="Content"
+        onClose={onClose}
+        visible
+      >
+        <div className="cpv2-results-dashboard-modal-frame">
+          <header className="cpv2-results-dashboard-modal-header">
+            <div className="cpv2-results-dashboard-modal-title">
+              <h2>ClauseIQ Results</h2>
+            </div>
+            <CpButton
+              className="cpv2-close"
+              type="button"
+              onClick={onClose}
+              aria-label="Close ClauseIQ Results dashboard"
+            >
+              <CpIcon icon={CP_FA.xmark} size={18} />
+            </CpButton>
+          </header>
+          <div className="cpv2-results-dashboard-modal-body cpv2-results-dashboard-modal-body--v6a">
+              <CpV4ResultsExperience
+                initiativeId={CPV4_V6A_RESULT_PARAM_DEFAULTS.initiativeId}
+                supplierId={CPV4_V6A_RESULT_PARAM_DEFAULTS.supplierId}
+                contractId={CPV4_V6A_RESULT_PARAM_DEFAULTS.contractId}
+                compactHeader
+                showBack={false}
+                backLabel="Back to Workspace"
+                onBack={onClose}
+                embedded
+              />
+          </div>
+        </div>
+      </CpModal>
+    );
+  }
+
   return (
     <CpModal
       ariaLabel="ClauseIQ Results dashboard"
@@ -1125,7 +1198,7 @@ function CpV2ResultsDashboardModal({ onClose }: { onClose: () => void }) {
           data-prototype="prototype-cp-v2-results"
           data-theme="efficio-cp"
         >
-          <ContractResults
+          <LegacyContractResults
             initiativeId={CPV2_RESULT_PARAM_DEFAULTS.initiativeId}
             supplierId={CPV2_RESULT_PARAM_DEFAULTS.supplierId}
             contractId={CPV2_RESULT_PARAM_DEFAULTS.contractId}
@@ -1146,10 +1219,12 @@ function CpClauseIqModal({
   workflow,
   onClose,
   onViewResult,
+  useV6aAnalysisScopeCopy = false,
 }: {
   workflow: ClauseIqWorkflow;
   onClose: () => void;
   onViewResult: () => void;
+  useV6aAnalysisScopeCopy?: boolean;
 }) {
   const [showGenerateStep, setShowGenerateStep] = useState(false);
 
@@ -1196,6 +1271,7 @@ function CpClauseIqModal({
             workflow={workflow}
             onViewResult={onViewResult}
             showGenerateStep={showGenerateStep}
+            useV6aAnalysisScopeCopy={useV6aAnalysisScopeCopy}
           />
         </main>
       </div>
@@ -1419,10 +1495,12 @@ function CpV2ClauseJourneyContent({
   workflow,
   onViewResult,
   showGenerateStep,
+  useV6aAnalysisScopeCopy,
 }: {
   workflow: ClauseIqWorkflow;
   onViewResult: () => void;
   showGenerateStep: boolean;
+  useV6aAnalysisScopeCopy: boolean;
 }) {
   if (workflow.step === "welcome") {
     return <CpV2PriorToUseStep />;
@@ -1436,8 +1514,9 @@ function CpV2ClauseJourneyContent({
     return (
       <CpV2AnalysisParameterCards
         selectedParameter={workflow.selectedParameter}
-        cardState="active"
+        cardState="default"
         locked={workflow.parameterLocked}
+        showBenchmarkConfirmAction={false}
         onPlaybookChoiceChange={workflow.actions.handlePlaybookChoiceChange}
         onBasisSelect={workflow.actions.handleBasisSelect}
         onCategorySelect={workflow.actions.handleCategorySelect}
@@ -1445,12 +1524,18 @@ function CpV2ClauseJourneyContent({
         onBenchmarkEdit={workflow.actions.handleBenchmarkEdit}
         onBenchmarkSkip={workflow.actions.handleBenchmarkSkip}
         onBasisEdit={workflow.actions.handleBasisEdit}
+        onCategoryEdit={workflow.actions.handleCategoryEdit}
       />
     );
   }
 
   if (workflow.step === "upload") {
-    return <CpV2UploadStep workflow={workflow} />;
+    return (
+      <CpV2UploadStep
+        workflow={workflow}
+        useV6aAnalysisScopeCopy={useV6aAnalysisScopeCopy}
+      />
+    );
   }
 
   if (workflow.step === "processing") {
@@ -1460,6 +1545,7 @@ function CpV2ClauseJourneyContent({
           selectedParameter={workflow.selectedParameter}
           cardState="default"
           locked
+          showBenchmarkConfirmAction={false}
           onPlaybookChoiceChange={workflow.actions.handlePlaybookChoiceChange}
           onBasisSelect={workflow.actions.handleBasisSelect}
           onCategorySelect={workflow.actions.handleCategorySelect}
@@ -1467,6 +1553,7 @@ function CpV2ClauseJourneyContent({
           onBenchmarkEdit={workflow.actions.handleBenchmarkEdit}
           onBenchmarkSkip={workflow.actions.handleBenchmarkSkip}
           onBasisEdit={workflow.actions.handleBasisEdit}
+          onCategoryEdit={workflow.actions.handleCategoryEdit}
         />
         <CpV2ProcessingStep
           heading="Analysing Your Contract"
@@ -1483,6 +1570,7 @@ function CpV2ClauseJourneyContent({
       workflow={workflow}
       onViewResult={onViewResult}
       showGenerateStep={showGenerateStep}
+      useV6aAnalysisScopeCopy={useV6aAnalysisScopeCopy}
     />
   );
 }
@@ -1505,184 +1593,23 @@ function CpV2PriorToUseStep() {
   );
 }
 
-function CpV2AnalysisParameterCards({
-  selectedParameter,
-  cardState,
-  locked = false,
-  onPlaybookChoiceChange,
-  onBasisSelect,
-  onCategorySelect,
-  onBenchmarkConfirm,
-  onBenchmarkEdit,
-  onBenchmarkSkip,
-  onBasisEdit,
+function CpV2UploadStep({
+  workflow,
+  useV6aAnalysisScopeCopy,
 }: {
-  selectedParameter: AnalysisParameterSelection | null;
-  cardState: "active" | "default" | "disabled";
-  locked?: boolean;
-  onPlaybookChoiceChange: (choice: PlaybookChoice) => void;
-  onBasisSelect: (option: CiqParameterOption, value: string) => void;
-  onCategorySelect: (option: CiqParameterOption, value: string) => void;
-  onBenchmarkConfirm: () => void;
-  onBenchmarkEdit: () => void;
-  onBenchmarkSkip: () => void;
-  onBasisEdit: () => void;
+  workflow: ClauseIqWorkflow;
+  useV6aAnalysisScopeCopy: boolean;
 }) {
-  const selectedPlaybookChoice =
-    selectedParameter?.playbookChoice ??
-    (selectedParameter?.basis?.kind === "Governing Law" ||
-    selectedParameter?.category
-      ? "no"
-      : "yes");
-  const [localPlaybookChoice, setLocalPlaybookChoice] =
-    useState<PlaybookChoice>(selectedPlaybookChoice);
-  const hasExternalParameter = Boolean(
-    selectedParameter?.playbookChoice ||
-      selectedParameter?.basis ||
-      selectedParameter?.category,
-  );
-  const playbookChoice =
-    selectedParameter?.playbookChoice ??
-    (hasExternalParameter ? selectedPlaybookChoice : localPlaybookChoice);
-  const playbookOption = BASIS_PARAMETER_OPTIONS.find(
-    (option) => option.kind === "Playbook",
-  );
-  const playbookGroups = playbookOption
-    ? [{ label: "Playbooks", options: playbookOption.options }]
-    : [];
-  const playbookSelected =
-    playbookChoice === "yes" && selectedParameter?.basis?.kind === "Playbook";
-  const showPlaybookChoiceSelector = !locked;
-
-  useEffect(() => {
-    setLocalPlaybookChoice(selectedPlaybookChoice);
-  }, [selectedPlaybookChoice]);
-
-  const handlePlaybookChoice = (choice: PlaybookChoice) => {
-    setLocalPlaybookChoice(choice);
-    onPlaybookChoiceChange(choice);
-  };
-
-  return (
-    <CpStateCard
-      className="cpv2-analysis-parameter-card"
-      state={cardState}
-    >
-      <h2>Contract Analysis Parameters</h2>
-      {showPlaybookChoiceSelector ? (
-        <>
-          <p>Do you want to use a playbook for this analysis?</p>
-          <CpV2PlaybookChoiceSelector
-            value={playbookChoice}
-            onChange={handlePlaybookChoice}
-          />
-        </>
-      ) : null}
-
-      {playbookChoice === "yes" ? (
-        <div className={cn("cpv2-parameter-section", showPlaybookChoiceSelector && "with-choice")}>
-          {playbookSelected ? (
-            <SelectedSummaryRow
-              label={`${selectedParameter!.basis!.kind} · ${selectedParameter!.basis!.label}`}
-              disabled={locked}
-              actionLabel={`Change ${selectedParameter!.basis!.kind}`}
-              onAction={onBasisEdit}
-            />
-          ) : (
-            <>
-              <BenchmarkCombobox
-                label="Playbook"
-                value=""
-                groups={playbookGroups}
-                placeholder="Please select a playbook..."
-                onSelect={(value) => {
-                  if (playbookOption) onBasisSelect(playbookOption, value);
-                }}
-                onClear={() => {
-                  if (playbookOption) onBasisSelect(playbookOption, "");
-                }}
-              />
-            </>
-          )}
-        </div>
-      ) : null}
-
-      {playbookChoice === "no" ? (
-        <NoPlaybookBenchmarkPanel
-          bannerVariant="cp-orbit"
-          parameter={selectedParameter}
-          locked={locked}
-          className={cn("cpv2-parameter-section", showPlaybookChoiceSelector && "with-choice")}
-          showConfirmAction={false}
-          onCategorySelect={(value) => {
-            if (CATEGORY_PARAMETER_OPTION) onCategorySelect(CATEGORY_PARAMETER_OPTION, value);
-          }}
-          onCategoryClear={() => {
-            if (CATEGORY_PARAMETER_OPTION) onCategorySelect(CATEGORY_PARAMETER_OPTION, "");
-          }}
-          onGoverningLawSelect={(value) => {
-            const governingLawOption = BASIS_PARAMETER_OPTIONS.find(
-              (option) => option.kind === "Governing Law",
-            );
-            if (governingLawOption) onBasisSelect(governingLawOption, value);
-          }}
-          onGoverningLawClear={() => {
-            const governingLawOption = BASIS_PARAMETER_OPTIONS.find(
-              (option) => option.kind === "Governing Law",
-            );
-            if (governingLawOption) onBasisSelect(governingLawOption, "");
-          }}
-          onConfirm={onBenchmarkConfirm}
-          onEditBenchmark={onBenchmarkEdit}
-          onSkip={onBenchmarkSkip}
-        />
-      ) : null}
-    </CpStateCard>
-  );
-}
-
-function CpV2PlaybookChoiceSelector({
-  value,
-  onChange,
-}: {
-  value: PlaybookChoice;
-  onChange: (choice: PlaybookChoice) => void;
-}) {
-  return (
-    <div
-      role="radiogroup"
-      aria-label="Use playbook"
-      className="cpv2-playbook-choice-group"
-    >
-      {(["yes", "no"] as PlaybookChoice[]).map((choice) => {
-        const selected = value === choice;
-        return (
-          <CpButton
-            key={choice}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            className={cn(
-              "cpv2-playbook-choice",
-              selected && "is-selected",
-            )}
-            onClick={() => onChange(choice)}
-          >
-            {choice === "yes" ? "Yes" : "No"}
-          </CpButton>
-        );
-      })}
-    </div>
-  );
-}
-
-function CpV2UploadStep({ workflow }: { workflow: ClauseIqWorkflow }) {
   return (
     <CpStateCard className="cpv2-upload-card" state="active">
       <h2>Upload Contract</h2>
       <CpPlaybookDisclaimer
         variant="callout"
         parameter={workflow.selectedParameter}
+        labelOverride={useV6aAnalysisScopeCopy ? "Analysis scope" : undefined}
+        descriptionOverride={
+          useV6aAnalysisScopeCopy ? CPV4_ANALYSIS_SCOPE_COPY : undefined
+        }
       />
       {workflow.file ? (
         <div className="mt-orbit-base">
@@ -1751,10 +1678,12 @@ function CpV2ModalResultsStep({
   workflow,
   onViewResult,
   showGenerateStep,
+  useV6aAnalysisScopeCopy,
 }: {
   workflow: ClauseIqWorkflow;
   onViewResult: () => void;
   showGenerateStep: boolean;
+  useV6aAnalysisScopeCopy: boolean;
 }) {
   const supplier = workflow.resultsInitiative.suppliers[0];
   const firstAnalysis = supplier?.analyses[0];
@@ -1795,6 +1724,7 @@ function CpV2ModalResultsStep({
                 : "active"
             }
             locked={workflow.rerunProcessing}
+            showBenchmarkConfirmAction={false}
             onPlaybookChoiceChange={
               workflow.actions.handleRerunPlaybookChoiceChange
             }
@@ -1803,7 +1733,8 @@ function CpV2ModalResultsStep({
             onBenchmarkConfirm={workflow.actions.handleRerunBenchmarkConfirm}
             onBenchmarkEdit={workflow.actions.handleRerunBenchmarkEdit}
             onBenchmarkSkip={workflow.actions.handleRerunBenchmarkSkip}
-            onBasisEdit={workflow.actions.handleRerunBasisEdit}
+          onBasisEdit={workflow.actions.handleRerunBasisEdit}
+          onCategoryEdit={workflow.actions.handleRerunCategoryEdit}
           />
 
           {workflow.rerunUploadVisible && rerunParametersComplete ? (
@@ -1812,6 +1743,14 @@ function CpV2ModalResultsStep({
               <CpPlaybookDisclaimer
                 variant="callout"
                 parameter={rerunParameter}
+                labelOverride={
+                  useV6aAnalysisScopeCopy ? "Analysis scope" : undefined
+                }
+                descriptionOverride={
+                  useV6aAnalysisScopeCopy
+                    ? CPV4_ANALYSIS_SCOPE_COPY
+                    : undefined
+                }
               />
               {workflow.file ? (
                 <div className="mt-orbit-base">
@@ -1944,7 +1883,7 @@ function CpSelectedFileRow({
   );
 }
 
-function WorkspaceView() {
+function WorkspaceView({ resultExperience }: { resultExperience: CpResultsExperience }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -1952,7 +1891,7 @@ function WorkspaceView() {
   const [clauseModalOpened, setClauseModalOpened] = useState(false);
   const [supplierOutputModalOpen, setSupplierOutputModalOpen] = useState(false);
   const [resultsDashboardModalOpen, setResultsDashboardModalOpen] =
-    useState(false);
+    useState(() => searchParams.has("dashboardView"));
   const [dashboardInModal, setDashboardInModal] = useState(
     readStoredDashboardInModalPreference,
   );
@@ -1989,14 +1928,18 @@ function WorkspaceView() {
     });
   };
   const viewResult = () => {
-    if (!dashboardInModal) {
+    if (resultExperience === "legacy" && !dashboardInModal) {
       navigate(PROTOTYPE_CP_V2_RESULT_ROUTE);
       return;
     }
 
-    setSearchParams(withDashboardModalParams(searchParams), { replace: false });
+    setSearchParams(withDashboardModalParams(searchParams, resultExperience), { replace: false });
     setResultsDashboardModalOpen(true);
   };
+
+  useEffect(() => {
+    setResultsDashboardModalOpen(searchParams.has("dashboardView"));
+  }, [searchParams]);
   const openSupplierOutputModal = () => {
     setSupplierOutputModalOpen(true);
   };
@@ -2117,6 +2060,7 @@ function WorkspaceView() {
       {clauseModalOpen ? (
         <CpClauseIqModal
           workflow={workflow}
+          useV6aAnalysisScopeCopy={resultExperience === "v6a"}
           onClose={() => setClauseModalOpen(false)}
           onViewResult={() => {
             setClauseModalOpen(false);
@@ -2132,13 +2076,20 @@ function WorkspaceView() {
         />
       ) : null}
       {resultsDashboardModalOpen ? (
-        <CpV2ResultsDashboardModal onClose={closeResultsDashboardModal} />
+        <CpV2ResultsDashboardModal
+          onClose={closeResultsDashboardModal}
+          resultExperience={resultExperience}
+        />
       ) : null}
     </>
   );
 }
 
-export default function PrototypeCPV2() {
+export default function PrototypeCPV2({
+  resultExperience = "legacy",
+}: {
+  resultExperience?: CpResultsExperience;
+}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const view = getCpViewFromSearchParams(searchParams);
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
@@ -2167,7 +2118,7 @@ export default function PrototypeCPV2() {
           {view === "initiatives" ? (
             <InitiativesView onOpenInitiative={() => setView("workspace")} />
           ) : null}
-          {view === "workspace" ? <WorkspaceView /> : null}
+          {view === "workspace" ? <WorkspaceView resultExperience={resultExperience} /> : null}
         </section>
         <CpButton className="cpv2-floating-jasper">
           <CpIcon icon={CP_FA.sparkles} size={13} />
@@ -2177,7 +2128,7 @@ export default function PrototypeCPV2() {
           ?
         </CpButton>
       </div>
-      <V5OrbitToastHost />
+      <V6OrbitToastHost />
       <CpOrbitToastHost />
     </div>
   );

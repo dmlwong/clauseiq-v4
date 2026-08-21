@@ -735,6 +735,26 @@ describe("ClauseIQ V6A flow", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows compact analysis results in the output metadata tooltip", () => {
+    renderClauseIQ("/clauseiq-v6a/output-panel", {
+      forceResults: true,
+      resultsLayout: "output-panel",
+    });
+
+    fireEvent.mouseEnter(screen.getAllByLabelText("View output metadata")[0]);
+
+    expect(screen.getByText(/Result For This Analysis/)).toBeInTheDocument();
+    expect(screen.getAllByText("Clause Target Status").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Deviation Level").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Not Met \d+$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Met \d+$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Missing \d+$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^High \d+$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Medium \d+$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^Low \d+$/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/^None \d+$/).length).toBeGreaterThan(0);
+  });
+
   it("provides a score for newly created outputs that are not in the fixture score list", () => {
     const analysis = {
       ...mockInitiative.suppliers[0].analyses[0],

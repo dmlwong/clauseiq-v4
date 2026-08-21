@@ -36,7 +36,7 @@ export interface Prototype {
   versions: PrototypeVersion[];
 }
 
-const STORAGE_KEY = "prototype-timeline:v4";
+const STORAGE_KEY = "prototype-timeline:v6";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -86,7 +86,14 @@ export function isPrototypeCP(version: PrototypeVersion) {
   );
 }
 
+export function isPrototypeCPV4(version: PrototypeVersion) {
+  const title = version.title.trim().toLowerCase();
+  return title === "prototype cp - v4" || version.previewUrl === "/prototype-cp-v4";
+}
+
 export function prototypePreviewUrl(version: PrototypeVersion) {
+  // CP v4 must be checked before isPrototypeV4 (whose title.includes("v4") would claim it).
+  if (isPrototypeCPV4(version)) return "/prototype-cp-v4";
   if (isPrototypeCP(version)) return "/prototype-cp-v2";
   if (isResponsiveTestingPrototype(version)) return "/clauseiq-responsive-testing";
   if (isPrototypeV6A(version)) return "/clauseiq-v6a";
@@ -153,14 +160,28 @@ function seed(): Prototype {
       },
     ],
   };
+  // v5, v6, v7, Responsive Testing, and Prototype CP v1/v2 were archived (moved to /_archive)
+  // on 2026-07-31 during the prototype cleanup. Only the live prototypes are seeded now.
   const v3 = createV3Version(protoId, 3);
   const v4 = createV4Version(protoId, 4);
-  const v5 = createV5Version(protoId, 5);
-  const v6 = createV6Version(protoId, 6);
   const v6a = createV6AVersion(protoId, 9);
-  const responsiveTesting = createResponsiveTestingVersion(protoId, 8);
-  const prototypeCP = createPrototypeCPVersion(protoId, 7);
-  return { id: protoId, name: "ClauseIQ Prototype", versions: [v1, v2, v3, v4, v5, v6, v6a, responsiveTesting, prototypeCP] };
+  const cpV4 = createPrototypeCPV4Version(protoId, 10);
+  return { id: protoId, name: "ClauseIQ Prototype", versions: [v1, v2, v3, v4, v6a, cpV4] };
+}
+
+function createPrototypeCPV4Version(protoId: string, versionNumber: number): PrototypeVersion {
+  return {
+    id: uid(),
+    prototypeId: protoId,
+    versionNumber,
+    title: "Prototype CP - v4",
+    goal: "Self-contained Connected Platform prototype duplicated from CP v1 for active development.",
+    notes: "Duplicate of the CP v1 Projects & Initiatives + ClauseIQ workflow, vendored into an isolated /prototype-cp-v4 namespace.",
+    previewUrl: "/prototype-cp-v4",
+    status: "In progress",
+    createdAt: new Date().toISOString(),
+    feedback: [],
+  };
 }
 
 function createV3Version(protoId: string, versionNumber: number): PrototypeVersion {
@@ -371,27 +392,15 @@ function ensureCurrentVersions(prototype: Prototype): Prototype {
     nextVersions = [...nextVersions, createV4Version(prototype.id, 4)];
     changed = true;
   }
-  if (!nextVersions.some((version) => isPrototypeV5(version))) {
-    nextVersions = [...nextVersions, createV5Version(prototype.id, 5)];
-    changed = true;
-  }
-  if (!nextVersions.some((version) => isPrototypeV6(version))) {
-    nextVersions = [...nextVersions, createV6Version(prototype.id, 6)];
-    changed = true;
-  }
+  // v5/v6/Responsive Testing/CP v1 backfill removed — those prototypes are archived.
   if (!nextVersions.some((version) => isPrototypeV6A(version))) {
     const nextNumber = Math.max(9, ...nextVersions.map((version) => version.versionNumber + 1));
     nextVersions = [...nextVersions, createV6AVersion(prototype.id, nextNumber)];
     changed = true;
   }
-  if (!nextVersions.some((version) => isResponsiveTestingPrototype(version))) {
-    const nextNumber = Math.max(7, ...nextVersions.map((version) => version.versionNumber + 1));
-    nextVersions = [...nextVersions, createResponsiveTestingVersion(prototype.id, nextNumber)];
-    changed = true;
-  }
-  if (!nextVersions.some((version) => isPrototypeCP(version))) {
-    const nextNumber = Math.max(8, ...nextVersions.map((version) => version.versionNumber + 1));
-    nextVersions = [...nextVersions, createPrototypeCPVersion(prototype.id, nextNumber)];
+  if (!nextVersions.some((version) => isPrototypeCPV4(version))) {
+    const nextNumber = Math.max(10, ...nextVersions.map((version) => version.versionNumber + 1));
+    nextVersions = [...nextVersions, createPrototypeCPV4Version(prototype.id, nextNumber)];
     changed = true;
   }
   if (!changed) return prototype;

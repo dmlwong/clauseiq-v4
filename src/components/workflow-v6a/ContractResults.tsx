@@ -3311,7 +3311,7 @@ export function ContractResults({
     });
   };
   const optionTwoBulkBanner = optionTwoBulkSelectedClauseIds.length > 0 ? (
-    <div className="flex items-center justify-between gap-orbit-base rounded-orbit-md border border-orbit-border bg-orbit-heading px-orbit-base py-orbit-s text-orbit-inverse">
+    <div className="flex items-center justify-between gap-orbit-base rounded-orbit-md border border-orbit-border bg-[#00856F] px-orbit-base py-orbit-s text-orbit-inverse">
       <span className="font-medium">{optionTwoBulkSelectedClauseIds.length} Clause{optionTwoBulkSelectedClauseIds.length === 1 ? "" : "s"} Selected</span>
       <div className="flex items-center gap-orbit-xs">
         <Button variant="secondary" className="h-8" disabled={isDashboardLocked} onClick={removeSelectedOptionTwoClausesForNextNegotiation}>Remove Clause For Next Negotiation</Button>
@@ -7370,6 +7370,7 @@ function ClauseRequestForm({
   compact = false,
   revertText,
   comparisonEditing = false,
+  suppressComparisonRevert = false,
   showConfirmationActions = false,
   rationaleAction,
   onUpdate,
@@ -7386,6 +7387,7 @@ function ClauseRequestForm({
   compact?: boolean;
   revertText?: string;
   comparisonEditing?: boolean;
+  suppressComparisonRevert?: boolean;
   showConfirmationActions?: boolean;
   rationaleAction?: ReactNode;
   onUpdate: (patch: { requestedChange?: string; rationale?: string }) => void;
@@ -7424,6 +7426,11 @@ function ClauseRequestForm({
       document.removeEventListener("pointerdown", handlePointerDown);
     };
   }, [comparisonEditing, expanded, onCancel]);
+
+  useEffect(() => {
+    if (!comparisonEditing) return;
+    rootRef.current?.querySelector<HTMLTextAreaElement>("textarea")?.focus({ preventScroll: true });
+  }, [comparisonEditing]);
 
   return (
     <div
@@ -7472,24 +7479,22 @@ function ClauseRequestForm({
             </div>
           ) : null}
           <Textarea
-            autoFocus={comparisonEditing}
             value={requestValue}
             onChange={(event) => onUpdate({ requestedChange: event.target.value })}
             placeholder={requestPlaceholder}
             maxLength={comparisonEditing ? requestCharacterLimit : undefined}
             className={cn(
-              comparisonEditing ? "mb-orbit-base h-[96px] min-h-[96px]" : "min-h-[64px]",
+              comparisonEditing ? "h-[96px] min-h-[96px]" : "min-h-[64px]",
               compact && !comparisonEditing && "min-h-[58px] text-orbit-xs",
-              comparisonEditing && "[&>div]:!pt-0",
-              comparisonEditing && "[&>div>textarea]:h-[96px] [&>div>textarea]:min-h-[96px] [&>div>textarea]:max-h-[320px]",
-              comparisonEditing && "!pb-0",
+              comparisonEditing && "[&>div]:!pt-0 [&>div]:!pb-0",
+              comparisonEditing && "[&>div>textarea]:h-[96px] [&>div>textarea]:min-h-[96px] [&>div>textarea]:max-h-[320px] [&>div>textarea]:!pb-0",
               "text-orbit-sm",
             )}
           />
-          {rationaleAction || (comparisonEditing && resetRecommendationAction) ? (
-            <div className="flex min-w-0 items-center justify-between gap-orbit-s">
-              <div className="min-w-0">{rationaleAction}</div>
-              {comparisonEditing ? resetRecommendationAction : null}
+          {rationaleAction || (comparisonEditing && !suppressComparisonRevert && resetRecommendationAction) ? (
+            <div className="flex min-w-0 items-center gap-orbit-s">
+              <div className="min-w-0 shrink-0">{rationaleAction}</div>
+              {comparisonEditing && !suppressComparisonRevert ? resetRecommendationAction : null}
             </div>
           ) : null}
         </div>
@@ -7691,15 +7696,20 @@ function ClauseDecisionCard({
   const [detailsExpanded, setDetailsExpanded] = useState(defaultDetailsExpanded);
   const useDefaultComparisonCard = Boolean(extraContent && !neutralActions);
   const pendingBasketRequest = request?.state === "pending" && Boolean(request.requestedChange?.trim());
+  const isRemovalRequest = pendingBasketRequest
+    && request?.requestedChange?.trim() === REMOVE_CLAUSE_FOR_NEXT_NEGOTIATION_POSITION;
+  useEffect(() => {
+    if (isRemovalRequest) setDetailsExpanded(true);
+  }, [isRemovalRequest]);
   // "kept-unmet" settles the clause without queueing a request, so it condenses
   // through the same path as the existing "accepted" concede.
   const conceded = selectedComparisonAction === "accepted" || selectedComparisonAction === "kept-unmet";
   const showAcceptedCompact = conceded && !pendingBasketRequest && !isDrafting;
-  const showQueuedCompact = pendingBasketRequest && !isDrafting;
+  const showQueuedCompact = pendingBasketRequest && !isDrafting && !isRemovalRequest;
   const showTrackedCompact = trackedCurrentPosition && !pendingBasketRequest && !isDrafting;
   const showHandledCompact = showQueuedCompact || showAcceptedCompact || showTrackedCompact;
   const showDecisionBody = !showHandledCompact || completedExpanded;
-  const showExpandedBody = showDecisionBody && (!useDefaultComparisonCard || detailsExpanded || isDrafting);
+  const showExpandedBody = showDecisionBody && (!useDefaultComparisonCard || detailsExpanded || isDrafting || isRemovalRequest);
   const settled = decision === "request-update" || decision === "no-action";
   const noActionIsPrimary = !neutralActions && clause.severity === "low";
   const noneDeviationClause = isNoneDeviationClause(clause);
@@ -7731,15 +7741,16 @@ function ClauseDecisionCard({
   ) : selectedComparisonAction === "accepted" ? (
     <Chip label="Accepted Supplier Position" size="Mini" variant="Success" contrast="Low" />
   ) : selectedComparisonAction === "custom" || request?.requestedChange?.trim() !== clause.actionability?.trim() ? (
-    <Chip label="Custom Position Applied" size="Mini" variant="Success" contrast="Low" />
+    null
   ) : (
     <Chip label="Recommendation Applied" size="Mini" variant="Success" contrast="Low" />
   );
   const toggleDetails = () => {
+    if (isRemovalRequest) return;
     if (showHandledCompact) setCompletedExpanded((current) => !current);
     else setDetailsExpanded((current) => !current);
   };
-  const detailsAreExpanded = showHandledCompact ? completedExpanded : detailsExpanded;
+  const detailsAreExpanded = isRemovalRequest ? true : showHandledCompact ? completedExpanded : detailsExpanded;
 
   if ((displayMode === "row-scale" || displayMode === "initial-option-2") && !actions) {
     return (
@@ -7804,7 +7815,7 @@ function ClauseDecisionCard({
                   onCheckedChange={(checked) => (onBulkClauseSelectionChange ?? bulkSelectionContext.onSelectionChange)(id, checked === true)}
                 />
               )}
-              {showHandledCompact && selectedComparisonAction !== "accepted" && (
+              {showHandledCompact && selectedComparisonAction !== "accepted" && completedStatusChip && (
                 <span className="inline-flex w-[168px] shrink-0">{completedStatusChip}</span>
               )}
               <h3 className="v6-orbit-heading-label truncate text-orbit-fg">
@@ -8574,8 +8585,12 @@ function ResultCardPanel({
   textActionFooter,
   headerAction,
   textAction,
+  textActionBottomPadding = true,
+  removeTextActionInternalBottomPadding = false,
   footerPushBottom = false,
   footerTopPadding = true,
+  footerTopMargin: footerTopMarginProp,
+  bottomPadding = true,
   padding = "compact",
 }: {
   label: ReactNode;
@@ -8586,20 +8601,61 @@ function ResultCardPanel({
   footer?: ReactNode;
   textActionFooter?: ReactNode;
   headerAction?: ReactNode;
-  textAction?: { label: string; onClick: () => void };
+  textAction?: { label: string; onClick: () => void; editable?: boolean; readOnly?: boolean; onChange?: (value: string) => void };
+  textActionBottomPadding?: boolean;
+  removeTextActionInternalBottomPadding?: boolean;
   footerPushBottom?: boolean;
   footerTopPadding?: boolean;
+  footerTopMargin?: "default" | "none";
+  bottomPadding?: boolean | "xs";
   padding?: "compact" | "base" | "tight";
 }) {
   const surfaceToken = tone === "highlight" ? "highlight" : tone === "accent" || tone === "primary" ? "accent" : "default";
   const labelVariant = tone === "default" ? "Secondary" : "Information";
   const hasBodyText = typeof text === "string" ? text.trim().length > 0 : Boolean(text);
+  const footerTopMargin = footerTopMarginProp ?? (footerPushBottom ? "none" : "default");
+  const activateTextAction = (origin: HTMLElement) => {
+    // Editing replaces the read-only target content. Preserve every ancestor's
+    // scroll position so that replacement cannot pull the card (and its fixed
+    // rationale footer) to a different point in the results modal.
+    const scrollPositions: Array<{ element: HTMLElement; top: number; left: number }> = [];
+    for (let ancestor = origin.parentElement; ancestor; ancestor = ancestor.parentElement) {
+      if (ancestor.scrollHeight > ancestor.clientHeight || ancestor.scrollWidth > ancestor.clientWidth) {
+        scrollPositions.push({
+          element: ancestor,
+          top: ancestor.scrollTop,
+          left: ancestor.scrollLeft,
+        });
+      }
+    }
+    const windowScrollTop = window.scrollY;
+    const windowScrollLeft = window.scrollX;
+    textAction?.onClick();
+    const restoreScrollPosition = () => {
+      scrollPositions.forEach(({ element, top, left }) => {
+        element.scrollTop = top;
+        element.scrollLeft = left;
+      });
+      window.scrollTo(windowScrollLeft, windowScrollTop);
+    };
+    requestAnimationFrame(() => {
+      restoreScrollPosition();
+      requestAnimationFrame(() => {
+        restoreScrollPosition();
+        window.setTimeout(restoreScrollPosition, 0);
+      });
+    });
+  };
 
   return (
     <div
       className={cn(
         "flex min-w-0 flex-col gap-orbit-xs border",
-        padding === "tight" ? "p-2" : padding === "base" ? "p-orbit-base" : "px-orbit-s pt-orbit-s pb-orbit-xs",
+        padding === "tight"
+          ? (bottomPadding === true ? "p-2" : bottomPadding === "xs" ? "px-2 pt-2 pb-orbit-xs" : "px-2 pt-2 pb-0")
+          : padding === "base"
+            ? "p-orbit-base"
+            : cn("px-orbit-s pt-orbit-s", bottomPadding ? "pb-orbit-xs" : "pb-0"),
       )}
       style={{
         backgroundColor: `var(--orbit-color-card-bg-${surfaceToken})`,
@@ -8620,9 +8676,15 @@ function ResultCardPanel({
       {textAction ? (
         <div
           className="clauseiq-v6a-target-text-with-rationale mt-0"
+          onMouseDownCapture={(event) => {
+            if (!textAction.editable && !textAction.readOnly && event.target instanceof HTMLTextAreaElement) {
+              event.preventDefault();
+              activateTextAction(event.currentTarget);
+            }
+          }}
           onFocusCapture={(event) => {
             event.stopPropagation();
-            textAction.onClick();
+            if (!textAction.editable && !textAction.readOnly) activateTextAction(event.currentTarget);
           }}
         >
           <Textarea
@@ -8630,9 +8692,15 @@ function ResultCardPanel({
             rows={3}
             aria-label={textAction.label}
             maxLength={250}
-            className="min-h-[96px] resize-y bg-transparent pb-1 text-orbit-sm [&>div]:!pt-0 [&>div>textarea]:!min-h-[96px] [&>div>textarea]:!bg-transparent [&_textarea]:cursor-text"
+            readOnly={textAction.readOnly}
+            onChange={textAction.editable ? (event) => textAction.onChange?.(event.target.value) : undefined}
+            className={cn(
+              "min-h-[96px] resize-y bg-transparent text-orbit-sm [&>div]:!pt-0 [&>div>textarea]:!min-h-[96px] [&>div>textarea]:!bg-transparent [&_textarea]:cursor-text",
+              textActionBottomPadding && "pb-1",
+              removeTextActionInternalBottomPadding && "[&>div]:!pb-0 [&>div>textarea]:!pb-0",
+            )}
           />
-          {textActionFooter ? <div className="clauseiq-v6a-target-text-rationale mt-0 flex min-w-0 justify-start">{textActionFooter}</div> : null}
+          {textActionFooter ? <div className={cn("clauseiq-v6a-target-text-rationale flex h-8 min-w-0 items-center justify-start", footerPushBottom ? "mt-orbit-base" : "mt-0")}>{textActionFooter}</div> : null}
         </div>
       ) : (
         <div className="min-w-0">
@@ -8650,7 +8718,7 @@ function ResultCardPanel({
         </div>
       )}
       {content ? <div className={cn(hasBodyText ? "mt-orbit-s" : "mt-0", "flex flex-1 flex-col")}>{content}</div> : null}
-      {footer ? <div className={cn(footerPushBottom ? "mt-auto" : "mt-orbit-s", footerPushBottom && footerTopPadding && "pt-orbit-s", "flex flex-wrap items-center gap-orbit-xs")}>{footer}</div> : null}
+      {footer ? <div className={cn(footerPushBottom ? "mt-auto" : footerTopMargin === "none" ? "mt-0" : "mt-orbit-s", footerPushBottom && footerTopPadding && "pt-orbit-s", "flex flex-wrap items-center gap-orbit-xs")}>{footer}</div> : null}
     </div>
   );
 }
@@ -8787,7 +8855,7 @@ function ComparisonNegotiationBanner({
     <Card type="Static" padding="Base" state="Default" indicator={false}>
       <div className="flex flex-wrap items-center gap-orbit-s">
         <span
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-orbit-sm bg-orbit-primary/10 text-orbit-primary"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-orbit-sm bg-[#E5F1FA] text-[#2A75B1]"
           aria-hidden="true"
         >
           <Pencil className="h-[18px] w-[18px]" />
@@ -9344,6 +9412,9 @@ function SimplifiedComparisonContent({
   targetFooter,
   targetHeaderAction,
   onTargetTextClick,
+  onTargetTextChange,
+  targetTextEditing = false,
+  targetTextReadOnly = false,
   targetTextActionLabel = "Edit recommended next position",
   targetLabel = "Recommended Position",
   hideRationaleAction = false,
@@ -9363,13 +9434,20 @@ function SimplifiedComparisonContent({
   targetFooter?: ReactNode;
   targetHeaderAction?: ReactNode;
   onTargetTextClick?: () => void;
+  onTargetTextChange?: (value: string) => void;
+  targetTextEditing?: boolean;
+  targetTextReadOnly?: boolean;
   targetTextActionLabel?: string;
   targetLabel?: string;
   hideRationaleAction?: boolean;
   layout?: "stacked" | "thread" | "initial-two-card";
 }) {
   const targetText = target?.trim();
-  const displayedTargetText = targetText ? truncateToWordLimit(targetText, 20) : undefined;
+  const displayedTargetText = targetText
+    ? (targetTextEditing || targetText === REMOVE_CLAUSE_FOR_NEXT_NEGOTIATION_POSITION
+      ? targetText
+      : truncateToWordLimit(targetText, 20))
+    : undefined;
   const hasPrevious = Boolean(previousLabel && previousText);
   const [rationaleOpen, setRationaleOpen] = useState(false);
   const recommendationRationale = rationale ?? (targetText ? getRecommendationRationale(undefined, targetText) : undefined);
@@ -9397,12 +9475,17 @@ function SimplifiedComparisonContent({
       headerAction={currentHeaderAction ?? (layout === "thread" || layout === "initial-two-card" ? undefined : currentFooter)}
       footer={layout === "thread" || layout === "initial-two-card" ? currentFooter : undefined}
       footerPushBottom={layout === "thread" || layout === "initial-two-card"}
+      footerTopPadding={layout !== "thread"}
+      bottomPadding={layout === "thread" ? "xs" : true}
       padding={layout === "thread" ? "tight" : layout === "initial-two-card" ? "base" : "compact"}
     />
   );
-  const createRationaleAction = () => recommendationRationale ? (
+  const createRationaleAction = (threadFooter = false) => recommendationRationale ? (
     <span
-      className="inline-flex min-w-0 items-center gap-orbit-xs [&>a]:!text-orbit-primary"
+      className={cn(
+        "inline-flex min-w-0 items-center gap-orbit-xs [&>a]:!text-orbit-primary",
+        threadFooter && "h-8 flex-1",
+      )}
       onMouseDown={(event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -9423,8 +9506,9 @@ function SimplifiedComparisonContent({
       <ArrowRight className="h-3.5 w-3.5 shrink-0 text-orbit-primary" aria-hidden="true" />
     </span>
   ) : null;
+  const sharedThreadRationaleAction = layout === "thread" ? createRationaleAction(true) : null;
   const rationaleAction = !hideRationaleAction ? createRationaleAction() : null;
-  const editorRationaleAction = createRationaleAction();
+  const editorRationaleAction = layout === "thread" ? null : createRationaleAction();
   const resolvedTargetContent = typeof targetContent === "function"
     ? targetContent(editorRationaleAction)
     : targetContent;
@@ -9443,26 +9527,36 @@ function SimplifiedComparisonContent({
       )}
       text={displayedTargetText ?? ""}
       headerAction={targetHeaderAction}
-      textAction={onTargetTextClick ? { onClick: onTargetTextClick, label: targetTextActionLabel } : undefined}
-      textActionFooter={rationaleAction}
+      textAction={onTargetTextClick || onTargetTextChange || targetTextReadOnly ? {
+        onClick: onTargetTextClick ?? (() => undefined),
+        onChange: onTargetTextChange,
+        editable: targetTextEditing,
+        readOnly: targetTextReadOnly,
+        label: targetTextActionLabel,
+      } : undefined}
+      textActionBottomPadding={layout !== "thread"}
+      removeTextActionInternalBottomPadding={layout === "thread"}
+      textActionFooter={layout === "thread" ? undefined : rationaleAction}
       tone={layout === "thread" || layout === "initial-two-card" ? "default" : "primary"}
-      footerPushBottom={layout === "thread" || layout === "initial-two-card"}
+      footerPushBottom={layout === "initial-two-card"}
       footerTopPadding={false}
+      footerTopMargin={layout === "thread" ? "none" : undefined}
+      bottomPadding={layout === "thread" ? "xs" : true}
       padding={layout === "thread" ? "tight" : layout === "initial-two-card" ? "base" : "compact"}
       content={resolvedTargetContent}
       footer={
         <div
           className={cn(
             "flex w-full gap-orbit-xs",
-            "flex-row items-center",
+            layout === "thread" ? "h-8 flex-row items-center justify-between" : "flex-row items-center",
           )}
         >
+          {sharedThreadRationaleAction}
           {targetFooter && (
             <div
               className={cn(
                 "flex min-w-0 flex-1 items-center gap-orbit-xs [&>button]:min-w-0",
-                layout === "thread" ? "[&>button]:ml-auto" : "[&>button]:ml-0",
-                layout === "thread" ? "[&>button]:flex-none" : "[&>button]:flex-1",
+                layout === "thread" ? "flex-none" : "flex-1 [&>button]:ml-0 [&>button]:flex-1",
                 layout === "initial-two-card" && "ml-auto w-fit flex-none [&>button]:!w-fit [&>button]:!flex-none",
               )}
             >
@@ -10974,7 +11068,12 @@ function InitialAnalysisRecommendationTable({
             const selected = bulkSelectedClauseIds?.has(clause.id) ?? false;
             const fullClauseAction = (
               <span
-                className="inline-flex min-w-0 items-center gap-orbit-xs [&>a]:!text-orbit-primary"
+                className={cn(
+                  "inline-flex min-w-0 items-center gap-orbit-xs",
+                  locked
+                    ? "cursor-not-allowed opacity-50 [&>a]:!pointer-events-none [&>a]:!text-orbit-fg-tertiary"
+                    : "[&>a]:!text-orbit-primary",
+                )}
                 onClick={(event) => event.stopPropagation()}
               >
                 <LinkText
@@ -11012,14 +11111,19 @@ function InitialAnalysisRecommendationTable({
             ) : null;
             const resetRecommendationAction = !noRecommendation ? (
               <span
-                className="inline-flex min-w-0 items-center gap-orbit-xs [&>a]:!text-orbit-primary"
+                className={cn(
+                  "inline-flex min-w-0 items-center gap-orbit-xs",
+                  locked
+                    ? "cursor-not-allowed opacity-50 [&>a]:!pointer-events-none [&>a]:!text-orbit-fg-tertiary"
+                    : "[&>a]:!text-orbit-primary",
+                )}
                 onMouseDown={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
                 }}
                 onClick={(event) => event.stopPropagation()}
               >
-                <RotateCcw className="h-3.5 w-3.5 shrink-0 text-orbit-primary" aria-hidden="true" />
+                <RotateCcw className={cn("h-3.5 w-3.5 shrink-0", locked ? "text-orbit-fg-tertiary" : "text-orbit-primary")} aria-hidden="true" />
                 <LinkText
                   label={customPromoted ? "Move to Position Met" : "Revert"}
                   href="#reset-recommendation"
@@ -11027,6 +11131,7 @@ function InitialAnalysisRecommendationTable({
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
+                    if (locked) return;
                     onResetRecommendation(clause.id);
                   }}
                 />
@@ -11048,23 +11153,31 @@ function InitialAnalysisRecommendationTable({
                   )
                 ) : (
                   <div>
-                    <Textarea
-                      disabled={locked}
-                      value={position}
-                      rows={3}
-                      aria-label={`Negotiation position for ${displayTitleForClause(clause.id, clause.title)}`}
-                      placeholder={noRecommendation ? "Type a recommendation for this clause..." : undefined}
-                      className="min-h-[96px] resize-y bg-transparent text-orbit-sm [&>div]:!pt-0 [&>div>textarea]:!min-h-[96px] [&>div>textarea]:!bg-transparent"
-                      onFocus={() => {
-                        setFocusedClauseId(clause.id);
-                        if (!draft) onStartDraft(clause.id, { requestedChange: position, rationale: request?.rationale ?? "" });
-                      }}
-                      onChange={(event) => saveDraft(event.target.value)}
-                      onBlur={() => {
-                        setFocusedClauseId(null);
-                        if (!noRecommendation && (draft?.requestedChange ?? position).trim()) onSubmitDraft(clause.id);
-                      }}
-                    />
+                    {locked ? (
+                      <div
+                        className="min-h-[96px] whitespace-pre-wrap break-words py-orbit-xs text-orbit-sm leading-6 text-orbit-fg"
+                        aria-label={`Negotiation position for ${displayTitleForClause(clause.id, clause.title)}`}
+                      >
+                        {position || "No negotiation position recorded."}
+                      </div>
+                    ) : (
+                      <Textarea
+                        value={position}
+                        rows={3}
+                        aria-label={`Negotiation position for ${displayTitleForClause(clause.id, clause.title)}`}
+                        placeholder={noRecommendation ? "Type a recommendation for this clause..." : undefined}
+                        className="min-h-[96px] resize-y bg-transparent text-orbit-sm [&>div]:!pt-0 [&>div>textarea]:!min-h-[96px] [&>div>textarea]:!bg-transparent"
+                        onFocus={() => {
+                          setFocusedClauseId(clause.id);
+                          if (!draft) onStartDraft(clause.id, { requestedChange: position, rationale: request?.rationale ?? "" });
+                        }}
+                        onChange={(event) => saveDraft(event.target.value)}
+                        onBlur={() => {
+                          setFocusedClauseId(null);
+                          if (!noRecommendation && (draft?.requestedChange ?? position).trim()) onSubmitDraft(clause.id);
+                        }}
+                      />
+                    )}
                     {viewRationaleAction || resetRecommendationAction ? (
                       <div className="mt-orbit-xs flex items-center justify-between gap-orbit-s">
                         {viewRationaleAction}
@@ -11093,7 +11206,7 @@ function InitialAnalysisRecommendationTable({
   };
 
   const bulkSelectionBanner = selectedRecommendationIds.length > 0 ? (
-    <div className="flex items-center justify-between gap-orbit-base rounded-orbit-md border border-orbit-border bg-orbit-heading px-orbit-base py-orbit-s text-orbit-inverse">
+    <div className="flex items-center justify-between gap-orbit-base rounded-orbit-md border border-orbit-border bg-[#00856F] px-orbit-base py-orbit-s text-orbit-inverse">
       <span className="font-medium">{selectedRecommendationIds.length} Clause{selectedRecommendationIds.length === 1 ? "" : "s"} Selected</span>
       <div className="flex items-center gap-orbit-xs">
         <Button variant="secondary" className="h-8" disabled={locked} onClick={onRemoveSelectedForNextNegotiation}>Remove Clause For Next Negotiation</Button>
@@ -11488,6 +11601,7 @@ function ComparisonSection(props: {
   } = props;
   const [open, setOpen] = useState(defaultOpen);
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
+  const [fullClauseRow, setFullClauseRow] = useState<ComparisonRow | null>(null);
   if (!visible) return null;
   const accentBar =
     accent === "primary" ? "bg-orbit-primary"
@@ -11574,6 +11688,23 @@ function ComparisonSection(props: {
       <ChevronDown className={`mt-orbit-xs h-4 w-4 shrink-0 text-orbit-fg-secondary transition-transform ${open ? "rotate-180" : ""}`} />
     </>
   );
+  const fullClause = fullClauseRow?.curr ?? fullClauseRow?.prev;
+  const fullClauseMissing = Boolean(fullClause?.missingClause);
+  const fullClauseDialog = fullClause ? (
+    <FullClauseWordingDialog
+      open
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) setFullClauseRow(null);
+      }}
+      clauseContext={{
+        clauseId: fullClause.id.toUpperCase(),
+        clauseName: displayTitleForClause(fullClause.id, fullClause.title),
+        subClauseName: fullClause.subclause,
+      }}
+      wording={fullClauseMissing ? "No wording in the supplier’s contract — this term should be negotiated in." : fullClause.excerpt || fullClause.deviation || "No wording in the supplier’s contract — this term should be negotiated in."}
+      missing={fullClauseMissing}
+    />
+  ) : null;
 
   const rowsContent = rows.length === 0 ? (
     <div className="border-t border-orbit-border p-orbit-m text-center text-orbit-xs text-orbit-fg-secondary">{emptyMsg}</div>
@@ -11637,6 +11768,7 @@ function ComparisonSection(props: {
           onCancelDraft?.(r.id);
           setExpandedRequestId(null);
         };
+        const isRoundDashboard = presentation === "round-dashboard";
         const comparisonBestPractice = display.actionability?.trim() || req.requestedChange;
         const completedOutcome = rowState?.outcomes?.[rightLabel];
         const completedAction = pendingBasketRequest || trackedCurrentPosition;
@@ -11661,10 +11793,18 @@ function ComparisonSection(props: {
           !trackedCurrentPosition &&
           closure !== "closed" &&
           !rowState?.acceptedClosed;
-        const isRoundDashboard = presentation === "round-dashboard";
         const canAddThisClauseToStillOpen = isRoundDashboard && Boolean(canAddToStillOpen?.(r) && onAddToStillOpen);
         const showCurrentPositionControls =
           showOutcomeActions && canShowOutcomeFooter && rowVerdict !== "met";
+        const canShowAcceptSupplierPosition =
+          showOutcomeActions &&
+          !requested &&
+          (!noAction || bucket === "no-action") &&
+          !pendingBasketRequest &&
+          !trackedCurrentPosition &&
+          closure !== "closed" &&
+          !rowState?.acceptedClosed &&
+          rowVerdict !== "met";
         // Met clauses retain the same three-panel comparison as Not Met:
         // the next position remains visible for context, while the existing
         // edit guard below keeps settled positions read-only.
@@ -11688,6 +11828,29 @@ function ComparisonSection(props: {
           !bulkSelectionEnabled &&
           !isDashboardLocked &&
           (isNoneDeviationClause(display) || rowVerdict !== "met");
+        const comparisonRevertAction = canRevertRecommendedPosition ? (
+          <span
+            className="inline-flex min-w-0 items-center gap-orbit-xs [&>a]:!text-orbit-primary"
+            onMouseDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <RotateCcw className="h-3.5 w-3.5 shrink-0 text-orbit-primary" aria-hidden="true" />
+            <LinkText
+              label="Revert"
+              href="#reset-recommendation"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onCancelDraft?.(r.id);
+                setExpandedRequestId(null);
+                onContinueWithActionability?.(r.id, { requestedChange: comparisonBestPractice });
+              }}
+            />
+          </span>
+        ) : null;
         const editRecommendedPosition = () => {
           if (isNoneDeviationClause(display) || bucket === "closed") {
             openReviseTargetEditor();
@@ -11701,6 +11864,23 @@ function ComparisonSection(props: {
         const latestSupplierText = isPureMissingClause(display)
           ? "Missing from contract."
           : r.curr?.deviation ?? "Clause no longer present.";
+        const fullClauseAction = (
+          <span
+            className="inline-flex min-w-0 items-center gap-orbit-xs [&>a]:!text-orbit-primary"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <LinkText
+              label="View Full Clause Wording"
+              href="#full-clause-wording"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setFullClauseRow(r);
+              }}
+            />
+            <ArrowRight className="h-3.5 w-3.5 shrink-0 text-orbit-primary" aria-hidden="true" />
+          </span>
+        );
         // The deviation label is the original assessment severity carried into
         // the comparison. It is deliberately not the calculated current
         // outcome (for example, "Aligned"), which is not a deviation status.
@@ -11741,10 +11921,15 @@ function ComparisonSection(props: {
             status={previousDeviationStatusKey}
           />
         ) : undefined;
+        const comparisonTargetPosition = drafting
+          ? draft.requestedChange ?? basketRequest?.requestedChange ?? comparisonBestPractice
+          : completedAction
+            ? completedPositionText
+            : comparisonBestPractice;
         const comparisonDetails = (
           <SimplifiedComparisonContent
-            target={!drafting && showRecommendedNextPosition
-              ? completedAction ? completedPositionText : comparisonBestPractice
+            target={showRecommendedNextPosition
+              ? comparisonTargetPosition
               : undefined}
             targetLabel={completedAction ? completedPositionLabel : isRoundDashboard ? "Next Position" : undefined}
             targetHeaderAction={!completedAction && isRoundDashboard ? <Chip label="Recommended" size="Mini" variant="Information" contrast="Low" /> : undefined}
@@ -11761,51 +11946,55 @@ function ComparisonSection(props: {
             currentText={latestSupplierText}
             currentHeaderAction={currentPositionStatus}
             currentFooter={
-              showCurrentPositionControls || canAddThisClauseToStillOpen ? (
-                <div className="flex w-full flex-wrap items-center justify-end gap-orbit-xs">
-                  {showCurrentPositionControls && isRoundDashboard && !isPureMissingClause(display) && r.curr && onAcceptSupplierPosition ? (
-                    <Button
-                      variant="outline"
-                      className="h-8 w-fit px-orbit-base"
-                      disabled={bulkSelectionEnabled || isDashboardLocked}
-                      onClick={() => onAcceptSupplierPosition(r.id)}
-                    >
-                      <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                      Accept Supplier Position
-                    </Button>
-                  ) : null}
-                  {showCurrentPositionControls && showKeepCurrentPosition ? (
-                    <label className="inline-flex items-center gap-orbit-xs text-orbit-xs text-orbit-fg-secondary">
-                      <Checkbox
-                        checked={trackedCurrentPosition}
-                        aria-label="Keep Current Position"
+              showCurrentPositionControls || canShowAcceptSupplierPosition || canAddThisClauseToStillOpen || isRoundDashboard ? (
+                <div className={cn("flex w-full flex-wrap items-center justify-between gap-orbit-xs", isRoundDashboard && "h-8")}>
+                  <div className="flex min-w-0 flex-wrap items-center gap-orbit-xs">
+                    {canShowAcceptSupplierPosition && isRoundDashboard && !isPureMissingClause(display) && r.curr && onAcceptSupplierPosition ? (
+                      <Button
+                        variant="outline"
+                        className="h-8 w-fit px-orbit-base"
+                        disabled={bulkSelectionEnabled || isDashboardLocked}
+                        onClick={() => onAcceptSupplierPosition(r.id)}
+                      >
+                        <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                        Accept Supplier Position
+                      </Button>
+                    ) : null}
+                    {showCurrentPositionControls && showKeepCurrentPosition ? (
+                      <label className="inline-flex items-center gap-orbit-xs text-orbit-xs text-orbit-fg-secondary">
+                        <Checkbox
+                          checked={trackedCurrentPosition}
+                          aria-label="Keep Current Position"
+                          disabled={isDashboardLocked}
+                          onCheckedChange={(checked) => onTrackCurrentPosition?.(r.id, checked === true)}
+                        />
+                        <span>Keep Current Position</span>
+                      </label>
+                    ) : null}
+                    {canAddThisClauseToStillOpen ? (
+                      <Button
+                        variant="outline"
+                        className="h-8 w-fit px-orbit-base"
                         disabled={isDashboardLocked}
-                        onCheckedChange={(checked) => onTrackCurrentPosition?.(r.id, checked === true)}
-                      />
-                      <span>Keep Current Position</span>
-                    </label>
-                  ) : null}
-                  {canAddThisClauseToStillOpen ? (
-                    <Button
-                      variant="outline"
-                      className="h-8 w-fit px-orbit-base"
-                      disabled={isDashboardLocked}
-                      onClick={() => onAddToStillOpen?.(r.id)}
-                    >
-                      Add It To Still Open List
-                    </Button>
-                  ) : null}
+                        onClick={() => onAddToStillOpen?.(r.id)}
+                      >
+                        Add It To Still Open List
+                      </Button>
+                    ) : null}
+                  </div>
+                  {isRoundDashboard ? fullClauseAction : null}
                 </div>
               ) : undefined
             }
             targetContent={
-              drafting && onUpdateText && onCancelDraft && onSubmitDraft ? (editorRationaleAction) => (
+              drafting && !isRoundDashboard && onUpdateText && onCancelDraft && onSubmitDraft ? (editorRationaleAction) => (
                 <ClauseRequestForm
                   versionLabel={rightLabel}
                   draft={draft}
                   request={basketRequest}
                   revertText={comparisonBestPractice}
                   comparisonEditing={isRoundDashboard}
+                  suppressComparisonRevert={isRoundDashboard}
                   rationaleAction={editorRationaleAction}
                   requestPlaceholder="Write the target you want to send in the next round"
                   submitLabel="Confirm Custom Position"
@@ -11820,23 +12009,16 @@ function ComparisonSection(props: {
               ) : undefined
             }
             onTargetTextClick={canEditRecommendedPosition ? editRecommendedPosition : undefined}
+            onTargetTextChange={isRoundDashboard && drafting && onUpdateText
+              ? (requestedChange) => onUpdateText(r.id, { requestedChange })
+              : undefined}
+            targetTextEditing={isRoundDashboard && drafting}
+            targetTextReadOnly={isRoundDashboard && pendingBasketRequest}
             targetTextActionLabel={`Edit recommended next position for ${displayTitleForClause(r.id, display.title)}`}
             hideRationaleAction={drafting || completedAction}
             layout={isRoundDashboard ? "thread" : "stacked"}
             targetFooter={
-              canRevertRecommendedPosition ? (
-                <Button
-                  variant="outline"
-                  className="ml-auto h-8 w-fit v6-orbit-text-small"
-                  onClick={() => {
-                    onCancelDraft?.(r.id);
-                    onContinueWithActionability?.(r.id, { requestedChange: comparisonBestPractice });
-                  }}
-                >
-                  <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-                  Revert
-                </Button>
-              ) : !isRoundDashboard && showOutcomeActions && canShowOutcomeFooter && isNoneDeviationClause(display) ? (
+              comparisonRevertAction ?? (!isRoundDashboard && showOutcomeActions && canShowOutcomeFooter && isNoneDeviationClause(display) ? (
                 <Button
                   variant="outline"
                   className="ml-auto h-8 w-fit v6-orbit-text-small"
@@ -11891,7 +12073,7 @@ function ComparisonSection(props: {
                     </Button>
                   ) : null}
                 </>
-              ) : undefined
+              ) : undefined)
             }
           />
         );
@@ -12034,6 +12216,7 @@ function ComparisonSection(props: {
           )}
           {open && rowsContent}
         </section>
+        {fullClauseDialog}
       </>
     );
   }
@@ -12072,6 +12255,7 @@ function ComparisonSection(props: {
         )}
         {open && rowsContent}
       </section>
+      {fullClauseDialog}
     </>
   );
 }

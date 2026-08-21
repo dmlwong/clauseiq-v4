@@ -138,14 +138,15 @@ describe("ContractResults V6A review controls", () => {
     expect(within(paymentTermsCard as HTMLElement).getByRole("button", { name: "Revert" })).toBeInTheDocument();
   });
 
-  it("marks selected comparison clauses for removal in the next negotiation", async () => {
+  it("keeps comparison clauses expanded after bulk removal for the next negotiation", async () => {
     renderContractResults(optionTwoComparisonRoute);
 
     const actionRequiredSection = screen.getByText(/^Action required — position still not met/).closest("section") as HTMLElement;
     const regressedSection = screen.getByText(/^Regressed — previously agreed, but changed by the supplier/).closest("section") as HTMLElement;
     const firstSelection = within(actionRequiredSection).getAllByRole("checkbox", { name: /Bulk selected/i })[0];
     const secondSelection = within(regressedSection).getAllByRole("checkbox", { name: /Bulk selected/i })[0];
-    const firstClauseCard = firstSelection.closest('[id^="clause-row-"]') as HTMLElement;
+    const firstClauseCardId = firstSelection.closest('[id^="clause-row-"]')?.id;
+    expect(firstClauseCardId).toBeTruthy();
 
     fireEvent.click(firstSelection);
     fireEvent.click(secondSelection);
@@ -153,8 +154,15 @@ describe("ContractResults V6A review controls", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Remove Clause For Next Negotiation" }));
 
-    fireEvent.click(within(firstClauseCard).getByRole("button", { name: /Expand/i }));
-    await waitFor(() => expect(screen.getByText(/Required next position: Remove this clause in full\./)).toBeInTheDocument());
+    await waitFor(() => {
+      const firstClauseCard = document.getElementById(firstClauseCardId!);
+      expect(firstClauseCard).toBeTruthy();
+      expect(within(firstClauseCard!).getByRole("textbox", {
+        name: /Edit recommended next position for/i,
+      })).toHaveValue("Required next position: Remove this clause in full. This clause, and any substantively equivalent provision, must be absent from the supplier’s next contract version");
+      expect(within(firstClauseCard!).queryByRole("button", { name: /Expand/i })).not.toBeInTheDocument();
+      expect(within(firstClauseCard!).queryByText("Custom Position Applied")).not.toBeInTheDocument();
+    });
     expect(screen.queryByText("2 Clauses Selected")).not.toBeInTheDocument();
     expect(firstSelection).not.toBeChecked();
     expect(secondSelection).not.toBeChecked();

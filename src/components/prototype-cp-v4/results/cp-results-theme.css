@@ -7,4 +7,8 @@
   --orbit-color-btn-primary-bg: #001969 !important;
   --orbit-color-btn-primary-bg-hover: #00145c !important;
   --orbit-color-focus-ring: #001969 !important;
+  /* The embedded v6a result view uses Orbit's Checkbox component. Match its
+     selected state to the Efficio CP theme rather than the v6a purple token. */
+  --orbit-color-checkbox-checked-bg: var(--orbit-color-efficio-blue) !important;
+  --orbit-color-checkbox-checked-border: var(--orbit-color-efficio-blue) !important;
 }

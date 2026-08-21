@@ -135,7 +135,7 @@ describe("ContractResults V6A review controls", () => {
     expect(paymentTermsCard).toBeTruthy();
     expect(within(paymentTermsCard as HTMLElement).getAllByText("Not Met - Medium").length).toBe(2);
     expect(within(paymentTermsCard as HTMLElement).queryByText("Not Met")).not.toBeInTheDocument();
-    expect(within(paymentTermsCard as HTMLElement).getByRole("button", { name: "Revert" })).toBeInTheDocument();
+    expect(within(paymentTermsCard as HTMLElement).getByRole("link", { name: "Revert" })).toBeInTheDocument();
   });
 
   it("keeps comparison clauses expanded after bulk removal for the next negotiation", async () => {

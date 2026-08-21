@@ -3311,7 +3311,10 @@ export function ContractResults({
     });
   };
   const optionTwoBulkBanner = optionTwoBulkSelectedClauseIds.length > 0 ? (
-    <div className="flex items-center justify-between gap-orbit-base rounded-orbit-md border border-orbit-border bg-[#00856F] px-orbit-base py-orbit-s text-orbit-inverse">
+    <div className={cn(
+      "flex items-center justify-between gap-orbit-base rounded-orbit-md border border-orbit-border px-orbit-base py-orbit-s text-orbit-inverse",
+      isInitiativesV6Route() ? "bg-orbit-heading" : "bg-[#00856F]",
+    )}>
       <span className="font-medium">{optionTwoBulkSelectedClauseIds.length} Clause{optionTwoBulkSelectedClauseIds.length === 1 ? "" : "s"} Selected</span>
       <div className="flex items-center gap-orbit-xs">
         <Button variant="secondary" className="h-8" disabled={isDashboardLocked} onClick={removeSelectedOptionTwoClausesForNextNegotiation}>Remove Clause For Next Negotiation</Button>
@@ -8855,7 +8858,10 @@ function ComparisonNegotiationBanner({
     <Card type="Static" padding="Base" state="Default" indicator={false}>
       <div className="flex flex-wrap items-center gap-orbit-s">
         <span
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-orbit-sm bg-[#E5F1FA] text-[#2A75B1]"
+          className={cn(
+            "grid h-8 w-8 shrink-0 place-items-center rounded-orbit-sm",
+            isInitiativesV6Route() ? "bg-orbit-primary/10 text-orbit-primary" : "bg-[#E5F1FA] text-[#2A75B1]",
+          )}
           aria-hidden="true"
         >
           <Pencil className="h-[18px] w-[18px]" />
@@ -11206,7 +11212,10 @@ function InitialAnalysisRecommendationTable({
   };
 
   const bulkSelectionBanner = selectedRecommendationIds.length > 0 ? (
-    <div className="flex items-center justify-between gap-orbit-base rounded-orbit-md border border-orbit-border bg-[#00856F] px-orbit-base py-orbit-s text-orbit-inverse">
+    <div className={cn(
+      "flex items-center justify-between gap-orbit-base rounded-orbit-md border border-orbit-border px-orbit-base py-orbit-s text-orbit-inverse",
+      isInitiativesV6Route() ? "bg-orbit-heading" : "bg-[#00856F]",
+    )}>
       <span className="font-medium">{selectedRecommendationIds.length} Clause{selectedRecommendationIds.length === 1 ? "" : "s"} Selected</span>
       <div className="flex items-center gap-orbit-xs">
         <Button variant="secondary" className="h-8" disabled={locked} onClick={onRemoveSelectedForNextNegotiation}>Remove Clause For Next Negotiation</Button>
@@ -11947,7 +11956,7 @@ function ComparisonSection(props: {
             currentHeaderAction={currentPositionStatus}
             currentFooter={
               showCurrentPositionControls || canShowAcceptSupplierPosition || canAddThisClauseToStillOpen || isRoundDashboard ? (
-                <div className={cn("flex w-full flex-wrap items-center justify-between gap-orbit-xs", isRoundDashboard && "h-8")}>
+                <div className={cn("flex w-full flex-wrap items-center justify-between gap-orbit-xs", isRoundDashboard && "min-h-8")}>
                   <div className="flex min-w-0 flex-wrap items-center gap-orbit-xs">
                     {canShowAcceptSupplierPosition && isRoundDashboard && !isPureMissingClause(display) && r.curr && onAcceptSupplierPosition ? (
                       <Button

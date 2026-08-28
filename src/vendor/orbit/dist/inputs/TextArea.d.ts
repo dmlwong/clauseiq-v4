@@ -11,6 +11,7 @@ export interface BaseTextAreaProps {
     invalid?: boolean;
     previewState?: 'hover' | 'focus';
     rows?: number;
+    showCharacterCount?: boolean;
 }
 export type TextAreaProps = BaseTextAreaProps & FieldNamingProps;
 export declare const TextArea: React.FC<TextAreaProps>;

@@ -83,6 +83,31 @@ export interface BenchmarkOptionGroup {
   options: string[];
 }
 
+interface ReadyPlaybookOption {
+  id: string;
+  name: string;
+  company: string;
+  category: string;
+  entity: "FHLR" | "GOODS";
+  agreementType: "SOW" | "MSA" | "OOA";
+  governingLaw: string;
+  sourceFileName: string;
+}
+
+// This mirrors the ready-playbook list payload used by the prototype. Keep the
+// metadata together so the chooser never needs to fetch an option's tags
+// separately after the list has loaded.
+const READY_PLAYBOOKS: ReadyPlaybookOption[] = [
+  { id: "pb-001", name: "Thomson Reuters Procurement Playbook", company: "Thomson Reuters", category: "Procurement", entity: "FHLR", agreementType: "SOW", governingLaw: "United Kingdom", sourceFileName: CIQ_DEFAULT_PLAYBOOK },
+  { id: "pb-002", name: "Procurement Standard", company: "Acme Corp", category: "Procurement", entity: "GOODS", agreementType: "MSA", governingLaw: "United Kingdom", sourceFileName: "Procurement_Playbook_Standard_v3.pdf" },
+  { id: "pb-003", name: "Procurement Standard", company: "Yorkshire Water", category: "Procurement", entity: "GOODS", agreementType: "OOA", governingLaw: "United Kingdom", sourceFileName: "Procurement_Playbook_YorkshireWater.pdf" },
+  { id: "pb-004", name: "Procurement Standard", company: "Acme Corp", category: "Procurement", entity: "FHLR", agreementType: "SOW", governingLaw: "Italy", sourceFileName: "Procurement_Playbook_Standard_v4.pdf" },
+  { id: "pb-005", name: "IT Services Playbook", company: "Acme Corp", category: "IT & Technology", entity: "FHLR", agreementType: "MSA", governingLaw: "Japan", sourceFileName: "IT_Services_Playbook_2025.pdf" },
+  { id: "pb-006", name: "Construction Contracts Playbook", company: "Yorkshire Water", category: "Construction", entity: "GOODS", agreementType: "OOA", governingLaw: "Italy", sourceFileName: "Construction_Contracts_Playbook.pdf" },
+  { id: "pb-007", name: "Professional Services Playbook", company: "Thomson Reuters", category: "Professional Services", entity: "FHLR", agreementType: "SOW", governingLaw: "United States", sourceFileName: "Professional_Services_Playbook.pdf" },
+  { id: "pb-008", name: "Data Processing Playbook", company: "Acme Corp", category: "Data Protection", entity: "FHLR", agreementType: "MSA", governingLaw: "Germany", sourceFileName: "Data_Processing_Playbook.pdf" },
+];
+
 interface BenchmarkSuggestion {
   category: string | null;
   governingLaw: string | null;
@@ -1455,9 +1480,10 @@ export function AnalysisParameterCards({
   const hasExternalParameter = Boolean(selectedParameter?.playbookChoice || selectedParameter?.basis || selectedParameter?.category);
   const playbookChoice = selectedParameter?.playbookChoice ?? (hasExternalParameter ? selectedPlaybookChoice : localPlaybookChoice);
   const playbookOption = BASIS_PARAMETER_OPTIONS.find((option) => option.kind === "Playbook");
-  const playbookGroups = playbookOption
-    ? [{ label: "Playbooks", options: playbookOption.options }]
-    : [];
+  const [readyPlaybooks, setReadyPlaybooks] = useState<ReadyPlaybookOption[]>([]);
+  const selectedPlaybook = READY_PLAYBOOKS.find((playbook) =>
+    playbook.name === selectedParameter?.basis?.label || playbook.sourceFileName === selectedParameter?.basis?.label,
+  );
   const playbookSelected = playbookChoice === "yes" && selectedParameter?.basis?.kind === "Playbook";
   const showPlaybookChoiceSelector = !locked;
 
@@ -1465,8 +1491,17 @@ export function AnalysisParameterCards({
     setLocalPlaybookChoice(selectedPlaybookChoice);
   }, [selectedPlaybookChoice]);
 
+  useEffect(() => {
+    if (playbookChoice !== "yes") return;
+    // The ready-playbook payload is loaded once when the user opts in, rather
+    // than waiting for the field interaction. In production this is the single
+    // list request that supplies all option metadata.
+    setReadyPlaybooks(READY_PLAYBOOKS);
+  }, [playbookChoice]);
+
   const handlePlaybookChoice = (choice: PlaybookChoice) => {
     setLocalPlaybookChoice(choice);
+    if (choice === "yes") setReadyPlaybooks(READY_PLAYBOOKS);
     onPlaybookChoiceChange(choice);
   };
 
@@ -1495,22 +1530,26 @@ export function AnalysisParameterCards({
       {playbookChoice === "yes" && (
         <div className={showPlaybookChoiceSelector ? "mt-orbit-base" : "mt-orbit-xs"}>
           {playbookSelected ? (
-            <SelectedSummaryRow
-              label={`${selectedParameter!.basis!.kind} \u00b7 ${selectedParameter!.basis!.label}`}
+            <SelectedPlaybookSummary
+              playbook={selectedPlaybook ?? {
+                id: selectedParameter!.basis!.label,
+                name: selectedParameter!.basis!.label,
+                company: "Unknown company",
+                category: "Uncategorised",
+                entity: "FHLR",
+                agreementType: "MSA",
+                governingLaw: "United Kingdom",
+                sourceFileName: selectedParameter!.basis!.label,
+              }}
               disabled={locked}
-              actionLabel={`Change ${selectedParameter!.basis!.kind}`}
-              onAction={onBasisEdit}
+              onChange={onBasisEdit}
             />
           ) : (
             <>
               {playbookOption && (
-                <BenchmarkCombobox
-                  label="Playbook"
-                  value=""
-                  groups={playbookGroups}
-                  placeholder="Please select a playbook..."
-                  onSelect={(value) => onBasisSelect(playbookOption, value)}
-                  onClear={() => onBasisSelect(playbookOption, "")}
+                <PlaybookCombobox
+                  playbooks={readyPlaybooks}
+                  onSelect={(playbook) => onBasisSelect(playbookOption, playbook.name)}
                 />
               )}
               <p className="mt-orbit-base text-orbit-sm text-orbit-fg-secondary">
@@ -1718,6 +1757,225 @@ function GeneralBenchmarkSummary({
           <Pencil className="h-[var(--orbit-space-base)] w-[var(--orbit-space-base)]" aria-hidden="true" />
           Add a Category Or Governing law
         </Button>
+      )}
+    </div>
+  );
+}
+
+function PlaybookTags({ playbook }: { playbook: Pick<ReadyPlaybookOption, "category" | "entity" | "agreementType" | "governingLaw"> }) {
+  return (
+    <div className="flex flex-wrap gap-[5px]">
+      <span className="whitespace-nowrap rounded-full border border-[#B6D2FB] bg-[#EFF6FF] px-2 py-[2px] text-[11.5px] v6-orbit-weight-medium leading-4 text-[#2563EB]">
+        {playbook.category}
+      </span>
+      <span className="whitespace-nowrap rounded-full border border-[#B7E3D8] bg-[#F0FBF8] px-2 py-[2px] text-[11.5px] v6-orbit-weight-medium leading-4 text-[#16806A]">
+        {playbook.entity}
+      </span>
+      <span className="whitespace-nowrap rounded-full border border-[#F4D49A] bg-[#FFF9ED] px-2 py-[2px] text-[11.5px] v6-orbit-weight-medium leading-4 text-[#A15C00]">
+        {playbook.agreementType}
+      </span>
+      <span className="whitespace-nowrap rounded-full border border-[#D5D9E5] bg-[#F6F7FA] px-2 py-[2px] text-[11.5px] v6-orbit-weight-medium leading-4 text-[#475467]">
+        {playbook.governingLaw}
+      </span>
+    </div>
+  );
+}
+
+function SelectedPlaybookSummary({
+  playbook,
+  disabled,
+  onChange,
+}: {
+  playbook: ReadyPlaybookOption;
+  disabled: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <div className={cn("min-h-11 rounded-orbit-lg border border-orbit-border bg-orbit-card px-[10px] py-[9px]", disabled && "bg-orbit-surface/50")}>
+      <div className="flex items-start justify-between gap-orbit-s">
+        <div className="min-w-0 space-y-[5px]">
+          <p className="truncate text-orbit-sm v6-orbit-weight-semibold text-orbit-fg">{playbook.name}</p>
+          <PlaybookTags playbook={playbook} />
+        </div>
+        <button
+          type="button"
+          disabled={disabled}
+          className="inline-flex shrink-0 items-center gap-orbit-xs rounded-orbit-md px-orbit-xs py-orbit-xxs text-orbit-sm v6-orbit-weight-medium text-orbit-primary hover:bg-orbit-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary disabled:cursor-not-allowed disabled:text-orbit-fg-tertiary"
+          onClick={onChange}
+        >
+          <FaIcon icon={"\uf044"} size={14} />
+          Change Playbook
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PlaybookCombobox({
+  playbooks,
+  onSelect,
+}: {
+  playbooks: ReadyPlaybookOption[];
+  onSelect: (playbook: ReadyPlaybookOption) => void;
+}) {
+  const fieldId = useId();
+  const listboxId = `${fieldId}-listbox`;
+  const controlRef = useRef<HTMLDivElement | null>(null);
+  const listboxRef = useRef<HTMLDivElement | null>(null);
+  const [listVisible, setListVisible] = useState(false);
+  const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [listboxPosition, setListboxPosition] = useState({ left: 0, top: 0, width: 0 });
+  const collisionKeys = useMemo(() => {
+    const counts = new Map<string, number>();
+    playbooks.forEach((playbook) => {
+      const key = `${playbook.name}\u0000${playbook.company}\u0000${playbook.category}\u0000${playbook.entity}\u0000${playbook.agreementType}\u0000${playbook.governingLaw}`;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    });
+    return new Set([...counts].filter(([, count]) => count > 1).map(([key]) => key));
+  }, [playbooks]);
+  const filteredPlaybooks = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return playbooks;
+    return playbooks.filter((playbook) =>
+      [playbook.name, playbook.company, playbook.category, playbook.entity, playbook.agreementType, playbook.governingLaw, playbook.sourceFileName]
+        .some((value) => value.toLowerCase().includes(normalizedQuery)),
+    );
+  }, [playbooks, query]);
+  const activeOptionId = listVisible && filteredPlaybooks[activeIndex] ? `${fieldId}-option-${activeIndex}` : undefined;
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [query]);
+
+  useEffect(() => {
+    if (!listVisible) return undefined;
+    const dismissOnOutsidePointer = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (controlRef.current?.contains(target) || listboxRef.current?.contains(target)) return;
+      setListVisible(false);
+    };
+    document.addEventListener("mousedown", dismissOnOutsidePointer);
+    return () => document.removeEventListener("mousedown", dismissOnOutsidePointer);
+  }, [listVisible]);
+
+  useEffect(() => {
+    if (!listVisible) return undefined;
+    const updateListboxPosition = () => {
+      const control = controlRef.current;
+      if (!control) return;
+      const rect = control.getBoundingClientRect();
+      setListboxPosition({ left: rect.left, top: rect.bottom + 4, width: rect.width });
+    };
+    updateListboxPosition();
+    window.addEventListener("resize", updateListboxPosition);
+    window.addEventListener("scroll", updateListboxPosition, true);
+    return () => {
+      window.removeEventListener("resize", updateListboxPosition);
+      window.removeEventListener("scroll", updateListboxPosition, true);
+    };
+  }, [listVisible]);
+
+  const selectPlaybook = (playbook: ReadyPlaybookOption) => {
+    onSelect(playbook);
+    setListVisible(false);
+    setQuery("");
+  };
+  const handleInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setListVisible(true);
+      setActiveIndex((current) => Math.min(current + 1, Math.max(0, filteredPlaybooks.length - 1)));
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setListVisible(true);
+      setActiveIndex((current) => Math.max(0, current - 1));
+      return;
+    }
+    if (event.key === "Enter" && listVisible) {
+      event.preventDefault();
+      const activePlaybook = filteredPlaybooks[activeIndex];
+      if (activePlaybook) selectPlaybook(activePlaybook);
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setListVisible(false);
+      setQuery("");
+    }
+  };
+
+  return (
+    <div className="clauseiq-v6a-benchmark-combobox space-y-orbit-xs">
+      <label id={`${fieldId}-label`} htmlFor={fieldId} className="v6-orbit-heading-label">Playbook</label>
+      <div ref={controlRef} className="flex min-h-11 items-center gap-orbit-s rounded-orbit-lg border border-orbit-border bg-orbit-card px-orbit-base py-orbit-xs focus-within:border-orbit-primary">
+        <Search className="h-4 w-4 shrink-0 text-orbit-fg-secondary" aria-hidden="true" />
+        <input
+          id={fieldId}
+          role="combobox"
+          aria-labelledby={`${fieldId}-label`}
+          aria-autocomplete="list"
+          aria-expanded={listVisible}
+          aria-controls={listboxId}
+          aria-activedescendant={activeOptionId}
+          className="min-w-0 flex-1 bg-transparent text-orbit-sm text-orbit-fg outline-none placeholder:text-orbit-fg-secondary"
+          value={query}
+          placeholder="Search by name, company, category or metadata"
+          onFocus={() => setListVisible(true)}
+          onClick={() => setListVisible(true)}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setListVisible(true);
+          }}
+          onKeyDown={handleInputKeyDown}
+        />
+      </div>
+      {listVisible && createPortal(
+        <div
+          ref={listboxRef}
+          id={listboxId}
+          role="listbox"
+          aria-labelledby={`${fieldId}-label`}
+          className="fixed z-[9999] max-h-[min(360px,calc(100vh-32px))] overflow-y-auto rounded-orbit-lg border border-orbit-border bg-orbit-card p-orbit-xs shadow-orbit-lg"
+          style={{ left: listboxPosition.left, top: listboxPosition.top, width: listboxPosition.width }}
+        >
+          {filteredPlaybooks.length > 0 ? (
+            <div className="space-y-orbit-xxs">
+              {filteredPlaybooks.map((playbook, index) => {
+                const active = index === activeIndex;
+                const collisionKey = `${playbook.name}\u0000${playbook.company}\u0000${playbook.category}\u0000${playbook.entity}\u0000${playbook.agreementType}\u0000${playbook.governingLaw}`;
+                const showSourceFileName = collisionKeys.has(collisionKey);
+                return (
+                  <button
+                    key={playbook.id}
+                    id={`${fieldId}-option-${index}`}
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    className={cn(
+                      "flex min-h-[50px] w-full flex-col gap-[5px] rounded-orbit-md px-[10px] py-[9px] text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary",
+                      active ? "bg-orbit-surface text-orbit-fg" : "text-orbit-fg hover:bg-orbit-surface",
+                    )}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    onClick={() => selectPlaybook(playbook)}
+                  >
+                    <span className="truncate text-orbit-sm v6-orbit-weight-semibold">{playbook.name}</span>
+                    <PlaybookTags playbook={playbook} />
+                    {showSourceFileName ? <span className="truncate text-[11.5px] leading-4 text-[#98A2B3]">From {playbook.sourceFileName}</span> : null}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="px-[10px] py-[9px] text-orbit-sm text-orbit-fg">
+              <p>No playbooks match &quot;{query}&quot;.</p>
+              <p className="mt-orbit-xs text-[11.5px] text-[#98A2B3]">Only playbooks marked Ready to use appear here.</p>
+            </div>
+          )}
+        </div>,
+        document.body,
       )}
     </div>
   );

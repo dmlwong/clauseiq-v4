@@ -138,6 +138,144 @@ describe("ContractResults V6A review controls", () => {
     expect(within(paymentTermsCard as HTMLElement).getByRole("link", { name: "Revert" })).toBeInTheDocument();
   });
 
+  it("keeps a Comparison clause expanded when Revert restores its recommendation", () => {
+    renderContractResults(optionTwoComparisonRoute);
+
+    const paymentTermsCard = screen.getByText("Payment Terms").closest('[id^="clause-row-"]') as HTMLElement;
+    expect(paymentTermsCard).toBeTruthy();
+
+    fireEvent.click(within(paymentTermsCard).getByRole("link", { name: "Revert" }));
+
+    expect(within(paymentTermsCard).getByText("Next Position")).toBeInTheDocument();
+    expect(within(paymentTermsCard).getByRole("textbox", { name: /Edit recommended next position for Payment Terms/i })).toBeInTheDocument();
+    expect(within(paymentTermsCard).queryByText("Recommendation Applied")).not.toBeInTheDocument();
+  });
+
+  it("places the Comparison Missing filter beside Not Met in Status", () => {
+    renderContractResults(optionTwoComparisonRoute);
+
+    const statusFilters = screen.getByRole("toolbar", { name: "Status" });
+    const deviationFilters = screen.getByRole("toolbar", { name: "Deviation" });
+
+    expect(within(statusFilters).getByRole("button", { name: "Missing" })).toBeInTheDocument();
+    expect(within(deviationFilters).queryByRole("button", { name: "Missing" })).not.toBeInTheDocument();
+  });
+
+  it("hides negotiation-position character counts in Initial Analysis", () => {
+    renderContractResults(initialTableRoute);
+
+    expect(screen.queryByText(/^\d+\/250$/)).not.toBeInTheDocument();
+  });
+
+  it("hides negotiation-position character counts in Comparison", () => {
+    renderContractResults(optionTwoComparisonRoute);
+
+    expect(screen.queryByText(/^\d+\/250$/)).not.toBeInTheDocument();
+  });
+
+  it("previews the Position Not Met empty state from Design Control without changing the other bucket", async () => {
+    renderContractResults(initialTableRoute);
+
+    fireEvent.click(screen.getByRole("button", { name: "Design Control" }));
+    const previewToggle = screen.getByRole("checkbox", { name: "Show Position Not Met empty state" });
+    expect(previewToggle).not.toBeChecked();
+
+    fireEvent.click(previewToggle);
+
+    await waitFor(() => {
+      expect(screen.getByText("No clauses need further negotiation.")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Position Not Met - 0" })).toBeInTheDocument();
+    });
+    expect(screen.getByAltText("ClauseIQ empty state illustration")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Position Met - \d+/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Show Position Not Met empty state" }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("No clauses need further negotiation.")).not.toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /Position Not Met - (?!0$)\d+/ })).toBeInTheDocument();
+    });
+  });
+
+  it("uses the Position Not Met empty state when the Initial Analysis status filter leaves that bucket empty", async () => {
+    renderContractResults(initialTableRoute);
+
+    fireEvent.click(within(screen.getByRole("toolbar", { name: "Status" })).getByRole("button", { name: /Met · \d+/ }));
+
+    await waitFor(() => {
+      expect(screen.getByText("No clauses need further negotiation.")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Position Not Met - 0" })).toBeInTheDocument();
+    });
+  });
+
+  it("previews the Position Met empty state independently from Position Not Met", async () => {
+    renderContractResults(initialTableRoute);
+
+    fireEvent.click(screen.getByRole("button", { name: "Design Control" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Show Position Met empty state" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("No clauses currently meet your negotiation position.")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Position Met - 0" })).toBeInTheDocument();
+    });
+    expect(screen.getByAltText("ClauseIQ empty state illustration")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Position Not Met - (?!0$)\d+/ })).toBeInTheDocument();
+    expect(screen.queryByText("No clauses need further negotiation.")).not.toBeInTheDocument();
+  });
+
+  it("uses the Position Met empty state when the Initial Analysis status filter leaves that bucket empty", async () => {
+    renderContractResults(initialTableRoute);
+
+    fireEvent.click(within(screen.getByRole("toolbar", { name: "Status" })).getByRole("button", { name: /Not met · \d+/ }));
+
+    await waitFor(() => {
+      expect(screen.getByText("No clauses currently meet your negotiation position.")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Position Met - 0" })).toBeInTheDocument();
+    });
+  });
+
+  it("previews an empty filtered result by selecting Status Met", async () => {
+    renderContractResults(initialTableRoute);
+
+    fireEvent.click(screen.getByRole("button", { name: "Design Control" }));
+    expect(screen.getByRole("checkbox", { name: "Show filter empty state" })).not.toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Show filter empty state" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("No clauses match the selected filters.")).toBeInTheDocument();
+    });
+    expect(screen.getByAltText("ClauseIQ empty state illustration")).toBeInTheDocument();
+    expect(within(screen.getByRole("toolbar", { name: "Status" })).getByRole("button", { name: /Met · \d+/ })).toHaveAttribute("aria-pressed", "true");
+    const clearFiltersButton = screen.getAllByRole("button", { name: "Clear Filters" }).at(-1)!;
+    expect(clearFiltersButton).toBeInTheDocument();
+
+    fireEvent.click(clearFiltersButton);
+
+    await waitFor(() => {
+      expect(screen.queryByText("No clauses match the selected filters.")).not.toBeInTheDocument();
+    });
+  });
+
+  it("exposes independent Comparison empty-state previews without showing Initial Analysis controls", async () => {
+    renderContractResults(optionTwoComparisonRoute);
+
+    fireEvent.click(screen.getByRole("button", { name: "Design Control" }));
+
+    expect(screen.queryByRole("checkbox", { name: "Show Position Not Met empty state" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "Show Position Met empty state" })).not.toBeInTheDocument();
+    const actionRequiredToggle = screen.getByRole("checkbox", { name: "Show Action Required empty state" });
+    expect(screen.getByRole("checkbox", { name: "Show Regressed empty state" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Show Met Positions empty state" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Show comparison filter empty state" })).toBeInTheDocument();
+
+    fireEvent.click(actionRequiredToggle);
+
+    await waitFor(() => {
+      expect(screen.getByText("No clauses require further action.")).toBeInTheDocument();
+      expect(screen.getByAltText("ClauseIQ empty state illustration")).toBeInTheDocument();
+    });
+  });
+
   it("keeps comparison clauses expanded after bulk removal for the next negotiation", async () => {
     renderContractResults(optionTwoComparisonRoute);
 

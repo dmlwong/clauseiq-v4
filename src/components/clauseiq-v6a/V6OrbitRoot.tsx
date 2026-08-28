@@ -8,12 +8,14 @@ import { V6OrbitToastHost } from "@/components/clauseiq-v6a/V6OrbitToast";
 interface V6OrbitRootProps {
   children: ReactNode;
   layout?: "page" | "embedded";
+  prototypeId?: string;
+  showInspector?: boolean;
 }
 
-export function V6OrbitRoot({ children, layout = "page" }: V6OrbitRootProps) {
+export function V6OrbitRoot({ children, layout = "page", prototypeId = "clauseiq-v6a", showInspector = true }: V6OrbitRootProps) {
   return (
     <div
-      data-prototype="clauseiq-v6a"
+      data-prototype={prototypeId}
       data-theme="orbit"
       style={{
         minHeight: layout === "page" ? "100vh" : "100%",
@@ -25,7 +27,7 @@ export function V6OrbitRoot({ children, layout = "page" }: V6OrbitRootProps) {
     >
       {children}
       <V6OrbitToastHost />
-      <OrbitInspector />
+      {showInspector ? <OrbitInspector /> : null}
     </div>
   );
 }

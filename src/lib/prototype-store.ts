@@ -91,10 +91,16 @@ export function isPrototypeCPV4(version: PrototypeVersion) {
   return title === "prototype cp - v4" || version.previewUrl === "/prototype-cp-v4";
 }
 
+export function isPlaybookManagementPrototype(version: PrototypeVersion) {
+  const title = version.title.trim().toLowerCase();
+  return title === "playbook management" || version.previewUrl === "/playbook-management";
+}
+
 export function prototypePreviewUrl(version: PrototypeVersion) {
   // CP v4 must be checked before isPrototypeV4 (whose title.includes("v4") would claim it).
   if (isPrototypeCPV4(version)) return "/prototype-cp-v4";
   if (isPrototypeCP(version)) return "/prototype-cp-v2";
+  if (isPlaybookManagementPrototype(version)) return "/playbook-management";
   if (isResponsiveTestingPrototype(version)) return "/clauseiq-responsive-testing";
   if (isPrototypeV6A(version)) return "/clauseiq-v6a";
   if (isPrototypeV6(version)) return "/clauseiq-v6";
@@ -165,8 +171,24 @@ function seed(): Prototype {
   const v3 = createV3Version(protoId, 3);
   const v4 = createV4Version(protoId, 4);
   const v6a = createV6AVersion(protoId, 9);
+  const playbookManagement = createPlaybookManagementVersion(protoId, 8);
   const cpV4 = createPrototypeCPV4Version(protoId, 10);
-  return { id: protoId, name: "ClauseIQ Prototype", versions: [v1, v2, v3, v4, v6a, cpV4] };
+  return { id: protoId, name: "ClauseIQ Prototype", versions: [v1, v2, v3, v4, v6a, playbookManagement, cpV4] };
+}
+
+function createPlaybookManagementVersion(protoId: string, versionNumber: number): PrototypeVersion {
+  return {
+    id: uid(),
+    prototypeId: protoId,
+    versionNumber,
+    title: "Playbook Management",
+    goal: "Explore the end-to-end management of generated contract playbooks within the Connected Platform.",
+    notes: "Adds an Orbit-based Best Practice Library with lifecycle statuses, sorting, review, publishing, rename, retry, deletion, and clause management.",
+    previewUrl: "/playbook-management",
+    status: "In progress",
+    createdAt: new Date().toISOString(),
+    feedback: [],
+  };
 }
 
 function createPrototypeCPV4Version(protoId: string, versionNumber: number): PrototypeVersion {
@@ -396,6 +418,10 @@ function ensureCurrentVersions(prototype: Prototype): Prototype {
   if (!nextVersions.some((version) => isPrototypeV6A(version))) {
     const nextNumber = Math.max(9, ...nextVersions.map((version) => version.versionNumber + 1));
     nextVersions = [...nextVersions, createV6AVersion(prototype.id, nextNumber)];
+    changed = true;
+  }
+  if (!nextVersions.some((version) => isPlaybookManagementPrototype(version))) {
+    nextVersions = [...nextVersions, createPlaybookManagementVersion(prototype.id, 8)];
     changed = true;
   }
   if (!nextVersions.some((version) => isPrototypeCPV4(version))) {

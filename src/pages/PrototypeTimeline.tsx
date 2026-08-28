@@ -30,6 +30,7 @@ import {
   prototypePreviewUrl,
   isPrototypeCP,
   isPrototypeCPV4,
+  isPlaybookManagementPrototype,
   isPrototypeV6A,
   isPrototypeV6,
   isPrototypeV5,
@@ -161,7 +162,7 @@ function openPrototype(url: string | undefined, navigate: NavigateFunction) {
 }
 
 function isHomepageCurrentVersion(version: PrototypeVersion) {
-  return isPrototypeCPV4(version) || isPrototypeCP(version) || isPrototypeV5(version) || isPrototypeV6(version) || isPrototypeV6A(version);
+  return isPrototypeCPV4(version) || isPlaybookManagementPrototype(version) || isPrototypeCP(version) || isPrototypeV5(version) || isPrototypeV6(version) || isPrototypeV6A(version);
 }
 
 export default function PrototypeTimeline() {

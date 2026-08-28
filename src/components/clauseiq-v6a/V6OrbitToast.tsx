@@ -55,6 +55,12 @@ export function V6OrbitToastHost() {
     return () => window.removeEventListener(V6_TOAST_EVENT, handleToast);
   }, []);
 
+  useEffect(() => {
+    if (!current?.duration) return;
+    const timer = window.setTimeout(() => setCurrent(null), current.duration);
+    return () => window.clearTimeout(timer);
+  }, [current]);
+
   if (!current) return null;
 
   return (

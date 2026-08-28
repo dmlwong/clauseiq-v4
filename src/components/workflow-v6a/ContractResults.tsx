@@ -1028,6 +1028,19 @@ export function ContractResults({
     requestedDashboardView ??
     (searchParams.get("scenario") === "first-analysis" ? "initial-analysis" : "comparison");
   const firstAnalysisDemo = dashboardView === "initial-analysis";
+  const showPositionNotMetEmptyPreview =
+    firstAnalysisDemo && searchParams.get("previewPositionNotMetEmpty") === "true";
+  const showPositionMetEmptyPreview =
+    firstAnalysisDemo && searchParams.get("previewPositionMetEmpty") === "true";
+  const comparisonEmptyStateDemo = dashboardView === "comparison" && normalizeComparisonDesignOption(searchParams.get("design")) === "design-option-2";
+  const showComparisonActionRequiredEmptyPreview =
+    comparisonEmptyStateDemo && searchParams.get("previewComparisonActionRequiredEmpty") === "true";
+  const showComparisonRegressedEmptyPreview =
+    comparisonEmptyStateDemo && searchParams.get("previewComparisonRegressedEmpty") === "true";
+  const showComparisonMetPositionsEmptyPreview =
+    comparisonEmptyStateDemo && searchParams.get("previewComparisonMetPositionsEmpty") === "true";
+  const showComparisonFilterEmptyPreview =
+    comparisonEmptyStateDemo && searchParams.get("previewComparisonFilterEmpty") === "true";
   const outcomeReviewMode =
     dashboardView === "comparison" &&
     searchParams.get("resultMode") === "outcome" &&
@@ -2054,7 +2067,7 @@ export function ContractResults({
     comparisonDeviationFilter === "high" || comparisonDeviationFilter === "medium" || comparisonDeviationFilter === "low"
       ? comparisonDeviationFilter
       : quickFilterSeverity;
-  const quickMissingClauseFilter = quickFilter === "missing" || comparisonDeviationFilter === "missing";
+  const quickMissingClauseFilter = quickFilter === "missing" || comparisonStatusFilter === "missing";
   const quickNoneDeviationFilter = quickFilter === "none" || comparisonDeviationFilter === "none";
   const comparisonMetFilter = comparisonStatusFilter === "met";
   const comparisonNotMetFilter = comparisonStatusFilter === "not-met";
@@ -2269,6 +2282,13 @@ export function ContractResults({
       setQuickFilter(null);
       setFirstAnalysisMetricFilters(new Set());
     } else {
+      params.delete("previewPositionNotMetEmpty");
+      params.delete("previewPositionMetEmpty");
+      params.delete("previewInitialAnalysisFilterEmpty");
+      params.delete("previewComparisonActionRequiredEmpty");
+      params.delete("previewComparisonRegressedEmpty");
+      params.delete("previewComparisonMetPositionsEmpty");
+      params.delete("previewComparisonFilterEmpty");
       params.set("scenario", "negotiated-reanalysis");
       params.set("resultMode", "outcome");
       if (selectedOutputContext?.previousAnalysis && selectedOutputContext.previousVersionLabel) {
@@ -2288,6 +2308,54 @@ export function ContractResults({
       setFirstAnalysisMetricFilters(new Set());
     }
 
+    setSearchParams(params, { replace: false });
+  };
+  const setPositionNotMetEmptyPreview = (enabled: boolean) => {
+    const params = new URLSearchParams(searchParams);
+    if (enabled) {
+      params.set("previewPositionNotMetEmpty", "true");
+      setBulkBannerSelectedClauseIds(new Set());
+    } else {
+      params.delete("previewPositionNotMetEmpty");
+    }
+    setSearchParams(params, { replace: false });
+  };
+  const setPositionMetEmptyPreview = (enabled: boolean) => {
+    const params = new URLSearchParams(searchParams);
+    if (enabled) {
+      params.set("previewPositionMetEmpty", "true");
+    } else {
+      params.delete("previewPositionMetEmpty");
+    }
+    setSearchParams(params, { replace: false });
+  };
+  const setInitialAnalysisFilterEmptyPreview = (enabled: boolean) => {
+    const params = new URLSearchParams(searchParams);
+    if (enabled) {
+      params.set("previewInitialAnalysisFilterEmpty", "true");
+      setFirstAnalysisStatusFilter("met");
+    } else {
+      params.delete("previewInitialAnalysisFilterEmpty");
+      setFirstAnalysisStatusFilter("all");
+    }
+    setSearchParams(params, { replace: false });
+  };
+  const setComparisonEmptyPreview = (
+    parameter: "previewComparisonActionRequiredEmpty" | "previewComparisonRegressedEmpty" | "previewComparisonMetPositionsEmpty" | "previewComparisonFilterEmpty",
+    enabled: boolean,
+  ) => {
+    const params = new URLSearchParams(searchParams);
+    if (enabled) {
+      params.set(parameter, "true");
+      if (parameter === "previewComparisonFilterEmpty") {
+        setComparisonStatusFilter("met");
+        setComparisonDeviationFilter("all");
+        clearActiveCategories();
+      }
+    } else {
+      params.delete(parameter);
+      if (parameter === "previewComparisonFilterEmpty") setComparisonStatusFilter("all");
+    }
     setSearchParams(params, { replace: false });
   };
   const toggleFirstAnalysisDemo = (enabled: boolean) => {
@@ -2362,6 +2430,9 @@ export function ContractResults({
   const firstAnalysisMissingSelected = firstAnalysisMetricFilters.has("missing");
   const firstAnalysisNoneSelected = firstAnalysisMetricFilters.has("none");
   const firstAnalysisHasMetricFilters = firstAnalysisMetricFilters.size > 0;
+  const showInitialAnalysisFilterEmptyPreview =
+    firstAnalysisDemo &&
+    searchParams.get("previewInitialAnalysisFilterEmpty") === "true";
   const isFirstAnalysisPositionMet = (clause: ClauseResult) => {
     const state = stateOf(clause.id);
     if (state.roundDecisions[firstAnalysisVersionLabel] === "no-action" || acceptedFirstAnalysisClauseIds.has(clause.id)) return true;
@@ -2930,9 +3001,9 @@ export function ContractResults({
     ...optionTwoGroups.previouslyMet,
     ...optionTwoGroups.notSelected,
   ].map((row) => [row.id, row])).values());
-  const shouldShowOptionTwoMetPositions = optionTwoMetPositionRows.length > 0 && (
-    !comparisonBucketFilterActive || comparisonStatusFilter !== "not-met"
-  );
+  const shouldShowOptionTwoMetPositions =
+    (!comparisonBucketFilterActive || comparisonStatusFilter !== "not-met") &&
+    (optionTwoMetPositionRows.length > 0 || !comparisonBucketFilterActive || showComparisonMetPositionsEmptyPreview);
   const optionTwoComparedCount =
     optionTwoGroups.actionRequired.length +
     optionTwoGroups.regressed.length +
@@ -2959,15 +3030,18 @@ export function ContractResults({
       canAddToStillOpen?: (row: ComparisonRow) => boolean;
       onAddToStillOpen?: (id: string) => void;
       showSectionBulkSelection?: boolean;
+      forceEmpty?: boolean;
+      emptyState?: ReactNode;
     },
   ) => {
     if (!leftVersion || !rightVersion) return null;
+    const sectionRows = options?.forceEmpty ? [] : rows;
     return (
       <ComparisonSection
         title={title}
         description={description}
         accent={accent}
-        rows={rows}
+        rows={sectionRows}
         leftLabel={leftVersion.version}
         rightLabel={rightVersion.version}
         // Keep every Design 2 outcome bucket visible. This makes the workflow
@@ -2976,7 +3050,8 @@ export function ContractResults({
         visible
         bucket={options?.bucket ?? "open"}
         showOutcomeActions={options?.showOutcomeActions ?? true}
-        stats={summariseComparisonRows(rows)}
+        stats={summariseComparisonRows(sectionRows)}
+        emptyState={options?.emptyState}
         closureOf={(id) => stateOf(id).closures[rightVersion.version]}
         requestOf={(id) => {
           const latest = getLatestRequest(stateOf(id), leftVersion.version);
@@ -3533,6 +3608,7 @@ export function ContractResults({
         clearAllFirstAnalysisMetrics();
         setActiveCategories([]);
         setFirstAnalysisStatusFilter("all");
+        setInitialAnalysisFilterEmptyPreview(false);
       }}
       hasActiveFilters={
         firstAnalysisMetricFilters.size > 0 ||
@@ -3592,24 +3668,32 @@ export function ContractResults({
       tableFilters={firstAnalysisTableFilters}
       initialStatusFilter={firstAnalysisStatusFilter}
       initialFilterEmptyState={
-        firstAnalysisTableVisibleCount === 0 &&
-        (firstAnalysisMetricFilters.size > 0 || activeCategories.length > 0 || firstAnalysisStatusFilter !== "all") ? (
-          <div className="rounded-orbit-md border border-orbit-border bg-orbit-card p-orbit-base text-center text-orbit-sm text-orbit-fg-secondary">
-            No clauses match your filters. {" "}
-            <button
-              type="button"
-              className="text-orbit-primary hover:underline"
-              onClick={() => {
-                clearAllFirstAnalysisMetrics();
-                setActiveCategories([]);
-                setFirstAnalysisStatusFilter("all");
-              }}
-            >
-              Clear
-            </button>
+        (showInitialAnalysisFilterEmptyPreview || (
+          firstAnalysisTableVisibleCount === 0 &&
+          (firstAnalysisMetricFilters.size > 0 || activeCategories.length > 0 || firstAnalysisStatusFilter !== "all")
+        )) ? (
+          <div className="rounded-orbit-md border border-orbit-border bg-orbit-card p-orbit-base">
+            <InitialAnalysisEmptyState>
+              <p>No clauses match the selected filters.</p>
+              <Button
+                variant="secondary"
+                className="h-8"
+                onClick={() => {
+                  clearAllFirstAnalysisMetrics();
+                  setActiveCategories([]);
+                  setFirstAnalysisStatusFilter("all");
+                  setInitialAnalysisFilterEmptyPreview(false);
+                }}
+              >
+                Clear Filters
+              </Button>
+            </InitialAnalysisEmptyState>
           </div>
         ) : undefined
       }
+      forceInitialFilterEmptyState={showInitialAnalysisFilterEmptyPreview}
+      forcePositionNotMetEmpty={showPositionNotMetEmptyPreview}
+      forcePositionMetEmpty={showPositionMetEmptyPreview}
       isDashboardLocked={isDashboardLocked}
     />
   ) : null;
@@ -3747,19 +3831,27 @@ export function ContractResults({
               }
             />
           }
-          actionRequired={shouldShowComparisonBucket("action-required", optionTwoGroups.actionRequired) ? optionTwoActionSection(
+          actionRequired={(shouldShowComparisonBucket("action-required", optionTwoGroups.actionRequired) || showComparisonActionRequiredEmptyPreview) ? optionTwoActionSection(
             "Action required — position still not met",
             "Review the next-round position, edit it, or accept the supplier's wording.",
             optionTwoGroups.actionRequired,
             "neutral",
-            { showSectionBulkSelection: true },
+            {
+              showSectionBulkSelection: true,
+              forceEmpty: showComparisonActionRequiredEmptyPreview,
+              emptyState: <ComparisonBucketEmptyState message="No clauses require further action." />,
+            },
           ) : null}
-          regressed={shouldShowComparisonBucket("regressed", optionTwoGroups.regressed) ? optionTwoActionSection(
+          regressed={(shouldShowComparisonBucket("regressed", optionTwoGroups.regressed) || showComparisonRegressedEmptyPreview) ? optionTwoActionSection(
             "Regressed — previously agreed, but changed by the supplier",
             "These were met in an earlier round. The supplier's latest wording has weakened your position.",
             optionTwoGroups.regressed,
             "neutral",
-            { showSectionBulkSelection: true },
+            {
+              showSectionBulkSelection: true,
+              forceEmpty: showComparisonRegressedEmptyPreview,
+              emptyState: <ComparisonBucketEmptyState message="No clauses have regressed." />,
+            },
           ) : null}
           acceptedAsIs={null}
           metPositions={shouldShowOptionTwoMetPositions ? optionTwoActionSection(
@@ -3797,17 +3889,30 @@ export function ContractResults({
                 });
                 toast.success("Clause added to Still Open.");
               },
+              forceEmpty: showComparisonMetPositionsEmptyPreview,
+              emptyState: <ComparisonBucketEmptyState message="No clauses currently meet your negotiation position." />,
             },
           ) : null}
           filterEmptyState={
-            comparisonFilterVisibleCount === 0 && (
+            (showComparisonFilterEmptyPreview || comparisonFilterVisibleCount === 0 && (
               comparisonStatusFilter !== "all" ||
               comparisonDeviationFilter !== "all" ||
               activeCategories.length > 0
-            ) ? (
-              <div className="rounded-orbit-md border border-orbit-border bg-orbit-card p-orbit-base text-center text-orbit-sm text-orbit-fg-secondary">
-                No clauses match your filters. {" "}
-                <button type="button" className="text-orbit-primary hover:underline" onClick={clearComparisonOptionTwoFilters}>Clear</button>
+            )) ? (
+              <div className="rounded-orbit-md border border-orbit-border bg-orbit-card p-orbit-base">
+                <InitialAnalysisEmptyState>
+                  <p>No clauses match the selected filters.</p>
+                  <Button
+                    variant="secondary"
+                    className="h-8"
+                    onClick={() => {
+                      clearComparisonOptionTwoFilters();
+                      setComparisonEmptyPreview("previewComparisonFilterEmpty", false);
+                    }}
+                  >
+                    Clear Filters
+                  </Button>
+                </InitialAnalysisEmptyState>
               </div>
             ) : null
           }
@@ -4043,6 +4148,20 @@ export function ContractResults({
       // selected output does not carry an explicit previous-analysis link.
       comparisonAvailable={Boolean(contract?.versions && contract.versions.length >= 2)}
       onDashboardViewChange={setDashboardView}
+      showPositionNotMetEmptyPreview={showPositionNotMetEmptyPreview}
+      onPositionNotMetEmptyPreviewChange={setPositionNotMetEmptyPreview}
+      showPositionMetEmptyPreview={showPositionMetEmptyPreview}
+      onPositionMetEmptyPreviewChange={setPositionMetEmptyPreview}
+      showInitialAnalysisFilterEmptyPreview={showInitialAnalysisFilterEmptyPreview}
+      onInitialAnalysisFilterEmptyPreviewChange={setInitialAnalysisFilterEmptyPreview}
+      showComparisonActionRequiredEmptyPreview={showComparisonActionRequiredEmptyPreview}
+      onComparisonActionRequiredEmptyPreviewChange={(enabled) => setComparisonEmptyPreview("previewComparisonActionRequiredEmpty", enabled)}
+      showComparisonRegressedEmptyPreview={showComparisonRegressedEmptyPreview}
+      onComparisonRegressedEmptyPreviewChange={(enabled) => setComparisonEmptyPreview("previewComparisonRegressedEmpty", enabled)}
+      showComparisonMetPositionsEmptyPreview={showComparisonMetPositionsEmptyPreview}
+      onComparisonMetPositionsEmptyPreviewChange={(enabled) => setComparisonEmptyPreview("previewComparisonMetPositionsEmpty", enabled)}
+      showComparisonFilterEmptyPreview={showComparisonFilterEmptyPreview}
+      onComparisonFilterEmptyPreviewChange={(enabled) => setComparisonEmptyPreview("previewComparisonFilterEmpty", enabled)}
     />
   );
   const showHeaderBulkActionButton =
@@ -4949,10 +5068,38 @@ function DashboardDesignControl({
   dashboardView,
   comparisonAvailable,
   onDashboardViewChange,
+  showPositionNotMetEmptyPreview,
+  onPositionNotMetEmptyPreviewChange,
+  showPositionMetEmptyPreview,
+  onPositionMetEmptyPreviewChange,
+  showInitialAnalysisFilterEmptyPreview,
+  onInitialAnalysisFilterEmptyPreviewChange,
+  showComparisonActionRequiredEmptyPreview,
+  onComparisonActionRequiredEmptyPreviewChange,
+  showComparisonRegressedEmptyPreview,
+  onComparisonRegressedEmptyPreviewChange,
+  showComparisonMetPositionsEmptyPreview,
+  onComparisonMetPositionsEmptyPreviewChange,
+  showComparisonFilterEmptyPreview,
+  onComparisonFilterEmptyPreviewChange,
 }: {
   dashboardView: DashboardViewMode;
   comparisonAvailable: boolean;
   onDashboardViewChange: (value: DashboardViewMode) => void;
+  showPositionNotMetEmptyPreview: boolean;
+  onPositionNotMetEmptyPreviewChange: (enabled: boolean) => void;
+  showPositionMetEmptyPreview: boolean;
+  onPositionMetEmptyPreviewChange: (enabled: boolean) => void;
+  showInitialAnalysisFilterEmptyPreview: boolean;
+  onInitialAnalysisFilterEmptyPreviewChange: (enabled: boolean) => void;
+  showComparisonActionRequiredEmptyPreview: boolean;
+  onComparisonActionRequiredEmptyPreviewChange: (enabled: boolean) => void;
+  showComparisonRegressedEmptyPreview: boolean;
+  onComparisonRegressedEmptyPreviewChange: (enabled: boolean) => void;
+  showComparisonMetPositionsEmptyPreview: boolean;
+  onComparisonMetPositionsEmptyPreviewChange: (enabled: boolean) => void;
+  showComparisonFilterEmptyPreview: boolean;
+  onComparisonFilterEmptyPreviewChange: (enabled: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const controlRef = useRef<HTMLDivElement | null>(null);
@@ -5023,6 +5170,55 @@ function DashboardDesignControl({
                   })}
                 </div>
               </div>
+              {dashboardView === "initial-analysis" ? (
+                <div className="border-t border-orbit-border pt-orbit-base">
+                  <p className="v6-orbit-text-small v6-orbit-weight-semibold text-orbit-fg">Initial Analysis</p>
+                  <label className="mt-orbit-s flex cursor-pointer items-center justify-between gap-orbit-base text-orbit-sm text-orbit-fg-secondary">
+                    <span>Show Position Not Met empty state</span>
+                    <Checkbox
+                      checked={showPositionNotMetEmptyPreview}
+                      aria-label="Show Position Not Met empty state"
+                      onCheckedChange={onPositionNotMetEmptyPreviewChange}
+                    />
+                  </label>
+                  <label className="mt-orbit-s flex cursor-pointer items-center justify-between gap-orbit-base text-orbit-sm text-orbit-fg-secondary">
+                    <span>Show Position Met empty state</span>
+                    <Checkbox
+                      checked={showPositionMetEmptyPreview}
+                      aria-label="Show Position Met empty state"
+                      onCheckedChange={onPositionMetEmptyPreviewChange}
+                    />
+                  </label>
+                  <label className="mt-orbit-s flex cursor-pointer items-center justify-between gap-orbit-base text-orbit-sm text-orbit-fg-secondary">
+                    <span>Show filter empty state</span>
+                    <Checkbox
+                      checked={showInitialAnalysisFilterEmptyPreview}
+                      aria-label="Show filter empty state"
+                      onCheckedChange={onInitialAnalysisFilterEmptyPreviewChange}
+                    />
+                  </label>
+                </div>
+              ) : (
+                <div className="border-t border-orbit-border pt-orbit-base">
+                  <p className="v6-orbit-text-small v6-orbit-weight-semibold text-orbit-fg">Comparison View</p>
+                  <label className="mt-orbit-s flex cursor-pointer items-center justify-between gap-orbit-base text-orbit-sm text-orbit-fg-secondary">
+                    <span>Show Action Required empty state</span>
+                    <Checkbox checked={showComparisonActionRequiredEmptyPreview} aria-label="Show Action Required empty state" onCheckedChange={onComparisonActionRequiredEmptyPreviewChange} />
+                  </label>
+                  <label className="mt-orbit-s flex cursor-pointer items-center justify-between gap-orbit-base text-orbit-sm text-orbit-fg-secondary">
+                    <span>Show Regressed empty state</span>
+                    <Checkbox checked={showComparisonRegressedEmptyPreview} aria-label="Show Regressed empty state" onCheckedChange={onComparisonRegressedEmptyPreviewChange} />
+                  </label>
+                  <label className="mt-orbit-s flex cursor-pointer items-center justify-between gap-orbit-base text-orbit-sm text-orbit-fg-secondary">
+                    <span>Show Met Positions empty state</span>
+                    <Checkbox checked={showComparisonMetPositionsEmptyPreview} aria-label="Show Met Positions empty state" onCheckedChange={onComparisonMetPositionsEmptyPreviewChange} />
+                  </label>
+                  <label className="mt-orbit-s flex cursor-pointer items-center justify-between gap-orbit-base text-orbit-sm text-orbit-fg-secondary">
+                    <span>Show filter empty state</span>
+                    <Checkbox checked={showComparisonFilterEmptyPreview} aria-label="Show comparison filter empty state" onCheckedChange={onComparisonFilterEmptyPreviewChange} />
+                  </label>
+                </div>
+              )}
             </div>
           </Card>
         </div>
@@ -7486,6 +7682,7 @@ function ClauseRequestForm({
             onChange={(event) => onUpdate({ requestedChange: event.target.value })}
             placeholder={requestPlaceholder}
             maxLength={comparisonEditing ? requestCharacterLimit : undefined}
+            hideCharacterCount
             className={cn(
               comparisonEditing ? "h-[96px] min-h-[96px]" : "min-h-[64px]",
               compact && !comparisonEditing && "min-h-[58px] text-orbit-xs",
@@ -8696,6 +8893,7 @@ function ResultCardPanel({
             aria-label={textAction.label}
             maxLength={250}
             readOnly={textAction.readOnly}
+            hideCharacterCount
             onChange={textAction.editable ? (event) => textAction.onChange?.(event.target.value) : undefined}
             className={cn(
               "min-h-[96px] resize-y bg-transparent text-orbit-sm [&>div]:!pt-0 [&>div>textarea]:!min-h-[96px] [&>div>textarea]:!bg-transparent [&_textarea]:cursor-text",
@@ -8726,8 +8924,8 @@ function ResultCardPanel({
   );
 }
 
-type RoundDashboardStatusFilter = "all" | "met" | "not-met";
-type RoundDashboardDeviationFilter = "all" | "high" | "medium" | "low" | "missing" | "none";
+type RoundDashboardStatusFilter = "all" | "met" | "not-met" | "missing";
+type RoundDashboardDeviationFilter = "all" | "high" | "medium" | "low" | "none";
 
 function InitialAnalysisTableControlPanel({
   banner,
@@ -8808,11 +9006,12 @@ function RoundComparisonDashboard({
             {bulkBanner || actionRequired || regressed || acceptedAsIs || metPositions || filterEmptyState ? (
               <div className="space-y-orbit-base">
                 {bulkBanner}
-                {actionRequired}
-                {regressed}
-                {acceptedAsIs}
-                {metPositions}
-                {filterEmptyState}
+                {filterEmptyState ?? <>
+                  {actionRequired}
+                  {regressed}
+                  {acceptedAsIs}
+                  {metPositions}
+                </>}
               </div>
             ) : null}
           </div>
@@ -8955,6 +9154,7 @@ function RoundComparisonFilterBar({
         options={[
           ["met", "Met"],
           ["not-met", "Not met"],
+          ["missing", "Missing"],
         ]}
         onChange={onStatusChange}
       />
@@ -8965,7 +9165,6 @@ function RoundComparisonFilterBar({
           ["high", "High"],
           ["medium", "Medium"],
           ["low", "Low"],
-          ["missing", "Missing"],
           ["none", "None"],
         ]}
         onChange={onDeviationChange}
@@ -10599,6 +10798,9 @@ function ReviewScreen({
   tableFilters,
   initialStatusFilter = "all",
   initialFilterEmptyState,
+  forceInitialFilterEmptyState = false,
+  forcePositionNotMetEmpty = false,
+  forcePositionMetEmpty = false,
   isDashboardLocked = false,
 }: {
   version: ContractVersion;
@@ -10635,6 +10837,9 @@ function ReviewScreen({
   tableFilters?: ReactNode;
   initialStatusFilter?: InitialAnalysisStatusFilter;
   initialFilterEmptyState?: ReactNode;
+  forceInitialFilterEmptyState?: boolean;
+  forcePositionNotMetEmpty?: boolean;
+  forcePositionMetEmpty?: boolean;
   isDashboardLocked?: boolean;
 }) {
   const q = search.trim().toLowerCase();
@@ -10659,7 +10864,7 @@ function ReviewScreen({
     if (!isNoneDeviationClause(clause)) return false;
     return !(state.roundDecisions[versionLabel] === "request-update" && Boolean(state.requests[versionLabel]?.requestedChange?.trim()) && state.outcomes?.[versionLabel] === "custom");
   };
-  const rows = version.clauses
+  const matchedRows = version.clauses
     .map((clause, index) => ({ clause, index }))
     .filter(({ clause: c }) => {
       if (displayMode === "initial-table" && initialStatusFilter !== "all" && (initialStatusFilter === "met") !== isInitialPositionMet(c)) return false;
@@ -10691,6 +10896,7 @@ function ReviewScreen({
     })
     .sort((a, b) => severityRank(b.clause.severity) - severityRank(a.clause.severity) || a.index - b.index)
     .map(({ clause }) => clause);
+  const rows = forceInitialFilterEmptyState ? [] : matchedRows;
   const isAcceptedSupplierPosition = (clauseId: string) =>
     stateOf(clauseId).roundDecisions[versionLabel] === "no-action" || acceptedClauseIds?.has(clauseId) === true;
   const acceptedSupplierPositionRows = displayMode === "initial-option-2"
@@ -10790,6 +10996,8 @@ function ReviewScreen({
         bulkSelectedClauseIds={bulkSelectedClauseIds}
         onBulkClauseSelectionChange={onBulkClauseSelectionChange}
         emptyState={emptyState}
+        forcePositionNotMetEmpty={forcePositionNotMetEmpty}
+        forcePositionMetEmpty={forcePositionMetEmpty}
         isDashboardLocked={isDashboardLocked}
       />
     );
@@ -10873,6 +11081,35 @@ interface InitialAnalysisSortState {
   direction: InitialAnalysisSortDirection;
 }
 
+function InitialAnalysisEmptyState({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex flex-col items-center gap-orbit-xs py-orbit-xl text-center text-orbit-sm text-orbit-fg-secondary">
+      <img
+        src="/clauseiq-v6a-empty-state.png"
+        alt="ClauseIQ empty state illustration"
+        className="h-28 w-auto max-w-full object-contain"
+      />
+      {children}
+    </div>
+  );
+}
+
+function PositionNotMetEmptyState() {
+  return <InitialAnalysisEmptyState><p className="v6-orbit-weight-semibold text-orbit-fg">No clauses need further negotiation.</p></InitialAnalysisEmptyState>;
+}
+
+function PositionMetEmptyState() {
+  return <InitialAnalysisEmptyState><p className="v6-orbit-weight-semibold text-orbit-fg">No clauses currently meet your negotiation position.</p></InitialAnalysisEmptyState>;
+}
+
+function ComparisonBucketEmptyState({ message }: { message: string }) {
+  return (
+    <InitialAnalysisEmptyState>
+      <p className="v6-orbit-weight-semibold text-orbit-fg">{message}</p>
+    </InitialAnalysisEmptyState>
+  );
+}
+
 function InitialAnalysisRecommendationTable({
   version,
   rows,
@@ -10892,6 +11129,8 @@ function InitialAnalysisRecommendationTable({
   bulkSelectedClauseIds,
   onBulkClauseSelectionChange,
   emptyState,
+  forcePositionNotMetEmpty = false,
+  forcePositionMetEmpty = false,
   isDashboardLocked,
 }: {
   version: ContractVersion;
@@ -10912,6 +11151,8 @@ function InitialAnalysisRecommendationTable({
   bulkSelectedClauseIds?: Set<string>;
   onBulkClauseSelectionChange?: (clauseId: string, selected: boolean) => void;
   emptyState: ReactNode;
+  forcePositionNotMetEmpty?: boolean;
+  forcePositionMetEmpty?: boolean;
   isDashboardLocked?: boolean;
 }) {
   const versionLabel = version.version;
@@ -10942,7 +11183,9 @@ function InitialAnalysisRecommendationTable({
   const rationaleClause = rationaleClauseId ? rows.find((clause) => clause.id === rationaleClauseId) : undefined;
   const fullClause = fullClauseId ? rows.find((clause) => clause.id === fullClauseId) : undefined;
   const fullClauseMissing = Boolean(fullClause && (missingClauseIds?.has(fullClause.id) || fullClause.missingClause));
-  const selectableRecommendationRows = recommendationRows.filter((clause) => {
+  const visibleRecommendationRows = forcePositionNotMetEmpty ? [] : recommendationRows;
+  const visiblePositionMetRows = forcePositionMetEmpty ? [] : positionMetRows;
+  const selectableRecommendationRows = visibleRecommendationRows.filter((clause) => {
     const state = stateOf(clause.id);
     return state.roundDecisions[versionLabel] !== "no-action" && !acceptedClauseIds?.has(clause.id);
   });
@@ -11034,7 +11277,12 @@ function InitialAnalysisRecommendationTable({
       .map(({ clause }) => clause);
   };
 
-  const renderTable = (tableRows: ClauseResult[], tableKey: InitialAnalysisTableKey, mode: "position-not-met" | "position-met") => {
+  const renderTable = (
+    tableRows: ClauseResult[],
+    tableKey: InitialAnalysisTableKey,
+    mode: "position-not-met" | "position-met",
+    tableEmptyState: ReactNode = emptyState,
+  ) => {
     const isPositionMet = mode === "position-met";
     const sort = sortByTable[tableKey];
     const sortedRows = sortTableRows(tableRows, sort);
@@ -11172,6 +11420,7 @@ function InitialAnalysisRecommendationTable({
                         rows={3}
                         aria-label={`Negotiation position for ${displayTitleForClause(clause.id, clause.title)}`}
                         placeholder={noRecommendation ? "Type a recommendation for this clause..." : undefined}
+                        hideCharacterCount
                         className="min-h-[96px] resize-y bg-transparent text-orbit-sm [&>div]:!pt-0 [&>div>textarea]:!min-h-[96px] [&>div>textarea]:!bg-transparent"
                         onFocus={() => {
                           setFocusedClauseId(clause.id);
@@ -11202,7 +11451,7 @@ function InitialAnalysisRecommendationTable({
             </tr>
             </Fragment>;
           })}
-          {tableRows.length === 0 ? <tr><td colSpan={6} className="p-orbit-base">{emptyState}</td></tr> : null}
+          {tableRows.length === 0 ? <tr><td colSpan={6} className="p-orbit-base">{tableEmptyState}</td></tr> : null}
         </tbody>
       </table>
     </div>
@@ -11250,12 +11499,12 @@ function InitialAnalysisRecommendationTable({
         </div>
         {rows.length === 0 ? emptyState : <>
           <section className="overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">
-            {sectionHeader("position-not-met", "Position Not Met", recommendationRows.length, "After analysing the latest supplier contract, ClauseIQ has flagged these clauses for further negotiation. Review the table below to see where the supplier deviates from your preferred standards, then download your current position to negotiate a new round — or accept the supplier's wording to close a clause out.", false)}
-            {openTableSections["position-not-met"] ? renderTable(recommendationRows, "position-not-met", "position-not-met") : null}
+            {sectionHeader("position-not-met", "Position Not Met", visibleRecommendationRows.length, "After analysing the latest supplier contract, ClauseIQ has flagged these clauses for further negotiation. Review the table below to see where the supplier deviates from your preferred standards, then download your current position to negotiate a new round — or accept the supplier's wording to close a clause out.", false)}
+            {openTableSections["position-not-met"] ? renderTable(visibleRecommendationRows, "position-not-met", "position-not-met", <PositionNotMetEmptyState />) : null}
           </section>
           <section className="overflow-hidden rounded-orbit-lg border border-orbit-border bg-orbit-card">
-            {sectionHeader("position-met", "Position Met", positionMetRows.length, "These clauses already meet your preferred contract standards, so no further negotiation is recommended. You can still edit or override any position before downloading.", false)}
-            {openTableSections["position-met"] ? renderTable(positionMetRows, "position-met", "position-met") : null}
+            {sectionHeader("position-met", "Position Met", visiblePositionMetRows.length, "These clauses already meet your preferred contract standards, so no further negotiation is recommended. You can still edit or override any position before downloading.", false)}
+            {openTableSections["position-met"] ? renderTable(visiblePositionMetRows, "position-met", "position-met", <PositionMetEmptyState />) : null}
           </section>
         </>}
       </div>
@@ -11594,6 +11843,7 @@ function ComparisonSection(props: {
   onBulkClauseSelectionChange?: (clauseId: string, selected: boolean) => void;
   isDashboardLocked?: boolean;
   showSectionBulkSelection?: boolean;
+  emptyState?: ReactNode;
 }) {
   const {
     title, description, accent, rows, leftLabel, rightLabel, visible, bucket, stats,
@@ -11607,6 +11857,7 @@ function ComparisonSection(props: {
     showKeepCurrentPosition = true,
     showOutcomeActions = true,
     showSectionBulkSelection = false,
+    emptyState,
   } = props;
   const [open, setOpen] = useState(defaultOpen);
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
@@ -11716,7 +11967,7 @@ function ComparisonSection(props: {
   ) : null;
 
   const rowsContent = rows.length === 0 ? (
-    <div className="border-t border-orbit-border p-orbit-m text-center text-orbit-xs text-orbit-fg-secondary">{emptyMsg}</div>
+    <div className="border-t border-orbit-border p-orbit-base">{emptyState ?? <ComparisonBucketEmptyState message={emptyMsg} />}</div>
   ) : (
     <div className="space-y-orbit-s border-t border-orbit-border p-orbit-base">
       {sortedRows.map((r) => {
@@ -11855,7 +12106,11 @@ function ComparisonSection(props: {
                 event.stopPropagation();
                 onCancelDraft?.(r.id);
                 setExpandedRequestId(null);
-                onContinueWithActionability?.(r.id, { requestedChange: comparisonBestPractice });
+                // Revert restores the baseline recommendation; it is not a
+                // new pending request. Re-adding it as one puts the card into
+                // its compact handled state and hides the full comparison.
+                onResetReview?.(r.id);
+                if (!onResetReview) onRemoveRequest?.(r.id);
               }}
             />
           </span>

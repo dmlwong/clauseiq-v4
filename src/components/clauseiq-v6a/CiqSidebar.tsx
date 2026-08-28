@@ -15,9 +15,10 @@ const ICON_TARGET = "\uf140";
 
 interface CiqSidebarProps {
   prototype?: "v5" | "v6a";
+  activeArea?: "project-management" | "data-tracker";
 }
 
-export function CiqSidebar({ prototype = "v5" }: CiqSidebarProps) {
+export function CiqSidebar({ prototype = "v5", activeArea = "project-management" }: CiqSidebarProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -69,6 +70,7 @@ export function CiqSidebar({ prototype = "v5" }: CiqSidebarProps) {
             id: "data-tracker",
             icon: ICON_DATABASE,
             label: "Data Tracker & Insights",
+            active: activeArea === "data-tracker",
             onClick: () => comingSoon("Data Tracker & Insights"),
           },
           {
@@ -96,7 +98,7 @@ export function CiqSidebar({ prototype = "v5" }: CiqSidebarProps) {
                 id: "project-management",
                 icon: ICON_ROCKET,
                 label: "Project Management",
-                active: pathname.startsWith("/"),
+                active: activeArea === "project-management" && pathname.startsWith("/"),
                 onClick: () => goTo("/"),
               },
               {

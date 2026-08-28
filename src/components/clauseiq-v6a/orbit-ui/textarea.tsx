@@ -6,10 +6,11 @@ export interface TextareaProps
   extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "onChange"> {
   value?: string | number | readonly string[];
   onChange?: React.ChangeEventHandler<HTMLTextAreaElement>;
+  hideCharacterCount?: boolean;
 }
 
 export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea(
-  { className, value, onChange, onFocus, onBlur, placeholder, disabled, required, rows, maxLength, autoFocus, "aria-label": ariaLabel, id },
+  { className, value, onChange, onFocus, onBlur, placeholder, disabled, required, rows, maxLength, autoFocus, hideCharacterCount = false, "aria-label": ariaLabel, id },
   _ref,
 ) {
   const stringValue = Array.isArray(value) ? value.join(", ") : value === undefined ? "" : String(value);
@@ -29,6 +30,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(fun
         required={required}
         rows={rows}
         maxLength={maxLength}
+        showCharacterCount={!hideCharacterCount}
         autoFocus={autoFocus}
         ariaLabel={ariaLabel || placeholder || id || "Text area"}
       />

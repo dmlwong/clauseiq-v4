@@ -9,6 +9,8 @@ import { SupplierOutputsPanel } from "@/components/clauseiq-v6a/supplier-results
 import { getSupplierScorePresentationByAnalysisId } from "@/components/clauseiq-v6a/supplier-results/OutputSummaryMetrics";
 import { mockInitiative } from "@/data/mock-clauseiq-v6";
 
+const DEFAULT_PLAYBOOK_NAME = "Thomson Reuters Procurement Playbook";
+
 function renderClauseIQ(
   route = "/clauseiq-v6a",
   props: {
@@ -44,7 +46,7 @@ function startAndSelectInitiative() {
 
 function selectDefaultPlaybook() {
   fireEvent.focus(screen.getByRole("combobox", { name: "Playbook" }));
-  fireEvent.click(screen.getByRole("option", { name: CIQ_DEFAULT_PLAYBOOK }));
+  fireEvent.click(screen.getByRole("option", { name: new RegExp(`^${DEFAULT_PLAYBOOK_NAME}`) }));
 }
 
 function selectNoPlaybook() {
@@ -153,7 +155,7 @@ describe("ClauseIQ V6A flow", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Playbook" })).toHaveAttribute(
       "placeholder",
-      "Please select a playbook...",
+      "Search by name, company or category",
     );
     expect(
       screen.queryByRole("option", { name: CIQ_DEFAULT_PLAYBOOK }),
@@ -173,7 +175,7 @@ describe("ClauseIQ V6A flow", () => {
     selectDefaultPlaybook();
 
     expect(
-      screen.getByText(`Playbook · ${CIQ_DEFAULT_PLAYBOOK}`),
+      screen.getByText(DEFAULT_PLAYBOOK_NAME),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /change playbook/i }),
@@ -190,6 +192,28 @@ describe("ClauseIQ V6A flow", () => {
     expect(
       screen.getByRole("heading", { name: "Upload Contract" }),
     ).toBeInTheDocument();
+  });
+
+  it("shows ready playbook metadata, collision filenames, and searchable tags", () => {
+    renderClauseIQ();
+
+    startAndSelectInitiative();
+    const playbookField = screen.getByRole("combobox", { name: "Playbook" });
+    fireEvent.focus(playbookField);
+
+    expect(screen.getByRole("option", { name: new RegExp(`^${DEFAULT_PLAYBOOK_NAME}`) })).toBeInTheDocument();
+    expect(screen.getAllByText("Thomson Reuters").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Procurement").length).toBeGreaterThan(0);
+    expect(screen.queryByText(`From ${CIQ_DEFAULT_PLAYBOOK}`)).not.toBeInTheDocument();
+    expect(screen.getByText("From Procurement_Playbook_Standard_v3.pdf")).toBeInTheDocument();
+    expect(screen.getByText("From Procurement_Playbook_Standard_v4.pdf")).toBeInTheDocument();
+
+    fireEvent.change(playbookField, { target: { value: "Yorkshire Water" } });
+    expect(screen.getAllByRole("option")).toHaveLength(2);
+
+    fireEvent.change(playbookField, { target: { value: "no matching company" } });
+    expect(screen.getByText('No playbooks match "no matching company".')).toBeInTheDocument();
+    expect(screen.getAllByText("Only playbooks marked Ready to use appear here.").length).toBeGreaterThan(0);
   });
 
   it("shows analysis parameters without asking for a supplier name", () => {
@@ -398,13 +422,13 @@ describe("ClauseIQ V6A flow", () => {
     expect(screen.getByRole("radio", { name: "Yes" })).toBeChecked();
     expect(screen.getByRole("combobox", { name: "Playbook" })).toHaveAttribute(
       "placeholder",
-      "Please select a playbook...",
+      "Search by name, company or category",
     );
     expect(
       screen.queryByRole("option", { name: CIQ_DEFAULT_PLAYBOOK }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByText(`Playbook · ${CIQ_DEFAULT_PLAYBOOK}`),
+      screen.queryByText(DEFAULT_PLAYBOOK_NAME),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("heading", { name: "Upload Contract" }),
@@ -442,7 +466,7 @@ describe("ClauseIQ V6A flow", () => {
     expect(screen.getByRole("radio", { name: "Yes" })).toBeChecked();
     expect(screen.getByRole("combobox", { name: "Playbook" })).toHaveAttribute(
       "placeholder",
-      "Please select a playbook...",
+      "Search by name, company or category",
     );
     expect(
       screen.queryByRole("option", { name: CIQ_DEFAULT_PLAYBOOK }),
@@ -513,7 +537,7 @@ describe("ClauseIQ V6A flow", () => {
     ).not.toBeInTheDocument();
     expect(
       screen
-        .getByText(`Playbook · ${CIQ_DEFAULT_PLAYBOOK}`)
+        .getByText(DEFAULT_PLAYBOOK_NAME)
         .closest(".min-h-11"),
     ).toHaveClass("bg-orbit-surface/50");
     expect(
@@ -1432,7 +1456,7 @@ describe("ClauseIQ V6A flow", () => {
     ).toBeInTheDocument();
     expect(
       screen
-        .getAllByText(`Playbook · ${CIQ_DEFAULT_PLAYBOOK}`)
+        .getAllByText(DEFAULT_PLAYBOOK_NAME)
         .find((element) => element.closest(".min-h-11"))
         ?.closest(".min-h-11"),
     ).toHaveClass("bg-orbit-surface/50");

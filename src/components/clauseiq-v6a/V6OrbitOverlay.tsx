@@ -11,6 +11,8 @@ interface V6OrbitOverlayProps {
   description?: string;
   children?: ReactNode;
   footer?: ReactNode;
+  titleMeta?: ReactNode;
+  titleAction?: ReactNode;
   size?: "Default" | "Large";
   height?: "Viewport" | "Content";
   modalKey?: string;
@@ -24,6 +26,8 @@ export function V6OrbitOverlay({
   description,
   children,
   footer,
+  titleMeta,
+  titleAction,
   size = "Default",
   height = "Content",
   modalKey,
@@ -60,7 +64,11 @@ export function V6OrbitOverlay({
                 }`}
               >
                 <div className="min-w-0">
-                  <Headings size="Heading 4">{title}</Headings>
+                  <div className="flex min-w-0 items-center gap-orbit-s">
+                    <Headings size="Heading 4">{title}</Headings>
+                    {titleAction}
+                    {titleMeta}
+                  </div>
                   {description && (
                     <div className="mt-orbit-s min-w-0 max-w-full">
                       <Text size="Small" variant="Secondary" as="p" className="min-w-0 max-w-full whitespace-normal break-words">

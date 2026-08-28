@@ -30,6 +30,7 @@ import PrototypeCPV2Results from "./pages/PrototypeCPV2Results.tsx";
 import DeliveryEnginePage from "./pages/delivery-engine/DeliveryEnginePage.tsx";
 import InitiativeDetailPage from "./pages/delivery-engine/InitiativeDetailPage.tsx";
 import InitiativeDetailPageV4 from "./pages/delivery-engine-v4/InitiativeDetailPageV4.tsx";
+import PlaybookManagement from "./pages/PlaybookManagement.tsx";
 
 const queryClient = new QueryClient();
 
@@ -70,6 +71,7 @@ const App = () => (
           <Route path="/prototype-cp/results" element={<PrototypeCPResults />} />
           <Route path="/prototype-cp-v2" element={<PrototypeCPV2 />} />
           <Route path="/prototype-cp-v2/results" element={<PrototypeCPV2Results />} />
+          <Route path="/playbook-management" element={<PlaybookManagement />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
           </Routes>

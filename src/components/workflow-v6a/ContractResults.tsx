@@ -11085,7 +11085,7 @@ function InitialAnalysisEmptyState({ children }: { children: ReactNode }) {
   return (
     <div className="flex flex-col items-center gap-orbit-xs py-orbit-xl text-center text-orbit-sm text-orbit-fg-secondary">
       <img
-        src="/clauseiq-v6a-empty-state.png"
+        src={`${import.meta.env.BASE_URL}clauseiq-v6a-empty-state.png`}
         alt="ClauseIQ empty state illustration"
         className="h-28 w-auto max-w-full object-contain"
       />

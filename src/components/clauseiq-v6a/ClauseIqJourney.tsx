@@ -344,6 +344,7 @@ function ResultsStep({
               )}
               <AnalysisParameterCards
                 selectedParameter={rerunParameter}
+                playbookAvailability={workflow.playbookAvailability}
                 cardState={
                   workflow.rerunProcessing || rerunParametersComplete
                     ? "default"
@@ -632,10 +633,26 @@ export function PrototypeControl({ workflow }: { workflow: ClauseIqWorkflow }) {
     setOpen(false);
   };
 
-  return <div className="relative" aria-label="Prototype tools">
-    {open && <div className="absolute bottom-9 left-0 w-full rounded-orbit-md border border-[var(--orbit-color-sidenav-divider)] bg-[var(--orbit-color-sidenav-active-bg)] p-orbit-s text-[var(--orbit-color-sidenav-text)] shadow-lg"><label className="block text-orbit-xs v6-orbit-weight-medium text-orbit-inverse" htmlFor="supplier-detection-sim">Supplier detection preview</label><Select value={workflow.detectionOutcome} onValueChange={(value) => workflow.actions.setDetectionOutcome(value as typeof workflow.detectionOutcome)}><SelectTrigger id="supplier-detection-sim" className="mt-orbit-xs h-8 w-full bg-orbit-card text-orbit-xs clauseiq-v6-select-left clauseiq-v6a-simulation-select" aria-label="Supplier detection simulation"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="known">A · detected & known</SelectItem><SelectItem value="wrong-match">A′ · wrong match</SelectItem><SelectItem value="new">B · detected, not in list</SelectItem><SelectItem value="missing">C · not detected</SelectItem></SelectContent></Select><Button type="button" variant="outline" className="mt-orbit-s h-8 w-full border-[var(--orbit-color-sidenav-divider)] bg-transparent text-orbit-inverse hover:bg-[var(--orbit-color-sidenav-hover-bg)]" onClick={openInspector}>Inspect layout</Button></div>}
-    <Button type="button" variant="outline" className="clauseiq-v6a-design-control-trigger h-7 w-full justify-center gap-orbit-xs border-[var(--orbit-color-sidenav-divider)] px-orbit-base text-orbit-xs text-orbit-inverse" onClick={() => setOpen((current) => !current)} aria-expanded={open}>Prototype tools</Button>
-  </div>;
+  return (
+    <div className="relative" aria-label="Prototype tools">
+      {open && (
+        <div className="absolute bottom-9 left-0 w-full rounded-orbit-md border border-[var(--orbit-color-sidenav-divider)] bg-[var(--orbit-color-sidenav-active-bg)] p-orbit-s text-[var(--orbit-color-sidenav-text)] shadow-lg">
+          <label className="block text-orbit-xs v6-orbit-weight-medium text-orbit-inverse" htmlFor="supplier-detection-sim">Supplier detection preview</label>
+          <Select value={workflow.detectionOutcome} onValueChange={(value) => workflow.actions.setDetectionOutcome(value as typeof workflow.detectionOutcome)}>
+            <SelectTrigger id="supplier-detection-sim" className="mt-orbit-xs h-8 w-full bg-orbit-card text-orbit-xs clauseiq-v6-select-left clauseiq-v6a-simulation-select" aria-label="Supplier detection simulation"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="known">A · detected & known</SelectItem><SelectItem value="wrong-match">A′ · wrong match</SelectItem><SelectItem value="new">B · detected, not in list</SelectItem><SelectItem value="missing">C · not detected</SelectItem></SelectContent>
+          </Select>
+          <label className="mt-orbit-s block text-orbit-xs v6-orbit-weight-medium text-orbit-inverse" htmlFor="playbook-availability-sim">Playbook availability</label>
+          <Select value={workflow.playbookAvailability} onValueChange={(value) => workflow.actions.setPlaybookAvailability(value as typeof workflow.playbookAvailability)}>
+            <SelectTrigger id="playbook-availability-sim" className="mt-orbit-xs h-8 w-full bg-orbit-card text-orbit-xs clauseiq-v6-select-left clauseiq-v6a-simulation-select" aria-label="Playbook availability"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="available">Playbooks available</SelectItem><SelectItem value="unavailable">No playbooks available</SelectItem></SelectContent>
+          </Select>
+          <Button type="button" variant="outline" className="mt-orbit-s h-8 w-full border-[var(--orbit-color-sidenav-divider)] bg-transparent text-orbit-inverse hover:bg-[var(--orbit-color-sidenav-hover-bg)]" onClick={openInspector}>Inspect layout</Button>
+        </div>
+      )}
+      <Button type="button" variant="outline" className="clauseiq-v6a-design-control-trigger h-7 w-full justify-center gap-orbit-xs border-[var(--orbit-color-sidenav-divider)] px-orbit-base text-orbit-xs text-orbit-inverse" onClick={() => setOpen((current) => !current)} aria-expanded={open}>Prototype tools</Button>
+    </div>
+  );
 }
 
 function mockSupplierOptions() {
@@ -846,6 +863,7 @@ function InitialAnalysisParameters({
     <div className="space-y-orbit-base">
       <AnalysisParameterCards
         selectedParameter={workflow.selectedParameter}
+        playbookAvailability={workflow.playbookAvailability}
         cardState={
           cardState ??
           (hasCompleteAnalysisParameters(workflow.selectedParameter)

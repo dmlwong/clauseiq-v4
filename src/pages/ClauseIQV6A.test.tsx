@@ -194,6 +194,36 @@ describe("ClauseIQ V6A flow", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows the no-playbooks guidance when the prototype catalogue is unavailable", () => {
+    renderClauseIQ();
+
+    startAndSelectInitiative();
+    fireEvent.click(screen.getByRole("button", { name: /prototype tools/i }));
+    fireEvent.click(screen.getByRole("button", { name: /playbook availability/i }));
+    fireEvent.click(screen.getByRole("option", { name: "No playbooks available" }));
+
+    expect(screen.getAllByText("No playbooks available").length).toBeGreaterThan(1);
+    expect(screen.getByText("There are no playbooks available for this project yet. Please contact your Efficio lead to have one added.")).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Playbook" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Can’t find your playbook?")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("radio", { name: "No" }));
+    expect(screen.getByRole("combobox", { name: /^Category/i })).toBeInTheDocument();
+  });
+
+  it("keeps a selected playbook visible when the prototype catalogue becomes unavailable", () => {
+    renderClauseIQ();
+
+    startAndSelectInitiative();
+    selectDefaultPlaybook();
+    fireEvent.click(screen.getByRole("button", { name: /prototype tools/i }));
+    fireEvent.click(screen.getByRole("button", { name: /playbook availability/i }));
+    fireEvent.click(screen.getByRole("option", { name: "No playbooks available" }));
+
+    expect(screen.getByText(DEFAULT_PLAYBOOK_NAME)).toBeInTheDocument();
+    expect(screen.queryByText("There are no playbooks available for this project yet. Please contact your Efficio lead to have one added.")).not.toBeInTheDocument();
+  });
+
   it("shows ready playbook metadata, collision filenames, and searchable tags", () => {
     renderClauseIQ();
 

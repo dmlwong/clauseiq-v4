@@ -16,7 +16,6 @@ import {
   Check,
   ChevronUp,
   ClipboardList,
-  ExternalLink,
   FilePlus2,
   ListChecks,
   Pencil,
@@ -52,6 +51,7 @@ import type {
 export type ClauseIqWorkflowStep = "welcome" | "select" | "parameters" | "upload" | "processing" | "results";
 export type AnalysisBasisKind = Exclude<CiqParameterKind, "Category">;
 export type PlaybookChoice = "yes" | "no";
+export type PlaybookAvailability = "available" | "unavailable";
 
 export interface AnalysisBasisSelection {
   kind: AnalysisBasisKind;
@@ -447,6 +447,7 @@ export function useClauseIqWorkflow({
   const [rerunWithoutSupplierContext, setRerunWithoutSupplierContext] = useState(false);
   const [initialSupplierName, setInitialSupplierName] = useState<string | null>(null);
   const [detectionOutcome, setDetectionOutcome] = useState<SupplierDetectionOutcome>("known");
+  const [playbookAvailability, setPlaybookAvailability] = useState<PlaybookAvailability>("available");
   const [supplierDetectionContext, setSupplierDetectionContext] = useState<SupplierDetectionContext | null>(null);
   const [confirmedSupplierMapping, setConfirmedSupplierMapping] = useState<ConfirmedSupplierMapping | null>(null);
   const [unknownCount, setUnknownCount] = useState(0);
@@ -1078,6 +1079,7 @@ export function useClauseIqWorkflow({
     latestOutputAnalysisId,
     initialSupplierName,
     detectionOutcome,
+    playbookAvailability,
     supplierDetectionContext,
     confirmedSupplierMapping,
     registeredAliases,
@@ -1175,6 +1177,7 @@ export function useClauseIqWorkflow({
         setFile(null);
       },
       setDetectionOutcome: previewDetectionOutcome,
+      setPlaybookAvailability,
       beginAliasEntry: () => setPendingAliasEntry(true),
       cancelAliasEntry: () => setPendingAliasEntry(false),
       saveDetectedAlias: (name: string) => {
@@ -1450,6 +1453,7 @@ export function AnalysisParameterCards({
   categoryCardState = "active",
   locked = false,
   showBenchmarkConfirmAction = true,
+  playbookAvailability = "available",
   onPlaybookChoiceChange = () => undefined,
   onBenchmarkConfirm,
   onBenchmarkEdit,
@@ -1464,6 +1468,7 @@ export function AnalysisParameterCards({
   categoryCardState?: CardState;
   locked?: boolean;
   showBenchmarkConfirmAction?: boolean;
+  playbookAvailability?: PlaybookAvailability;
   onPlaybookChoiceChange?: (choice: PlaybookChoice) => void;
   onBenchmarkConfirm: () => void;
   onBenchmarkEdit: () => void;
@@ -1485,6 +1490,7 @@ export function AnalysisParameterCards({
     playbook.name === selectedParameter?.basis?.label || playbook.sourceFileName === selectedParameter?.basis?.label,
   );
   const playbookSelected = playbookChoice === "yes" && selectedParameter?.basis?.kind === "Playbook";
+  const playbookUnavailable = playbookChoice === "yes" && !playbookSelected && playbookAvailability === "unavailable";
   const showPlaybookChoiceSelector = !locked;
 
   useEffect(() => {
@@ -1545,7 +1551,14 @@ export function AnalysisParameterCards({
               onChange={onBasisEdit}
             />
           ) : (
-            <>
+            playbookUnavailable ? (
+              <InlineBanner
+                variant="Information"
+                contrast="Low"
+                label="No playbooks available"
+                description="There are no playbooks available for this project yet. Please contact your Efficio lead to have one added."
+              />
+            ) : <>
               {playbookOption && (
                 <PlaybookCombobox
                   playbooks={readyPlaybooks}
@@ -1553,17 +1566,7 @@ export function AnalysisParameterCards({
                 />
               )}
               <p className="mt-orbit-base text-orbit-sm text-orbit-fg-secondary">
-                Can’t find your playbook?{" "}
-                <a
-                  href="/clauseiq-v6a?view=playbooks"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-orbit-xs text-orbit-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orbit-primary focus-visible:ring-offset-2"
-                >
-                  Add it here
-                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                </a>
-                .
+                Can’t find your playbook? Please contact your Efficio lead to have one added.
               </p>
             </>
           )}

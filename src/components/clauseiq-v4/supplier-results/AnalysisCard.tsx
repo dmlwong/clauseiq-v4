@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import type { ClauseAnalysis, Supplier } from "@/data/mock-clauseiq";
 import { cn } from "@/lib/utils";
 import { supplierSeverity } from "@/lib/clauseiq-utils";
+import { captureEvent } from "@/lib/posthog";
 import { SupplierAvatar } from "./SupplierAvatar";
 import { DeviationPills } from "./DeviationPills";
 import type { AnalysisParameterItem } from "./types";
@@ -39,6 +40,16 @@ export function AnalysisCard({
   const [saveToDocuments, setSaveToDocuments] = useState(false);
   const deviationSummaryId = useId();
   const status = statusCopy[analysis.status];
+
+  const handleSaveToDocumentsChange = (enabled: boolean) => {
+    captureEvent("clauseiq_content_search_save_toggled", {
+      analysis_id: analysis.id,
+      analysis_status: analysis.status,
+      enabled,
+      is_latest_output: isLatestOutput,
+    });
+    setSaveToDocuments(enabled);
+  };
 
   return (
     <motion.article
@@ -76,7 +87,7 @@ export function AnalysisCard({
             <h3 className="text-base font-semibold text-foreground">Here is your Analysis Result</h3>
             <label className="flex items-center gap-2 text-sm font-medium text-foreground">
               <span>Save To Content Search</span>
-              <Switch checked={saveToDocuments} onCheckedChange={setSaveToDocuments} aria-label="Save To Content Search" />
+              <Switch checked={saveToDocuments} onCheckedChange={handleSaveToDocumentsChange} aria-label="Save To Content Search" />
             </label>
           </div>
         </div>

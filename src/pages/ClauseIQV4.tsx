@@ -21,6 +21,7 @@ import {
   type CiqParameterOption,
 } from "@/lib/clauseiq-v4-data";
 import { cn } from "@/lib/utils";
+import { captureEvent } from "@/lib/posthog";
 import { mockInitiative, type ClauseAnalysis, type Initiative } from "@/data/mock-clauseiq";
 import { V4_DELIVERY_INITIATIVE_ID } from "@/data/mock-delivery-engine-v4";
 import {
@@ -263,7 +264,16 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   const parameterLocked = step === "processing" || step === "results";
 
   // ---- handlers ----
+  const handleGetStarted = () => {
+    captureEvent("clauseiq_started", { entry_point: "welcome_card" });
+    setStep("select");
+  };
+
   const handleSelect = (i: CiqInitiative) => {
+    captureEvent("clauseiq_initiative_selected", {
+      initiative_id: i.id,
+      initiative_scope: i.scope,
+    });
     setInitiative(i);
     setSelectedParameter(null);
     setFile(null);
@@ -272,6 +282,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   };
 
   const handleStartAnotherInitiative = () => {
+    captureEvent("clauseiq_started", { entry_point: "post_analysis_action" });
     setInitiative(null);
     setSelectedParameter(null);
     setFile(null);
@@ -290,17 +301,28 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   };
 
   const handleMilestoneComplete = (milestoneId: string) => {
+    captureEvent("clauseiq_milestone_completed", {
+      milestone_id: milestoneId,
+      completed_milestone_count: completedMilestoneIds.length + 1,
+    });
     setCompletedMilestoneIds((current) => (
       current.includes(milestoneId) ? current : [...current, milestoneId]
     ));
   };
 
   const handleCompleteInitiative = () => {
+    captureEvent("clauseiq_initiative_completed", {
+      completed_milestone_count: completedMilestoneIds.length,
+    });
     setInitiativeCompleted(true);
   };
 
   const handleBasisSelect = (option: CiqParameterOption, value: string) => {
     if (option.kind === "Category") return;
+    captureEvent("clauseiq_analysis_parameter_selected", {
+      parameter_type: option.kind,
+      is_rerun: false,
+    });
     setSelectedParameter((current) => ({
       basis: { kind: option.kind, label: value },
       category: option.kind === "Governing Law" ? current?.category ?? null : null,
@@ -310,6 +332,10 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   };
 
   const handleCategorySelect = (_option: CiqParameterOption, value: string) => {
+    captureEvent("clauseiq_analysis_parameter_selected", {
+      parameter_type: "Category",
+      is_rerun: false,
+    });
     setSelectedParameter((current) => ({
       basis: current?.basis ?? null,
       category: value,
@@ -320,6 +346,10 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
 
   const handleRerunBasisSelect = (option: CiqParameterOption, value: string) => {
     if (option.kind === "Category") return;
+    captureEvent("clauseiq_analysis_parameter_selected", {
+      parameter_type: option.kind,
+      is_rerun: true,
+    });
     setRerunSelectedParameter((current) => ({
       basis: { kind: option.kind, label: value },
       category: option.kind === "Governing Law" ? current?.category ?? null : null,
@@ -328,6 +358,10 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   };
 
   const handleRerunCategorySelect = (_option: CiqParameterOption, value: string) => {
+    captureEvent("clauseiq_analysis_parameter_selected", {
+      parameter_type: "Category",
+      is_rerun: true,
+    });
     setRerunSelectedParameter((current) => ({
       basis: current?.basis ?? null,
       category: value,
@@ -362,16 +396,25 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   const validateAndSetFile = (f: File | null) => {
     if (!f) return;
     if (f.type !== "application/pdf" && !f.name.toLowerCase().endsWith(".pdf")) {
+      captureEvent("clauseiq_contract_upload_rejected", { rejection_reason: "invalid_file_type" });
       toast.error("Only PDF files are accepted.");
       return;
     }
     if (f.size > 100 * 1024 * 1024) {
+      captureEvent("clauseiq_contract_upload_rejected", { rejection_reason: "file_too_large" });
       toast.error("File exceeds the 100MB limit.");
       return;
     }
+    const isRerun = resultsVisible && rerunUploadVisible;
+    const parameterForRun = rerunSelectedParameter ?? selectedParameter ?? createDefaultParameterSelection();
+    captureEvent("clauseiq_analysis_started", {
+      is_rerun: isRerun,
+      analysis_basis_type: parameterForRun.basis?.kind ?? "unknown",
+      results_layout: resultsLayout,
+      file_size_mb: Math.round((f.size / (1024 * 1024)) * 10) / 10,
+    });
     setFile(f);
-    if (resultsVisible && rerunUploadVisible) {
-      const parameterForRun = rerunSelectedParameter ?? selectedParameter ?? createDefaultParameterSelection();
+    if (isRerun) {
       setPendingRerunAnalysis(createRerunAnalysis(f.name));
       setPendingRerunParameter(parameterForRun);
       setCompletedRerunAnalysis(null);
@@ -384,6 +427,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   };
 
   const showRunAgainUpload = () => {
+    captureEvent("clauseiq_run_again_selected", { results_layout: resultsLayout });
     setFile(null);
     setRerunProcessing(false);
     setPendingRerunAnalysis(null);
@@ -401,10 +445,12 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   };
 
   const handleDownload = () => {
+    captureEvent("clauseiq_report_downloaded", { results_layout: resultsLayout });
     toast.success("Report download queued.");
   };
 
   const handleViewResult = () => {
+    captureEvent("clauseiq_result_viewed", { results_layout: resultsLayout });
     navigate(LATEST_V4_RESULTS_ROUTE);
   };
 
@@ -466,7 +512,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
               {step === "welcome" && (
                 <Button
                   className="w-full"
-                  onClick={() => setStep("select")}
+                  onClick={handleGetStarted}
                 >
                   <Sparkles className="h-4 w-4 mr-2" />
                   Get Started

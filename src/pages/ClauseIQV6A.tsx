@@ -14,6 +14,7 @@ import {
   type CiqInitiative,
 } from "@/lib/clauseiq-v6-data";
 import { cn } from "@/lib/utils";
+import { captureEvent } from "@/lib/posthog";
 import { V4_DELIVERY_INITIATIVE_ID } from "@/data/mock-delivery-engine-v6";
 import { SupplierOutputsPanel } from "@/components/clauseiq-v6a/supplier-results";
 import type { ResultsLayout, SupplierOutputSelection } from "@/components/clauseiq-v6a/supplier-results/types";
@@ -248,6 +249,7 @@ function ClauseIQV6AContent({ forceResults = false, resultsLayout = "output-pane
   };
 
   const handleViewResult = (selection?: SupplierOutputSelection) => {
+    captureEvent("clauseiq_result_viewed", "v6a", { results_layout: resultsLayout });
     const selectedOutput = selection && "analysis" in selection ? selection : undefined;
     const analysisId = selectedOutput?.analysis.id ?? "a-001";
     const previousAnalysisId = selectedOutput?.previousAnalysis?.id;

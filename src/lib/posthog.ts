@@ -1,5 +1,12 @@
 import posthog from "posthog-js";
 
+/**
+ * Which ClauseIQ design an event came from. Both designs emit the same event
+ * names so reporting can split a single series on this property instead of
+ * comparing two unrelated ones.
+ */
+export type ClauseIqVersion = "v4" | "v6a";
+
 type ClauseIqEvent =
   | "clauseiq_started"
   | "clauseiq_initiative_selected"
@@ -17,7 +24,11 @@ const isPostHogConfigured = Boolean(
   import.meta.env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN && import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
 );
 
-export function captureEvent(eventName: ClauseIqEvent, properties?: Record<string, unknown>) {
+export function captureEvent(
+  eventName: ClauseIqEvent,
+  version: ClauseIqVersion,
+  properties?: Record<string, unknown>,
+) {
   if (!isPostHogConfigured) return;
-  posthog.capture(eventName, properties);
+  posthog.capture(eventName, { version, ...properties });
 }

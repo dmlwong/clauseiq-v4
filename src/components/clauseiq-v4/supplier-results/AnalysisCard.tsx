@@ -42,7 +42,7 @@ export function AnalysisCard({
   const status = statusCopy[analysis.status];
 
   const handleSaveToDocumentsChange = (enabled: boolean) => {
-    captureEvent("clauseiq_content_search_save_toggled", {
+    captureEvent("clauseiq_content_search_save_toggled", "v4", {
       analysis_id: analysis.id,
       analysis_status: analysis.status,
       enabled,

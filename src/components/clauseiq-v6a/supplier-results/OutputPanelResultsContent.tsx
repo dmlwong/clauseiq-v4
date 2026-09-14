@@ -29,6 +29,9 @@ import type { ResultsViewProps, SupplierOutputSelection, SupplierOutputsPanelSta
 
 type OutputScope = "team" | "mine";
 const MINE_ANALYSIS_IDS = new Set(["a-001", "a-004", "a-007"]);
+// Stable identity: a fresh [] default would change on every render, invalidating the
+// memo chain below and re-running the open-supplier effect in an endless loop.
+const NO_HIDDEN_SUPPLIER_IDS: string[] = [];
 
 export function OutputPanelResultsContent({
   initiative,
@@ -133,7 +136,7 @@ export function SupplierOutputsPanel({
   showComparisonStatus = false,
   highlightSupplierId,
   highlightAnalysisId,
-  hiddenSupplierIds = [],
+  hiddenSupplierIds = NO_HIDDEN_SUPPLIER_IDS,
   className,
 }: SupplierOutputsPanelProps) {
   const [outputScope, setOutputScope] = useState<OutputScope>(initialOutputScope);
@@ -181,7 +184,12 @@ export function SupplierOutputsPanel({
     const highlightedSupplier = highlightSupplierId && suppliers.some((supplier) => supplier.id === highlightSupplierId)
       ? highlightSupplierId
       : suppliers[0]?.id;
-    setOpenSupplierIds(highlightedSupplier ? [highlightedSupplier] : []);
+    const next = highlightedSupplier ? [highlightedSupplier] : [];
+    setOpenSupplierIds((current) => (
+      current.length === next.length && current.every((id, index) => id === next[index])
+        ? current
+        : next
+    ));
   }, [highlightSupplierId, suppliers]);
 
   useEffect(() => {

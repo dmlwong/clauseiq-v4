@@ -39,6 +39,7 @@ import {
   type CiqParameterOption,
 } from "@/lib/clauseiq-v6-data";
 import { cn } from "@/lib/utils";
+import { captureEvent } from "@/lib/posthog";
 import {
   fingerprintSupplierName,
   type SupplierFingerprintResult,
@@ -663,6 +664,10 @@ export function useClauseIqWorkflow({
   }, [updateRerunSelectedParameter]);
 
   const selectInitiative = (nextInitiative: CiqInitiative) => {
+    captureEvent("clauseiq_initiative_selected", "v6a", {
+      initiative_id: nextInitiative.id,
+      initiative_scope: nextInitiative.scope,
+    });
     setInitiative(nextInitiative);
     setInitialSupplierName(null);
     setConfirmedSupplierMapping(null);
@@ -682,6 +687,7 @@ export function useClauseIqWorkflow({
   };
 
   const startAnotherInitiative = (clearInitiative = true) => {
+    captureEvent("clauseiq_started", "v6a", { entry_point: "post_analysis_action" });
     resetRunState(clearInitiative);
     setStep("welcome");
   };
@@ -695,6 +701,10 @@ export function useClauseIqWorkflow({
 
   const handleBasisSelect = (option: CiqParameterOption, value: string) => {
     if (option.kind === "Category") return;
+    captureEvent("clauseiq_analysis_parameter_selected", "v6a", {
+      parameter_type: option.kind,
+      is_rerun: false,
+    });
     const playbookChoice: PlaybookChoice = option.kind === "Playbook" ? "yes" : "no";
     setSelectedParameter((current) => ({
       playbookChoice,
@@ -715,6 +725,10 @@ export function useClauseIqWorkflow({
   };
 
   const handleCategorySelect = (_option: CiqParameterOption, value: string) => {
+    captureEvent("clauseiq_analysis_parameter_selected", "v6a", {
+      parameter_type: "Category",
+      is_rerun: false,
+    });
     setSelectedParameter((current) => ({
       playbookChoice: "no",
       basis: current?.basis?.kind === "Governing Law" ? current.basis : null,
@@ -731,6 +745,10 @@ export function useClauseIqWorkflow({
 
   const handleRerunBasisSelect = (option: CiqParameterOption, value: string) => {
     if (option.kind === "Category") return;
+    captureEvent("clauseiq_analysis_parameter_selected", "v6a", {
+      parameter_type: option.kind,
+      is_rerun: true,
+    });
     const playbookChoice: PlaybookChoice = option.kind === "Playbook" ? "yes" : "no";
     updateRerunSelectedParameter((current) => ({
       playbookChoice,
@@ -746,6 +764,10 @@ export function useClauseIqWorkflow({
   };
 
   const handleRerunCategorySelect = (_option: CiqParameterOption, value: string) => {
+    captureEvent("clauseiq_analysis_parameter_selected", "v6a", {
+      parameter_type: "Category",
+      is_rerun: true,
+    });
     updateRerunSelectedParameter((current) => ({
       playbookChoice: "no",
       basis: current?.basis?.kind === "Governing Law" ? current.basis : null,
@@ -760,6 +782,11 @@ export function useClauseIqWorkflow({
   };
 
   const handlePlaybookChoiceChange = (playbookChoice: PlaybookChoice) => {
+    captureEvent("clauseiq_analysis_parameter_selected", "v6a", {
+      parameter_type: "PlaybookChoice",
+      playbook_choice: playbookChoice,
+      is_rerun: false,
+    });
     setSelectedParameter(
       playbookChoice === "no"
         ? createSuggestedBenchmarkSelection(initiative)
@@ -770,6 +797,11 @@ export function useClauseIqWorkflow({
   };
 
   const handleRerunPlaybookChoiceChange = (playbookChoice: PlaybookChoice) => {
+    captureEvent("clauseiq_analysis_parameter_selected", "v6a", {
+      parameter_type: "PlaybookChoice",
+      playbook_choice: playbookChoice,
+      is_rerun: true,
+    });
     updateRerunSelectedParameter(
       playbookChoice === "no"
         ? createSuggestedBenchmarkSelection(initiative)
@@ -904,6 +936,11 @@ export function useClauseIqWorkflow({
         rerunSelectedParameter ??
         selectedParameter ??
         createDefaultParameterSelection();
+      captureEvent("clauseiq_analysis_started", "v6a", {
+        is_rerun: true,
+        analysis_basis_type: parameterForRun.basis?.kind ?? "unknown",
+        file_size_mb: Math.round((nextFile.size / (1024 * 1024)) * 10) / 10,
+      });
       setPendingRerunAnalysis(createRerunAnalysis(nextFile.name));
       setPendingRerunParameter(parameterForRun);
       setPendingRerunSupplierId(rerunSupplierContextId ?? NEW_SUPPLIER_CONTEXT_ID);
@@ -919,6 +956,11 @@ export function useClauseIqWorkflow({
       return;
     }
 
+    captureEvent("clauseiq_analysis_started", "v6a", {
+      is_rerun: false,
+      analysis_basis_type: selectedParameter?.basis?.kind ?? "unknown",
+      file_size_mb: Math.round((nextFile.size / (1024 * 1024)) * 10) / 10,
+    });
     setCompletedInitialAnalysis(null);
     setCompletedInitialSupplierId(null);
     setSupplierFingerprintResolution(null);
@@ -957,10 +999,12 @@ export function useClauseIqWorkflow({
   const validateAndSetFile = (nextFile: File | null) => {
     if (!nextFile) return;
     if (nextFile.type !== "application/pdf" && !nextFile.name.toLowerCase().endsWith(".pdf")) {
+      captureEvent("clauseiq_contract_upload_rejected", "v6a", { rejection_reason: "invalid_file_type" });
       toast.error("Only PDF files are accepted.");
       return;
     }
     if (nextFile.size > 100 * 1024 * 1024) {
+      captureEvent("clauseiq_contract_upload_rejected", "v6a", { rejection_reason: "file_too_large" });
       toast.error("File exceeds the 100MB limit.");
       return;
     }
@@ -972,6 +1016,7 @@ export function useClauseIqWorkflow({
   };
 
   const showRunAgainUpload = (_supplierId?: string) => {
+    captureEvent("clauseiq_run_again_selected", "v6a");
     setFile(null);
     setRerunProcessing(false);
     setPendingRerunAnalysis(null);
@@ -1109,7 +1154,12 @@ export function useClauseIqWorkflow({
     supplierOutputPanelState,
     unassignedSupplierIds,
     actions: {
-      completeInitiative: () => setInitiativeCompleted(true),
+      completeInitiative: () => {
+        captureEvent("clauseiq_initiative_completed", "v6a", {
+          completed_milestone_count: completedMilestoneIds.length,
+        });
+        setInitiativeCompleted(true);
+      },
       handleBenchmarkConfirm,
       handleBenchmarkEdit,
       handleBenchmarkSkip,
@@ -1117,7 +1167,10 @@ export function useClauseIqWorkflow({
       handleBasisSelect,
       handleCategoryEdit,
       handleCategorySelect,
-      handleDownload: () => toast.success("Report download queued."),
+      handleDownload: () => {
+        captureEvent("clauseiq_report_downloaded", "v6a");
+        toast.success("Report download queued.");
+      },
       handlePlaybookChoiceChange,
       handleRerunBenchmarkConfirm,
       handleRerunBenchmarkEdit,
@@ -1131,6 +1184,10 @@ export function useClauseIqWorkflow({
         handleRerunPlaybookChoiceChange(choice);
       },
       markMilestoneComplete: (milestoneId: string) => {
+        captureEvent("clauseiq_milestone_completed", "v6a", {
+          milestone_id: milestoneId,
+          completed_milestone_count: completedMilestoneIds.length + 1,
+        });
         setCompletedMilestoneIds((current) => (
           current.includes(milestoneId) ? current : [...current, milestoneId]
         ));

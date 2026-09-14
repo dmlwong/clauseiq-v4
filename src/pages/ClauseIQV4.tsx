@@ -265,12 +265,12 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
 
   // ---- handlers ----
   const handleGetStarted = () => {
-    captureEvent("clauseiq_started", { entry_point: "welcome_card" });
+    captureEvent("clauseiq_started", "v4", { entry_point: "welcome_card" });
     setStep("select");
   };
 
   const handleSelect = (i: CiqInitiative) => {
-    captureEvent("clauseiq_initiative_selected", {
+    captureEvent("clauseiq_initiative_selected", "v4", {
       initiative_id: i.id,
       initiative_scope: i.scope,
     });
@@ -282,7 +282,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   };
 
   const handleStartAnotherInitiative = () => {
-    captureEvent("clauseiq_started", { entry_point: "post_analysis_action" });
+    captureEvent("clauseiq_started", "v4", { entry_point: "post_analysis_action" });
     setInitiative(null);
     setSelectedParameter(null);
     setFile(null);
@@ -301,7 +301,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   };
 
   const handleMilestoneComplete = (milestoneId: string) => {
-    captureEvent("clauseiq_milestone_completed", {
+    captureEvent("clauseiq_milestone_completed", "v4", {
       milestone_id: milestoneId,
       completed_milestone_count: completedMilestoneIds.length + 1,
     });
@@ -311,7 +311,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   };
 
   const handleCompleteInitiative = () => {
-    captureEvent("clauseiq_initiative_completed", {
+    captureEvent("clauseiq_initiative_completed", "v4", {
       completed_milestone_count: completedMilestoneIds.length,
     });
     setInitiativeCompleted(true);
@@ -319,7 +319,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
 
   const handleBasisSelect = (option: CiqParameterOption, value: string) => {
     if (option.kind === "Category") return;
-    captureEvent("clauseiq_analysis_parameter_selected", {
+    captureEvent("clauseiq_analysis_parameter_selected", "v4", {
       parameter_type: option.kind,
       is_rerun: false,
     });
@@ -332,7 +332,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   };
 
   const handleCategorySelect = (_option: CiqParameterOption, value: string) => {
-    captureEvent("clauseiq_analysis_parameter_selected", {
+    captureEvent("clauseiq_analysis_parameter_selected", "v4", {
       parameter_type: "Category",
       is_rerun: false,
     });
@@ -346,7 +346,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
 
   const handleRerunBasisSelect = (option: CiqParameterOption, value: string) => {
     if (option.kind === "Category") return;
-    captureEvent("clauseiq_analysis_parameter_selected", {
+    captureEvent("clauseiq_analysis_parameter_selected", "v4", {
       parameter_type: option.kind,
       is_rerun: true,
     });
@@ -358,7 +358,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   };
 
   const handleRerunCategorySelect = (_option: CiqParameterOption, value: string) => {
-    captureEvent("clauseiq_analysis_parameter_selected", {
+    captureEvent("clauseiq_analysis_parameter_selected", "v4", {
       parameter_type: "Category",
       is_rerun: true,
     });
@@ -396,18 +396,18 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   const validateAndSetFile = (f: File | null) => {
     if (!f) return;
     if (f.type !== "application/pdf" && !f.name.toLowerCase().endsWith(".pdf")) {
-      captureEvent("clauseiq_contract_upload_rejected", { rejection_reason: "invalid_file_type" });
+      captureEvent("clauseiq_contract_upload_rejected", "v4", { rejection_reason: "invalid_file_type" });
       toast.error("Only PDF files are accepted.");
       return;
     }
     if (f.size > 100 * 1024 * 1024) {
-      captureEvent("clauseiq_contract_upload_rejected", { rejection_reason: "file_too_large" });
+      captureEvent("clauseiq_contract_upload_rejected", "v4", { rejection_reason: "file_too_large" });
       toast.error("File exceeds the 100MB limit.");
       return;
     }
     const isRerun = resultsVisible && rerunUploadVisible;
     const parameterForRun = rerunSelectedParameter ?? selectedParameter ?? createDefaultParameterSelection();
-    captureEvent("clauseiq_analysis_started", {
+    captureEvent("clauseiq_analysis_started", "v4", {
       is_rerun: isRerun,
       analysis_basis_type: parameterForRun.basis?.kind ?? "unknown",
       results_layout: resultsLayout,
@@ -427,7 +427,7 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   };
 
   const showRunAgainUpload = () => {
-    captureEvent("clauseiq_run_again_selected", { results_layout: resultsLayout });
+    captureEvent("clauseiq_run_again_selected", "v4", { results_layout: resultsLayout });
     setFile(null);
     setRerunProcessing(false);
     setPendingRerunAnalysis(null);
@@ -445,12 +445,12 @@ export default function ClauseIQV4({ forceResults = false, resultsLayout = "acco
   };
 
   const handleDownload = () => {
-    captureEvent("clauseiq_report_downloaded", { results_layout: resultsLayout });
+    captureEvent("clauseiq_report_downloaded", "v4", { results_layout: resultsLayout });
     toast.success("Report download queued.");
   };
 
   const handleViewResult = () => {
-    captureEvent("clauseiq_result_viewed", { results_layout: resultsLayout });
+    captureEvent("clauseiq_result_viewed", "v4", { results_layout: resultsLayout });
     navigate(LATEST_V4_RESULTS_ROUTE);
   };
 

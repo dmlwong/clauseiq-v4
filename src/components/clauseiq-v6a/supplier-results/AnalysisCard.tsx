@@ -9,6 +9,7 @@ import type { ClauseAnalysis, Supplier } from "@/data/mock-clauseiq-v6";
 import { cn } from "@/lib/utils";
 import { formatClauseIqTimestamp } from "@/lib/clauseiq-v6a-format";
 import { supplierSeverity } from "@/lib/clauseiq-utils";
+import { captureEvent } from "@/lib/posthog";
 import { DeviationPills } from "./DeviationPills";
 import {
   OutputFindingsSummary,
@@ -64,6 +65,15 @@ export function AnalysisCard({
   supplierIdentityContent,
 }: Props) {
   const [saveToDocuments, setSaveToDocuments] = useState(false);
+
+  const handleSaveToDocumentsChange = (enabled: boolean) => {
+    captureEvent("clauseiq_content_search_save_toggled", "v6a", {
+      analysis_id: analysis.id,
+      analysis_status: analysis.status,
+      enabled,
+    });
+    setSaveToDocuments(enabled);
+  };
   const deviationSummaryId = useId();
   const status = statusCopy[analysis.status];
   // Directly rendered cards (for example, a completed rerun) do not receive
@@ -111,7 +121,7 @@ export function AnalysisCard({
               <h3 className="v6-orbit-heading-4">Here is your Analysis Result</h3>
               <label className="flex items-center gap-orbit-s text-orbit-sm v6-orbit-weight-medium text-orbit-fg">
                 <span>Save To Content Search</span>
-                <Switch checked={saveToDocuments} onCheckedChange={setSaveToDocuments} aria-label="Save To Content Search" />
+                <Switch checked={saveToDocuments} onCheckedChange={handleSaveToDocumentsChange} aria-label="Save To Content Search" />
               </label>
             </div>
           </div>

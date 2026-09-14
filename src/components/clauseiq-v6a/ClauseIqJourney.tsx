@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/clauseiq-v6a/orbit-ui/select";
 import { StateCard, type CardState } from "@/components/clauseiq-v6a/StateCard";
+import { captureEvent } from "@/lib/posthog";
 import {
   AnalysisParameterCards,
   ClauseIqDropzone,
@@ -988,11 +989,12 @@ function StackedJourneyContent({
     <>
       <ClauseIqOverviewCard
         step={workflow.step}
-        onStart={() =>
+        onStart={() => {
+          captureEvent("clauseiq_started", "v6a", { entry_point: "welcome_card" });
           workflow.actions.setStep(
             initiativeMode === "prebound" ? "parameters" : "select",
-          )
-        }
+          );
+        }}
         currentInitiativeCopy={currentInitiativeCopy}
       />
 
